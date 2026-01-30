@@ -13,11 +13,12 @@ import MenuManager from './components/MenuManager';
 import AIInsights from './components/AIInsights';
 import SettingsHub from './components/SettingsHub';
 import FloorDesigner from './components/FloorDesigner';
+import AdminDashboard from './components/AdminDashboard';
 import {
   ViewState, Order, OrderStatus, OrderItem, PaymentMethod,
   OrderType, Customer, Supplier, PurchaseOrder, InventoryItem,
   FinancialAccount, AccountType, JournalEntry, RestaurantMenu, MenuItem,
-  Table, TableStatus, MenuCategory, Branch, DeliveryPlatform
+  Table, TableStatus, MenuCategory, Branch, DeliveryPlatform, Warehouse, WarehouseType, User, UserRole
 } from './types';
 
 const INITIAL_TABLES: Table[] = [
@@ -57,8 +58,14 @@ const INITIAL_ACCOUNTS: FinancialAccount[] = [
 ];
 
 const INITIAL_BRANCHES: Branch[] = [
-  { id: 'b1', name: 'Zayed Branch', location: 'Sheikh Zayed', isActive: true },
-  { id: 'b2', name: 'Maadi Branch', location: 'Maadi', isActive: true },
+  { id: 'b1', name: 'Zayed Branch', location: 'Sheikh Zayed', isActive: true, phone: '01012345678' },
+  { id: 'b2', name: 'Maadi Branch', location: 'Maadi', isActive: true, phone: '01112345678' },
+];
+
+const INITIAL_WAREHOUSES: Warehouse[] = [
+  { id: 'w1', name: 'Main Hub - Zayed', branchId: 'b1', type: WarehouseType.MAIN, isActive: true },
+  { id: 'w2', name: 'Kitchen - Zayed', branchId: 'b1', type: WarehouseType.KITCHEN, isActive: true },
+  { id: 'w3', name: 'Main Hub - Maadi', branchId: 'b2', type: WarehouseType.MAIN, isActive: true },
 ];
 
 const INITIAL_PLATFORMS: DeliveryPlatform[] = [
@@ -66,6 +73,13 @@ const INITIAL_PLATFORMS: DeliveryPlatform[] = [
   { id: 'p2', name: 'Elmenus', isActive: true },
   { id: 'p3', name: 'Mrsool', isActive: true },
   { id: 'p4', name: 'RestoFlow Direct', isActive: true },
+];
+
+const INITIAL_USERS: User[] = [
+  { id: 'u1', name: 'Super Admin', email: 'admin@restoflow.com', role: UserRole.SUPER_ADMIN, isActive: true },
+  { id: 'u2', name: 'Sameh Ahmed', email: 'sameh@zayed.com', role: UserRole.BRANCH_MANAGER, assignedBranchId: 'b1', isActive: true },
+  { id: 'u3', name: 'Branch Mgr October', email: 'mgr@october.com', role: UserRole.BRANCH_MANAGER, assignedBranchId: 'b2', isActive: true },
+  { id: 'u4', name: 'Call Center Agent', email: 'cc@restoflow.com', role: UserRole.CALL_CENTER, isActive: true },
 ];
 
 const INITIAL_MENUS: RestaurantMenu[] = [
@@ -235,10 +249,21 @@ const App: React.FC = () => {
   const [categories, setCategories] = useState<MenuCategory[]>(INITIAL_CATEGORIES);
   const [branches, setBranches] = useState<Branch[]>(INITIAL_BRANCHES);
   const [platforms, setPlatforms] = useState<DeliveryPlatform[]>(INITIAL_PLATFORMS);
+  const [warehouses, setWarehouses] = useState<Warehouse[]>(INITIAL_WAREHOUSES);
+  const [users, setUsers] = useState<User[]>(INITIAL_USERS);
   const [inventory, setInventory] = useState<InventoryItem[]>([
-    { id: 'inv1', name: 'Beef Patty', quantity: 50, unit: 'pcs', threshold: 10, lastUpdated: new Date(), costPrice: 2.50 },
-    { id: 'inv2', name: 'Buns', quantity: 100, unit: 'pcs', threshold: 20, lastUpdated: new Date(), costPrice: 0.50 },
-    { id: 'inv3', name: 'Cheddar Cheese', quantity: 5, unit: 'kg', threshold: 1, lastUpdated: new Date(), costPrice: 12.00 },
+    {
+      id: 'inv1', name: 'Beef Patty', unit: 'pcs', category: 'Meat', threshold: 10, costPrice: 2.50,
+      warehouseQuantities: [{ warehouseId: 'w1', quantity: 30 }, { warehouseId: 'w2', quantity: 20 }]
+    },
+    {
+      id: 'inv2', name: 'Buns', unit: 'pcs', category: 'Bakery', threshold: 20, costPrice: 0.50,
+      warehouseQuantities: [{ warehouseId: 'w1', quantity: 100 }]
+    },
+    {
+      id: 'inv3', name: 'Cheddar Cheese', unit: 'kg', category: 'Dairy', threshold: 1, costPrice: 12.00,
+      warehouseQuantities: [{ warehouseId: 'w2', quantity: 5 }]
+    },
   ]);
 
   const [orders, setOrders] = useState<Order[]>([]);
@@ -248,15 +273,17 @@ const App: React.FC = () => {
   const [tables, setTables] = useState<Table[]>(INITIAL_TABLES);
   const [settings, setSettings] = useState<AppSettings>({
     restaurantName: 'RestoFlow ERP',
-    currency: 'USD',
-    currencySymbol: '$',
+    currency: 'EGP',
+    currencySymbol: 'ج.م',
     taxRate: 14,
     serviceCharge: 12,
-    language: 'en',
-    isDarkMode: false,
-    theme: 'classic',
-    branchAddress: 'Heliopolis, Cairo, Egypt',
-    phone: '+20 123 456 789'
+    language: 'ar',
+    isDarkMode: true,
+    theme: 'nebula',
+    branchAddress: 'Sheikh Zayed, Cairo',
+    phone: '19000',
+    currentUser: INITIAL_USERS[0],
+    activeBranchId: 'b1'
   });
 
   useEffect(() => {
@@ -268,7 +295,26 @@ const App: React.FC = () => {
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [showFloorDesigner, setShowFloorDesigner] = useState(false);
 
-  const t = translations[lang];
+  const t = translations[settings.language];
+
+  // Logic to handle User Permissions & Multi-Branch Visibility
+  const isAdmin = settings.currentUser?.role === UserRole.SUPER_ADMIN;
+  const userBranchId = settings.currentUser?.assignedBranchId;
+  const effectiveBranchId = isAdmin ? settings.activeBranchId : userBranchId;
+
+  const currentBranch = branches.find(b => b.id === effectiveBranchId) || branches[0];
+
+  const commonProps = {
+    settings,
+    lang: settings.language,
+    t,
+    isDarkMode: settings.isDarkMode,
+    onChangeView: setCurrentView,
+    currentView,
+    isAdmin,
+    users,
+    onUpdateUsers: setUsers
+  };
 
   const recordTransaction = useCallback((tx: Omit<JournalEntry, 'id'>) => {
     const newTx = { ...tx, id: Math.random().toString(36).substr(2, 9).toUpperCase() };
@@ -390,13 +436,13 @@ const App: React.FC = () => {
 
   const renderView = () => {
     const allItems = categories.flatMap(c => c.items);
-    const commonProps = { lang, t, isDarkMode: settings.isDarkMode };
+    // const commonProps = { lang, t, isDarkMode: settings.isDarkMode };
 
     return (
       <div className="view-transition w-full h-full overflow-y-auto no-scrollbar pb-20">
         {(() => {
           switch (currentView) {
-            case 'DASHBOARD': return <Dashboard {...commonProps} onChangeView={setCurrentView} />;
+            case 'DASHBOARD': return isAdmin ? <AdminDashboard {...commonProps} branches={branches} /> : <Dashboard {...commonProps} onChangeView={setCurrentView} />;
             case 'POS': return (
               <POS
                 {...commonProps}
@@ -412,7 +458,17 @@ const App: React.FC = () => {
             );
             case 'KDS': return <KDS {...commonProps} orders={orders} onReady={(id) => { }} />;
             case 'FINANCE': return <Finance {...commonProps} accounts={accounts} transactions={transactions} />;
-            case 'INVENTORY': return <Inventory {...commonProps} inventory={inventory} suppliers={suppliers} purchaseOrders={purchaseOrders} onAddPO={() => { }} />;
+            case 'INVENTORY': return (
+              <Inventory
+                {...commonProps}
+                inventory={inventory}
+                suppliers={suppliers}
+                purchaseOrders={purchaseOrders}
+                onAddPO={(po) => setPurchaseOrders([po, ...purchaseOrders])}
+                warehouses={warehouses}
+                branches={branches}
+              />
+            );
             case 'REPORTS': return <Reports {...commonProps} menuItems={allItems} inventory={inventory} />;
             case 'MENU_MANAGER': return (
               <MenuManager
@@ -448,10 +504,25 @@ const App: React.FC = () => {
                 settings={settings}
                 branches={branches}
                 platforms={platforms}
+                warehouses={warehouses}
                 onUpdateSettings={setSettings}
                 onChangeView={setCurrentView}
                 onOpenFloorDesigner={() => setShowFloorDesigner(true)}
               />
+            );
+            case 'CALL_CENTER': return (
+              <div className="p-8">
+                <h2 className="text-3xl font-black text-slate-800 dark:text-white uppercase">Call Center Portal</h2>
+                <p className="text-slate-500 mt-2 font-bold">Manage delivery orders across all branches from a single dashboard.</p>
+                <div className="mt-8 grid grid-cols-1 md:grid-cols-3 gap-6">
+                  <div className="card-primary !p-8 flex flex-col items-center gap-4">
+                    <div className="w-16 h-16 rounded-3xl bg-indigo-100 dark:bg-indigo-900/30 flex items-center justify-center text-indigo-600">
+                      <Plus size={32} />
+                    </div>
+                    <button className="btn-theme bg-indigo-600 text-white px-6 py-2 uppercase font-black text-xs">New Delivery Order</button>
+                  </div>
+                </div>
+              </div>
             );
             default: return <Dashboard {...commonProps} />;
           }
@@ -469,8 +540,13 @@ const App: React.FC = () => {
         onToggleDarkMode={() => setSettings({ ...settings, isDarkMode: !settings.isDarkMode })}
         isCollapsed={isSidebarCollapsed}
         onToggleCollapse={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
-        lang={lang}
-        onToggleLang={() => setLang(lang === 'en' ? 'ar' : 'en')}
+        lang={settings.language}
+        onToggleLang={() => setSettings({ ...settings, language: settings.language === 'en' ? 'ar' : 'en' })}
+        user={settings.currentUser}
+        isAdmin={isAdmin}
+        branches={branches}
+        activeBranchId={settings.activeBranchId}
+        onSelectBranch={(id) => setSettings({ ...settings, activeBranchId: id })}
       />
 
       <main className={`flex-1 flex flex-col min-h-screen transition-all duration-300 ${lang === 'ar'

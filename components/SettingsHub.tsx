@@ -13,15 +13,18 @@ import {
     Palette,
     Truck,
     Store,
-    Plus
+    Plus,
+    Package,
+    ExternalLink
 } from 'lucide-react';
-import { AppSettings, Branch, DeliveryPlatform } from '../types';
+import { AppSettings, Branch, DeliveryPlatform, Warehouse, WarehouseType } from '../types';
 
 interface SettingsHubProps {
     settings: AppSettings;
     onUpdateSettings: (settings: AppSettings) => void;
     branches: Branch[];
     platforms: DeliveryPlatform[];
+    warehouses: Warehouse[];
     lang: 'en' | 'ar';
     t: any;
     onChangeView: (view: any) => void;
@@ -29,7 +32,7 @@ interface SettingsHubProps {
 }
 
 const SettingsHub: React.FC<SettingsHubProps> = ({
-    settings, onUpdateSettings, branches, platforms,
+    settings, onUpdateSettings, branches, platforms, warehouses,
     lang, t, onChangeView, onOpenFloorDesigner
 }) => {
     const handleChange = (key: keyof AppSettings, value: any) => {
@@ -102,6 +105,33 @@ const SettingsHub: React.FC<SettingsHubProps> = ({
                     <button className="flex flex-col items-center justify-center gap-2 p-4 border-2 border-dashed border-slate-200 dark:border-slate-700 rounded-2xl text-slate-400 hover:text-orange-600 hover:border-orange-400 transition-all">
                         <Plus size={24} />
                         <span className="text-[10px] font-black uppercase tracking-widest">{lang === 'ar' ? 'إيجاد تطبيق' : 'Add App'}</span>
+                    </button>
+                </div>
+            )
+        },
+        {
+            id: 'WAREHOUSES',
+            title: lang === 'ar' ? 'إدارة المخازن' : 'Warehouse Setup',
+            icon: Package,
+            color: 'bg-blue-600',
+            customRender: () => (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {warehouses.map(w => {
+                        const branch = branches.find(b => b.id === w.branchId);
+                        return (
+                            <div key={w.id} className="p-4 bg-slate-50 dark:bg-slate-800 rounded-2xl flex items-center justify-between border border-transparent hover:border-blue-400 transition-all cursor-pointer">
+                                <div>
+                                    <p className="font-bold text-slate-800 dark:text-white leading-tight uppercase tracking-tight">{w.name}</p>
+                                    <p className="text-[9px] text-slate-500 font-black uppercase tracking-widest">{branch?.name} • {w.type}</p>
+                                </div>
+                                <div className="w-8 h-8 rounded-lg bg-blue-100 dark:bg-blue-900/30 text-blue-600 flex items-center justify-center">
+                                    <ExternalLink size={14} />
+                                </div>
+                            </div>
+                        );
+                    })}
+                    <button className="p-4 border-2 border-dashed border-slate-200 dark:border-slate-700 rounded-2xl flex items-center justify-center gap-2 text-slate-400 font-black text-xs uppercase hover:text-blue-600 hover:border-blue-400 transition-all">
+                        <Plus size={16} /> {lang === 'ar' ? 'إضافة مخزن' : 'Add Warehouse'}
                     </button>
                 </div>
             )

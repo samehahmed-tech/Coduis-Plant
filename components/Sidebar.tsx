@@ -17,9 +17,11 @@ import {
   Settings,
   Menu,
   X,
-  ChevronLeft
+  ChevronLeft,
+  Headset,
+  Briefcase
 } from 'lucide-react';
-import { ViewState } from '../types';
+import { ViewState, User, UserRole } from '../types';
 
 interface SidebarProps {
   currentView: ViewState;
@@ -30,12 +32,18 @@ interface SidebarProps {
   onToggleLang: () => void;
   isCollapsed: boolean;
   onToggleCollapse: () => void;
+  user?: User;
+  isAdmin: boolean;
+  branches: any[];
+  activeBranchId?: string;
+  onSelectBranch: (id: string) => void;
 }
 
 const Sidebar: React.FC<SidebarProps> = ({
   currentView, onChangeView, isDarkMode,
   onToggleDarkMode, lang, onToggleLang,
-  isCollapsed, onToggleCollapse
+  isCollapsed, onToggleCollapse,
+  user, isAdmin, branches, activeBranchId, onSelectBranch
 }) => {
   const [isMobileOpen, setIsMobileOpen] = useState(false);
 
@@ -51,41 +59,48 @@ const Sidebar: React.FC<SidebarProps> = ({
     ai_insights: lang === 'ar' ? 'التحليلات' : 'AI Insights',
     ai: lang === 'ar' ? 'المدير الذكي' : 'AI Assistant',
     settings: lang === 'ar' ? 'الإعدادات' : 'Settings',
+    call_center: lang === 'ar' ? 'مركز الاتصال' : 'Call Center',
   };
 
   const navigationSections = [
     {
       title: lang === 'ar' ? 'العمليات الميدانية' : 'Operations',
       items: [
-        { id: 'DASHBOARD' as ViewState, label: t.dashboard, icon: LayoutDashboard },
-        { id: 'POS' as ViewState, label: t.pos, icon: UtensilsCrossed },
-        { id: 'KDS' as ViewState, label: t.kds, icon: ChefHat },
+        { id: 'DASHBOARD' as ViewState, label: t.dashboard, icon: LayoutDashboard, roles: [UserRole.SUPER_ADMIN, UserRole.BRANCH_MANAGER] },
+        { id: 'POS' as ViewState, label: t.pos, icon: UtensilsCrossed, roles: [UserRole.SUPER_ADMIN, UserRole.BRANCH_MANAGER, UserRole.CASHIER] },
+        { id: 'CALL_CENTER' as ViewState, label: t.call_center, icon: Headset, roles: [UserRole.SUPER_ADMIN, UserRole.CALL_CENTER] },
+        { id: 'KDS' as ViewState, label: t.kds, icon: ChefHat, roles: [UserRole.SUPER_ADMIN, UserRole.BRANCH_MANAGER, UserRole.KITCHEN_STAFF] },
       ]
     },
     {
       title: lang === 'ar' ? 'إدارة الموارد' : 'Resources',
       items: [
-        { id: 'MENU_MANAGER' as ViewState, label: t.menu, icon: BookOpen },
-        { id: 'INVENTORY' as ViewState, label: t.inventory, icon: Package },
-        { id: 'CRM' as ViewState, label: t.crm, icon: Users },
+        { id: 'MENU_MANAGER' as ViewState, label: t.menu, icon: BookOpen, roles: [UserRole.SUPER_ADMIN, UserRole.BRANCH_MANAGER] },
+        { id: 'INVENTORY' as ViewState, label: t.inventory, icon: Package, roles: [UserRole.SUPER_ADMIN, UserRole.BRANCH_MANAGER] },
+        { id: 'CRM' as ViewState, label: t.crm, icon: Users, roles: [UserRole.SUPER_ADMIN, UserRole.CALL_CENTER] },
       ]
     },
     {
       title: lang === 'ar' ? 'التحليلات والمالية' : 'Finance & Insights',
       items: [
-        { id: 'FINANCE' as ViewState, label: t.finance, icon: Landmark },
-        { id: 'REPORTS' as ViewState, label: t.reports, icon: BarChart3 },
-        { id: 'AI_INSIGHTS' as ViewState, label: t.ai_insights, icon: Sparkles },
+        { id: 'FINANCE' as ViewState, label: t.finance, icon: Landmark, roles: [UserRole.SUPER_ADMIN] },
+        { id: 'REPORTS' as ViewState, label: t.reports, icon: BarChart3, roles: [UserRole.SUPER_ADMIN, UserRole.BRANCH_MANAGER] },
+        { id: 'AI_INSIGHTS' as ViewState, label: t.ai_insights, icon: Sparkles, roles: [UserRole.SUPER_ADMIN] },
       ]
     },
     {
       title: lang === 'ar' ? 'أدوات ذكية' : 'Smart Tools',
       items: [
-        { id: 'AI_ASSISTANT' as ViewState, label: t.ai, icon: Bot },
-        { id: 'SETTINGS' as ViewState, label: t.settings, icon: Settings },
+        { id: 'AI_ASSISTANT' as ViewState, label: t.ai, icon: Bot, roles: [UserRole.SUPER_ADMIN, UserRole.BRANCH_MANAGER] },
+        { id: 'SETTINGS' as ViewState, label: t.settings, icon: Settings, roles: [UserRole.SUPER_ADMIN] },
       ]
     }
   ];
+
+  const filteredSections = navigationSections.map(section => ({
+    ...section,
+    items: section.items.filter(item => !user || item.roles.includes(user.role))
+  })).filter(section => section.items.length > 0);
 
   const handleNavClick = (view: ViewState) => {
     onChangeView(view);
@@ -149,9 +164,34 @@ const Sidebar: React.FC<SidebarProps> = ({
           </button>
         </div>
 
+        {/* Admin Branch Multi-Select (Only for Super Admin) */}
+        {isAdmin && !isCollapsed && (
+          <div className="mx-4 mb-4">
+            <div className="relative group">
+              <div className="absolute inset-0 bg-indigo-600/5 dark:bg-indigo-400/5 rounded-2xl -m-2 opacity-0 group-hover:opacity-100 transition-opacity" />
+              <div className="relative flex items-center gap-3 p-2 bg-slate-100 dark:bg-slate-800/50 rounded-xl border border-slate-200 dark:border-slate-800">
+                <div className="w-8 h-8 rounded-lg bg-indigo-100 dark:bg-indigo-900/30 flex items-center justify-center text-indigo-600">
+                  <Briefcase size={16} />
+                </div>
+                <select
+                  value={activeBranchId}
+                  onChange={(e) => onSelectBranch(e.target.value)}
+                  className="bg-transparent border-none outline-none text-xs font-black text-slate-700 dark:text-slate-200 uppercase tracking-tight flex-1"
+                >
+                  {branches.map(b => (
+                    <option key={b.id} value={b.id} className="bg-white dark:bg-slate-900 text-slate-800 dark:text-white">
+                      {b.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Navigation */}
         <nav className="flex-1 overflow-y-auto py-3 no-scrollbar">
-          {navigationSections.map((section, sIdx) => (
+          {filteredSections.map((section, sIdx) => (
             <div key={sIdx} className="mb-4">
               {!isCollapsed && (
                 <h3 className={`px-6 mb-2 text-[10px] font-black uppercase tracking-[0.2em] text-slate-500`}>

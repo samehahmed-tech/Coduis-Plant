@@ -3,19 +3,24 @@ import {
   AlertTriangle, Plus, Search, Bell, X, Truck, FileText, Package,
   User, Phone, Mail, Tag, ExternalLink, Briefcase
 } from 'lucide-react';
-import { InventoryItem, Supplier, PurchaseOrder } from '../types';
+import { InventoryItem, Supplier, PurchaseOrder, Warehouse, Branch, WarehouseType } from '../types';
 
 interface InventoryProps {
   inventory: InventoryItem[];
   suppliers: Supplier[];
   purchaseOrders: PurchaseOrder[];
   onAddPO: (po: PurchaseOrder) => void;
+  lang: 'en' | 'ar';
+  warehouses: Warehouse[];
+  branches: Branch[];
 }
 
-const Inventory: React.FC<InventoryProps> = ({ inventory, suppliers, purchaseOrders, onAddPO }) => {
-  const [activeTab, setActiveTab] = useState<'STOCK' | 'SUPPLIERS' | 'PO'>('STOCK');
+const Inventory: React.FC<InventoryProps> = ({ inventory, suppliers, purchaseOrders, onAddPO, lang, warehouses, branches }) => {
+  const [activeTab, setActiveTab] = useState<'STOCK' | 'SUPPLIERS' | 'PO' | 'WAREHOUSES' | 'BRANCHES'>('STOCK');
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedSupplier, setSelectedSupplier] = useState<Supplier | null>(null);
+  const [selectedBranch, setSelectedBranch] = useState<Branch | null>(null);
+  const [selectedWarehouse, setSelectedWarehouse] = useState<Warehouse | null>(null);
 
   // --- TAB CONTENT RENDERERS ---
 
@@ -24,30 +29,94 @@ const Inventory: React.FC<InventoryProps> = ({ inventory, suppliers, purchaseOrd
       <table className="w-full text-left">
         <thead>
           <tr className="bg-slate-50 dark:bg-slate-950/50 text-slate-500 dark:text-slate-400 text-xs uppercase tracking-wider font-semibold">
-            <th className="px-6 py-4">Item Name</th>
-            <th className="px-6 py-4">Status</th>
-            <th className="px-6 py-4">Quantity</th>
-            <th className="px-6 py-4">Cost Price</th>
-            <th className="px-6 py-4">Last Updated</th>
+            <th className="px-6 py-4">{lang === 'ar' ? 'الصنف' : 'Item Name'}</th>
+            <th className="px-6 py-4">{lang === 'ar' ? 'التوزيع' : 'Warehouses'}</th>
+            <th className="px-6 py-4">{lang === 'ar' ? 'الكمية الإجمالية' : 'Total Qty'}</th>
+            <th className="px-6 py-4">{lang === 'ar' ? 'متوسطالتكلفة' : 'Cost Price'}</th>
           </tr>
         </thead>
         <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
           {inventory.filter(i => i.name.toLowerCase().includes(searchQuery.toLowerCase())).map((item) => {
-            const isLow = item.quantity <= item.threshold;
+            const totalQty = item.warehouseQuantities.reduce((acc, curr) => acc + curr.quantity, 0);
+            const isLow = totalQty <= item.threshold;
             return (
               <tr key={item.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/50">
-                <td className="px-6 py-4 font-medium text-slate-800 dark:text-slate-200">{item.name}</td>
                 <td className="px-6 py-4">
-                  {isLow ? <span className="text-red-600 bg-red-100 px-2 py-1 rounded-full text-xs font-bold">Low Stock</span> : <span className="text-green-600 bg-green-100 px-2 py-1 rounded-full text-xs font-bold">In Stock</span>}
+                  <div className="font-bold text-slate-800 dark:text-slate-200">{item.name}</div>
+                  <div className="text-[10px] uppercase font-black text-slate-400">{item.category}</div>
                 </td>
-                <td className="px-6 py-4">{item.quantity} {item.unit}</td>
-                <td className="px-6 py-4">${item.costPrice.toFixed(2)}</td>
-                <td className="px-6 py-4 text-sm text-slate-500">{item.lastUpdated.toLocaleDateString()}</td>
+                <td className="px-6 py-4">
+                  <div className="flex flex-wrap gap-1">
+                    {item.warehouseQuantities.map(wq => {
+                      const wh = warehouses.find(w => w.id === wq.warehouseId);
+                      return (
+                        <span key={wq.warehouseId} className="px-2 py-0.5 bg-slate-100 dark:bg-slate-800 rounded-md text-[9px] font-black border border-slate-200 dark:border-slate-700">
+                          {wh?.name}: {wq.quantity}
+                        </span>
+                      );
+                    })}
+                  </div>
+                </td>
+                <td className="px-6 py-4 font-black">
+                  <span className={isLow ? 'text-rose-500' : 'text-slate-700 dark:text-slate-300'}>
+                    {totalQty} {item.unit}
+                  </span>
+                </td>
+                <td className="px-6 py-4 font-mono text-sm">${item.costPrice.toFixed(2)}</td>
               </tr>
             );
           })}
         </tbody>
       </table>
+    </div>
+  );
+
+  const renderWarehouses = () => (
+    <div className="p-6 grid grid-cols-1 md:grid-cols-2 gap-4">
+      {warehouses.map(wh => {
+        const branch = branches.find(b => b.id === wh.branchId);
+        return (
+          <div key={wh.id} className="card-primary !p-5 flex justify-between items-center group cursor-pointer" onClick={() => setSelectedWarehouse(wh)}>
+            <div className="flex items-center gap-4">
+              <div className="w-12 h-12 rounded-2xl bg-indigo-100 dark:bg-indigo-900/30 flex items-center justify-center text-indigo-600">
+                <Package size={24} />
+              </div>
+              <div>
+                <h4 className="font-black text-slate-800 dark:text-white uppercase tracking-tight">{wh.name}</h4>
+                <p className="text-xs text-slate-500 font-bold">{branch?.name} • {wh.type}</p>
+              </div>
+            </div>
+            <div className="text-right">
+              <div className={`w-2 h-2 rounded-full ml-auto mb-1 ${wh.isActive ? 'bg-emerald-500' : 'bg-slate-300'}`} />
+              <span className="text-[10px] font-black uppercase text-slate-400">{wh.isActive ? 'Active' : 'Offline'}</span>
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+
+  const renderBranches = () => (
+    <div className="p-6 grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
+      {branches.map(branch => (
+        <div key={branch.id} className="card-primary !p-6 flex flex-col justify-between group cursor-pointer" onClick={() => setSelectedBranch(branch)}>
+          <div className="flex justify-between items-start mb-4">
+            <div className="w-14 h-14 rounded-3xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-slate-600">
+              <Briefcase size={28} />
+            </div>
+            <span className={`px-2 py-1 rounded-lg text-[10px] font-black uppercase tracking-widest ${branch.isActive ? 'bg-emerald-100 text-emerald-600' : 'bg-slate-100 text-slate-500'}`}>
+              {branch.isActive ? 'Open' : 'Closed'}
+            </span>
+          </div>
+          <div>
+            <h3 className="text-xl font-black text-slate-800 dark:text-white mb-1">{branch.name}</h3>
+            <p className="text-sm text-slate-500 font-bold mb-4">{branch.location}</p>
+            <div className="flex items-center gap-2 text-xs font-black text-indigo-600 uppercase">
+              <Tag size={14} /> Menu: {lang === 'ar' ? 'المنيو الرئيسي' : 'Main Menu'}
+            </div>
+          </div>
+        </div>
+      ))}
     </div>
   );
 
@@ -164,6 +233,18 @@ const Inventory: React.FC<InventoryProps> = ({ inventory, suppliers, purchaseOrd
           >
             <FileText size={16} /> {lang === 'ar' ? 'طلبات الشراء' : 'Purchase Orders'}
           </button>
+          <button
+            onClick={() => setActiveTab('WAREHOUSES')}
+            className={`pb-3 px-1 md:px-2 text-xs md:text-sm font-bold flex items-center gap-2 transition-colors border-b-2 whitespace-nowrap ${activeTab === 'WAREHOUSES' ? 'border-indigo-600 text-indigo-600' : 'border-transparent text-slate-500 hover:text-slate-700'}`}
+          >
+            <Package size={16} /> {lang === 'ar' ? 'المخازن' : 'Warehouses'}
+          </button>
+          <button
+            onClick={() => setActiveTab('BRANCHES')}
+            className={`pb-3 px-1 md:px-2 text-xs md:text-sm font-bold flex items-center gap-2 transition-colors border-b-2 whitespace-nowrap ${activeTab === 'BRANCHES' ? 'border-indigo-600 text-indigo-600' : 'border-transparent text-slate-500 hover:text-slate-700'}`}
+          >
+            <Briefcase size={16} /> {lang === 'ar' ? 'الفروع' : 'Branches'}
+          </button>
         </div>
         <div className="relative w-full lg:w-72">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 w-3.5 h-3.5" />
@@ -181,6 +262,8 @@ const Inventory: React.FC<InventoryProps> = ({ inventory, suppliers, purchaseOrd
         {activeTab === 'STOCK' && renderStock()}
         {activeTab === 'SUPPLIERS' && renderSuppliers()}
         {activeTab === 'PO' && renderPOs()}
+        {activeTab === 'WAREHOUSES' && renderWarehouses()}
+        {activeTab === 'BRANCHES' && renderBranches()}
       </div>
 
       {/* Supplier Details Modal - Fully Responsive */}
@@ -264,13 +347,97 @@ const Inventory: React.FC<InventoryProps> = ({ inventory, suppliers, purchaseOrd
               </div>
 
               <div className="flex flex-col sm:flex-row gap-3 md:gap-4 shrink-0 mt-4">
-                <button className="flex-1 py-3 md:py-4 bg-indigo-600 text-white rounded-xl font-black text-xs md:text-sm uppercase tracking-wider hover:bg-indigo-700 shadow-lg shadow-indigo-600/20 transition-all flex items-center justify-center gap-2">
+                <button className="flex-1 py-3 md:py-4 bg-indigo-600 text-white btn-theme font-black text-xs md:text-sm uppercase tracking-wider hover:bg-indigo-700 shadow-lg shadow-indigo-600/20 transition-all flex items-center justify-center gap-2">
                   <FileText size={18} /> Create PO
                 </button>
-                <button onClick={() => setSelectedSupplier(null)} className="flex-1 py-3 md:py-4 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 rounded-xl font-black text-xs md:text-sm uppercase tracking-wider hover:bg-slate-200 dark:hover:bg-slate-700 transition-all">
+                <button onClick={() => setSelectedSupplier(null)} className="flex-1 py-3 md:py-4 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 btn-theme font-black text-xs md:text-sm uppercase tracking-wider hover:bg-slate-200 dark:hover:bg-slate-700 transition-all">
                   Close Details
                 </button>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Branch Details Modal */}
+      {selectedBranch && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center z-[100] p-4 animate-in fade-in duration-300">
+          <div className="bg-white dark:bg-slate-900 w-full max-w-xl card-primary !p-0 shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200">
+            <div className="p-6 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center bg-slate-50 dark:bg-slate-950/30">
+              <div className="flex items-center gap-3">
+                <div className="w-12 h-12 rounded-2xl bg-indigo-600 text-white flex items-center justify-center">
+                  <Briefcase size={22} />
+                </div>
+                <div>
+                  <h3 className="text-xl font-black text-slate-800 dark:text-white uppercase">{selectedBranch.name}</h3>
+                  <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest">{selectedBranch.location}</p>
+                </div>
+              </div>
+              <button onClick={() => setSelectedBranch(null)} className="p-2 text-slate-400 hover:text-slate-600 dark:hover:text-white"><X size={24} /></button>
+            </div>
+            <div className="p-8 space-y-6">
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-1">
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Main Menu</label>
+                  <p className="font-bold text-slate-700 dark:text-slate-200">Main Menu (Full Day)</p>
+                </div>
+                <div className="space-y-1">
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Contact Phone</label>
+                  <p className="font-bold text-slate-700 dark:text-slate-200">{selectedBranch.phone}</p>
+                </div>
+              </div>
+              <div className="space-y-4">
+                <h4 className="text-xs font-black text-slate-400 uppercase tracking-widest">Linked Warehouses</h4>
+                <div className="space-y-2">
+                  {warehouses.filter(w => w.branchId === selectedBranch.id).map(w => (
+                    <div key={w.id} className="flex justify-between items-center p-3 bg-slate-50 dark:bg-slate-800/50 rounded-xl border border-slate-100 dark:border-slate-800">
+                      <span className="text-sm font-bold text-slate-700 dark:text-slate-300">{w.name}</span>
+                      <span className="text-[10px] font-black px-2 py-0.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-md uppercase">{w.type}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+              <button className="w-full py-4 bg-indigo-600 text-white btn-theme font-black text-xs uppercase tracking-widest hover:bg-indigo-700 shadow-xl shadow-indigo-600/20">
+                Manage Branch Settings
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Warehouse Detail Modal */}
+      {selectedWarehouse && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center z-[100] p-4 animate-in fade-in duration-300">
+          <div className="bg-white dark:bg-slate-900 w-full max-w-xl card-primary !p-0 shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200">
+            <div className="p-6 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center bg-slate-50 dark:bg-slate-950/30">
+              <div className="flex items-center gap-3">
+                <div className="w-12 h-12 rounded-2xl bg-indigo-600 text-white flex items-center justify-center">
+                  <Package size={22} />
+                </div>
+                <div>
+                  <h3 className="text-xl font-black text-slate-800 dark:text-white uppercase">{selectedWarehouse.name}</h3>
+                  <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Warehouse ID: #{selectedWarehouse.id}</p>
+                </div>
+              </div>
+              <button onClick={() => setSelectedWarehouse(null)} className="p-2 text-slate-400 hover:text-slate-600 dark:hover:text-white"><X size={24} /></button>
+            </div>
+            <div className="p-8 space-y-6">
+              <p className="text-sm text-slate-600 dark:text-slate-400 leading-relaxed">
+                This warehouse is currently <b>{selectedWarehouse.isActive ? 'Active' : 'Offline'}</b> and serves as a <b>{selectedWarehouse.type}</b> facility for the linked branch.
+              </p>
+              <div className="grid grid-cols-2 gap-4">
+                <button className="flex flex-col items-center gap-2 p-6 bg-slate-50 dark:bg-slate-800/50 rounded-2xl border border-slate-100 dark:border-slate-800 hover:bg-slate-100 transition-all group">
+                  <AlertTriangle size={24} className="text-amber-500 group-hover:scale-110 transition-transform" />
+                  <span className="text-[10px] font-black uppercase tracking-widest text-slate-500">Stock Adjustment</span>
+                </button>
+                <button className="flex flex-col items-center gap-2 p-6 bg-slate-50 dark:bg-slate-800/50 rounded-2xl border border-slate-100 dark:border-slate-800 hover:bg-slate-100 transition-all group">
+                  <ExternalLink size={24} className="text-indigo-500 group-hover:scale-110 transition-transform" />
+                  <span className="text-[10px] font-black uppercase tracking-widest text-slate-500">Warehouse Transfer</span>
+                </button>
+              </div>
+              <button className="w-full py-4 bg-slate-800 text-white btn-theme font-black text-xs uppercase tracking-widest hover:bg-slate-900">
+                View Full Inventory Balances
+              </button>
             </div>
           </div>
         </div>

@@ -95,15 +95,45 @@ export interface MenuItem {
   modifierGroups?: ModifierGroup[];
 }
 
+export enum WarehouseType {
+  MAIN = 'MAIN',
+  SUB = 'SUB',
+  KITCHEN = 'KITCHEN',
+  POINT_OF_SALE = 'POINT_OF_SALE'
+}
+
+export interface Warehouse {
+  id: string;
+  name: string;
+  branchId: string;
+  type: WarehouseType;
+  isActive: boolean;
+  linkedWarehouses?: string[]; // IDs of warehouses for distribution
+}
+
 export interface InventoryItem {
   id: string;
   name: string;
-  quantity: number;
   unit: string;
+  category: string;
   threshold: number;
-  lastUpdated: Date;
   costPrice: number;
   supplierId?: string;
+  warehouseQuantities: {
+    warehouseId: string;
+    quantity: number;
+  }[];
+}
+
+export interface StockMovement {
+  id: string;
+  itemId: string;
+  fromWarehouseId?: string;
+  toWarehouseId?: string;
+  quantity: number;
+  type: 'TRANSFER' | 'ADJUSTMENT' | 'PURCHASE' | 'SALE_CONSUMPTION';
+  date: Date;
+  actorId: string;
 }
 
 export interface OrderItem extends MenuItem {
@@ -171,7 +201,13 @@ export interface Branch {
   id: string;
   name: string;
   location: string;
+  managerName?: string;
+  phone: string;
+  email?: string;
+  menuId?: string; // Main menu for this branch
   isActive: boolean;
+  openingHours?: string;
+  taxNumber?: string;
 }
 
 export interface DeliveryPlatform {
@@ -222,6 +258,23 @@ export interface Offer {
   isActive: boolean;
 }
 
+export enum UserRole {
+  SUPER_ADMIN = 'SUPER_ADMIN',
+  BRANCH_MANAGER = 'BRANCH_MANAGER',
+  CASHIER = 'CASHIER',
+  KITCHEN_STAFF = 'KITCHEN_STAFF',
+  CALL_CENTER = 'CALL_CENTER'
+}
+
+export interface User {
+  id: string;
+  name: string;
+  email: string;
+  role: UserRole;
+  assignedBranchId?: string; // If null, has access to all (Admin)
+  isActive: boolean;
+}
+
 export type AppTheme = 'classic' | 'nebula' | 'emerald' | 'sunset' | 'quartz' | 'violet' | 'touch';
 
 export interface AppSettings {
@@ -235,6 +288,8 @@ export interface AppSettings {
   theme: AppTheme;
   branchAddress: string;
   phone: string;
+  activeBranchId?: string; // Current operating branch context
+  currentUser?: User;
 }
 
-export type ViewState = 'DASHBOARD' | 'POS' | 'KDS' | 'INVENTORY' | 'FINANCE' | 'CRM' | 'REPORTS' | 'MENU_MANAGER' | 'AI_ASSISTANT' | 'AI_INSIGHTS' | 'SETTINGS';
+export type ViewState = 'DASHBOARD' | 'POS' | 'KDS' | 'INVENTORY' | 'FINANCE' | 'CRM' | 'REPORTS' | 'MENU_MANAGER' | 'AI_ASSISTANT' | 'AI_INSIGHTS' | 'SETTINGS' | 'CALL_CENTER';
