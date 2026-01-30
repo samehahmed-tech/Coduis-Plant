@@ -10,20 +10,28 @@ import {
     Smartphone,
     CreditCard,
     Save,
-    Palette
+    Palette,
+    Truck,
+    Store,
+    Plus
 } from 'lucide-react';
-import { AppSettings } from '../types';
+import { AppSettings, Branch, DeliveryPlatform } from '../types';
 
 interface SettingsHubProps {
     settings: AppSettings;
     onUpdateSettings: (settings: AppSettings) => void;
+    branches: Branch[];
+    platforms: DeliveryPlatform[];
     lang: 'en' | 'ar';
     t: any;
     onChangeView: (view: any) => void;
     onOpenFloorDesigner: () => void;
 }
 
-const SettingsHub: React.FC<SettingsHubProps> = ({ settings, onUpdateSettings, lang, t, onChangeView, onOpenFloorDesigner }) => {
+const SettingsHub: React.FC<SettingsHubProps> = ({
+    settings, onUpdateSettings, branches, platforms,
+    lang, t, onChangeView, onOpenFloorDesigner
+}) => {
     const handleChange = (key: keyof AppSettings, value: any) => {
         onUpdateSettings({ ...settings, [key]: value });
     };
@@ -50,6 +58,88 @@ const SettingsHub: React.FC<SettingsHubProps> = ({ settings, onUpdateSettings, l
                 { key: 'taxRate', label: lang === 'ar' ? 'نسبة الضريبة (%)' : 'Tax Rate (%)', type: 'number' },
                 { key: 'serviceCharge', label: lang === 'ar' ? 'خدمة الصالة (%)' : 'Service Charge (%)', type: 'number' },
             ]
+        },
+        {
+            id: 'BRANCHES',
+            title: lang === 'ar' ? 'إدارة الفروع' : 'Branch Management',
+            icon: Store,
+            color: 'bg-purple-600',
+            customRender: () => (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {branches.map(b => (
+                        <div key={b.id} className="p-4 bg-slate-50 dark:bg-slate-800 rounded-2xl flex items-center justify-between">
+                            <div className="flex items-center gap-3">
+                                <div className="w-10 h-10 bg-purple-100 dark:bg-purple-900/30 text-purple-600 rounded-xl flex items-center justify-center font-black">{b.name.charAt(0)}</div>
+                                <div>
+                                    <p className="font-bold text-slate-800 dark:text-white leading-tight">{b.name}</p>
+                                    <p className="text-[10px] text-slate-500 font-bold uppercase">{b.location}</p>
+                                </div>
+                            </div>
+                            <div className={`px-2 py-1 rounded-lg text-[9px] font-black uppercase ${b.isActive ? 'bg-green-100 text-green-700' : 'bg-slate-200 text-slate-500'}`}>{b.isActive ? 'Active' : 'Close'}</div>
+                        </div>
+                    ))}
+                    <button className="p-4 border-2 border-dashed border-slate-200 dark:border-slate-700 rounded-2xl flex items-center justify-center gap-2 text-slate-400 font-black text-xs uppercase hover:text-purple-600 hover:border-purple-400 transition-all">
+                        <Plus size={16} /> {lang === 'ar' ? 'إضافة فرع' : 'Add Branch'}
+                    </button>
+                </div>
+            )
+        },
+        {
+            id: 'PLATFORMS',
+            title: lang === 'ar' ? 'تطبيقات التوصيل' : 'Delivery Platforms',
+            icon: Truck,
+            color: 'bg-orange-600',
+            customRender: () => (
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    {platforms.map(p => (
+                        <div key={p.id} className="p-4 bg-slate-50 dark:bg-slate-800 rounded-2xl flex flex-col items-center text-center gap-3 group border border-transparent hover:border-orange-400 transition-all">
+                            <div className="w-12 h-12 bg-white dark:bg-slate-700 rounded-2xl flex items-center justify-center text-orange-600 shadow-sm group-hover:scale-110 transition-transform">
+                                <Globe size={24} />
+                            </div>
+                            <p className="font-black text-xs text-slate-800 dark:text-white uppercase tracking-tight">{p.name}</p>
+                        </div>
+                    ))}
+                    <button className="flex flex-col items-center justify-center gap-2 p-4 border-2 border-dashed border-slate-200 dark:border-slate-700 rounded-2xl text-slate-400 hover:text-orange-600 hover:border-orange-400 transition-all">
+                        <Plus size={24} />
+                        <span className="text-[10px] font-black uppercase tracking-widest">{lang === 'ar' ? 'إيجاد تطبيق' : 'Add App'}</span>
+                    </button>
+                </div>
+            )
+        },
+        {
+            id: 'THEME',
+            title: lang === 'ar' ? 'الثيمات والمظهر' : 'Themes & Appearance',
+            icon: Palette,
+            color: 'bg-rose-600',
+            customRender: () => (
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+                    {[
+                        { id: 'classic', name: lang === 'ar' ? 'إنديجو كلاسيك' : 'Classic Indigo', colors: ['#6366f1', '#f8fafc'] },
+                        { id: 'nebula', name: lang === 'ar' ? 'سديم الليل' : 'Midnight Nebula', colors: ['#3b82f6', '#030712'] },
+                        { id: 'emerald', name: lang === 'ar' ? 'زمردي عصري' : 'Emerald Glass', colors: ['#10b981', '#f0fdf4'] },
+                        { id: 'sunset', name: lang === 'ar' ? 'ذهب الغروب' : 'Sunset Gold', colors: ['#f59e0b', '#fffbeb'] },
+                        { id: 'quartz', name: lang === 'ar' ? 'كوارتز أنيق' : 'Deep Quartz', colors: ['#64748b', '#0f172a'] },
+                        { id: 'violet', name: lang === 'ar' ? 'بنفسجي جريء' : 'Electric Violet', colors: ['#8b5cf6', '#faf5ff'] },
+                        { id: 'touch', name: lang === 'ar' ? 'نظام اللمس' : 'Touch Optimized', colors: ['#4f46e5', '#f1f5f9'] },
+                    ].map(theme => (
+                        <button
+                            key={theme.id}
+                            onClick={() => handleChange('theme', theme.id)}
+                            className={`p-4 rounded-[2rem] border-2 transition-all text-left space-y-3 relative overflow-hidden group ${settings.theme === theme.id ? 'border-rose-500 bg-rose-50 dark:bg-rose-900/10' : 'border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/50 hover:border-rose-200'}`}
+                        >
+                            <div className="flex gap-1.5 relative z-10">
+                                {theme.colors.map((c, i) => (
+                                    <div key={i} className="w-5 h-5 rounded-full border border-white/20 shadow-sm" style={{ backgroundColor: c }} />
+                                ))}
+                            </div>
+                            <p className="text-[10px] font-black uppercase tracking-tight text-slate-800 dark:text-white relative z-10">{theme.name}</p>
+                            {settings.theme === theme.id && (
+                                <div className="absolute top-2 right-2 w-2 h-2 bg-rose-500 rounded-full animate-ping" />
+                            )}
+                        </button>
+                    ))}
+                </div>
+            )
         }
     ];
 
@@ -57,14 +147,14 @@ const SettingsHub: React.FC<SettingsHubProps> = ({ settings, onUpdateSettings, l
         <div className="p-8 bg-slate-50 dark:bg-slate-950 min-h-screen animate-in fade-in duration-500">
             <div className="flex justify-between items-center mb-10">
                 <div>
-                    <h2 className="text-3xl font-black text-slate-800 dark:text-white uppercase tracking-tight">
+                    <h2 className="heading-xl text-slate-800 dark:text-white uppercase">
                         {lang === 'ar' ? 'مركز التحكم والإعدادات' : 'System Settings Hub'}
                     </h2>
-                    <p className="text-slate-500 font-bold mt-1">
+                    <p className="body-md text-slate-500 mt-1">
                         {lang === 'ar' ? 'قم بتخصيص كل تفصيلة في نظامك' : 'Fully customize every aspect of your ERP environment'}
                     </p>
                 </div>
-                <button className="flex items-center gap-2 px-8 py-4 bg-indigo-600 text-white rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-indigo-700 transition-all shadow-xl shadow-indigo-100 dark:shadow-none">
+                <button className="flex items-center gap-2 px-8 py-4 bg-indigo-600 text-white btn-theme font-black text-xs uppercase tracking-widest hover:bg-indigo-700 transition-all shadow-xl shadow-indigo-100 dark:shadow-none">
                     <Save size={18} />
                     {lang === 'ar' ? 'حفظ التغييرات' : 'Save Configurations'}
                 </button>
@@ -74,25 +164,31 @@ const SettingsHub: React.FC<SettingsHubProps> = ({ settings, onUpdateSettings, l
                 {/* Main Settings Sections */}
                 <div className="xl:col-span-8 space-y-8">
                     {sections.map((section) => (
-                        <div key={section.id} className="bg-white dark:bg-slate-900 rounded-[2.5rem] border border-slate-100 dark:border-slate-800 shadow-sm overflow-hidden">
+                        <div key={section.id} className="card-primary !p-0 overflow-hidden">
                             <div className="p-8 border-b border-slate-50 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-950/20 flex items-center gap-4">
-                                <div className={`p-3 ${section.color} text-white rounded-2xl shadow-lg`}>
+                                <div className={`p-3 ${section.color} text-white btn-theme shadow-lg`}>
                                     <section.icon size={24} />
                                 </div>
                                 <h3 className="text-xl font-black text-slate-800 dark:text-white uppercase tracking-tight">{section.title}</h3>
                             </div>
-                            <div className="p-8 grid grid-cols-1 md:grid-cols-2 gap-6">
-                                {section.fields.map((field) => (
-                                    <div key={field.key} className="space-y-2">
-                                        <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">{field.label}</label>
-                                        <input
-                                            type={field.type}
-                                            value={(settings as any)[field.key]}
-                                            onChange={(e) => handleChange(field.key as any, field.type === 'number' ? parseFloat(e.target.value) : e.target.value)}
-                                            className="w-full px-5 py-4 bg-slate-50 dark:bg-slate-800 border-none rounded-2xl font-bold text-slate-800 dark:text-white focus:ring-2 focus:ring-indigo-500 transition-all"
-                                        />
+                            <div className="p-8">
+                                {section.fields ? (
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                        {section.fields.map((field) => (
+                                            <div key={field.key} className="space-y-2">
+                                                <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">{field.label}</label>
+                                                <input
+                                                    type={field.type}
+                                                    value={(settings as any)[field.key]}
+                                                    onChange={(e) => handleChange(field.key as any, field.type === 'number' ? parseFloat(e.target.value) : e.target.value)}
+                                                    className="w-full px-5 py-4 bg-slate-50 dark:bg-slate-800 border-none btn-theme font-bold text-slate-800 dark:text-white focus:ring-2 focus:ring-indigo-500 transition-all"
+                                                />
+                                            </div>
+                                        ))}
                                     </div>
-                                ))}
+                                ) : (
+                                    section.customRender && section.customRender()
+                                )}
                             </div>
                         </div>
                     ))}
@@ -116,17 +212,21 @@ const SettingsHub: React.FC<SettingsHubProps> = ({ settings, onUpdateSettings, l
                             </p>
                         </div>
 
-                        {/* UI Palette */}
-                        <div className="bg-white dark:bg-slate-900 p-8 rounded-[2.5rem] border border-slate-100 dark:border-slate-800 shadow-sm group cursor-pointer">
-                            <div className="flex justify-between items-start mb-6">
-                                <div className="p-4 bg-rose-100 dark:bg-rose-900/30 text-rose-600 rounded-2xl">
-                                    <Palette size={28} />
+                        {/* UI Info */}
+                        <div className="bg-gradient-to-br from-indigo-600 to-indigo-800 p-8 rounded-[2.5rem] border border-indigo-500 shadow-xl shadow-indigo-200 dark:shadow-none group relative overflow-hidden">
+                            <div className="relative z-10">
+                                <div className="flex justify-between items-start mb-6">
+                                    <div className="p-4 bg-white/20 backdrop-blur-md text-white rounded-2xl">
+                                        <Palette size={28} />
+                                    </div>
+                                    <div className="px-3 py-1 bg-white/20 backdrop-blur-md text-white text-[10px] font-black uppercase rounded-full tracking-widest">Premium UI</div>
                                 </div>
+                                <h4 className="text-xl font-black text-white mb-2">{lang === 'ar' ? 'تخصيص الواجهة' : 'UI Customization'}</h4>
+                                <p className="text-sm text-indigo-100 font-medium leading-relaxed">
+                                    {lang === 'ar' ? 'تم تحسين الخطوط والمساحات لضمان أفضل تجربة قراءة واستخدام.' : 'Typography and spacing have been optimized for maximum readability and a premium user experience.'}
+                                </p>
                             </div>
-                            <h4 className="text-xl font-black text-slate-800 dark:text-white mb-2">{lang === 'ar' ? 'المظهر والألوان' : 'Branding & UI'}</h4>
-                            <p className="text-sm text-slate-500 font-medium leading-relaxed">
-                                {lang === 'ar' ? 'قم بتخصيص الثيم والألوان والشعار الخاص بك' : 'Configure colors, dark mode, and upload your custom business logo'}
-                            </p>
+                            <div className="absolute -right-10 -bottom-10 w-48 h-48 bg-white/10 rounded-full blur-3xl group-hover:scale-125 transition-transform duration-700" />
                         </div>
                     </div>
                 </div>

@@ -15,7 +15,18 @@ import {
 import { DollarSign, ShoppingBag, Users, TrendingUp, Sparkles, AlertCircle, ArrowRight } from 'lucide-react';
 import { getBusinessInsights } from '../services/geminiService';
 
-const data = [
+const DAILY_DATA = [
+  { name: '08 AM', revenue: 400 },
+  { name: '10 AM', revenue: 1200 },
+  { name: '12 PM', revenue: 3500 },
+  { name: '02 PM', revenue: 4200 },
+  { name: '04 PM', revenue: 2800 },
+  { name: '06 PM', revenue: 5600 },
+  { name: '08 PM', revenue: 7200 },
+  { name: '10 PM', revenue: 4800 },
+];
+
+const WEEKLY_DATA = [
   { name: 'Mon', revenue: 4000 },
   { name: 'Tue', revenue: 3000 },
   { name: 'Wed', revenue: 2000 },
@@ -25,14 +36,35 @@ const data = [
   { name: 'Sun', revenue: 5490 },
 ];
 
+const ITEM_PERFORMANCE = [
+  { name: 'Pizza', sales: 450, growth: 12 },
+  { name: 'Burger', sales: 380, growth: -5 },
+  { name: 'Salad', sales: 290, growth: 20 },
+  { name: 'Steak', sales: 210, growth: 8 },
+  { name: 'Pasta', sales: 180, growth: 15 },
+];
+
+const STAFF_PERFORMANCE = [
+  { name: 'Ahmed S.', orders: 145, rating: 4.8 },
+  { name: 'Sarah M.', orders: 132, rating: 4.9 },
+  { name: 'John D.', orders: 110, rating: 4.5 },
+  { name: 'Maria K.', orders: 98, rating: 4.7 },
+];
+
+const ACTIVE_CUSTOMERS = [
+  { name: 'Sameh Ahmed', visits: 12, totalSpent: 4500 },
+  { name: 'Fatima Z.', visits: 8, totalSpent: 2800 },
+  { name: 'Omar K.', visits: 6, totalSpent: 1900 },
+];
+
 const categoryData = [
   { name: 'Starters', value: 400 },
-  { name: 'Mains', value: 300 },
+  { name: 'Mains', value: 800 },
   { name: 'Drinks', value: 300 },
   { name: 'Desserts', value: 200 },
 ];
 
-const COLORS = ['#6366f1', '#8b5cf6', '#ec4899', '#10b981'];
+const COLORS = ['#6366f1', '#8b5cf6', '#ec4899', '#10b981', '#f59e0b'];
 
 interface DashboardProps {
   isDarkMode?: boolean;
@@ -45,6 +77,8 @@ const Dashboard: React.FC<DashboardProps> = ({ isDarkMode = false, t, lang, onCh
   const [insight, setInsight] = useState<string>("");
   const [loadingInsight, setLoadingInsight] = useState(false);
   const [isError, setIsError] = useState(false);
+  const [viewScope, setViewScope] = useState<'DAILY' | 'COMPREHENSIVE'>('DAILY');
+  const [dateRange, setDateRange] = useState('Today');
 
   useEffect(() => {
     handleGenerateInsight();
@@ -77,133 +111,264 @@ const Dashboard: React.FC<DashboardProps> = ({ isDarkMode = false, t, lang, onCh
   };
 
   return (
-    <div className="p-8 space-y-8 animate-fade-in bg-slate-50 dark:bg-slate-950 transition-colors duration-200">
-      <div className="flex justify-between items-center">
+    <div className="p-4 md:p-6 lg:p-8 space-y-6 animate-fade-in bg-slate-50 dark:bg-slate-950 transition-colors duration-200 min-h-screen pb-20">
+      {/* Header & Controls */}
+      <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4">
         <div>
-          <h2 className="text-3xl font-black text-slate-800 dark:text-white uppercase tracking-tight">{t.dashboard}</h2>
-          <p className="text-slate-500 dark:text-slate-400 font-bold">{lang === 'ar' ? 'أهلاً بك مرة أخرى، المدير' : 'Welcome back, Manager.'}</p>
+          <h2 className="heading-lg text-slate-800 dark:text-white uppercase flex items-center gap-3">
+            {viewScope === 'DAILY' ? (lang === 'ar' ? 'البث المباشر لليوم' : 'Today\'s Live Feed') : (lang === 'ar' ? 'نظرة شاملة' : 'Global Overview')}
+            <div className="w-2.5 h-2.5 rounded-full bg-rose-500 animate-pulse" />
+          </h2>
+          <p className="text-sm text-slate-500 dark:text-slate-400 font-semibold">
+            {viewScope === 'DAILY' ? (lang === 'ar' ? 'متابعة حية للأداء اليومي' : 'Real-time performance metrics') : (lang === 'ar' ? 'تحليل معمق للأداء العام' : 'Deep-dive into historical performance')}
+          </p>
         </div>
-        <div className="flex gap-2">
+
+        <div className="flex flex-wrap items-center gap-3 w-full lg:w-auto">
+          {/* View Scope Toggle */}
+          <div className="flex bg-white dark:bg-slate-900 p-1 rounded-xl shadow-sm border border-slate-200 dark:border-slate-800">
+            <button
+              onClick={() => setViewScope('DAILY')}
+              className={`px-4 py-1.5 rounded-lg text-xs font-black transition-all ${viewScope === 'DAILY' ? 'bg-indigo-600 text-white shadow-md' : 'text-slate-500 hover:text-slate-700'}`}
+            >
+              {lang === 'ar' ? 'يومي' : 'Daily'}
+            </button>
+            <button
+              onClick={() => setViewScope('COMPREHENSIVE')}
+              className={`px-4 py-1.5 rounded-lg text-xs font-black transition-all ${viewScope === 'COMPREHENSIVE' ? 'bg-indigo-600 text-white shadow-md' : 'text-slate-500 hover:text-slate-700'}`}
+            >
+              {lang === 'ar' ? 'شامل' : 'Comprehensive'}
+            </button>
+          </div>
+
+          {/* Date Picker (Mock) */}
+          {viewScope === 'COMPREHENSIVE' && (
+            <select
+              value={dateRange}
+              onChange={(e) => setDateRange(e.target.value)}
+              className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-4 py-2 text-xs font-bold outline-none focus:ring-2 focus:ring-indigo-500"
+            >
+              <option value="Today">{lang === 'ar' ? 'اليوم' : 'Today'}</option>
+              <option value="Week">{lang === 'ar' ? 'هذا الأسبوع' : 'This Week'}</option>
+              <option value="Month">{lang === 'ar' ? 'هذا الشهر' : 'This Month'}</option>
+              <option value="Year">{lang === 'ar' ? 'هذا العام' : 'This Year'}</option>
+              <option value="Custom">{lang === 'ar' ? 'فترة مخصصة' : 'Custom Period'}</option>
+            </select>
+          )}
+
           <button
             onClick={handleGenerateInsight}
-            className="flex items-center gap-2 bg-indigo-100 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300 px-5 py-2.5 rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-indigo-200 dark:hover:bg-indigo-900/50 transition-all active:scale-95"
+            className="flex items-center gap-2 bg-indigo-100 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300 px-4 py-2 btn-theme font-bold text-xs uppercase tracking-wider hover:bg-indigo-200 dark:hover:bg-indigo-900/50 transition-all active:scale-95 ml-auto lg:ml-0"
           >
-            <Sparkles size={16} />
-            {loadingInsight ? (lang === 'ar' ? 'جارِ التحليل...' : 'Analyzing...') : (lang === 'ar' ? 'تحديث الرؤى' : 'Refresh Insights')}
+            <Sparkles size={14} />
+            {loadingInsight ? (lang === 'ar' ? 'جارِ...' : 'Loading...') : (lang === 'ar' ? 'ذكاء صناعي' : 'AI Intel')}
           </button>
         </div>
       </div>
 
-      {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+      {/* Main Stats Grid */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         {[
-          { label: t.total_rev, value: (lang === 'ar' ? '٢٥,٥٥٠ ج.م' : '$25,550'), icon: DollarSign, color: 'text-green-600 dark:text-green-400', bg: 'bg-green-100 dark:bg-green-900/20' },
-          { label: t.orders, value: '1,245', icon: ShoppingBag, color: 'text-blue-600 dark:text-blue-400', bg: 'bg-blue-100 dark:bg-blue-900/20' },
-          { label: t.tables, value: '12/20', icon: Users, color: 'text-orange-600 dark:text-orange-400', bg: 'bg-orange-100 dark:bg-orange-900/20' },
-          { label: t.growth, value: '+15%', icon: TrendingUp, color: 'text-indigo-600 dark:text-indigo-400', bg: 'bg-indigo-100 dark:bg-indigo-900/20' },
+          { label: t.total_rev, value: viewScope === 'DAILY' ? '12,450 ج.م' : '255,550 ج.م', icon: DollarSign, color: 'text-emerald-600', bg: 'bg-emerald-100', trend: '+12%' },
+          { label: t.orders, value: viewScope === 'DAILY' ? '142' : '4,890', icon: ShoppingBag, color: 'text-blue-600', bg: 'bg-blue-100', trend: '+5%' },
+          { label: lang === 'ar' ? 'متوسط الطلب' : 'Avg Order', value: viewScope === 'DAILY' ? '87.5 ج.م' : '52.3 ج.م', icon: TrendingUp, color: 'text-purple-600', bg: 'bg-purple-100', trend: '+3%' },
+          { label: lang === 'ar' ? 'الإلغاءات' : 'Cancellations', value: viewScope === 'DAILY' ? '2' : '48', icon: AlertCircle, color: 'text-rose-600', bg: 'bg-rose-100', trend: '-10%' },
         ].map((stat, index) => (
-          <div key={index} className="bg-white dark:bg-slate-900 p-6 rounded-3xl shadow-sm border border-slate-200 dark:border-slate-800 transition-all hover:shadow-lg">
+          <div key={index} className="card-primary p-5 hover:-translate-y-1 group">
             <div className="flex justify-between items-start">
-              <div>
-                <p className="text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest mb-1">{stat.label}</p>
-                <h3 className="text-2xl font-black text-slate-800 dark:text-white mt-1">{stat.value}</h3>
+              <div className="space-y-1 shrink-0">
+                <p className="text-xs font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest leading-none mb-1">{stat.label}</p>
+                <h3 className="text-2xl md:text-3xl font-black text-slate-800 dark:text-white tracking-tight">{stat.value}</h3>
+                <span className={`text-[10px] font-black px-1.5 py-0.5 rounded-full ${stat.trend.startsWith('+') ? 'text-emerald-500 bg-emerald-100 dark:bg-emerald-900/30' : 'text-rose-500 bg-rose-100 dark:bg-rose-900/30'}`}>
+                  {stat.trend}
+                </span>
               </div>
-              <div className={`p-3.5 rounded-2xl ${stat.bg}`}>
-                <stat.icon className={`w-6 h-6 ${stat.color}`} />
+              <div className={`p-3 btn-theme ${stat.bg} dark:bg-opacity-10 group-hover:scale-110 transition-transform`}>
+                <stat.icon size={20} className={stat.color} />
               </div>
             </div>
           </div>
         ))}
       </div>
 
-      {/* AI Insights Section */}
-      <div className={`rounded-3xl p-8 text-white shadow-xl shadow-indigo-500/10 border border-white/10 transition-all duration-500 ${isError ? 'bg-gradient-to-r from-red-600 to-amber-700' : 'bg-gradient-to-r from-indigo-600 to-purple-700'}`}>
-        <div className="flex items-start gap-5">
-          <div className={`p-4 rounded-2xl backdrop-blur-md ${isError ? 'bg-white/10' : 'bg-white/20'}`}>
-            {isError ? <AlertCircle className="w-6 h-6 text-white" /> : <Sparkles className="w-6 h-6 text-white" />}
+      <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
+        {/* Left Column: Main Charts */}
+        <div className="xl:col-span-2 space-y-6">
+          {/* Revenue Chart */}
+          <div className="card-primary !p-6 md:!p-8">
+            <div className="flex justify-between items-center mb-8">
+              <h3 className="text-lg font-black text-slate-800 dark:text-white flex items-center gap-2">
+                <div className="w-1.5 h-6 bg-indigo-600 rounded-full" />
+                {viewScope === 'DAILY' ? (lang === 'ar' ? 'نبض المبيعات (اليوم)' : 'Sales Pulse (Today)') : (lang === 'ar' ? 'أداء الإيرادات' : 'Revenue Performance')}
+              </h3>
+              <div className="flex gap-2">
+                <div className="flex items-center gap-1.5">
+                  <div className="w-2 h-2 rounded-full bg-indigo-600" />
+                  <span className="text-[10px] font-bold text-slate-500 uppercase">{lang === 'ar' ? 'الإيرادات' : 'Revenue'}</span>
+                </div>
+              </div>
+            </div>
+            <div className="h-64 md:h-80 w-full min-h-[250px] relative overflow-hidden">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={viewScope === 'DAILY' ? DAILY_DATA : WEEKLY_DATA}>
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={isDarkMode ? "#334155" : "#e2e8f0"} />
+                  <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: chartTextColor, fontSize: 10, fontWeight: 700 }} />
+                  <YAxis axisLine={false} tickLine={false} tick={{ fill: chartTextColor, fontSize: 10, fontWeight: 700 }} />
+                  <Tooltip contentStyle={tooltipStyle} cursor={{ fill: isDarkMode ? '#1e293b' : '#f1f5f9' }} />
+                  <Bar dataKey="revenue" fill="#6366f1" radius={[10, 10, 0, 0]} barSize={viewScope === 'DAILY' ? 15 : 30} />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
           </div>
-          <div className="flex-1">
-            <h3 className="text-xl font-black mb-3 tracking-tight">
-              {isError
-                ? (lang === 'ar' ? 'تنبيه: حصة الاستخدام' : 'System Alert: Quota Exceeded')
-                : (lang === 'ar' ? 'رؤى محلل الأعمال الذكي' : 'AI Business Analyst Insights')}
-            </h3>
-            {loadingInsight ? (
-              <div className="animate-pulse space-y-3">
-                <div className="h-3 bg-white/30 rounded-full w-3/4"></div>
-                <div className="h-3 bg-white/30 rounded-full w-full"></div>
-                <div className="h-3 bg-white/30 rounded-full w-2/3"></div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {/* Staff Performance */}
+            <div className="card-primary !p-6">
+              <h3 className="text-sm font-black text-slate-800 dark:text-white mb-5 uppercase tracking-wider flex items-center gap-2">
+                <Users size={16} className="text-indigo-600" />
+                {lang === 'ar' ? 'أداء الموظفين' : 'Staff Ranking'}
+              </h3>
+              <div className="space-y-4">
+                {STAFF_PERFORMANCE.map((staff, i) => (
+                  <div key={i} className="flex items-center justify-between group">
+                    <div className="flex items-center gap-3">
+                      <div className="w-8 h-8 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center font-bold text-xs">
+                        {staff.name[0]}
+                      </div>
+                      <div>
+                        <p className="text-xs font-black text-slate-800 dark:text-slate-200">{staff.name}</p>
+                        <p className="text-[9px] font-bold text-slate-400 uppercase">{staff.orders} Orders</p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-[10px] font-black text-indigo-600">{staff.rating}</span>
+                      <div className="flex">
+                        {[1, 2, 3, 4, 5].map(s => <div key={s} className={`w-1 h-1 rounded-full mx-0.5 ${s <= Math.floor(staff.rating) ? 'bg-indigo-500' : 'bg-slate-200 dark:bg-slate-700'}`} />)}
+                      </div>
+                    </div>
+                  </div>
+                ))}
               </div>
-            ) : (
-              <div className="text-white/90 text-sm leading-loose whitespace-pre-line font-medium italic">
-                {insight}
+            </div>
+
+            {/* Item Performance */}
+            <div className="bg-white dark:bg-slate-900 p-6 rounded-3xl border border-slate-200 dark:border-slate-800">
+              <h3 className="text-sm font-black text-slate-800 dark:text-white mb-5 uppercase tracking-wider flex items-center gap-2">
+                <ShoppingBag size={16} className="text-indigo-600" />
+                {lang === 'ar' ? 'الأكثر مبيعاً' : 'Best Sellers'}
+              </h3>
+              <div className="space-y-5">
+                {ITEM_PERFORMANCE.map((item, i) => (
+                  <div key={i} className="space-y-1.5">
+                    <div className="flex justify-between items-center text-[10px] font-black uppercase">
+                      <span className="text-slate-700 dark:text-slate-300">{item.name}</span>
+                      <span className={item.growth > 0 ? 'text-emerald-500' : 'text-rose-500'}>
+                        {item.growth > 0 ? '↑' : '↓'} {Math.abs(item.growth)}%
+                      </span>
+                    </div>
+                    <div className="h-1.5 w-full bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
+                      <div
+                        className="h-full bg-indigo-600 rounded-full transition-all duration-1000"
+                        style={{ width: `${(item.sales / ITEM_PERFORMANCE[0].sales) * 100}%` }}
+                      />
+                    </div>
+                  </div>
+                ))}
               </div>
-            )}
-            {!loadingInsight && !isError && (
+            </div>
+          </div>
+        </div>
+
+        {/* Right Column: AI & Customers */}
+        <div className="space-y-6">
+          {/* AI Advisor Card */}
+          <div className="bg-gradient-to-br from-indigo-700 via-indigo-600 to-indigo-800 p-8 rounded-[2.5rem] text-white shadow-2xl shadow-indigo-500/20 relative overflow-hidden group">
+            <div className="absolute -right-10 -top-10 w-40 h-40 bg-white/10 rounded-full blur-3xl group-hover:scale-150 transition-transform duration-700" />
+            <div className="relative z-10 space-y-6">
+              <div className="flex items-center gap-3">
+                <div className="p-3 bg-white/20 backdrop-blur-xl rounded-2xl">
+                  <Sparkles size={20} />
+                </div>
+                <h4 className="font-black text-lg uppercase tracking-tight">{lang === 'ar' ? 'المستشار الذكي' : 'AI Advisor'}</h4>
+              </div>
+
+              <div className="space-y-4">
+                {loadingInsight ? (
+                  <div className="animate-pulse space-y-3">
+                    <div className="h-2 bg-white/20 rounded-full w-3/4" />
+                    <div className="h-2 bg-white/20 rounded-full w-full" />
+                    <div className="h-2 bg-white/20 rounded-full w-2/3" />
+                  </div>
+                ) : (
+                  <p className="text-sm leading-relaxed font-medium transition-all duration-500">
+                    {insight || (lang === 'ar' ? 'قم بتحديث الرؤى للحصول على نصائح ذكية...' : 'Refresh to get intelligent business tips...')}
+                  </p>
+                )}
+              </div>
+
               <button
                 onClick={() => onChangeView('AI_INSIGHTS')}
-                className="mt-6 flex items-center gap-2 px-6 py-2 bg-white/20 hover:bg-white/30 rounded-xl text-xs font-black uppercase tracking-widest transition-all"
+                className="w-full py-3 bg-white text-indigo-700 rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-slate-100 transition-all active:scale-95 shadow-xl"
               >
-                {lang === 'ar' ? 'عرض التحليل التفصيلي' : 'View Detailed Analysis'}
-                <ArrowRight size={14} />
+                {lang === 'ar' ? 'عرض التحليل الكامل' : 'Full Analysis'}
               </button>
-            )}
+            </div>
           </div>
-        </div>
-      </div>
 
-      {/* Charts */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        <div className="lg:col-span-2 bg-white dark:bg-slate-900 p-8 rounded-3xl shadow-sm border border-slate-200 dark:border-slate-800 transition-colors">
-          <h3 className="text-lg font-black text-slate-800 dark:text-white mb-8 flex items-center gap-2">
-            <TrendingUp size={20} className="text-indigo-600" />
-            {lang === 'ar' ? 'نظرة عامة على الإيرادات' : 'Revenue Overview'}
-          </h3>
-          <div className="h-80">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={data}>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={isDarkMode ? "#334155" : "#e2e8f0"} />
-                <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: chartTextColor, fontSize: 12, fontWeight: 700 }} orientation={lang === 'ar' ? 'top' : 'bottom' as any} />
-                <YAxis axisLine={false} tickLine={false} tick={{ fill: chartTextColor, fontSize: 12, fontWeight: 700 }} orientation={lang === 'ar' ? 'right' : 'left' as any} />
-                <Tooltip
-                  contentStyle={tooltipStyle}
-                  cursor={{ fill: isDarkMode ? '#1e293b' : '#f1f5f9' }}
-                />
-                <Bar dataKey="revenue" fill="#6366f1" radius={[8, 8, 0, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
+          {/* Sales by Category (Pie Chart) */}
+          <div className="card-primary !p-6">
+            <h3 className="text-sm font-black text-slate-800 dark:text-white mb-4 uppercase tracking-widest">
+              {lang === 'ar' ? 'المبيعات حسب الفئة' : 'Categorical Mix'}
+            </h3>
+            <div className="h-48 w-full min-h-[190px] relative overflow-hidden">
+              <ResponsiveContainer width="100%" height="100%">
+                <PieChart>
+                  <Pie
+                    data={categoryData}
+                    cx="50%"
+                    cy="50%"
+                    innerRadius="50%"
+                    outerRadius="75%"
+                    paddingAngle={5}
+                    dataKey="value"
+                  >
+                    {categoryData.map((_, index) => <Cell key={index} fill={COLORS[index % COLORS.length]} />)}
+                  </Pie>
+                  <Tooltip contentStyle={tooltipStyle} />
+                </PieChart>
+              </ResponsiveContainer>
+            </div>
+            <div className="grid grid-cols-2 gap-2 mt-4">
+              {categoryData.map((cat, i) => (
+                <div key={i} className="flex items-center gap-1.5 p-2 bg-slate-50 dark:bg-slate-800/50 rounded-xl border border-slate-100 dark:border-slate-800">
+                  <div className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: COLORS[i % COLORS.length] }} />
+                  <span className="text-[9px] font-bold text-slate-500 uppercase truncate">{cat.name}</span>
+                </div>
+              ))}
+            </div>
           </div>
-        </div>
 
-        <div className="bg-white dark:bg-slate-900 p-8 rounded-3xl shadow-sm border border-slate-200 dark:border-slate-800 transition-colors">
-          <h3 className="text-lg font-black text-slate-800 dark:text-white mb-8">
-            {lang === 'ar' ? 'المبيعات حسب الفئة' : 'Sales by Category'}
-          </h3>
-          <div className="h-80 flex flex-col justify-center">
-            <ResponsiveContainer width="100%" height="220">
-              <PieChart>
-                <Pie
-                  data={categoryData}
-                  cx="50%"
-                  cy="50%"
-                  innerRadius={70}
-                  outerRadius={90}
-                  fill="#8884d8"
-                  paddingAngle={8}
-                  dataKey="value"
-                >
-                  {categoryData.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                  ))}
-                </Pie>
-                <Tooltip contentStyle={tooltipStyle} />
-              </PieChart>
-            </ResponsiveContainer>
-            <div className="grid grid-cols-2 gap-3 mt-8">
-              {categoryData.map((entry, index) => (
-                <div key={index} className="flex items-center gap-2 bg-slate-50 dark:bg-slate-800/50 p-2 rounded-xl border border-slate-100 dark:border-slate-800">
-                  <div className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: COLORS[index % COLORS.length] }} />
-                  <span className="text-[10px] font-black text-slate-600 dark:text-slate-400 uppercase tracking-tight truncate">{entry.name}</span>
+          {/* Top Customers Activity */}
+          <div className="bg-white dark:bg-slate-900 p-6 rounded-3xl border border-slate-200 dark:border-slate-800">
+            <h3 className="text-sm font-black text-slate-800 dark:text-white mb-5 uppercase tracking-wider flex items-center gap-2">
+              <Users size={16} className="text-indigo-600" />
+              {lang === 'ar' ? 'العملاء النشطون' : 'Key Customers'}
+            </h3>
+            <div className="space-y-4">
+              {ACTIVE_CUSTOMERS.map((customer, i) => (
+                <div key={i} className="flex justify-between items-center p-3 hover:bg-slate-50 dark:hover:bg-slate-800/50 rounded-2xl transition-all cursor-default border border-transparent hover:border-indigo-100">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-xl bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 flex items-center justify-center font-black">
+                      {customer.name[0]}
+                    </div>
+                    <div>
+                      <p className="text-xs font-black text-slate-800 dark:text-slate-200">{customer.name}</p>
+                      <p className="text-[9px] font-bold text-slate-400">{customer.visits} Visits</p>
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-xs font-black text-emerald-600">{customer.totalSpent} LE</p>
+                  </div>
                 </div>
               ))}
             </div>

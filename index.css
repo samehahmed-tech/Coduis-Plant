@@ -1,0 +1,277 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Cairo", "Outfit", "Inter", ui-sans-serif, system-ui, sans-serif;
+}
+
+@import url('https://fonts.googleapis.com/css2?family=Cairo:wght@200;300;400;500;600;700;800;900&family=Inter:wght@300;400;500;600;700&family=Outfit:wght@300;400;500;600;700;800;900&display=swap');
+
+:root {
+  /* Common default tokens */
+  --radius-card: 1.5rem;
+  --radius-button: 0.75rem;
+  --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+  --border-width: 1px;
+}
+
+/* 0. Classic - Professional & Clean */
+[data-theme='classic'] {
+  --primary: 99 102 241;
+  --primary-hover: 79 70 229;
+  --accent: 236 72 153;
+  --bg-app: 248 250 252;
+  --bg-card: 255 255 255;
+  --text-main: 15 23 42;
+  --text-muted: 100 116 139;
+  --border-color: 226 232 240;
+  --radius-card: 1.5rem;
+  --radius-button: 0.75rem;
+}
+
+/* 1. Nebula - Glassmorphism & High-Tech */
+[data-theme='nebula'] {
+  --primary: 59 130 246;
+  --primary-hover: 37 99 235;
+  --accent: 139 92 246;
+  --bg-app: 3 7 18;
+  --bg-card: 17 24 39;
+  --text-main: 248 250 252;
+  --text-muted: 148 163 184;
+  --border-color: 31 41 55;
+  --radius-card: 2rem;
+  --radius-button: 1rem;
+  --shadow-lg: 0 0 30px rgba(59, 130, 246, 0.15);
+  --border-width: 1px;
+}
+
+/* 2. Emerald - Organic & Fluid */
+[data-theme='emerald'] {
+  --primary: 16 185 129;
+  --primary-hover: 5 150 105;
+  --accent: 20 184 166;
+  --bg-app: 240 253 244;
+  --bg-card: 255 255 255;
+  --text-main: 6 78 59;
+  --text-muted: 52 211 153;
+  --border-color: 209 250 229;
+  --radius-card: 3rem;
+  --radius-button: 2rem;
+  --border-width: 2px;
+}
+
+/* 3. Sunset - Sharp & High-Fashion */
+[data-theme='sunset'] {
+  --primary: 245 158 11;
+  --primary-hover: 217 119 6;
+  --accent: 244 63 94;
+  --bg-app: 255 251 235;
+  --bg-card: 255 255 255;
+  --text-main: 120 53 15;
+  --text-muted: 180 83 9;
+  --border-color: 254 243 199;
+  --radius-card: 0.5rem;
+  --radius-button: 0rem;
+  --border-width: 1px;
+}
+
+/* 4. Deep Quartz - Brutalist Industrial */
+[data-theme='quartz'] {
+  --primary: 100 116 139;
+  --primary-hover: 71 85 105;
+  --accent: 148 163 184;
+  --bg-app: 15 23 42;
+  --bg-card: 30 41 59;
+  --text-main: 241 245 249;
+  --text-muted: 148 163 184;
+  --border-color: 71 85 105;
+  --radius-card: 0rem;
+  --radius-button: 0rem;
+  --border-width: 3px;
+}
+
+/* 5. Electric Violet - Playful & Modern */
+[data-theme='violet'] {
+  --primary: 139 92 246;
+  --primary-hover: 124 58 237;
+  --accent: 217 70 239;
+  --bg-app: 250 245 255;
+  --bg-card: 255 255 255;
+  --text-main: 88 28 135;
+  --text-muted: 168 85 247;
+  --border-color: 243 232 255;
+  --radius-card: 2.5rem;
+  --radius-button: 1.25rem;
+  --shadow-lg: 0 20px 25px -5px rgba(139, 92, 246, 0.2);
+}
+
+/* 6. Touch optimized - Gigantic & High Contrast */
+[data-theme='touch'] {
+  --primary: 79 70 229;
+  --primary-hover: 67 56 202;
+  --accent: 249 115 22;
+  --bg-app: 241 245 249;
+  --bg-card: 255 255 255;
+  --text-main: 2 6 23;
+  --text-muted: 71 85 105;
+  --border-color: 203 213 225;
+  --radius-card: 1.5rem;
+  --radius-button: 1rem;
+  --border-width: 2px;
+}
+
+[data-theme='touch'] .card-primary {
+  padding: 3rem !important;
+  border-width: 3px !important;
+}
+
+[data-theme='touch'] button {
+  min-height: 4rem;
+  font-size: 1.125rem !important;
+  padding-left: 2rem !important;
+  padding-right: 2rem !important;
+}
+
+[data-theme='touch'] .heading-xl {
+  font-size: 3.5rem;
+}
+
+[data-theme='touch'] .body-md {
+  font-size: 1.25rem;
+}
+
+/* Base Styles */
+html {
+  font-size: 16px;
+}
+
+@media (min-width: 1024px) {
+  html {
+    font-size: 17px;
+  }
+}
+
+body {
+  font-family: 'Cairo', 'Outfit', 'Inter', sans-serif;
+  background-color: rgb(var(--bg-app));
+  color: rgb(var(--text-main));
+  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Themed Components Base */
+.card-primary {
+  background-color: rgb(var(--bg-card));
+  border: var(--border-width) solid rgb(var(--border-color));
+  box-shadow: var(--shadow-lg);
+  border-radius: var(--radius-card);
+  padding: 2rem;
+  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+button,
+.btn {
+  border-radius: var(--radius-button);
+  transition: all 0.3s ease;
+}
+
+input,
+select,
+textarea {
+  border-radius: var(--radius-button) !important;
+  border: var(--border-width) solid rgb(var(--border-color));
+}
+
+/* Typography */
+.heading-xl {
+  font-size: 2.5rem;
+  font-weight: 900;
+  letter-spacing: -0.02em;
+}
+
+.heading-lg {
+  font-size: 1.875rem;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+}
+
+.heading-md {
+  font-size: 1.5rem;
+  font-weight: 800;
+}
+
+.body-lg {
+  font-size: 1.125rem;
+  font-weight: 500;
+}
+
+.body-md {
+  font-size: 1rem;
+  font-weight: 500;
+}
+
+.body-sm {
+  font-size: 0.875rem;
+  font-weight: 500;
+}
+
+.caption {
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+/* Global Utilities */
+.rounded-theme {
+  border-radius: var(--radius-card);
+}
+
+.btn-theme {
+  border-radius: var(--radius-button);
+}
+
+.glass {
+  background: rgba(var(--bg-card), 0.7);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(var(--border-color), 0.3);
+}
+
+/* Animations */
+.view-transition {
+  animation: slideUpFade 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes slideUpFade {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(var(--primary), 0.2);
+  border-radius: 10px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(var(--primary), 0.4);
+}

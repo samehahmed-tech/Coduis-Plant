@@ -160,6 +160,27 @@ export interface Customer {
   lastOrderDate?: Date;
 }
 
+export interface FloorZone {
+  id: string;
+  name: string;
+  color: string;
+  icon?: string;
+}
+
+export interface Branch {
+  id: string;
+  name: string;
+  location: string;
+  isActive: boolean;
+}
+
+export interface DeliveryPlatform {
+  id: string;
+  name: string;
+  icon?: string;
+  isActive: boolean;
+}
+
 export interface Table {
   id: string;
   name: string;
@@ -167,12 +188,19 @@ export interface Table {
   seats: number;
   currentOrderTotal?: number;
   position?: { x: number; y: number };
+  zoneId?: string;
+  shape?: 'square' | 'round' | 'rectangle';
+  discount?: number;
+  minSpend?: number;
+  isVIP?: boolean;
+  notes?: string;
 }
 
 export interface MenuCategory {
   id: string;
   name: string;
   items: MenuItem[];
+  menuIds: string[]; // Linked to these menu IDs
 }
 
 export interface RestaurantMenu {
@@ -180,7 +208,9 @@ export interface RestaurantMenu {
   name: string;
   isDefault: boolean;
   status: 'ACTIVE' | 'INACTIVE';
-  categories: MenuCategory[];
+  targetBranches?: string[];
+  targetZones?: string[];
+  targetPlatforms?: string[];
 }
 
 export interface Offer {
@@ -192,6 +222,8 @@ export interface Offer {
   isActive: boolean;
 }
 
+export type AppTheme = 'classic' | 'nebula' | 'emerald' | 'sunset' | 'quartz' | 'violet' | 'touch';
+
 export interface AppSettings {
   restaurantName: string;
   currency: string;
@@ -200,6 +232,7 @@ export interface AppSettings {
   serviceCharge: number;
   language: 'en' | 'ar';
   isDarkMode: boolean;
+  theme: AppTheme;
   branchAddress: string;
   phone: string;
 }
