@@ -34,6 +34,7 @@ export const translations = {
         call_center: "Call Center",
         forensics: "Audit Forensics",
         recipes: "Recipes & BOM",
+        printers: "Printers & Hardware",
 
         // Auth & Branch Context
         welcome_back: "Welcome back,",
@@ -126,6 +127,7 @@ export const translations = {
         call_center: "مركز الاتصال",
         forensics: "التحقيق الجنائي",
         recipes: "الوصفات والتكاليف",
+        printers: "الطابعات والأجهزة",
 
         // Auth & Branch Context
         welcome_back: "مرحباً بك،",

@@ -1,7 +1,7 @@
-
 import React, { useState, useEffect, useCallback, lazy, Suspense } from 'react';
 import Sidebar from './components/Sidebar';
 import Login from './components/Login';
+import PrinterManager from './components/PrinterManager';
 
 // Lazy loaded components for better performance
 const Dashboard = lazy(() => import('./components/Dashboard'));
@@ -42,61 +42,38 @@ const LoadingSkeleton = () => (
 );
 
 
-const INITIAL_TABLES: Table[] = [
-  { id: '1', name: 'H1', status: TableStatus.AVAILABLE, seats: 2, zoneId: 'hall', position: { x: 15, y: 20 } },
-  { id: '2', name: 'H2', status: TableStatus.AVAILABLE, seats: 2, zoneId: 'hall', position: { x: 35, y: 20 } },
-  { id: '3', name: 'H3', status: TableStatus.OCCUPIED, seats: 4, currentOrderTotal: 45.50, zoneId: 'hall', position: { x: 55, y: 20 } },
-  { id: '4', name: 'H4', status: TableStatus.AVAILABLE, seats: 4, zoneId: 'hall', position: { x: 75, y: 20 } },
-  { id: '5', name: 'H5', status: TableStatus.RESERVED, seats: 6, zoneId: 'hall', position: { x: 15, y: 50 } },
-  { id: '6', name: 'H6', status: TableStatus.OCCUPIED, seats: 2, currentOrderTotal: 12.00, zoneId: 'hall', position: { x: 35, y: 50 } },
-  { id: '7', name: 'T1', status: TableStatus.AVAILABLE, seats: 4, zoneId: 'terrace', position: { x: 25, y: 30 } },
-  { id: '8', name: 'T2', status: TableStatus.AVAILABLE, seats: 2, zoneId: 'terrace', position: { x: 50, y: 30 } },
-  { id: '9', name: 'T3', status: TableStatus.AVAILABLE, seats: 4, zoneId: 'terrace', position: { x: 75, y: 30 } },
-  { id: '10', name: 'V1', status: TableStatus.AVAILABLE, seats: 8, zoneId: 'vip', isVIP: true, minSpend: 500, position: { x: 30, y: 40 } },
-  { id: '11', name: 'V2', status: TableStatus.AVAILABLE, seats: 2, zoneId: 'vip', isVIP: true, discount: 10, position: { x: 70, y: 40 } },
-  { id: '12', name: 'V3', status: TableStatus.AVAILABLE, seats: 4, zoneId: 'vip', isVIP: true, position: { x: 50, y: 70 } },
-];
+const INITIAL_TABLES: Table[] = [];
 
 const INITIAL_ACCOUNTS: FinancialAccount[] = [
   {
-    id: '1', code: '1000', name: 'Assets', type: AccountType.ASSET, balance: 142500, children: [
+    id: '1', code: '1000', name: 'Assets', type: AccountType.ASSET, balance: 0, children: [
       {
-        id: '1-1', code: '1100', name: 'Cash & Cash Equivalents', type: AccountType.ASSET, balance: 42500, children: [
-          { id: '1-1-1', code: '1110', name: 'Cashier Main', type: AccountType.ASSET, balance: 22500 },
-          { id: '1-1-2', code: '1120', name: 'Bank Account - CIB', type: AccountType.ASSET, balance: 20000 },
+        id: '1-1', code: '1100', name: 'Cash & Cash Equivalents', type: AccountType.ASSET, balance: 0, children: [
+          { id: '1-1-1', code: '1110', name: 'Cashier Main', type: AccountType.ASSET, balance: 0 },
         ]
       },
       {
-        id: '1-2', code: '1200', name: 'Inventory Stock', type: AccountType.ASSET, balance: 100000, children: [
-          { id: '1-2-1', code: '1210', name: 'Raw Materials', type: AccountType.ASSET, balance: 80000 },
-          { id: '1-2-2', code: '1220', name: 'Packaging Materials', type: AccountType.ASSET, balance: 20000 },
+        id: '1-2', code: '1200', name: 'Inventory Stock', type: AccountType.ASSET, balance: 0, children: [
+          { id: '1-2-1', code: '1210', name: 'Raw Materials', type: AccountType.ASSET, balance: 0 },
         ]
       },
     ]
   },
   {
-    id: '2', code: '2000', name: 'Liabilities', type: AccountType.LIABILITY, balance: 12000, children: [
-      { id: '2-1', code: '2100', name: 'Accounts Payable', type: AccountType.LIABILITY, balance: 12000 },
+    id: '2', code: '2000', name: 'Liabilities', type: AccountType.LIABILITY, balance: 0, children: [
+      { id: '2-1', code: '2100', name: 'Accounts Payable', type: AccountType.LIABILITY, balance: 0 },
     ]
   },
   {
-    id: '4', code: '4000', name: 'Revenue', type: AccountType.REVENUE, balance: 25500, children: [
-      { id: '4-1', code: '4100', name: 'Food Sales', type: AccountType.REVENUE, balance: 18000 },
-      { id: '4-2', code: '4200', name: 'Beverage Sales', type: AccountType.REVENUE, balance: 7500 },
+    id: '4', code: '4000', name: 'Revenue', type: AccountType.REVENUE, balance: 0, children: [
+      { id: '4-1', code: '4100', name: 'Sales', type: AccountType.REVENUE, balance: 0 },
     ]
   },
   {
-    id: '5', code: '5000', name: 'Expenses', type: AccountType.EXPENSE, balance: 8250, children: [
+    id: '5', code: '5000', name: 'Expenses', type: AccountType.EXPENSE, balance: 0, children: [
       {
-        id: '5-1', code: '5100', name: 'Direct Costs (COGS)', type: AccountType.EXPENSE, balance: 6000, children: [
-          { id: '5-1-1', code: '5110', name: 'Food Cost', type: AccountType.EXPENSE, balance: 5000 },
-          { id: '5-1-2', code: '5120', name: 'Packaging Cost', type: AccountType.EXPENSE, balance: 1000 },
-        ]
-      },
-      {
-        id: '5-2', code: '5200', name: 'Operating Expenses', type: AccountType.EXPENSE, balance: 2250, children: [
-          { id: '5-2-1', code: '5210', name: 'Staff Salaries', type: AccountType.EXPENSE, balance: 0 },
-          { id: '5-2-2', code: '5220', name: 'Utilities & Rent', type: AccountType.EXPENSE, balance: 2250 },
+        id: '5-1', code: '5100', name: 'Direct Costs (COGS)', type: AccountType.EXPENSE, balance: 0, children: [
+          { id: '5-1-1', code: '5110', name: 'Inventory Cost', type: AccountType.EXPENSE, balance: 0 },
         ]
       },
     ]
@@ -106,21 +83,15 @@ const INITIAL_ACCOUNTS: FinancialAccount[] = [
 const INITIAL_TRANSACTIONS: JournalEntry[] = [];
 
 const INITIAL_BRANCHES: Branch[] = [
-  { id: 'b1', name: 'Zayed Branch', location: 'Sheikh Zayed', isActive: true, phone: '01012345678' },
-  { id: 'b2', name: 'Maadi Branch', location: 'Maadi', isActive: true, phone: '01112345678' },
+  { id: 'b1', name: 'Headquarters', location: 'Main Location', isActive: true, phone: '' },
 ];
 
 const INITIAL_WAREHOUSES: Warehouse[] = [
-  { id: 'w1', name: 'Main Hub - Zayed', branchId: 'b1', type: WarehouseType.MAIN, isActive: true },
-  { id: 'w2', name: 'Kitchen - Zayed', branchId: 'b1', type: WarehouseType.KITCHEN, isActive: true },
-  { id: 'w3', name: 'Main Hub - Maadi', branchId: 'b2', type: WarehouseType.MAIN, isActive: true },
+  { id: 'w1', name: 'Store Room', branchId: 'b1', type: WarehouseType.MAIN, isActive: true },
 ];
 
 const INITIAL_PLATFORMS: DeliveryPlatform[] = [
-  { id: 'p1', name: 'Talabat', isActive: true },
-  { id: 'p2', name: 'Elmenus', isActive: true },
-  { id: 'p3', name: 'Mrsool', isActive: true },
-  { id: 'p4', name: 'RestoFlow Direct', isActive: true },
+  { id: 'p1', name: 'Store Direct', isActive: true },
 ];
 
 const INITIAL_USERS: User[] = [
@@ -131,130 +102,11 @@ const INITIAL_USERS: User[] = [
     role: UserRole.SUPER_ADMIN,
     isActive: true,
     permissions: INITIAL_ROLE_PERMISSIONS[UserRole.SUPER_ADMIN]
-  },
-  {
-    id: 'u2',
-    name: 'Sameh Ahmed',
-    email: 'sameh@zayed.com',
-    role: UserRole.BRANCH_MANAGER,
-    assignedBranchId: 'b1',
-    isActive: true,
-    permissions: INITIAL_ROLE_PERMISSIONS[UserRole.BRANCH_MANAGER]
-  },
-  {
-    id: 'u3',
-    name: 'Branch Mgr October',
-    email: 'mgr@october.com',
-    role: UserRole.BRANCH_MANAGER,
-    assignedBranchId: 'b2',
-    isActive: true,
-    permissions: INITIAL_ROLE_PERMISSIONS[UserRole.BRANCH_MANAGER]
-  },
-  {
-    id: 'u4',
-    name: 'Call Center Agent',
-    email: 'f',
-    role: UserRole.CALL_CENTER,
-    isActive: true,
-    permissions: INITIAL_ROLE_PERMISSIONS[UserRole.CALL_CENTER]
-  },
-  {
-    id: 'u5',
-    name: 'Zayed Cashier',
-    email: 'cashier@zayed.com',
-    role: UserRole.CASHIER,
-    assignedBranchId: 'b1',
-    isActive: true,
-    permissions: INITIAL_ROLE_PERMISSIONS[UserRole.CASHIER]
   }
 ];
 
-const INITIAL_MENUS: RestaurantMenu[] = [
-  {
-    id: 'm1',
-    name: 'Main Menu (Full Day)',
-    isDefault: true,
-    status: 'ACTIVE',
-    targetBranches: ['b1', 'b2'],
-    targetPlatforms: ['p1', 'p2', 'p4'],
-  },
-  {
-    id: 'm2',
-    name: 'Breakfast Menu',
-    isDefault: false,
-    status: 'ACTIVE',
-    targetBranches: ['b1'],
-  }
-];
-
-const INITIAL_CATEGORIES: MenuCategory[] = [
-  {
-    id: 'cat1',
-    name: 'Burgers',
-    menuIds: ['m1'],
-    items: [
-      {
-        id: 'i1',
-        name: 'Classic Cheeseburger',
-        price: 8.50,
-        category: 'Burgers',
-        isActive: true,
-        description: 'Angus beef with cheddar cheese, lettuce, tomato, and our secret sauce.',
-        recipe: [
-          { inventoryItemId: 'inv1', quantityNeeded: 1 },
-          { inventoryItemId: 'inv2', quantityNeeded: 1 },
-          { inventoryItemId: 'inv3', quantityNeeded: 0.05 }
-        ],
-      },
-      {
-        id: 'i101',
-        name: 'Double BBQ Bacon',
-        price: 12.50,
-        category: 'Burgers',
-        isActive: true,
-        description: 'Double patty, smoky bacon, onion rings, and BBQ sauce.',
-        recipe: [
-          { inventoryItemId: 'inv1', quantityNeeded: 2 },
-          { inventoryItemId: 'inv2', quantityNeeded: 1 }
-        ],
-      },
-    ]
-  },
-  {
-    id: 'cat2',
-    name: 'Starters',
-    menuIds: ['m1'],
-    items: [
-      {
-        id: 'i2',
-        name: 'Chicken Wings',
-        price: 10.00,
-        category: 'Starters',
-        isActive: true,
-        description: 'Crispy wings with buffalo or BBQ sauce.',
-        recipe: [],
-      },
-      {
-        id: 'i202',
-        name: 'Mozzarella Sticks',
-        price: 7.50,
-        category: 'Starters',
-        isActive: true,
-        description: 'Golden fried cheese with marinara dip.',
-        recipe: [],
-      },
-    ]
-  },
-  {
-    id: 'cat-b1',
-    name: 'Breakfast Classics',
-    menuIds: ['m2'],
-    items: [
-      { id: 'ib1', name: 'English Breakfast', price: 11.00, category: 'Breakfast Classics', isActive: true, description: 'Eggs, beans, sausage, and toast.' },
-      { id: 'ib2', name: 'Pancakes', price: 8.50, category: 'Breakfast Classics', isActive: true, description: 'Fluffy pancakes with maple syrup.' }
-    ]
-  }
-];
+const INITIAL_MENUS: RestaurantMenu[] = [];
+const INITIAL_CATEGORIES: MenuCategory[] = [];
 
 // Translations imported from services/translations.ts
 
@@ -275,26 +127,14 @@ const App: React.FC = () => {
   const [offlineQueue, setOfflineQueue] = useState<Order[]>([]);
   const [warehouses, setWarehouses] = useState<Warehouse[]>(INITIAL_WAREHOUSES);
   const [users, setUsers] = useState<User[]>(INITIAL_USERS);
-  const [inventory, setInventory] = useState<InventoryItem[]>([
-    {
-      id: 'inv1', name: 'Beef Patty', unit: 'pcs', category: 'Meat', threshold: 10, costPrice: 2.50,
-      warehouseQuantities: [{ warehouseId: 'w1', quantity: 30 }, { warehouseId: 'w2', quantity: 20 }]
-    },
-    {
-      id: 'inv2', name: 'Buns', unit: 'pcs', category: 'Bakery', threshold: 20, costPrice: 0.50,
-      warehouseQuantities: [{ warehouseId: 'w1', quantity: 100 }]
-    },
-    {
-      id: 'inv3', name: 'Cheddar Cheese', unit: 'kg', category: 'Dairy', threshold: 1, costPrice: 12.00,
-      warehouseQuantities: [{ warehouseId: 'w2', quantity: 5 }]
-    },
-  ]);
+  const [inventory, setInventory] = useState<InventoryItem[]>([]);
 
   const [orders, setOrders] = useState<Order[]>([]);
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [purchaseOrders, setPurchaseOrders] = useState<PurchaseOrder[]>([]);
   const [tables, setTables] = useState<Table[]>(INITIAL_TABLES);
+  const [printers, setPrinters] = useState<Printer[]>([]);
   const [settings, setSettings] = useState<AppSettings>(() => {
     const saved = localStorage.getItem('erp_settings');
     const initial = {
@@ -677,6 +517,18 @@ const App: React.FC = () => {
     }));
   };
 
+  const handleUpdatePrinter = (updatedPrinter: Printer) => {
+    setPrinters(prev => prev.map(p => p.id === updatedPrinter.id ? updatedPrinter : p));
+  };
+
+  const handleAddPrinter = (newPrinter: Printer) => {
+    setPrinters(prev => [...prev, newPrinter]);
+  };
+
+  const handleDeletePrinter = (id: string) => {
+    setPrinters(prev => prev.filter(p => p.id !== id));
+  };
+
   const handleUpdateRecipe = (menuItemId: string, recipe: RecipeIngredient[]) => {
     setCategories(prev => prev.map(cat => ({
       ...cat,
@@ -754,6 +606,7 @@ const App: React.FC = () => {
                   categories={categories}
                   branches={branches}
                   platforms={platforms}
+                  printers={printers}
                   onUpdateMenuItem={handleUpdateMenuItem}
                   onAddMenuItem={handleAddMenuItem}
                   onDeleteMenuItem={handleDeleteMenuItem}
@@ -762,6 +615,16 @@ const App: React.FC = () => {
                   onAddMenu={handleAddMenu}
                   onUpdateMenu={handleUpdateMenu}
                   onLinkCategory={handleLinkCategory}
+                />
+              );
+              case 'PRINTERS': return (
+                <PrinterManager
+                  {...commonProps}
+                  printers={printers}
+                  branches={branches}
+                  onAddPrinter={handleAddPrinter}
+                  onUpdatePrinter={handleUpdatePrinter}
+                  onDeletePrinter={handleDeletePrinter}
                 />
               );
               case 'RECIPES': return (

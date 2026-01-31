@@ -135,6 +135,9 @@ export interface MenuItem {
   isPopular?: boolean;
   recipe?: RecipeIngredient[]; // Link to raw materials
   modifierGroups?: ModifierGroup[];
+  printerIds?: string[]; // IDs of printers for this item
+  sortOrder?: number;
+  layoutType?: 'standard' | 'wide' | 'image-only';
 }
 
 export enum WarehouseType {
@@ -299,11 +302,23 @@ export interface MenuCategory {
 export interface RestaurantMenu {
   id: string;
   name: string;
+  nameAr?: string;
   isDefault: boolean;
   status: 'ACTIVE' | 'INACTIVE';
   targetBranches?: string[];
   targetZones?: string[];
   targetPlatforms?: string[];
+}
+
+export type PrinterType = 'LOCAL' | 'NETWORK';
+
+export interface Printer {
+  id: string;
+  name: string;
+  type: PrinterType;
+  address: string; // IP or local name
+  isActive: boolean;
+  branchId: string;
 }
 
 export interface Offer {
@@ -332,6 +347,7 @@ export enum AppPermission {
   NAV_AI_ASSISTANT = 'NAV_AI_ASSISTANT',
   NAV_SETTINGS = 'NAV_SETTINGS',
   NAV_SECURITY = 'NAV_SECURITY',
+  NAV_PRINTERS = 'NAV_PRINTERS',
 
   // --- Data & Financial Visibility ---
   DATA_VIEW_REVENUE = 'DATA_VIEW_REVENUE',
@@ -441,4 +457,4 @@ export interface AppSettings {
   geminiApiKey?: string;
 }
 
-export type ViewState = 'DASHBOARD' | 'POS' | 'KDS' | 'INVENTORY' | 'FINANCE' | 'CRM' | 'REPORTS' | 'MENU_MANAGER' | 'AI_ASSISTANT' | 'AI_INSIGHTS' | 'SETTINGS' | 'CALL_CENTER' | 'FORENSICS' | 'SECURITY' | 'RECIPES';
+export type ViewState = 'DASHBOARD' | 'POS' | 'KDS' | 'INVENTORY' | 'FINANCE' | 'CRM' | 'REPORTS' | 'MENU_MANAGER' | 'AI_ASSISTANT' | 'AI_INSIGHTS' | 'SETTINGS' | 'CALL_CENTER' | 'FORENSICS' | 'SECURITY' | 'RECIPES' | 'PRINTERS';

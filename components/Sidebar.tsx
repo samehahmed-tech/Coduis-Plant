@@ -26,7 +26,8 @@ import {
   ShoppingBag,
   Palette,
   Calculator,
-  Tablet
+  Tablet,
+  Printer as PrinterIcon
 } from 'lucide-react';
 import { ViewState, User, UserRole, AppPermission, Branch } from '../types';
 import { translations } from '../services/translations';
@@ -158,6 +159,7 @@ const Sidebar: React.FC<SidebarProps> = ({
       title: lang === 'ar' ? 'إدارة الموارد' : 'Resources',
       items: [
         { id: 'MENU_MANAGER' as ViewState, label: t.menu, icon: BookOpen, permission: AppPermission.NAV_MENU_MANAGER },
+        { id: 'PRINTERS' as ViewState, label: t.printers, icon: PrinterIcon, permission: AppPermission.NAV_PRINTERS },
         { id: 'RECIPES' as ViewState, label: t.recipes, icon: ChefHat, permission: AppPermission.NAV_RECIPES },
         { id: 'INVENTORY' as ViewState, label: t.inventory, icon: Package, permission: AppPermission.NAV_INVENTORY },
         { id: 'CRM' as ViewState, label: t.crm, icon: Users, permission: AppPermission.NAV_CRM },
