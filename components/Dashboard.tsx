@@ -334,7 +334,7 @@ const Dashboard: React.FC<DashboardProps> = ({
               {lang === 'ar' ? 'المبيعات حسب الفئة' : 'Categorical Mix'}
             </h3>
             <div className="h-48 w-full min-h-[190px] relative overflow-hidden">
-              <ResponsiveContainer width="100%" height="100%">
+              <ResponsiveContainer width="100%" height="100%" minHeight={190}>
                 <PieChart>
                   <Pie
                     data={categoryData}

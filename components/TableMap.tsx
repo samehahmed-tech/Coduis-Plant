@@ -33,7 +33,29 @@ const DEFAULT_ZONES: FloorZone[] = [
 ];
 
 const TableMap: React.FC<TableMapProps> = ({ tables, onSelectTable, lang, t, isDarkMode }) => {
+    // Dynamic zones from tables
+    const zones = useMemo(() => {
+        const uniqueIds = Array.from(new Set(tables.map(t => t.zoneId)));
+        const dynamicZones = uniqueIds.map(id => {
+            const defaultZone = DEFAULT_ZONES.find(z => z.id === id);
+            return defaultZone || {
+                id,
+                name: id.charAt(0).toUpperCase() + id.slice(1).replace('-', ' '),
+                color: '#64748b'
+            };
+        });
+        return [{ id: 'all', name: lang === 'ar' ? 'كل المناطق' : 'All Zones', color: '#64748b' }, ...dynamicZones];
+    }, [tables, lang]);
+
     const [activeZone, setActiveZone] = useState<string>('all');
+
+    // Set default zone to first available real zone on mount to avoid overlap mess
+    React.useEffect(() => {
+        if (activeZone === 'all' && zones.length > 1) {
+            setActiveZone(zones[1].id);
+        }
+    }, []);
+
     const [searchQuery, setSearchQuery] = useState('');
     const [statusFilter, setStatusFilter] = useState<TableStatus | 'ALL'>('ALL');
     const [viewMode, setViewMode] = useState<'GRID' | 'COMPACT' | 'FLOOR'>('FLOOR');
@@ -53,6 +75,12 @@ const TableMap: React.FC<TableMapProps> = ({ tables, onSelectTable, lang, t, isD
             return true;
         });
     }, [tables, activeZone, searchQuery, statusFilter]);
+
+    // Auto-switch to GRID if "All Zones" is selected
+    React.useEffect(() => {
+        if (activeZone === 'all') setViewMode('GRID');
+        else setViewMode('FLOOR');
+    }, [activeZone]);
 
     // Status statistics
     const stats = useMemo(() => ({
@@ -114,25 +142,25 @@ const TableMap: React.FC<TableMapProps> = ({ tables, onSelectTable, lang, t, isD
             onClick={() => table.status !== TableStatus.DIRTY && onSelectTable(table)}
             style={{
                 position: 'absolute',
-                left: `${table.position?.x || 50}%`,
-                top: `${table.position?.y || 50}%`,
+                left: `${table.position?.x}%`,
+                top: `${table.position?.y}%`,
                 transform: 'translate(-50%, -50%)'
             }}
             className={`w-20 h-20 rounded-2xl ${table.shape === 'round' ? 'rounded-full' : table.shape === 'rectangle' ? 'w-28' : ''
-                } ${getStatusBG(table.status)} border-2 cursor-pointer transition-all hover:shadow-xl hover:scale-110 flex flex-col items-center justify-center relative`}
+                } ${getStatusBG(table.status)} border-2 cursor-pointer transition-all hover:shadow-xl hover:scale-110 flex flex-col items-center justify-center relative shadow-sm`}
         >
             <span className="text-lg font-black text-slate-800 dark:text-white">{table.name}</span>
             <div className="flex items-center gap-1 text-[10px] text-slate-500">
                 <Users size={10} /> {table.seats}
             </div>
-            {table.isVIP && <Crown size={12} className="absolute -top-1.5 -right-1.5 text-amber-500" />}
+            {table.isVIP && <Crown size={12} className="absolute -top-1.5 -right-1.5 text-amber-500 bg-white rounded-full p-0.5" />}
             {table.discount && table.discount > 0 && (
-                <div className="absolute -top-1.5 -left-1.5 w-5 h-5 bg-green-500 rounded-full flex items-center justify-center">
+                <div className="absolute -top-1.5 -left-1.5 w-5 h-5 bg-green-500 rounded-full flex items-center justify-center border-2 border-white">
                     <Percent size={8} className="text-white" />
                 </div>
             )}
             {table.status === TableStatus.OCCUPIED && (
-                <div className="absolute -bottom-2 left-1/2 -translate-x-1/2 px-2 py-0.5 bg-indigo-600 text-white text-[9px] font-bold rounded-full">
+                <div className="absolute -bottom-3 left-1/2 -translate-x-1/2 px-2 py-0.5 bg-indigo-600 text-white text-[9px] font-bold rounded-full shadow-md z-10 whitespace-nowrap">
                     ${table.currentOrderTotal?.toFixed(0) || '0'}
                 </div>
             )}
@@ -253,7 +281,7 @@ const TableMap: React.FC<TableMapProps> = ({ tables, onSelectTable, lang, t, isD
             {/* Zone Tabs + Stats */}
             <div className="flex flex-wrap justify-between items-center gap-3">
                 <div className="flex gap-1.5 bg-slate-100 dark:bg-slate-800 p-1 rounded-xl overflow-x-auto">
-                    {DEFAULT_ZONES.map(zone => (
+                    {zones.map(zone => (
                         <button
                             key={zone.id}
                             onClick={() => setActiveZone(zone.id)}

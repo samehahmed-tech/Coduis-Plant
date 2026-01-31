@@ -16,13 +16,17 @@ import FloorDesigner from './components/FloorDesigner';
 import AdminDashboard from './components/AdminDashboard';
 import CallCenter from './components/CallCenter';
 import SecurityHub from './components/SecurityHub';
+import RecipeManager from './components/RecipeManager';
+import ForensicsHub from './components/ForensicsHub';
 import {
   ViewState, Order, OrderStatus, OrderItem, PaymentMethod,
   OrderType, Customer, Supplier, PurchaseOrder, InventoryItem,
   FinancialAccount, AccountType, JournalEntry, RestaurantMenu, MenuItem,
   Table, TableStatus, MenuCategory, Branch, DeliveryPlatform, Warehouse, WarehouseType, User, UserRole,
-  AppPermission, INITIAL_ROLE_PERMISSIONS, AppSettings
+  AppPermission, INITIAL_ROLE_PERMISSIONS, AppSettings, AuditLog, AuditEventType, RecipeIngredient
 } from './types';
+import Login from './components/Login';
+import { translations } from './services/translations';
 
 const INITIAL_TABLES: Table[] = [
   { id: '1', name: 'H1', status: TableStatus.AVAILABLE, seats: 2, zoneId: 'hall', position: { x: 15, y: 20 } },
@@ -42,8 +46,23 @@ const INITIAL_TABLES: Table[] = [
 const INITIAL_ACCOUNTS: FinancialAccount[] = [
   {
     id: '1', code: '1000', name: 'Assets', type: AccountType.ASSET, balance: 142500, children: [
-      { id: '1-1', code: '1100', name: 'Cash & Bank', type: AccountType.ASSET, balance: 42500 },
-      { id: '1-2', code: '1200', name: 'Inventory Stock', type: AccountType.ASSET, balance: 100000 },
+      {
+        id: '1-1', code: '1100', name: 'Cash & Cash Equivalents', type: AccountType.ASSET, balance: 42500, children: [
+          { id: '1-1-1', code: '1110', name: 'Cashier Main', type: AccountType.ASSET, balance: 22500 },
+          { id: '1-1-2', code: '1120', name: 'Bank Account - CIB', type: AccountType.ASSET, balance: 20000 },
+        ]
+      },
+      {
+        id: '1-2', code: '1200', name: 'Inventory Stock', type: AccountType.ASSET, balance: 100000, children: [
+          { id: '1-2-1', code: '1210', name: 'Raw Materials', type: AccountType.ASSET, balance: 80000 },
+          { id: '1-2-2', code: '1220', name: 'Packaging Materials', type: AccountType.ASSET, balance: 20000 },
+        ]
+      },
+    ]
+  },
+  {
+    id: '2', code: '2000', name: 'Liabilities', type: AccountType.LIABILITY, balance: 12000, children: [
+      { id: '2-1', code: '2100', name: 'Accounts Payable', type: AccountType.LIABILITY, balance: 12000 },
     ]
   },
   {
@@ -54,11 +73,23 @@ const INITIAL_ACCOUNTS: FinancialAccount[] = [
   },
   {
     id: '5', code: '5000', name: 'Expenses', type: AccountType.EXPENSE, balance: 8250, children: [
-      { id: '5-1', code: '5100', name: 'COGS (Food Cost)', type: AccountType.EXPENSE, balance: 6000 },
-      { id: '5-2', code: '5200', name: 'Operational Costs', type: AccountType.EXPENSE, balance: 2250 },
+      {
+        id: '5-1', code: '5100', name: 'Direct Costs (COGS)', type: AccountType.EXPENSE, balance: 6000, children: [
+          { id: '5-1-1', code: '5110', name: 'Food Cost', type: AccountType.EXPENSE, balance: 5000 },
+          { id: '5-1-2', code: '5120', name: 'Packaging Cost', type: AccountType.EXPENSE, balance: 1000 },
+        ]
+      },
+      {
+        id: '5-2', code: '5200', name: 'Operating Expenses', type: AccountType.EXPENSE, balance: 2250, children: [
+          { id: '5-2-1', code: '5210', name: 'Staff Salaries', type: AccountType.EXPENSE, balance: 0 },
+          { id: '5-2-2', code: '5220', name: 'Utilities & Rent', type: AccountType.EXPENSE, balance: 2250 },
+        ]
+      },
     ]
   },
 ];
+
+const INITIAL_TRANSACTIONS: JournalEntry[] = [];
 
 const INITIAL_BRANCHES: Branch[] = [
   { id: 'b1', name: 'Zayed Branch', location: 'Sheikh Zayed', isActive: true, phone: '01012345678' },
@@ -211,76 +242,7 @@ const INITIAL_CATEGORIES: MenuCategory[] = [
   }
 ];
 
-const translations = {
-  en: {
-    dashboard: "Dashboard",
-    pos: "Point of Sale",
-    menu: "Menu Catalog",
-    kds: "Kitchen Display",
-    inventory: "Inventory",
-    finance: "Finance & COA",
-    crm: "Customers (CRM)",
-    reports: "Business Reports",
-    ai: "Smart Manager",
-    settings: "Settings",
-    sign_out: "Sign Out",
-    light_mode: "Light Mode",
-    dark_mode: "Dark Mode",
-    lang: "Language",
-    total_rev: "Total Revenue",
-    orders: "Total Orders",
-    tables: "Active Tables",
-    growth: "Growth",
-    confirm: "Confirm",
-    void: "Void",
-    place_order: "Place Order",
-    subtotal: "Subtotal",
-    tax: "VAT (10%)",
-    total: "Total",
-    checkout: "Checkout",
-    payment_method: "Payment Method",
-    split_bill: "Split Bill",
-    remaining: "Remaining to Pay",
-    void_confirm: "Void current order?",
-    ai_insights: "AI Analytics",
-    settings: "Settings",
-    security: "Security & Users"
-  },
-  ar: {
-    dashboard: "لوحة التحكم",
-    pos: "نقطة البيع",
-    menu: "قائمة الطعام",
-    kds: "شاشة المطبخ",
-    inventory: "المخازن",
-    finance: "المالية والحسابات",
-    crm: "إدارة العملاء",
-    reports: "التقارير",
-    ai: "المدير الذكي",
-    settings: "الإعدادات",
-    sign_out: "تسجيل الخروج",
-    light_mode: "الوضع المضيء",
-    dark_mode: "الوضع الليلي",
-    lang: "اللغة",
-    total_rev: "إجمالي الإيرادات",
-    orders: "إجمالي الطلبات",
-    tables: "الطاولات النشطة",
-    growth: "النمو",
-    confirm: "تأكيد",
-    void: "إلغاء",
-    place_order: "إتمام الطلب",
-    subtotal: "الإجمالي الفرعي",
-    tax: "الضريبة (10%)",
-    total: "الإجمالي النهائي",
-    checkout: "الدفع",
-    payment_method: "طريقة الدفع",
-    split_bill: "تقسيم الفاتورة",
-    remaining: "المتبقي للدفع",
-    void_confirm: "هل تريد إلغاء الطلب الحالي؟",
-    ai_insights: "تحليلات الذكاء الاصطناعي",
-    settings: "الإعدادات",
-    security: "الأمان والمستخدمين"
-  }
-};
+// Translations imported from services/translations.ts
 
 const App: React.FC = () => {
   const [currentView, setCurrentView] = useState<ViewState>('DASHBOARD');
@@ -288,11 +250,16 @@ const App: React.FC = () => {
   const [currency, setCurrency] = useState<'USD' | 'EGP'>('EGP');
 
   const [accounts, setAccounts] = useState<FinancialAccount[]>(INITIAL_ACCOUNTS);
-  const [transactions, setTransactions] = useState<JournalEntry[]>([]);
+  const [transactions, setTransactions] = useState<JournalEntry[]>(INITIAL_TRANSACTIONS);
+  const [auditLogs, setAuditLogs] = useState<AuditLog[]>([]);
   const [menus, setMenus] = useState<RestaurantMenu[]>(INITIAL_MENUS);
   const [categories, setCategories] = useState<MenuCategory[]>(INITIAL_CATEGORIES);
   const [branches, setBranches] = useState<Branch[]>(INITIAL_BRANCHES);
   const [platforms, setPlatforms] = useState<DeliveryPlatform[]>(INITIAL_PLATFORMS);
+
+  // Offline & Sync State
+  const [isOnline, setIsOnline] = useState(true);
+  const [offlineQueue, setOfflineQueue] = useState<Order[]>([]);
   const [warehouses, setWarehouses] = useState<Warehouse[]>(INITIAL_WAREHOUSES);
   const [users, setUsers] = useState<User[]>(INITIAL_USERS);
   const [inventory, setInventory] = useState<InventoryItem[]>([
@@ -326,9 +293,43 @@ const App: React.FC = () => {
     theme: 'nebula',
     branchAddress: 'Sheikh Zayed, Cairo',
     phone: '19000',
-    currentUser: INITIAL_USERS[0],
-    activeBranchId: 'b1'
+    currentUser: undefined, // Start logged out
+    activeBranchId: undefined
   });
+
+  const [loginError, setLoginError] = useState<string | undefined>();
+
+  const handleLogin = (email: string, pass: string) => {
+    // Basic simulation of auth
+    const user = INITIAL_USERS.find(u => u.email === email);
+    if (user) {
+      setSettings(prev => ({
+        ...prev,
+        currentUser: user,
+        activeBranchId: user.assignedBranchId || 'b1'
+      }));
+      // Auto-route based on role
+      if (user.role === UserRole.CASHIER) setCurrentView('POS');
+      else if (user.role === UserRole.KITCHEN_STAFF) setCurrentView('KDS');
+      else setCurrentView('DASHBOARD');
+
+      setLoginError(undefined);
+    } else {
+      setLoginError(lang === 'ar' ? 'بيانات الدخول غير صحيحة' : 'Invalid identity credentials');
+    }
+  };
+
+  const [posMode, setPosMode] = useState<OrderType>(OrderType.DINE_IN); // Default POS Mode
+
+  const handleSetPosMode = (mode: OrderType) => {
+    setPosMode(mode);
+    setCurrentView('POS');
+  };
+
+  const logout = () => {
+    setSettings(prev => ({ ...prev, currentUser: undefined, activeBranchId: undefined }));
+    setCurrentView('DASHBOARD');
+  };
 
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', settings.theme);
@@ -337,6 +338,7 @@ const App: React.FC = () => {
   }, [settings.theme, settings.isDarkMode]);
 
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
+  const toggleSidebar = () => setIsSidebarCollapsed(!isSidebarCollapsed);
   const [showFloorDesigner, setShowFloorDesigner] = useState(false);
 
   const t = translations[settings.language];
@@ -380,12 +382,14 @@ const App: React.FC = () => {
         case 'INVENTORY': return AppPermission.NAV_INVENTORY;
         case 'REPORTS': return AppPermission.NAV_REPORTS;
         case 'MENU_MANAGER': return AppPermission.NAV_MENU_MANAGER;
+        case 'RECIPES': return AppPermission.NAV_RECIPES;
         case 'CRM': return AppPermission.NAV_CRM;
         case 'AI_ASSISTANT': return AppPermission.NAV_AI_ASSISTANT;
         case 'AI_INSIGHTS': return AppPermission.NAV_ADMIN_DASHBOARD;
         case 'SETTINGS': return AppPermission.NAV_SETTINGS;
         case 'CALL_CENTER': return AppPermission.NAV_CALL_CENTER;
         case 'SECURITY': return AppPermission.NAV_SECURITY;
+        case 'FORENSICS': return AppPermission.NAV_FORENSICS;
         case 'FLOOR_DESIGNER': return AppPermission.CFG_EDIT_FLOOR_PLAN;
         default: return null;
       }
@@ -426,55 +430,122 @@ const App: React.FC = () => {
     setAccounts(prev => updateBalance(prev));
   }, []);
 
-  const handlePlaceOrder = (newOrder: Order) => {
-    // Ensure order always has a branchId if not already set (e.g., from POS)
-    const orderWithBranch = {
-      ...newOrder,
-      branchId: newOrder.branchId || effectiveBranchId
+  const recordAuditLog = useCallback((
+    eventType: AuditEventType,
+    payload: { before?: any; after: any; reason?: string },
+    metadata?: Record<string, any>
+  ) => {
+    const user = settings.currentUser;
+    if (!user) return;
+
+    const log: AuditLog = {
+      id: `LOG-${Math.random().toString(36).substr(2, 9).toUpperCase()}`,
+      timestamp: new Date(),
+      eventType,
+      userId: user.id,
+      userName: user.name,
+      userRole: user.role,
+      branchId: settings.activeBranchId || 'GLOBAL',
+      deviceId: 'WEB-CLIENT-SIM', // In production, this would be a real device fingerprint
+      payload,
+      metadata
     };
 
+    setAuditLogs(prev => [log, ...prev]);
+  }, [settings.currentUser, settings.activeBranchId]);
+
+  const handlePlaceOrder = (newOrder: Order) => {
+    const orderWithBranch: Order = {
+      ...newOrder,
+      branchId: newOrder.branchId || effectiveBranchId,
+      createdAt: new Date(),
+      status: isOnline ? 'COMPLETED' : 'PENDING',
+      syncStatus: isOnline ? 'SYNCED' : 'PENDING'
+    };
+
+    if (!isOnline) {
+      setOfflineQueue(prev => [...prev, orderWithBranch]);
+      setOrders(prev => [...prev, orderWithBranch]); // Optimistic UI update
+
+      // Still deduct stock loosely in local state, but don't record valid financial transaction until sync
+      // For this simulation, we'll skip financial recording in offline mode and do it on sync.
+      return;
+    }
+
     setOrders(prev => [...prev, orderWithBranch]);
+
     let totalCOGS = 0;
+    // Find the target warehouse for depletion (Kitchen or POS warehouse of current branch)
+    const targetBranchWarehouse = warehouses.find(w => w.branchId === orderWithBranch.branchId && (w.type === WarehouseType.KITCHEN || w.type === WarehouseType.POINT_OF_SALE)) || warehouses.find(w => w.branchId === orderWithBranch.branchId);
+
     setInventory(prevInv => {
       const nextInv = [...prevInv];
-      newOrder.items.forEach(item => {
-        let latestRecipe = item.recipe;
-        categories.forEach(cat => {
-          const found = cat.items.find(mi => mi.id === item.id);
-          if (found) latestRecipe = found.recipe;
+
+      newOrder.items.forEach(orderItem => {
+        // 1. Get Base Item Recipe
+        const menuItems = categories.flatMap(c => c.items);
+        const baseItem = menuItems.find(mi => mi.id === orderItem.id);
+        const receiptsToProcess: RecipeIngredient[] = [...(baseItem?.recipe || [])];
+
+        // 2. Add Modifier Recipes
+        orderItem.selectedModifiers?.forEach(mod => {
+          const modGroup = baseItem?.modifierGroups?.find(mg => mg.name === mod.groupName);
+          const modOption = modGroup?.options.find(o => o.name === mod.optionName);
+          if (modOption?.recipe) {
+            receiptsToProcess.push(...modOption.recipe);
+          }
         });
-        if (latestRecipe) {
-          latestRecipe.forEach(ri => {
-            const idx = nextInv.findIndex(i => i.id === ri.inventoryItemId);
-            if (idx !== -1) {
-              const invItem = nextInv[idx];
-              totalCOGS += invItem.costPrice * ri.quantityNeeded * item.quantity;
-              nextInv[idx] = {
-                ...invItem,
-                quantity: Math.max(0, invItem.quantity - (ri.quantityNeeded * item.quantity)),
-                lastUpdated: new Date()
-              };
-            }
-          });
-        }
+
+        // 3. Deduct stock for all ingredients
+        receiptsToProcess.forEach(ri => {
+          const invIdx = nextInv.findIndex(ii => ii.id === ri.itemId);
+          if (invIdx !== -1) {
+            const invItem = nextInv[invIdx];
+            totalCOGS += (invItem.costPrice * ri.quantity * orderItem.quantity);
+
+            // Deduct from warehouseQuantities
+            const updatedWarehouses = invItem.warehouseQuantities.map(wq => {
+              if (targetBranchWarehouse && wq.warehouseId === targetBranchWarehouse.id) {
+                return { ...wq, quantity: Math.max(0, wq.quantity - (ri.quantity * orderItem.quantity)) };
+              }
+              return wq;
+            });
+
+            nextInv[invIdx] = {
+              ...invItem,
+              warehouseQuantities: updatedWarehouses
+            };
+
+            // Note: Ideally record stock movement here, but for simulation we update local state
+          }
+        });
       });
+
       return nextInv;
     });
+
+    // Recording Financial Transactions (Hierarchical CoA Mapping)
     recordTransaction({
       date: new Date(),
-      description: `Sale - Order #${newOrder.id}`,
-      debitAccountId: '1-1',
-      creditAccountId: '4-1',
-      amount: newOrder.total,
-      referenceId: newOrder.id
+      description: `Sale - Order #${orderWithBranch.id}`,
+      debitAccountId: '1-1-1', // Asset: Cashier Main
+      creditAccountId: '4-1', // Revenue: Food Sales
+      amount: orderWithBranch.total,
+      referenceId: orderWithBranch.id
     });
+
     recordTransaction({
       date: new Date(),
-      description: `Inventory Depletion - Order #${newOrder.id}`,
-      debitAccountId: '5-1',
-      creditAccountId: '1-2',
+      description: `COGS - Order #${orderWithBranch.id}`,
+      debitAccountId: '5-1-1', // Expense: Food Cost
+      creditAccountId: '1-2-1', // Asset: Raw Materials
       amount: totalCOGS,
-      referenceId: newOrder.id
+      referenceId: orderWithBranch.id
+    });
+
+    recordAuditLog(AuditEventType.POS_ORDER_PLACEMENT, {
+      after: orderWithBranch,
+      reason: 'Standard customer order'
     });
   };
 
@@ -529,6 +600,54 @@ const App: React.FC = () => {
     }));
   };
 
+  const handleReceivePO = (poId: string, receivedAt: Date) => {
+    setPurchaseOrders(prev => prev.map(po => {
+      if (po.id !== poId) return po;
+      const updatedPo: PurchaseOrder = { ...po, status: 'RECEIVED', receivedDate: receivedAt };
+
+      // Update Inventory Quantities
+      setInventory(prevInv => prevInv.map(invItem => {
+        const poItem = updatedPo.items.find(item => item.itemId === invItem.id);
+        if (poItem && updatedPo.targetWarehouseId) {
+          const updatedWarehouses = invItem.warehouseQuantities.map(wq => {
+            if (wq.warehouseId === updatedPo.targetWarehouseId) {
+              return { ...wq, quantity: wq.quantity + (poItem.receivedQuantity || poItem.quantity) };
+            }
+            return wq;
+          });
+          return { ...invItem, warehouseQuantities: updatedWarehouses };
+        }
+        return invItem;
+      }));
+
+      // Record Audit
+      recordAuditLog(AuditEventType.PO_STATUS_CHANGE, {
+        before: po,
+        after: updatedPo,
+        reason: 'Received shipment'
+      });
+
+      // Record Transaction
+      recordTransaction({
+        date: receivedAt,
+        description: `Inventory Received - PO #${poId}`,
+        debitAccountId: '1-2-1', // Asset: Raw Materials
+        creditAccountId: '2-1', // Liability: Accounts Payable
+        amount: updatedPo.totalCost,
+        referenceId: poId
+      });
+
+      return updatedPo;
+    }));
+  };
+
+  const handleUpdateRecipe = (menuItemId: string, recipe: RecipeIngredient[]) => {
+    setCategories(prev => prev.map(cat => ({
+      ...cat,
+      items: cat.items.map(item => item.id === menuItemId ? { ...item, recipe } : item)
+    })));
+  };
+
   const currencySymbol = currency === 'USD' ? '$' : 'ج.م';
 
   const renderView = () => {
@@ -564,7 +683,8 @@ const App: React.FC = () => {
                 inventory={inventory}
                 suppliers={suppliers}
                 purchaseOrders={purchaseOrders}
-                onAddPO={(po) => setPurchaseOrders([po, ...purchaseOrders])}
+                onAddPO={(po) => setPurchaseOrders(prev => [...prev, po])}
+                onReceivePO={handleReceivePO}
                 warehouses={warehouses}
                 branches={branches}
               />
@@ -586,6 +706,16 @@ const App: React.FC = () => {
                 onAddMenu={handleAddMenu}
                 onUpdateMenu={handleUpdateMenu}
                 onLinkCategory={handleLinkCategory}
+              />
+            );
+            case 'RECIPES': return (
+              <RecipeManager
+                {...commonProps}
+                menuItems={categories.flatMap(c => c.items)}
+                inventoryItems={inventory}
+                categories={categories}
+                onUpdateRecipe={handleUpdateRecipe}
+                currencySymbol={currencySymbol}
               />
             );
             case 'CRM': return <CRM {...commonProps} customers={customers} onAddCustomer={() => { }} />;
@@ -628,12 +758,30 @@ const App: React.FC = () => {
                 {...commonProps}
               />
             );
+            case 'FORENSICS': return (
+              <ForensicsHub
+                logs={auditLogs}
+                users={users}
+                {...commonProps}
+              />
+            );
             default: return <Dashboard {...commonProps} />;
           }
         })()}
       </div>
     );
   };
+
+  if (!settings.currentUser) {
+    return (
+      <Login
+        onLogin={handleLogin}
+        lang={settings.language}
+        setLang={(l) => setSettings(prev => ({ ...prev, language: l }))}
+        error={loginError}
+      />
+    );
+  }
 
   return (
     <div className={`flex min-h-screen transition-all duration-500 bg-slate-50 dark:bg-slate-950`} dir={lang === 'ar' ? 'rtl' : 'ltr'}>
@@ -643,7 +791,7 @@ const App: React.FC = () => {
         isDarkMode={settings.isDarkMode}
         onToggleDarkMode={() => setSettings({ ...settings, isDarkMode: !settings.isDarkMode })}
         isCollapsed={isSidebarCollapsed}
-        onToggleCollapse={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
+        onToggleCollapse={toggleSidebar}
         lang={settings.language}
         onToggleLang={() => setSettings({ ...settings, language: settings.language === 'en' ? 'ar' : 'en' })}
         user={settings.currentUser}
@@ -652,6 +800,10 @@ const App: React.FC = () => {
         activeBranchId={settings.activeBranchId}
         onSelectBranch={(id) => setSettings({ ...settings, activeBranchId: id })}
         hasPermission={hasPermission}
+        onLogout={logout}
+        theme={settings.theme}
+        onThemeChange={(newTheme) => setSettings({ ...settings, theme: newTheme })}
+        onSetOrderMode={handleSetPosMode}
       />
 
       <main className={`flex-1 flex flex-col min-h-screen transition-all duration-300 ${lang === 'ar'

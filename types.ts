@@ -8,6 +8,42 @@ export enum OrderStatus {
   CANCELLED = 'CANCELLED'
 }
 
+export type SyncStatus = 'PENDING' | 'SYNCED' | 'FAILED';
+
+export enum AuditEventType {
+  POS_VOID = 'POS_VOID',
+  POS_DISCOUNT = 'POS_DISCOUNT',
+  POS_ORDER_PLACEMENT = 'POS_ORDER_PLACEMENT',
+  POS_PAYMENT = 'POS_PAYMENT',
+  INVENTORY_ADJUSTMENT = 'INVENTORY_ADJUSTMENT',
+  INVENTORY_TRANSFER = 'INVENTORY_TRANSFER',
+  PO_STATUS_CHANGE = 'PO_STATUS_CHANGE',
+  SECURITY_PERMISSION_CHANGE = 'SECURITY_PERMISSION_CHANGE',
+  SECURITY_LOGIN = 'SECURITY_LOGIN',
+  ACCOUNTING_ADJUSTMENT = 'ACCOUNTING_ADJUSTMENT',
+  SETTINGS_CHANGE = 'SETTINGS_CHANGE'
+}
+
+export interface AuditLog {
+  id: string;
+  timestamp: Date;
+  eventType: AuditEventType;
+  userId: string;
+  userName: string;
+  userRole: string;
+  branchId: string;
+  deviceId: string;
+  ipAddress?: string;
+  payload: {
+    before?: any;
+    after: any;
+    reason?: string;
+  };
+  metadata?: Record<string, any>;
+  isTampered?: boolean; // For forensic detection
+  signature?: string; // Potential HMAC for verification
+}
+
 export enum OrderType {
   DINE_IN = 'DINE_IN',
   TAKEAWAY = 'TAKEAWAY',
@@ -62,17 +98,19 @@ export interface JournalEntry {
   amount: number;
   referenceId?: string; // Order ID or PO ID
 }
-
 // --- Inventory & Recipe ---
+
 export interface RecipeIngredient {
-  inventoryItemId: string;
-  quantityNeeded: number;
+  itemId: string; // Link to InventoryItem
+  quantity: number;
+  unit: string;
 }
 
 export interface ModifierOption {
   id: string;
   name: string;
   price: number;
+  recipe?: RecipeIngredient[]; // Recipe for the specific modifier option
 }
 
 export interface ModifierGroup {
@@ -86,12 +124,16 @@ export interface ModifierGroup {
 export interface MenuItem {
   id: string;
   name: string;
-  price: number;
-  category: string;
-  image?: string;
+  nameAr?: string;
   description?: string;
-  isActive: boolean;
-  recipe?: RecipeIngredient[];
+  descriptionAr?: string;
+  price: number;
+  image?: string;
+  categoryId: string;
+  isAvailable: boolean;
+  preparationTime?: number;
+  isPopular?: boolean;
+  recipe?: RecipeIngredient[]; // Link to raw materials
   modifierGroups?: ModifierGroup[];
 }
 
@@ -111,6 +153,7 @@ export interface Warehouse {
   linkedWarehouses?: string[]; // IDs of warehouses for distribution
 }
 
+
 export interface InventoryItem {
   id: string;
   name: string;
@@ -123,6 +166,7 @@ export interface InventoryItem {
     warehouseId: string;
     quantity: number;
   }[];
+  recipe?: RecipeIngredient[]; // If this is a semi-finished product
 }
 
 export interface StockMovement {
@@ -131,9 +175,10 @@ export interface StockMovement {
   fromWarehouseId?: string;
   toWarehouseId?: string;
   quantity: number;
-  type: 'TRANSFER' | 'ADJUSTMENT' | 'PURCHASE' | 'SALE_CONSUMPTION';
+  type: 'TRANSFER' | 'ADJUSTMENT' | 'PURCHASE' | 'SALE_CONSUMPTION' | 'WASTE';
   date: Date;
   actorId: string;
+  referenceId?: string; // Order ID or PO ID
 }
 
 export interface OrderItem extends MenuItem {
@@ -156,6 +201,7 @@ export interface Order {
   isCallCenterOrder?: boolean;
   items: OrderItem[];
   status: OrderStatus;
+  syncStatus?: SyncStatus; // Offline-first sync tracking
   subtotal: number;
   tax: number;
   total: number;
@@ -177,10 +223,18 @@ export interface Supplier {
 export interface PurchaseOrder {
   id: string;
   supplierId: string;
-  status: 'DRAFT' | 'ORDERED' | 'RECEIVED';
-  items: { itemName: string; quantity: number; unitPrice: number }[];
+  status: 'DRAFT' | 'ORDERED' | 'RECEIVED' | 'CANCELLED';
+  items: {
+    itemId: string; // Link to InventoryItem
+    itemName: string;
+    quantity: number;
+    unitPrice: number;
+    receivedQuantity?: number;
+  }[];
   totalCost: number;
   date: Date;
+  receivedDate?: Date;
+  targetWarehouseId?: string;
 }
 
 export interface Customer {
@@ -273,6 +327,8 @@ export enum AppPermission {
   NAV_REPORTS = 'NAV_REPORTS',
   NAV_CRM = 'NAV_CRM',
   NAV_MENU_MANAGER = 'NAV_MENU_MANAGER',
+  NAV_RECIPES = 'NAV_RECIPES',
+  NAV_FORENSICS = 'NAV_FORENSICS',
   NAV_AI_ASSISTANT = 'NAV_AI_ASSISTANT',
   NAV_SETTINGS = 'NAV_SETTINGS',
   NAV_SECURITY = 'NAV_SECURITY',
@@ -283,6 +339,7 @@ export enum AppPermission {
   DATA_VIEW_PROFITS = 'DATA_VIEW_PROFITS',
   DATA_VIEW_CUSTOMER_SENSITIVE = 'DATA_VIEW_CUSTOMER_SENSITIVE', // Phone/Address
   DATA_VIEW_STOCK_LEVELS = 'DATA_VIEW_STOCK_LEVELS',
+  DATA_VIEW_AUDIT_LOGS = 'DATA_VIEW_AUDIT_LOGS',
 
   // --- Operational Actions ---
   OP_VOID_ORDER = 'OP_VOID_ORDER',
@@ -298,7 +355,8 @@ export enum AppPermission {
   CFG_MANAGE_ROLES = 'CFG_MANAGE_ROLES',
   CFG_EDIT_MENU_PRICING = 'CFG_EDIT_MENU_PRICING',
   CFG_EDIT_FLOOR_PLAN = 'CFG_EDIT_FLOOR_PLAN',
-  CFG_MANAGE_BRANCHES = 'CFG_MANAGE_BRANCHES'
+  CFG_MANAGE_BRANCHES = 'CFG_MANAGE_BRANCHES',
+  CFG_OFFLINE_MODE = 'CFG_OFFLINE_MODE'
 }
 
 export enum UserRole {
@@ -381,4 +439,4 @@ export interface AppSettings {
   currentUser?: User;
 }
 
-export type ViewState = 'DASHBOARD' | 'POS' | 'KDS' | 'INVENTORY' | 'FINANCE' | 'CRM' | 'REPORTS' | 'MENU_MANAGER' | 'AI_ASSISTANT' | 'AI_INSIGHTS' | 'SETTINGS' | 'CALL_CENTER';
+export type ViewState = 'DASHBOARD' | 'POS' | 'KDS' | 'INVENTORY' | 'FINANCE' | 'CRM' | 'REPORTS' | 'MENU_MANAGER' | 'AI_ASSISTANT' | 'AI_INSIGHTS' | 'SETTINGS' | 'CALL_CENTER' | 'FORENSICS' | 'SECURITY' | 'RECIPES';

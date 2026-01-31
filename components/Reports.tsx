@@ -131,7 +131,7 @@ const Reports: React.FC<{ menuItems: MenuItem[], inventory: InventoryItem[] }> =
                <div className="bg-white dark:bg-slate-900 p-8 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm">
                   <h3 className="text-xl font-black text-slate-800 dark:text-white mb-8">Revenue vs Cost vs Net Profit</h3>
                   <div className="h-[400px] w-full min-h-[400px] relative overflow-hidden">
-                     <ResponsiveContainer width="100%" height="100%">
+                     <ResponsiveContainer width="100%" height="100%" minHeight={400}>
                         <AreaChart data={salesData7D}>
                            <defs>
                               <linearGradient id="colorRev" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor="#6366f1" stopOpacity={0.1} /><stop offset="95%" stopColor="#6366f1" stopOpacity={0} /></linearGradient>
@@ -156,7 +156,7 @@ const Reports: React.FC<{ menuItems: MenuItem[], inventory: InventoryItem[] }> =
                <div className="card-primary !p-8">
                   <h3 className="text-xl font-black text-slate-800 dark:text-white mb-8">Weekly Sales Trajectory</h3>
                   <div className="h-[300px] w-full min-h-[300px] relative overflow-hidden">
-                     <ResponsiveContainer width="100%" height="100%">
+                     <ResponsiveContainer width="100%" height="100%" minHeight={300}>
                         <BarChart data={salesData7D}>
                            <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f033" />
                            <XAxis dataKey="name" axisLine={false} tickLine={false} />

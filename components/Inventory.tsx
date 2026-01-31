@@ -1,7 +1,6 @@
-import React, { useState } from 'react';
 import {
   AlertTriangle, Plus, Search, Bell, X, Truck, FileText, Package,
-  User, Phone, Mail, Tag, ExternalLink, Briefcase
+  User, Phone, Mail, Tag, ExternalLink, Briefcase, CheckCircle, Clock
 } from 'lucide-react';
 import { InventoryItem, Supplier, PurchaseOrder, Warehouse, Branch, WarehouseType } from '../types';
 
@@ -10,12 +9,15 @@ interface InventoryProps {
   suppliers: Supplier[];
   purchaseOrders: PurchaseOrder[];
   onAddPO: (po: PurchaseOrder) => void;
+  onReceivePO: (poId: string, date: Date) => void;
   lang: 'en' | 'ar';
   warehouses: Warehouse[];
   branches: Branch[];
 }
 
-const Inventory: React.FC<InventoryProps> = ({ inventory, suppliers, purchaseOrders, onAddPO, lang, warehouses, branches }) => {
+const Inventory: React.FC<InventoryProps> = ({
+  inventory, suppliers, purchaseOrders, onAddPO, onReceivePO, lang, warehouses, branches
+}) => {
   const [activeTab, setActiveTab] = useState<'STOCK' | 'SUPPLIERS' | 'PO' | 'WAREHOUSES' | 'BRANCHES'>('STOCK');
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedSupplier, setSelectedSupplier] = useState<Supplier | null>(null);
@@ -181,15 +183,40 @@ const Inventory: React.FC<InventoryProps> = ({ inventory, suppliers, purchaseOrd
         <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
           {purchaseOrders.map(po => {
             const supplier = suppliers.find(s => s.id === po.supplierId);
+            const canReceive = po.status === 'ORDERED';
             return (
-              <tr key={po.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/50">
+              <tr key={po.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/50 group">
                 <td className="px-6 py-4 font-mono text-slate-600">#{po.id}</td>
-                <td className="px-6 py-4 font-bold text-slate-800 dark:text-slate-200">{supplier?.name || 'Unknown'}</td>
-                <td className="px-6 py-4">${po.totalCost.toFixed(2)}</td>
                 <td className="px-6 py-4">
-                  <span className={`px-2 py-1 rounded text-xs font-bold ${po.status === 'RECEIVED' ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'}`}>{po.status}</span>
+                  <div className="font-bold text-slate-800 dark:text-slate-200">{supplier?.name || 'Unknown'}</div>
+                  <div className="text-[10px] text-slate-400 font-bold uppercase">{po.items.length} Items</div>
                 </td>
-                <td className="px-6 py-4 text-sm text-slate-500">{po.date.toLocaleDateString()}</td>
+                <td className="px-6 py-4 font-black text-slate-700 dark:text-slate-300">${po.totalCost.toFixed(2)}</td>
+                <td className="px-6 py-4">
+                  <div className="flex items-center gap-2">
+                    <span className={`px-2 py-1 rounded-lg text-[10px] font-black uppercase tracking-widest ${po.status === 'RECEIVED' ? 'bg-emerald-100 text-emerald-600 dark:bg-emerald-900/30' :
+                        po.status === 'ORDERED' ? 'bg-amber-100 text-amber-600 dark:bg-amber-900/30' :
+                          'bg-slate-100 text-slate-500'
+                      }`}>
+                      {po.status}
+                    </span>
+                    {po.status === 'RECEIVED' && <CheckCircle size={14} className="text-emerald-500" />}
+                    {po.status === 'ORDERED' && <Clock size={14} className="text-amber-500 animate-pulse" />}
+                  </div>
+                </td>
+                <td className="px-6 py-4">
+                  <div className="flex items-center justify-between gap-4">
+                    <span className="text-xs text-slate-500 font-medium">{po.date.toLocaleDateString()}</span>
+                    {canReceive && (
+                      <button
+                        onClick={() => onReceivePO(po.id, new Date())}
+                        className="px-4 py-1.5 bg-indigo-600 text-white rounded-lg text-[10px] font-black uppercase hover:bg-indigo-700 opacity-0 group-hover:opacity-100 transition-all shadow-lg shadow-indigo-600/20"
+                      >
+                        {lang === 'ar' ? 'استلام' : 'Confirm Receipt'}
+                      </button>
+                    )}
+                  </div>
+                </td>
               </tr>
             );
           })}
