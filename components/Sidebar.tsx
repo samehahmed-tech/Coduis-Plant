@@ -228,15 +228,8 @@ const Sidebar: React.FC<SidebarProps> = ({
         ${isMobileOpen ? 'translate-x-0' : `${lang === 'ar' ? 'translate-x-full' : '-translate-x-full'} lg:translate-x-0`}
       `}>
         {/* Header Branding */}
-        <div className={`p-6 border-b border-slate-100 dark:border-slate-800 ${isCollapsed ? 'items-center' : ''}`}>
-          <div className={`flex items-center gap-3 ${isCollapsed ? 'justify-center' : ''}`}>
-            <img src="/logo.png" alt="Coduis Xen" className="h-10 w-auto" />
-            {!isCollapsed && (
-              <h1 className="text-lg font-black tracking-tight leading-none">
-                Coduis <span className="text-cyan-500">Xen</span>
-              </h1>
-            )}
-          </div>
+        <div className={`p-6 border-b border-slate-100 dark:border-slate-800 flex justify-center items-center`}>
+          <img src="/logo.png" alt="Logo" className={`${isCollapsed ? 'h-8' : 'h-16'} w-auto transition-all duration-300`} />
         </div>
 
         {/* User Profile & Branch Selector */}
