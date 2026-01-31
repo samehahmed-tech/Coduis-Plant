@@ -36,11 +36,11 @@ const PaymentSummary: React.FC<PaymentSummaryProps> = ({
     canSubmit,
 }) => {
     const paymentMethods = [
-        { id: PaymentMethod.CASH, label: lang === 'ar' ? 'كاش' : 'Cash', icon: Banknote },
-        { id: PaymentMethod.VISA, label: lang === 'ar' ? 'فيزا' : 'Visa', icon: CreditCard },
-        { id: PaymentMethod.VODAFONE_CASH, label: lang === 'ar' ? 'فودافون' : 'V-Cash', icon: Smartphone },
-        { id: PaymentMethod.INSTAPAY, label: lang === 'ar' ? 'إنستا' : 'Insta', icon: Landmark },
-        { id: PaymentMethod.SPLIT, label: lang === 'ar' ? 'تقسيم' : 'Split', icon: Calculator },
+        { id: PaymentMethod.CASH, label: t.cash, icon: Banknote },
+        { id: PaymentMethod.VISA, label: t.visa, icon: CreditCard },
+        { id: PaymentMethod.VODAFONE_CASH, label: t.v_cash, icon: Smartphone },
+        { id: PaymentMethod.INSTAPAY, label: t.insta, icon: Landmark },
+        { id: PaymentMethod.SPLIT, label: t.split, icon: Calculator },
     ];
 
     return (
@@ -75,7 +75,7 @@ const PaymentSummary: React.FC<PaymentSummaryProps> = ({
                 </div>
                 {discount > 0 && (
                     <div className="flex justify-between text-[10px] md:text-xs font-bold text-green-600 uppercase tracking-wider px-1">
-                        <span>{lang === 'ar' ? 'خصم' : 'Discount'} ({discount}%)</span>
+                        <span>{t.discount} ({discount}%)</span>
                         <span>-{currencySymbol}{(subtotal * discount / 100).toFixed(2)}</span>
                     </div>
                 )}

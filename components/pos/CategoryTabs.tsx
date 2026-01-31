@@ -6,6 +6,7 @@ interface CategoryTabsProps {
     onSetCategory: (category: string) => void;
     isTouchMode: boolean;
     lang: 'en' | 'ar';
+    t: any;
 }
 
 const CategoryTabs: React.FC<CategoryTabsProps> = ({
@@ -14,6 +15,7 @@ const CategoryTabs: React.FC<CategoryTabsProps> = ({
     onSetCategory,
     isTouchMode,
     lang,
+    t,
 }) => {
     return (
         <div className="flex gap-2 overflow-x-auto no-scrollbar">
@@ -27,7 +29,7 @@ const CategoryTabs: React.FC<CategoryTabsProps> = ({
             ${activeCategory === cat ? 'bg-indigo-600 text-white shadow-lg' : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200'}
           `}
                 >
-                    {lang === 'ar' && cat === 'All' ? 'الكل' : cat}
+                    {cat === 'All' ? t.all_items : cat}
                 </button>
             ))}
         </div>

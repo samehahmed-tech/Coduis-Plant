@@ -58,7 +58,7 @@ const Login: React.FC<LoginProps> = ({ onLogin, lang, setLang, error }) => {
             login: 'Sign In',
             forgot: 'Forgot Password?',
             desc: 'Unified platform for restaurant operations.',
-            footer: '© 2026 Coduis Xen. All rights reserved.',
+            footer: '© 2026 Coduis Xen. Support: Sameh@coduis.com',
             switch: 'العربية'
         },
         ar: {
@@ -69,7 +69,7 @@ const Login: React.FC<LoginProps> = ({ onLogin, lang, setLang, error }) => {
             login: 'تسجيل الدخول',
             forgot: 'نسيت كلمة المرور؟',
             desc: 'منصة موحدة لعمليات المطاعم.',
-            footer: '© ٢٠٢٦ كوديوس زين. جميع الحقوق محفوظة.',
+            footer: '© ٢٠٢٦ كوديوس زين. الدعم: Sameh@coduis.com',
             switch: 'English'
         }
     }[lang];

@@ -164,7 +164,7 @@ const POS: React.FC<POSProps> = ({
       if (paymentMethod === PaymentMethod.SPLIT) {
          const splitTotal = splitPayments.reduce((sum, p) => sum + p.amount, 0);
          if (Math.abs(splitTotal - cartTotal) > 0.01) {
-            alert(lang === 'ar' ? 'مجموع الدفع يجب أن يساوي الإجمالي!' : "Split total must equal order total!");
+            alert(t.split_total_error);
             return;
          }
       }
@@ -212,6 +212,7 @@ const POS: React.FC<POSProps> = ({
          <POSHeader
             activeMode={activeMode}
             lang={lang}
+            t={t}
             selectedTableId={selectedTableId}
             onClearTable={() => setSelectedTableId(null)}
             deliveryCustomer={deliveryCustomer}
@@ -230,9 +231,15 @@ const POS: React.FC<POSProps> = ({
                setEditingItemId(null);
             }}
             lang={lang}
+            t={t}
          />
 
          <div className="flex-1 mt-14 md:mt-16 flex overflow-hidden relative">
+            {/* Cart Mobile Overlay */}
+            {(cart.length > 0 || selectedTableId) && !showMap && !showCustomerSelect && (
+               <div className="lg:hidden fixed inset-0 bg-black/40 backdrop-blur-sm z-30 animate-in fade-in" />
+            )}
+
             {showMap ? (
                <div className="flex-1 p-4 md:p-6 lg:p-10 bg-slate-100 dark:bg-slate-950 overflow-y-auto">
                   <TableMap
@@ -248,6 +255,7 @@ const POS: React.FC<POSProps> = ({
                   customers={customers}
                   onSelectCustomer={setDeliveryCustomer}
                   lang={lang}
+                  t={t}
                />
             ) : (
                <>
@@ -259,13 +267,14 @@ const POS: React.FC<POSProps> = ({
                            onSetCategory={setActiveCategory}
                            isTouchMode={isTouchMode}
                            lang={lang}
+                           t={t}
                         />
                         <div className="relative w-full sm:w-64 xl:w-80">
                            <Search className={`absolute top-1/2 -translate-y-1/2 text-slate-400 ${isTouchMode ? 'w-6 h-6' : 'w-3.5 h-3.5 md:w-4 md:h-4'} ${lang === 'ar' ? 'right-4' : 'left-4'} `} />
                            <input
                               ref={searchInputRef}
                               type="text"
-                              placeholder={lang === 'ar' ? 'البحث...' : "Search..."}
+                              placeholder={t.search_placeholder}
                               value={searchQuery}
                               onChange={(e) => setSearchQuery(e.target.value)}
                               className={`w-full ${isTouchMode ? 'py-4 text-lg pr-12 pl-12' : 'py-2 md:py-3 text-sm pr-10 md:pr-12 pl-4 text-right'} bg-slate-100 dark:bg-slate-800 border-none rounded-xl md:rounded-2xl focus:ring-2 focus:ring-indigo-500 font-bold ${lang === 'ar' ? 'text-right' : 'text-left'} `}
@@ -284,17 +293,17 @@ const POS: React.FC<POSProps> = ({
 
                   {/* Cart Sidebar */}
                   <div className={`
-                     fixed lg:relative inset-y-0 right-0 w-[85%] sm:w-[400px] xl:w-[480px] bg-white dark:bg-slate-900 flex flex-col h-full shadow-2xl z-40 transition-transform duration-300
+                     fixed lg:relative inset-y-0 w-[85%] sm:w-[400px] xl:w-[480px] bg-white dark:bg-slate-900 flex flex-col h-full shadow-2xl z-40 transition-transform duration-300
                      ${lang === 'ar' ? 'border-r left-0' : 'border-l right-0'} border-slate-200 dark:border-slate-800
                      ${cart.length > 0 || selectedTableId ? 'translate-x-0' : (lang === 'ar' ? '-translate-x-full' : 'translate-x-full')} lg:translate-x-0
                   `}>
                      <div className="p-4 md:p-8 border-b border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950/50 flex justify-between items-center shrink-0">
                         <div className="min-w-0">
                            <h2 className="text-xl md:text-2xl font-black text-slate-800 dark:text-white uppercase tracking-tight truncate">
-                              {lang === 'ar' ? (activeMode === OrderType.DINE_IN ? 'طلب طاولات' : (activeMode === OrderType.DELIVERY ? 'طلب توصيل' : 'تيك أواي')) : `${activeMode} `}
+                              {activeMode === OrderType.DINE_IN ? t.dine_in : (activeMode === OrderType.DELIVERY ? t.delivery : t.takeaway)}
                            </h2>
                            <p className="text-[10px] font-black text-indigo-600 uppercase tracking-widest mt-0.5 md:mt-1 truncate">
-                              {activeMode === OrderType.DINE_IN ? (lang === 'ar' ? `طاولة ${selectedTableId} ` : `Table ${selectedTableId} `) : (activeMode === OrderType.DELIVERY ? deliveryCustomer?.name : 'Quick Order')}
+                              {activeMode === OrderType.DINE_IN ? `${t.table} ${selectedTableId}` : (activeMode === OrderType.DELIVERY ? deliveryCustomer?.name : t.quick_order)}
                            </p>
                         </div>
                         <button onClick={() => { if (activeMode === OrderType.DINE_IN) setSelectedTableId(null); }} className="p-2 md:p-3 text-slate-400 hover:text-indigo-600 transition-all bg-white dark:bg-slate-800 rounded-full shadow-sm flex-shrink-0">
@@ -317,7 +326,7 @@ const POS: React.FC<POSProps> = ({
                         {cart.length === 0 && (
                            <div className="h-full flex flex-col items-center justify-center text-slate-400 py-20 opacity-30">
                               <ShoppingBag size={60} className="mb-4" />
-                              <p className="font-black uppercase tracking-widest">{lang === 'ar' ? 'السلة فارغة' : 'Empty'}</p>
+                              <p className="font-black uppercase tracking-widest">{t.empty_cart}</p>
                            </div>
                         )}
                      </div>

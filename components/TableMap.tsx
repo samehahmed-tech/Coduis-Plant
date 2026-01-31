@@ -44,7 +44,7 @@ const TableMap: React.FC<TableMapProps> = ({ tables, onSelectTable, lang, t, isD
                 color: '#64748b'
             };
         });
-        return [{ id: 'all', name: lang === 'ar' ? 'كل المناطق' : 'All Zones', color: '#64748b' }, ...dynamicZones];
+        return [{ id: 'all', name: t.all_zones, color: '#64748b' }, ...dynamicZones];
     }, [tables, lang]);
 
     const [activeZone, setActiveZone] = useState<string>('all');
@@ -174,9 +174,9 @@ const TableMap: React.FC<TableMapProps> = ({ tables, onSelectTable, lang, t, isD
             className={`group h-40 rounded-2xl border-2 cursor-pointer transition-all duration-200 hover:shadow-xl hover:scale-[1.02] relative flex flex-col p-4 overflow-hidden ${getStatusBG(table.status)}`}
         >
             <div className="flex justify-between items-start z-10">
-                <div className="flex flex-col">
-                    <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest">Table</span>
-                    <p className="text-3xl font-black text-slate-900 dark:text-white">{table.name}</p>
+                <div className="flex flex-col text-slate-900 dark:text-white">
+                    <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest">{t.table}</span>
+                    <p className="text-3xl font-black">{table.name}</p>
                 </div>
                 <div className={`p-2 rounded-lg shadow ${getStatusColor(table.status)} text-white relative`}>
                     <Coffee size={14} />
@@ -207,14 +207,14 @@ const TableMap: React.FC<TableMapProps> = ({ tables, onSelectTable, lang, t, isD
                 {table.status === TableStatus.OCCUPIED ? (
                     <div className="flex justify-between items-center bg-white dark:bg-slate-800 p-2 rounded-lg shadow-sm">
                         <div>
-                            <p className="text-[8px] font-black text-slate-400 uppercase">Bill</p>
+                            <p className="text-[8px] font-black text-slate-400 uppercase">{t.bill}</p>
                             <p className="text-sm font-black text-slate-900 dark:text-white">${table.currentOrderTotal?.toFixed(2) || '0.00'}</p>
                         </div>
                         <ChevronRight size={14} className="text-indigo-600" />
                     </div>
                 ) : (
                     <button className="w-full py-2 bg-white/80 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 rounded-lg text-[9px] font-black uppercase tracking-widest text-slate-600 dark:text-slate-300 hover:bg-slate-900 hover:text-white transition-all">
-                        {lang === 'ar' ? 'فتح' : 'Open'}
+                        {t.open_table}
                     </button>
                 )}
             </div>
@@ -230,7 +230,7 @@ const TableMap: React.FC<TableMapProps> = ({ tables, onSelectTable, lang, t, isD
                 <div className="flex items-center gap-2 md:gap-3">
                     <h1 className="text-lg md:text-xl font-black text-slate-900 dark:text-white flex items-center gap-2">
                         <LayoutGrid className="text-indigo-600 w-5 h-5 md:w-6 md:h-6" />
-                        <span className="truncate">{lang === 'ar' ? 'خريطة الطاولات' : 'Floor Map'}</span>
+                        <span className="truncate">{t.floor_map}</span>
                     </h1>
                     <span className="text-[10px] font-bold text-slate-400 bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded-lg">
                         {stats.total}
@@ -255,9 +255,9 @@ const TableMap: React.FC<TableMapProps> = ({ tables, onSelectTable, lang, t, isD
                         onChange={(e) => setStatusFilter(e.target.value as any)}
                         className="px-2 md:px-3 py-1.5 md:py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg text-xs md:text-sm font-bold outline-none flex-shrink-0"
                     >
-                        <option value="ALL">{lang === 'ar' ? 'الكل' : 'All'}</option>
-                        <option value={TableStatus.AVAILABLE}>{lang === 'ar' ? 'متاح' : 'Free'}</option>
-                        <option value={TableStatus.OCCUPIED}>{lang === 'ar' ? 'مشغول' : 'Busy'}</option>
+                        <option value="ALL">{t.all_items}</option>
+                        <option value={TableStatus.AVAILABLE}>{t.free}</option>
+                        <option value={TableStatus.OCCUPIED}>{t.busy}</option>
                     </select>
 
                     <div className="flex bg-slate-100 dark:bg-slate-800 p-0.5 md:p-1 rounded-lg flex-shrink-0">
@@ -347,7 +347,7 @@ const TableMap: React.FC<TableMapProps> = ({ tables, onSelectTable, lang, t, isD
                     {filteredTables.length === 0 && (
                         <div className="absolute inset-0 flex flex-col items-center justify-center text-slate-400">
                             <Filter size={40} className="mb-3 opacity-30" />
-                            <p className="font-bold text-sm">{lang === 'ar' ? 'لا توجد طاولات' : 'No tables found'}</p>
+                            <p className="font-bold text-sm">{t.no_tables}</p>
                         </div>
                     )}
                 </div>

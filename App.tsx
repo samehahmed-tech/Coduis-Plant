@@ -260,7 +260,6 @@ const INITIAL_CATEGORIES: MenuCategory[] = [
 
 const App: React.FC = () => {
   const [currentView, setCurrentView] = useState<ViewState>('DASHBOARD');
-  const [lang, setLang] = useState<'en' | 'ar'>('ar');
   const [currency, setCurrency] = useState<'USD' | 'EGP'>('EGP');
 
   const [accounts, setAccounts] = useState<FinancialAccount[]>(INITIAL_ACCOUNTS);
@@ -330,7 +329,7 @@ const App: React.FC = () => {
 
       setLoginError(undefined);
     } else {
-      setLoginError(lang === 'ar' ? 'بيانات الدخول غير صحيحة' : 'Invalid identity credentials');
+      setLoginError(settings.language === 'ar' ? 'بيانات الدخول غير صحيحة' : 'Invalid identity credentials');
     }
   };
 
@@ -824,7 +823,7 @@ const App: React.FC = () => {
   }
 
   return (
-    <div className={`flex min-h-screen transition-all duration-500 bg-slate-50 dark:bg-slate-950`} dir={lang === 'ar' ? 'rtl' : 'ltr'}>
+    <div className={`flex min-h-screen transition-all duration-500 bg-slate-50 dark:bg-slate-950`} dir={settings.language === 'ar' ? 'rtl' : 'ltr'}>
       <Sidebar
         currentView={currentView}
         onChangeView={setCurrentView}
@@ -857,7 +856,7 @@ const App: React.FC = () => {
         }}
       />
 
-      <main className={`flex-1 flex flex-col min-h-screen transition-all duration-300 ${lang === 'ar'
+      <main className={`flex-1 flex flex-col min-h-screen transition-all duration-300 ${settings.language === 'ar'
         ? (isSidebarCollapsed ? 'lg:mr-16' : (settings.isTouchMode ? 'lg:mr-80' : 'lg:mr-64'))
         : (isSidebarCollapsed ? 'lg:ml-16' : (settings.isTouchMode ? 'lg:ml-80' : 'lg:ml-64'))
         } relative overflow-hidden`}>
@@ -871,13 +870,13 @@ const App: React.FC = () => {
             // Zones can be persisted to settings or separate state if needed
           }}
           onClose={() => setShowFloorDesigner(false)}
-          lang={lang}
+          lang={settings.language}
         />
       )}
 
       {/* Keyboard Shortcuts Help Overlay */}
       <Suspense fallback={null}>
-        <KeyboardHelp lang={lang} />
+        <KeyboardHelp lang={settings.language} />
       </Suspense>
     </div>
   );

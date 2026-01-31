@@ -6,12 +6,14 @@ interface CustomerSelectViewProps {
     customers: Customer[];
     onSelectCustomer: (customer: Customer) => void;
     lang: 'en' | 'ar';
+    t: any;
 }
 
 const CustomerSelectView: React.FC<CustomerSelectViewProps> = ({
     customers,
     onSelectCustomer,
     lang,
+    t,
 }) => {
     return (
         <div className="flex-1 flex flex-col items-center justify-center bg-slate-50 dark:bg-slate-950 p-10">
@@ -20,10 +22,10 @@ const CustomerSelectView: React.FC<CustomerSelectViewProps> = ({
                     <Users size={32} />
                 </div>
                 <h2 className="text-2xl font-black text-slate-800 dark:text-white mb-2">
-                    {lang === 'ar' ? 'اختر عميل' : 'Select Customer'}
+                    {t.select_customer}
                 </h2>
                 <p className="text-slate-400 text-sm mb-8">
-                    {lang === 'ar' ? 'طلبات التوصيل تتطلب تحديد عميل.' : 'Delivery orders require a customer.'}
+                    {lang === 'ar' ? 'طلبات التوصيل تتطلب تحديد عميل لتتبع الطلب.' : 'Delivery orders require a customer for tracking.'}
                 </p>
 
                 <div className="space-y-3">
@@ -34,7 +36,7 @@ const CustomerSelectView: React.FC<CustomerSelectViewProps> = ({
                         </button>
                     )) : (
                         <div className="p-4 rounded-xl border-2 border-dashed border-slate-200 text-slate-400 text-xs font-bold uppercase">
-                            {lang === 'ar' ? 'لا يوجد عملاء' : 'No Customers Found'}
+                            {lang === 'ar' ? 'لا يوجد عملاء متاحين حالياً' : 'No Customers Found At The Moment'}
                         </div>
                     )}
 

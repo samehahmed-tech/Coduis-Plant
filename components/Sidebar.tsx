@@ -228,8 +228,8 @@ const Sidebar: React.FC<SidebarProps> = ({
         ${isMobileOpen ? 'translate-x-0' : `${lang === 'ar' ? 'translate-x-full' : '-translate-x-full'} lg:translate-x-0`}
       `}>
         {/* Header Branding */}
-        <div className={`p-6 border-b border-slate-100 dark:border-slate-800 flex justify-center items-center`}>
-          <img src="/logo.png" alt="Logo" className={`${isCollapsed ? 'h-8' : 'h-16'} w-auto transition-all duration-300`} />
+        <div className={`p-10 border-b border-slate-100 dark:border-slate-800 flex justify-center items-center bg-white dark:bg-slate-900`}>
+          <img src="/logo.png" alt="Logo" className={`${isCollapsed ? 'h-8' : 'h-24'} w-auto transition-all duration-300 drop-shadow-sm`} />
         </div>
 
         {/* User Profile & Branch Selector */}
@@ -329,9 +329,9 @@ const Sidebar: React.FC<SidebarProps> = ({
 
               {/* Style Picker */}
               <div className="px-1 pt-2 border-t border-slate-100 dark:border-slate-800">
-                <div className="flex justify-between items-center mb-2">
+                <div className="flex justify-between items-center mb-3 px-1">
                   <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Theme Style</span>
-                  <span className="text-[10px] font-bold text-indigo-600 uppercase">{theme}</span>
+                  <span className="text-[9px] font-black text-indigo-500 bg-indigo-50 dark:bg-indigo-900/40 px-2 py-0.5 rounded-full uppercase">Active</span>
                 </div>
                 <div className="flex gap-2">
                   {['xen', 'ember', 'graphite', 'ocean', 'carbon'].map(t => (

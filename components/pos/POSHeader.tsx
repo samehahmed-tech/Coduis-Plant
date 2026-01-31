@@ -5,6 +5,7 @@ import { OrderType, Customer } from '../../types';
 interface POSHeaderProps {
     activeMode: OrderType;
     lang: 'en' | 'ar';
+    t: any;
     selectedTableId: string | null;
     onClearTable: () => void;
     deliveryCustomer: Customer | null;
@@ -16,6 +17,7 @@ interface POSHeaderProps {
 const POSHeader: React.FC<POSHeaderProps> = ({
     activeMode,
     lang,
+    t,
     selectedTableId,
     onClearTable,
     deliveryCustomer,
@@ -23,28 +25,29 @@ const POSHeader: React.FC<POSHeaderProps> = ({
     isSidebarCollapsed,
     isTouchMode,
 }) => {
+    const sideClasses = lang === 'ar'
+        ? `left-0 ${isSidebarCollapsed ? 'lg:right-16' : (isTouchMode ? 'lg:right-80' : 'lg:right-64')} right-0`
+        : `right-0 ${isSidebarCollapsed ? 'lg:left-16' : (isTouchMode ? 'lg:left-80' : 'lg:left-64')} left-0`;
+
     return (
-        <div className={`fixed top-0 h-14 md:h-16 bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 flex justify-between items-center px-4 md:px-6 z-20 ${lang === 'ar'
-            ? (isSidebarCollapsed ? 'lg:right-16' : (isTouchMode ? 'lg:right-80' : 'lg:right-64'))
-            : (isSidebarCollapsed ? 'lg:left-16' : (isTouchMode ? 'lg:left-80' : 'lg:left-64'))
-            } right-0 left-0 transition-all duration-300`}>
+        <div className={`fixed top-0 h-14 md:h-16 bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 flex justify-between items-center px-4 md:px-6 z-20 ${sideClasses} transition-all duration-300`}>
 
             <div className="flex items-center gap-4">
                 {activeMode === OrderType.DINE_IN && (
                     <div className="flex items-center gap-2">
                         <span className="text-xl font-black text-slate-800 dark:text-white uppercase tracking-tighter">
-                            {lang === 'ar' ? 'الصالة' : 'DINE IN'}
+                            {t.dine_in}
                         </span>
                         {selectedTableId ? (
                             <div className="px-3 py-1 bg-indigo-100 text-indigo-700 rounded-lg text-xs font-black flex items-center gap-2">
-                                TABLE {selectedTableId}
+                                {t.table} {selectedTableId}
                                 <button onClick={onClearTable} className="hover:text-red-600">
                                     <X size={12} />
                                 </button>
                             </div>
                         ) : (
                             <span className="text-xs text-slate-400 font-bold uppercase tracking-widest animate-pulse">
-                                {lang === 'ar' ? 'اختر طاولة' : 'Select Table'}
+                                {t.select_table}
                             </span>
                         )}
                     </div>
@@ -53,7 +56,7 @@ const POSHeader: React.FC<POSHeaderProps> = ({
                 {activeMode === OrderType.TAKEAWAY && (
                     <span className="text-xl font-black text-emerald-600 uppercase tracking-tighter flex items-center gap-2">
                         <ShoppingBag size={24} />
-                        {lang === 'ar' ? 'تيك أواي' : 'TAKE AWAY'}
+                        {t.takeaway}
                     </span>
                 )}
 
@@ -61,7 +64,7 @@ const POSHeader: React.FC<POSHeaderProps> = ({
                     <div className="flex items-center gap-3">
                         <span className="text-xl font-black text-orange-600 uppercase tracking-tighter flex items-center gap-2">
                             <Building2 size={24} />
-                            {lang === 'ar' ? 'توصيل' : 'DELIVERY'}
+                            {t.delivery}
                         </span>
                         {deliveryCustomer ? (
                             <div className="px-3 py-1 bg-orange-100 text-orange-800 rounded-lg text-xs font-black flex items-center gap-2">
@@ -72,7 +75,7 @@ const POSHeader: React.FC<POSHeaderProps> = ({
                             </div>
                         ) : (
                             <span className="text-xs text-slate-400 font-bold uppercase tracking-widest animate-pulse">
-                                {lang === 'ar' ? 'اختر عميل' : 'Select Customer'}
+                                {t.select_customer}
                             </span>
                         )}
                     </div>
