@@ -19,9 +19,10 @@ import {
   X,
   ChevronLeft,
   Headset,
-  Briefcase
+  Briefcase,
+  Shield
 } from 'lucide-react';
-import { ViewState, User, UserRole } from '../types';
+import { ViewState, User, UserRole, AppPermission } from '../types';
 
 interface SidebarProps {
   currentView: ViewState;
@@ -37,13 +38,15 @@ interface SidebarProps {
   branches: any[];
   activeBranchId?: string;
   onSelectBranch: (id: string) => void;
+  hasPermission: (perm: AppPermission) => boolean;
 }
 
 const Sidebar: React.FC<SidebarProps> = ({
   currentView, onChangeView, isDarkMode,
   onToggleDarkMode, lang, onToggleLang,
   isCollapsed, onToggleCollapse,
-  user, isAdmin, branches, activeBranchId, onSelectBranch
+  user, isAdmin, branches, activeBranchId, onSelectBranch,
+  hasPermission
 }) => {
   const [isMobileOpen, setIsMobileOpen] = useState(false);
 
@@ -59,6 +62,7 @@ const Sidebar: React.FC<SidebarProps> = ({
     ai_insights: lang === 'ar' ? 'التحليلات' : 'AI Insights',
     ai: lang === 'ar' ? 'المدير الذكي' : 'AI Assistant',
     settings: lang === 'ar' ? 'الإعدادات' : 'Settings',
+    security: lang === 'ar' ? 'الأمان والمستخدمين' : 'Security & Users',
     call_center: lang === 'ar' ? 'مركز الاتصال' : 'Call Center',
   };
 
@@ -66,40 +70,41 @@ const Sidebar: React.FC<SidebarProps> = ({
     {
       title: lang === 'ar' ? 'العمليات الميدانية' : 'Operations',
       items: [
-        { id: 'DASHBOARD' as ViewState, label: t.dashboard, icon: LayoutDashboard, roles: [UserRole.SUPER_ADMIN, UserRole.BRANCH_MANAGER] },
-        { id: 'POS' as ViewState, label: t.pos, icon: UtensilsCrossed, roles: [UserRole.SUPER_ADMIN, UserRole.BRANCH_MANAGER, UserRole.CASHIER] },
-        { id: 'CALL_CENTER' as ViewState, label: t.call_center, icon: Headset, roles: [UserRole.SUPER_ADMIN, UserRole.CALL_CENTER] },
-        { id: 'KDS' as ViewState, label: t.kds, icon: ChefHat, roles: [UserRole.SUPER_ADMIN, UserRole.BRANCH_MANAGER, UserRole.KITCHEN_STAFF] },
+        { id: 'DASHBOARD' as ViewState, label: t.dashboard, icon: LayoutDashboard, permission: AppPermission.VIEW_DASHBOARD },
+        { id: 'POS' as ViewState, label: t.pos, icon: UtensilsCrossed, permission: AppPermission.VIEW_POS },
+        { id: 'CALL_CENTER' as ViewState, label: t.call_center, icon: Headset, permission: AppPermission.VIEW_CALL_CENTER },
+        { id: 'KDS' as ViewState, label: t.kds, icon: ChefHat, permission: AppPermission.VIEW_KDS },
       ]
     },
     {
       title: lang === 'ar' ? 'إدارة الموارد' : 'Resources',
       items: [
-        { id: 'MENU_MANAGER' as ViewState, label: t.menu, icon: BookOpen, roles: [UserRole.SUPER_ADMIN, UserRole.BRANCH_MANAGER] },
-        { id: 'INVENTORY' as ViewState, label: t.inventory, icon: Package, roles: [UserRole.SUPER_ADMIN, UserRole.BRANCH_MANAGER] },
-        { id: 'CRM' as ViewState, label: t.crm, icon: Users, roles: [UserRole.SUPER_ADMIN, UserRole.CALL_CENTER] },
+        { id: 'MENU_MANAGER' as ViewState, label: t.menu, icon: BookOpen, permission: AppPermission.MANAGE_MENU },
+        { id: 'INVENTORY' as ViewState, label: t.inventory, icon: Package, permission: AppPermission.MANAGE_INVENTORY },
+        { id: 'CRM' as ViewState, label: t.crm, icon: Users, permission: AppPermission.VIEW_CRM },
       ]
     },
     {
       title: lang === 'ar' ? 'التحليلات والمالية' : 'Finance & Insights',
       items: [
-        { id: 'FINANCE' as ViewState, label: t.finance, icon: Landmark, roles: [UserRole.SUPER_ADMIN] },
-        { id: 'REPORTS' as ViewState, label: t.reports, icon: BarChart3, roles: [UserRole.SUPER_ADMIN, UserRole.BRANCH_MANAGER] },
-        { id: 'AI_INSIGHTS' as ViewState, label: t.ai_insights, icon: Sparkles, roles: [UserRole.SUPER_ADMIN] },
+        { id: 'FINANCE' as ViewState, label: t.finance, icon: Landmark, permission: AppPermission.MANAGE_FINANCE },
+        { id: 'REPORTS' as ViewState, label: t.reports, icon: BarChart3, permission: AppPermission.VIEW_REPORTS },
+        { id: 'AI_INSIGHTS' as ViewState, label: t.ai_insights, icon: Sparkles, permission: AppPermission.VIEW_AI_INSIGHTS },
       ]
     },
     {
       title: lang === 'ar' ? 'أدوات ذكية' : 'Smart Tools',
       items: [
-        { id: 'AI_ASSISTANT' as ViewState, label: t.ai, icon: Bot, roles: [UserRole.SUPER_ADMIN, UserRole.BRANCH_MANAGER] },
-        { id: 'SETTINGS' as ViewState, label: t.settings, icon: Settings, roles: [UserRole.SUPER_ADMIN] },
+        { id: 'AI_ASSISTANT' as ViewState, label: t.ai, icon: Bot, permission: AppPermission.VIEW_AI_ASSISTANT },
+        { id: 'SECURITY' as ViewState, label: t.security, icon: Shield, permission: AppPermission.MANAGE_SECURITY },
+        { id: 'SETTINGS' as ViewState, label: t.settings, icon: Settings, permission: AppPermission.MANAGE_SETTINGS },
       ]
     }
   ];
 
   const filteredSections = navigationSections.map(section => ({
     ...section,
-    items: section.items.filter(item => !user || item.roles.includes(user.role))
+    items: section.items.filter(item => hasPermission(item.permission))
   })).filter(section => section.items.length > 0);
 
   const handleNavClick = (view: ViewState) => {

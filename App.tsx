@@ -14,11 +14,14 @@ import AIInsights from './components/AIInsights';
 import SettingsHub from './components/SettingsHub';
 import FloorDesigner from './components/FloorDesigner';
 import AdminDashboard from './components/AdminDashboard';
+import CallCenter from './components/CallCenter';
+import SecurityHub from './components/SecurityHub';
 import {
   ViewState, Order, OrderStatus, OrderItem, PaymentMethod,
   OrderType, Customer, Supplier, PurchaseOrder, InventoryItem,
   FinancialAccount, AccountType, JournalEntry, RestaurantMenu, MenuItem,
-  Table, TableStatus, MenuCategory, Branch, DeliveryPlatform, Warehouse, WarehouseType, User, UserRole
+  Table, TableStatus, MenuCategory, Branch, DeliveryPlatform, Warehouse, WarehouseType, User, UserRole,
+  AppPermission, INITIAL_ROLE_PERMISSIONS, AppSettings
 } from './types';
 
 const INITIAL_TABLES: Table[] = [
@@ -76,10 +79,49 @@ const INITIAL_PLATFORMS: DeliveryPlatform[] = [
 ];
 
 const INITIAL_USERS: User[] = [
-  { id: 'u1', name: 'Super Admin', email: 'admin@restoflow.com', role: UserRole.SUPER_ADMIN, isActive: true },
-  { id: 'u2', name: 'Sameh Ahmed', email: 'sameh@zayed.com', role: UserRole.BRANCH_MANAGER, assignedBranchId: 'b1', isActive: true },
-  { id: 'u3', name: 'Branch Mgr October', email: 'mgr@october.com', role: UserRole.BRANCH_MANAGER, assignedBranchId: 'b2', isActive: true },
-  { id: 'u4', name: 'Call Center Agent', email: 'cc@restoflow.com', role: UserRole.CALL_CENTER, isActive: true },
+  {
+    id: 'u1',
+    name: 'Super Admin',
+    email: 'admin@restoflow.com',
+    role: UserRole.SUPER_ADMIN,
+    isActive: true,
+    permissions: INITIAL_ROLE_PERMISSIONS[UserRole.SUPER_ADMIN]
+  },
+  {
+    id: 'u2',
+    name: 'Sameh Ahmed',
+    email: 'sameh@zayed.com',
+    role: UserRole.BRANCH_MANAGER,
+    assignedBranchId: 'b1',
+    isActive: true,
+    permissions: INITIAL_ROLE_PERMISSIONS[UserRole.BRANCH_MANAGER]
+  },
+  {
+    id: 'u3',
+    name: 'Branch Mgr October',
+    email: 'mgr@october.com',
+    role: UserRole.BRANCH_MANAGER,
+    assignedBranchId: 'b2',
+    isActive: true,
+    permissions: INITIAL_ROLE_PERMISSIONS[UserRole.BRANCH_MANAGER]
+  },
+  {
+    id: 'u4',
+    name: 'Call Center Agent',
+    email: 'cc@restoflow.com',
+    role: UserRole.CALL_CENTER,
+    isActive: true,
+    permissions: INITIAL_ROLE_PERMISSIONS[UserRole.CALL_CENTER]
+  },
+  {
+    id: 'u5',
+    name: 'Zayed Cashier',
+    email: 'cashier@zayed.com',
+    role: UserRole.CASHIER,
+    assignedBranchId: 'b1',
+    isActive: true,
+    permissions: INITIAL_ROLE_PERMISSIONS[UserRole.CASHIER]
+  }
 ];
 
 const INITIAL_MENUS: RestaurantMenu[] = [
@@ -201,7 +243,8 @@ const translations = {
     remaining: "Remaining to Pay",
     void_confirm: "Void current order?",
     ai_insights: "AI Analytics",
-    settings: "Settings"
+    settings: "Settings",
+    security: "Security & Users"
   },
   ar: {
     dashboard: "لوحة التحكم",
@@ -234,7 +277,8 @@ const translations = {
     remaining: "المتبقي للدفع",
     void_confirm: "هل تريد إلغاء الطلب الحالي؟",
     ai_insights: "تحليلات الذكاء الاصطناعي",
-    settings: "الإعدادات"
+    settings: "الإعدادات",
+    security: "الأمان والمستخدمين"
   }
 };
 
@@ -298,6 +342,14 @@ const App: React.FC = () => {
   const t = translations[settings.language];
 
   // Logic to handle User Permissions & Multi-Branch Visibility
+  // const [users, setUsers] = useState<User[]>(INITIAL_USERS); // This line was duplicated, removed.
+
+  const hasPermission = (permission: AppPermission) => {
+    if (!settings.currentUser) return false;
+    if (settings.currentUser.role === UserRole.SUPER_ADMIN) return true;
+    return settings.currentUser.permissions.includes(permission);
+  };
+
   const isAdmin = settings.currentUser?.role === UserRole.SUPER_ADMIN;
   const userBranchId = settings.currentUser?.assignedBranchId;
   const effectiveBranchId = isAdmin ? settings.activeBranchId : userBranchId;
@@ -313,8 +365,47 @@ const App: React.FC = () => {
     currentView,
     isAdmin,
     users,
-    onUpdateUsers: setUsers
+    onUpdateUsers: setUsers,
+    hasPermission
   };
+
+  // Auto-redirect if user doesn't have permission for the current view
+  useEffect(() => {
+    const requiredPermission: AppPermission | null = (() => {
+      switch (currentView) {
+        case 'DASHBOARD': return AppPermission.NAV_DASHBOARD;
+        case 'POS': return AppPermission.NAV_POS;
+        case 'KDS': return AppPermission.NAV_KDS;
+        case 'FINANCE': return AppPermission.NAV_FINANCE;
+        case 'INVENTORY': return AppPermission.NAV_INVENTORY;
+        case 'REPORTS': return AppPermission.NAV_REPORTS;
+        case 'MENU_MANAGER': return AppPermission.NAV_MENU_MANAGER;
+        case 'CRM': return AppPermission.NAV_CRM;
+        case 'AI_ASSISTANT': return AppPermission.NAV_AI_ASSISTANT;
+        case 'AI_INSIGHTS': return AppPermission.NAV_ADMIN_DASHBOARD;
+        case 'SETTINGS': return AppPermission.NAV_SETTINGS;
+        case 'CALL_CENTER': return AppPermission.NAV_CALL_CENTER;
+        case 'SECURITY': return AppPermission.NAV_SECURITY;
+        case 'FLOOR_DESIGNER': return AppPermission.CFG_EDIT_FLOOR_PLAN;
+        default: return null;
+      }
+    })();
+
+    if (requiredPermission && !hasPermission(requiredPermission)) {
+      setCurrentView('DASHBOARD'); // Redirect to dashboard if no permission
+    }
+  }, [currentView, settings.currentUser]);
+
+  // Role-based Auto-Redirect on App Start/Login
+  useEffect(() => {
+    if (settings.currentUser) {
+      if (settings.currentUser.role === UserRole.CASHIER) setCurrentView('POS');
+      else if (settings.currentUser.role === UserRole.KITCHEN_STAFF) setCurrentView('KDS');
+      else if (settings.currentUser.role === UserRole.CALL_CENTER) setCurrentView('CALL_CENTER');
+      else if (settings.currentUser.role === UserRole.SUPER_ADMIN) setCurrentView('DASHBOARD');
+    }
+  }, [settings.currentUser?.id]);
+
 
   const recordTransaction = useCallback((tx: Omit<JournalEntry, 'id'>) => {
     const newTx = { ...tx, id: Math.random().toString(36).substr(2, 9).toUpperCase() };
@@ -336,7 +427,13 @@ const App: React.FC = () => {
   }, []);
 
   const handlePlaceOrder = (newOrder: Order) => {
-    setOrders(prev => [...prev, newOrder]);
+    // Ensure order always has a branchId if not already set (e.g., from POS)
+    const orderWithBranch = {
+      ...newOrder,
+      branchId: newOrder.branchId || effectiveBranchId
+    };
+
+    setOrders(prev => [...prev, orderWithBranch]);
     let totalCOGS = 0;
     setInventory(prevInv => {
       const nextInv = [...prevInv];
@@ -454,9 +551,12 @@ const App: React.FC = () => {
                 setGlobalCurrency={setCurrency}
                 tables={tables}
                 isSidebarCollapsed={isSidebarCollapsed}
+                branchId={effectiveBranchId}
               />
             );
-            case 'KDS': return <KDS {...commonProps} orders={orders} onReady={(id) => { }} />;
+            case 'KDS':
+              const branchOrders = orders.filter(o => o.branchId === effectiveBranchId);
+              return <KDS {...commonProps} orders={branchOrders} onReady={(id) => { }} />;
             case 'FINANCE': return <Finance {...commonProps} accounts={accounts} transactions={transactions} />;
             case 'INVENTORY': return (
               <Inventory
@@ -511,18 +611,22 @@ const App: React.FC = () => {
               />
             );
             case 'CALL_CENTER': return (
-              <div className="p-8">
-                <h2 className="text-3xl font-black text-slate-800 dark:text-white uppercase">Call Center Portal</h2>
-                <p className="text-slate-500 mt-2 font-bold">Manage delivery orders across all branches from a single dashboard.</p>
-                <div className="mt-8 grid grid-cols-1 md:grid-cols-3 gap-6">
-                  <div className="card-primary !p-8 flex flex-col items-center gap-4">
-                    <div className="w-16 h-16 rounded-3xl bg-indigo-100 dark:bg-indigo-900/30 flex items-center justify-center text-indigo-600">
-                      <Plus size={32} />
-                    </div>
-                    <button className="btn-theme bg-indigo-600 text-white px-6 py-2 uppercase font-black text-xs">New Delivery Order</button>
-                  </div>
-                </div>
-              </div>
+              <CallCenter
+                {...commonProps}
+                customers={customers}
+                branches={branches}
+                categories={categories}
+                onPlaceOrder={handlePlaceOrder}
+                orders={orders}
+              />
+            );
+            case 'SECURITY': return (
+              <SecurityHub
+                users={users}
+                onUpdateUsers={setUsers}
+                branches={branches}
+                {...commonProps}
+              />
             );
             default: return <Dashboard {...commonProps} />;
           }
@@ -547,6 +651,7 @@ const App: React.FC = () => {
         branches={branches}
         activeBranchId={settings.activeBranchId}
         onSelectBranch={(id) => setSettings({ ...settings, activeBranchId: id })}
+        hasPermission={hasPermission}
       />
 
       <main className={`flex-1 flex flex-col min-h-screen transition-all duration-300 ${lang === 'ar'

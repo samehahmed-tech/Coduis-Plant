@@ -149,8 +149,11 @@ export interface OrderItem extends MenuItem {
 export interface Order {
   id: string;
   type: OrderType;
+  branchId: string; // The branch handling this order
   tableId?: string;
   customerId?: string;
+  deliveryAddress?: string;
+  isCallCenterOrder?: boolean;
   items: OrderItem[];
   status: OrderStatus;
   subtotal: number;
@@ -258,12 +261,53 @@ export interface Offer {
   isActive: boolean;
 }
 
+export enum AppPermission {
+  // --- Navigation & View Access ---
+  NAV_DASHBOARD = 'NAV_DASHBOARD',
+  NAV_ADMIN_DASHBOARD = 'NAV_ADMIN_DASHBOARD',
+  NAV_POS = 'NAV_POS',
+  NAV_KDS = 'NAV_KDS',
+  NAV_CALL_CENTER = 'NAV_CALL_CENTER',
+  NAV_INVENTORY = 'NAV_INVENTORY',
+  NAV_FINANCE = 'NAV_FINANCE',
+  NAV_REPORTS = 'NAV_REPORTS',
+  NAV_CRM = 'NAV_CRM',
+  NAV_MENU_MANAGER = 'NAV_MENU_MANAGER',
+  NAV_AI_ASSISTANT = 'NAV_AI_ASSISTANT',
+  NAV_SETTINGS = 'NAV_SETTINGS',
+  NAV_SECURITY = 'NAV_SECURITY',
+
+  // --- Data & Financial Visibility ---
+  DATA_VIEW_REVENUE = 'DATA_VIEW_REVENUE',
+  DATA_VIEW_COSTS = 'DATA_VIEW_COSTS',
+  DATA_VIEW_PROFITS = 'DATA_VIEW_PROFITS',
+  DATA_VIEW_CUSTOMER_SENSITIVE = 'DATA_VIEW_CUSTOMER_SENSITIVE', // Phone/Address
+  DATA_VIEW_STOCK_LEVELS = 'DATA_VIEW_STOCK_LEVELS',
+
+  // --- Operational Actions ---
+  OP_VOID_ORDER = 'OP_VOID_ORDER',
+  OP_APPLY_DISCOUNT = 'OP_APPLY_DISCOUNT',
+  OP_PROCESS_REFUND = 'OP_PROCESS_REFUND',
+  OP_TRANSFER_STOCK = 'OP_TRANSFER_STOCK',
+  OP_ADJUST_STOCK = 'OP_ADJUST_STOCK',
+  OP_PLACE_ORDER = 'OP_PLACE_ORDER',
+  OP_CLOSE_DAY = 'OP_CLOSE_DAY',
+
+  // --- Configuration ---
+  CFG_MANAGE_USERS = 'CFG_MANAGE_USERS',
+  CFG_MANAGE_ROLES = 'CFG_MANAGE_ROLES',
+  CFG_EDIT_MENU_PRICING = 'CFG_EDIT_MENU_PRICING',
+  CFG_EDIT_FLOOR_PLAN = 'CFG_EDIT_FLOOR_PLAN',
+  CFG_MANAGE_BRANCHES = 'CFG_MANAGE_BRANCHES'
+}
+
 export enum UserRole {
   SUPER_ADMIN = 'SUPER_ADMIN',
   BRANCH_MANAGER = 'BRANCH_MANAGER',
   CASHIER = 'CASHIER',
   KITCHEN_STAFF = 'KITCHEN_STAFF',
-  CALL_CENTER = 'CALL_CENTER'
+  CALL_CENTER = 'CALL_CENTER',
+  CUSTOM = 'CUSTOM'
 }
 
 export interface User {
@@ -271,9 +315,54 @@ export interface User {
   name: string;
   email: string;
   role: UserRole;
-  assignedBranchId?: string; // If null, has access to all (Admin)
+  password?: string; // For simulation
+  assignedBranchId?: string;
   isActive: boolean;
+  permissions: AppPermission[]; // Final effective permissions
+  customOverrides?: {
+    added: AppPermission[];
+    removed: AppPermission[];
+  };
 }
+
+export interface UserRoleDefinition {
+  role: UserRole;
+  name: string;
+  defaultPermissions: AppPermission[];
+}
+
+export const INITIAL_ROLE_PERMISSIONS: Record<UserRole, AppPermission[]> = {
+  [UserRole.SUPER_ADMIN]: Object.values(AppPermission),
+  [UserRole.BRANCH_MANAGER]: [
+    AppPermission.NAV_DASHBOARD,
+    AppPermission.NAV_POS,
+    AppPermission.NAV_KDS,
+    AppPermission.NAV_INVENTORY,
+    AppPermission.NAV_REPORTS,
+    AppPermission.NAV_MENU_MANAGER,
+    AppPermission.DATA_VIEW_REVENUE,
+    AppPermission.DATA_VIEW_COSTS,
+    AppPermission.DATA_VIEW_STOCK_LEVELS,
+    AppPermission.OP_PLACE_ORDER,
+    AppPermission.OP_APPLY_DISCOUNT,
+    AppPermission.OP_TRANSFER_STOCK,
+    AppPermission.OP_ADJUST_STOCK
+  ],
+  [UserRole.CASHIER]: [
+    AppPermission.NAV_POS,
+    AppPermission.OP_PLACE_ORDER
+  ],
+  [UserRole.KITCHEN_STAFF]: [
+    AppPermission.NAV_KDS
+  ],
+  [UserRole.CALL_CENTER]: [
+    AppPermission.NAV_CALL_CENTER,
+    AppPermission.NAV_CRM,
+    AppPermission.OP_PLACE_ORDER,
+    AppPermission.DATA_VIEW_CUSTOMER_SENSITIVE
+  ],
+  [UserRole.CUSTOM]: []
+};
 
 export type AppTheme = 'classic' | 'nebula' | 'emerald' | 'sunset' | 'quartz' | 'violet' | 'touch';
 

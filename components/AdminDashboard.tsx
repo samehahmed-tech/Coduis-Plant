@@ -102,8 +102,8 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ branches, lang, t }) =>
                             <Calendar size={14} /> {timeRange}
                         </div>
                     </div>
-                    <div className="h-80 w-full">
-                        <ResponsiveContainer width="100%" height="100%">
+                    <div className="h-80 w-full min-h-[320px]">
+                        <ResponsiveContainer width="100%" height="100%" minHeight={300}>
                             <AreaChart data={COMPARATIVE_DATA}>
                                 <defs>
                                     <linearGradient id="colorZayed" x1="0" y1="0" x2="0" y2="1">

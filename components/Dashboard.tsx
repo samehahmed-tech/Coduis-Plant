@@ -12,6 +12,8 @@ import {
   Pie,
   Cell
 } from 'recharts';
+import SensitiveData from './SensitiveData';
+import { AppPermission } from '../types';
 import { DollarSign, ShoppingBag, Users, TrendingUp, Sparkles, AlertCircle, ArrowRight } from 'lucide-react';
 import { getBusinessInsights } from '../services/geminiService';
 
@@ -71,9 +73,12 @@ interface DashboardProps {
   t: any;
   lang: 'en' | 'ar';
   onChangeView: (view: any) => void;
+  hasPermission: (perm: AppPermission) => boolean;
 }
 
-const Dashboard: React.FC<DashboardProps> = ({ isDarkMode = false, t, lang, onChangeView }) => {
+const Dashboard: React.FC<DashboardProps> = ({
+  isDarkMode = false, t, lang, onChangeView, hasPermission
+}) => {
   const [insight, setInsight] = useState<string>("");
   const [loadingInsight, setLoadingInsight] = useState(false);
   const [isError, setIsError] = useState(false);
@@ -178,7 +183,15 @@ const Dashboard: React.FC<DashboardProps> = ({ isDarkMode = false, t, lang, onCh
             <div className="flex justify-between items-start">
               <div className="space-y-1 shrink-0">
                 <p className="text-xs font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest leading-none mb-1">{stat.label}</p>
-                <h3 className="text-2xl md:text-3xl font-black text-slate-800 dark:text-white tracking-tight">{stat.value}</h3>
+                <h3 className="text-2xl md:text-3xl font-black text-slate-800 dark:text-white tracking-tight">
+                  <SensitiveData
+                    permission={AppPermission.DATA_VIEW_REVENUE}
+                    hasPermission={hasPermission}
+                    lang={lang}
+                  >
+                    {stat.value}
+                  </SensitiveData>
+                </h3>
                 <span className={`text-[10px] font-black px-1.5 py-0.5 rounded-full ${stat.trend.startsWith('+') ? 'text-emerald-500 bg-emerald-100 dark:bg-emerald-900/30' : 'text-rose-500 bg-rose-100 dark:bg-rose-900/30'}`}>
                   {stat.trend}
                 </span>
@@ -209,7 +222,7 @@ const Dashboard: React.FC<DashboardProps> = ({ isDarkMode = false, t, lang, onCh
               </div>
             </div>
             <div className="h-64 md:h-80 w-full min-h-[250px] relative overflow-hidden">
-              <ResponsiveContainer width="100%" height="100%">
+              <ResponsiveContainer width="100%" height="100%" minHeight={250}>
                 <BarChart data={viewScope === 'DAILY' ? DAILY_DATA : WEEKLY_DATA}>
                   <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={isDarkMode ? "#334155" : "#e2e8f0"} />
                   <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: chartTextColor, fontSize: 10, fontWeight: 700 }} />
