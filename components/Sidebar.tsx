@@ -19,167 +19,103 @@ import {
   X,
   ChevronLeft,
   Headset,
-  Briefcase,
   Shield,
   Fingerprint,
   Building2,
   ShoppingBag,
-  Palette,
   Calculator,
   Tablet,
-  Printer as PrinterIcon
+  Printer as PrinterIcon,
+  Zap
 } from 'lucide-react';
-import { ViewState, User, UserRole, AppPermission, Branch } from '../types';
+import { UserRole, AppPermission } from '../types';
 import { translations } from '../services/translations';
+import { useAuthStore } from '../stores/useAuthStore';
+import { NavLink, useNavigate, useLocation } from 'react-router-dom';
+import { useOrderStore } from '../stores/useOrderStore';
+import { OrderType } from '../types';
 
-interface SidebarProps {
-  currentView: ViewState;
-  onChangeView: (view: ViewState) => void;
-  isDarkMode: boolean;
-  onToggleDarkMode: () => void;
-  isCollapsed: boolean;
-  onToggleCollapse: () => void;
-  lang: 'en' | 'ar';
-  onToggleLang: () => void;
-  user?: User;
-  isAdmin: boolean;
-  branches: Branch[];
-  activeBranchId?: string;
-  onSelectBranch: (id: string) => void;
-  hasPermission: (perm: AppPermission) => boolean;
-  onLogout: () => void;
-  theme: string;
-  onThemeChange: (theme: any) => void;
-  onSetOrderMode: (mode: any) => void;
-  isTouchMode: boolean;
-  onToggleTouchMode: () => void;
-  discount?: number;
-  onSetDiscount?: (val: number) => void;
-  heldOrders?: any[];
-  onRecallOrder?: (index: number) => void;
+interface NavItem {
+  path: string;
+  label: string;
+  icon: React.ComponentType<{ size?: number; className?: string }>;
+  permission: AppPermission;
 }
 
-const CalculatorWidget: React.FC<{ isLarge?: boolean }> = ({ isLarge }) => {
-  const [display, setDisplay] = useState('0');
-  const [equation, setEquation] = useState('');
+import CalculatorWidget from './common/CalculatorWidget';
 
-  const handleInput = (char: string) => {
-    if (char === 'C') {
-      setDisplay('0');
-      setEquation('');
-    } else if (char === '=') {
-      try {
-        const result = eval(equation).toString();
-        setDisplay(result);
-        setEquation(result);
-      } catch {
-        setDisplay('Error');
-        setEquation('');
-      }
-    } else {
-      const newEquation = equation === '0' ? char : equation + char;
-      setEquation(newEquation);
-      setDisplay(newEquation);
-    }
-  };
+const Sidebar: React.FC = () => {
+  const navigate = useNavigate();
 
-  const keys = ['7', '8', '9', '/', '4', '5', '6', '*', '1', '2', '3', '-', '0', 'C', '=', '+'];
+  const {
+    settings,
+    branches,
+    logout,
+    updateSettings,
+    hasPermission,
+    isSidebarCollapsed,
+    toggleSidebar,
+    setActiveBranch
+  } = useAuthStore();
 
-  return (
-    <div className={`bg-slate-900 border border-slate-700 rounded-2xl p-4 shadow-2xl ${isLarge ? 'w-full' : 'w-full'}`}>
-      <div className="bg-slate-800 p-4 rounded-xl mb-4 text-right overflow-hidden border border-slate-700 shadow-inner">
-        <p className="text-[10px] text-indigo-400 font-bold uppercase tracking-widest mb-1 opacity-50">{equation || '0'}</p>
-        <p className="text-2xl font-black text-white truncate font-mono">{display}</p>
-      </div>
-      <div className="grid grid-cols-4 gap-2">
-        {keys.map(k => (
-          <button
-            key={k}
-            onClick={() => handleInput(k)}
-            className={`
-              h-12 flex items-center justify-center rounded-xl font-black text-sm transition-all active:scale-95
-              ${k === '=' ? 'bg-indigo-600 text-white col-span-1 shadow-lg shadow-indigo-600/20' :
-                k === 'C' ? 'bg-rose-500/20 text-rose-500 border border-rose-500/30' :
-                  ['/', '*', '-', '+'].includes(k) ? 'bg-indigo-500/10 text-indigo-500 border border-indigo-500/20' :
-                    'bg-slate-800 text-slate-300 border border-slate-700 hover:bg-slate-700'}
-            `}
-          >
-            {k}
-          </button>
-        ))}
-      </div>
-    </div>
-  );
-};
+  const {
+    activeOrderType,
+    setOrderMode,
+    discount,
+    setDiscount,
+    clearCart
+  } = useOrderStore();
 
-const Sidebar: React.FC<SidebarProps> = ({
-  currentView,
-  onChangeView,
-  isDarkMode,
-  onToggleDarkMode,
-  isCollapsed,
-  onToggleCollapse,
-  lang,
-  onToggleLang,
-  user,
-  isAdmin,
-  branches,
-  activeBranchId,
-  onSelectBranch,
-  hasPermission,
-  onLogout,
-  theme,
-  onThemeChange,
-  onSetOrderMode,
-  isTouchMode,
-  onToggleTouchMode,
-  discount = 0,
-  onSetDiscount,
-  heldOrders = [],
-  onRecallOrder
-}) => {
+  const location = useLocation();
+  const isPOS = location.pathname === '/pos';
+  const lang = (settings.language || 'en') as 'en' | 'ar';
+  const isDarkMode = settings.isDarkMode;
+  const isTouchMode = settings.isTouchMode;
+  const theme = settings.theme;
+  const user = settings.currentUser;
+  const activeBranchId = settings.activeBranchId;
+  const isCollapsed = isSidebarCollapsed;
+  const isAdmin = user?.role === UserRole.SUPER_ADMIN;
+
   const [isMobileOpen, setIsMobileOpen] = useState(false);
   const [showCalc, setShowCalc] = useState(false);
-  const [showHeld, setShowHeld] = useState(false);
-  const t = translations[lang];
-
-  // ... (navigationSections) ...
+  const t = translations[lang] || translations['en'];
 
   const navigationSections = [
     {
       title: lang === 'ar' ? 'العمليات الميدانية' : 'Operations',
       items: [
-        { id: 'DASHBOARD' as ViewState, label: t.dashboard, icon: LayoutDashboard, permission: AppPermission.NAV_DASHBOARD },
-        { id: 'POS' as ViewState, label: t.pos, icon: UtensilsCrossed, permission: AppPermission.NAV_POS },
-        { id: 'CALL_CENTER' as ViewState, label: t.call_center, icon: Headset, permission: AppPermission.NAV_CALL_CENTER },
-        { id: 'KDS' as ViewState, label: t.kds, icon: ChefHat, permission: AppPermission.NAV_KDS },
+        { path: '/', label: t.dashboard, icon: LayoutDashboard, permission: AppPermission.NAV_DASHBOARD },
+        { path: '/pos', label: t.pos, icon: UtensilsCrossed, permission: AppPermission.NAV_POS },
+        { path: '/call-center', label: t.call_center, icon: Headset, permission: AppPermission.NAV_CALL_CENTER },
+        { path: '/kds', label: t.kds, icon: ChefHat, permission: AppPermission.NAV_KDS },
       ]
     },
     {
       title: lang === 'ar' ? 'إدارة الموارد' : 'Resources',
       items: [
-        { id: 'MENU_MANAGER' as ViewState, label: t.menu, icon: BookOpen, permission: AppPermission.NAV_MENU_MANAGER },
-        { id: 'PRINTERS' as ViewState, label: t.printers, icon: PrinterIcon, permission: AppPermission.NAV_PRINTERS },
-        { id: 'RECIPES' as ViewState, label: t.recipes, icon: ChefHat, permission: AppPermission.NAV_RECIPES },
-        { id: 'INVENTORY' as ViewState, label: t.inventory, icon: Package, permission: AppPermission.NAV_INVENTORY },
-        { id: 'CRM' as ViewState, label: t.crm, icon: Users, permission: AppPermission.NAV_CRM },
+        { path: '/menu', label: t.menu, icon: BookOpen, permission: AppPermission.NAV_MENU_MANAGER },
+        { path: '/printers', label: t.printers, icon: PrinterIcon, permission: AppPermission.NAV_PRINTERS },
+        { path: '/recipes', label: t.recipes, icon: ChefHat, permission: AppPermission.NAV_RECIPES },
+        { path: '/inventory', label: t.inventory, icon: Package, permission: AppPermission.NAV_INVENTORY },
+        { path: '/crm', label: t.crm, icon: Users, permission: AppPermission.NAV_CRM },
       ]
     },
     {
       title: lang === 'ar' ? 'التحليلات والمالية' : 'Finance & Insights',
       items: [
-        { id: 'FINANCE' as ViewState, label: t.finance, icon: Landmark, permission: AppPermission.NAV_FINANCE },
-        { id: 'REPORTS' as ViewState, label: t.reports, icon: BarChart3, permission: AppPermission.NAV_REPORTS },
-        { id: 'AI_INSIGHTS' as ViewState, label: t.ai_insights, icon: Sparkles, permission: AppPermission.NAV_AI_ASSISTANT },
+        { path: '/finance', label: t.finance, icon: Landmark, permission: AppPermission.NAV_FINANCE },
+        { path: '/reports', label: t.reports, icon: BarChart3, permission: AppPermission.NAV_REPORTS },
+        { path: '/ai-insights', label: t.ai_insights, icon: Sparkles, permission: AppPermission.NAV_AI_ASSISTANT },
       ]
     },
     {
       title: lang === 'ar' ? 'أدوات ذكية' : 'Smart Tools',
       items: [
-        { id: 'AI_ASSISTANT' as ViewState, label: t.ai, icon: Bot, permission: AppPermission.NAV_AI_ASSISTANT },
-        { id: 'SECURITY' as ViewState, label: t.security, icon: Shield, permission: AppPermission.NAV_SECURITY },
-        { id: 'FORENSICS' as ViewState, label: t.forensics, icon: Fingerprint, permission: AppPermission.NAV_FORENSICS },
-        { id: 'SETTINGS' as ViewState, label: t.settings, icon: Settings, permission: AppPermission.NAV_SETTINGS },
+        { path: '/ai-assistant', label: t.ai, icon: Bot, permission: AppPermission.NAV_AI_ASSISTANT },
+        { path: '/security', label: t.security, icon: Shield, permission: AppPermission.NAV_SECURITY },
+        { path: '/forensics', label: t.forensics, icon: Fingerprint, permission: AppPermission.NAV_FORENSICS },
+        { path: '/settings', label: t.settings, icon: Settings, permission: AppPermission.NAV_SETTINGS },
       ]
     }
   ];
@@ -189,27 +125,36 @@ const Sidebar: React.FC<SidebarProps> = ({
     items: section.items.filter(item => hasPermission(item.permission))
   })).filter(section => section.items.length > 0);
 
-  const handleNavClick = (view: ViewState) => {
-    onChangeView(view);
+  const handleNavClick = () => {
     setIsMobileOpen(false);
   };
 
   const currentBranchName = branches.find(b => b.id === activeBranchId)?.name || (lang === 'ar' ? 'كل الفروع' : 'All Branches');
 
-  // Quick Actions for Cashier
-  const isCashier = user?.role === UserRole.CASHIER || user?.role === UserRole.SUPER_ADMIN || user?.role === UserRole.BRANCH_MANAGER;
+  const handleLogout = () => {
+    logout();
+    navigate('/login');
+  };
 
-  const handleModeClick = (mode: string) => {
-    // Map string to OrderType
-    // DINE_IN, TAKEAWAY, DELIVERY
-    let type = 'DINE_IN';
-    if (mode === 'TakeAway') type = 'TAKEAWAY';
-    if (mode === 'Delivery') type = 'DELIVERY';
-    onSetOrderMode(type);
+  const handleToggleDarkMode = () => {
+    updateSettings({ isDarkMode: !isDarkMode });
+  };
+
+  const handleToggleTouchMode = () => {
+    updateSettings({ isTouchMode: !isTouchMode });
+  };
+
+  const handleToggleLang = () => {
+    updateSettings({ language: lang === 'en' ? 'ar' : 'en' });
+  };
+
+  const handleThemeChange = (newTheme: string) => {
+    updateSettings({ theme: newTheme });
   };
 
   return (
     <>
+      {/* Mobile menu button */}
       <button
         onClick={() => setIsMobileOpen(true)}
         className={`lg:hidden fixed top-3 z-[60] p-2 bg-slate-900 text-white rounded-xl shadow-lg ${lang === 'ar' ? 'right-3' : 'left-3'}`}
@@ -217,6 +162,7 @@ const Sidebar: React.FC<SidebarProps> = ({
         <Menu size={20} />
       </button>
 
+      {/* Backdrop */}
       {isMobileOpen && (
         <div
           className="lg:hidden fixed inset-0 bg-black/60 backdrop-blur-sm z-[70]"
@@ -224,219 +170,278 @@ const Sidebar: React.FC<SidebarProps> = ({
         />
       )}
 
-      <div className={`
-        ${isCollapsed ? 'w-20' : (isTouchMode ? 'w-80' : 'w-64')} bg-card text-main flex flex-col h-screen fixed top-0 shadow-2xl z-[80] transition-all duration-300
-        ${lang === 'ar' ? 'right-0 border-l' : 'left-0 border-r'} border-theme
+      {/* Sidebar */}
+      <aside className={`
+        ${isCollapsed ? 'w-20' : (isTouchMode ? 'w-72' : 'w-64')} 
+        bg-white/80 dark:bg-slate-950/80 backdrop-blur-3xl text-main flex flex-col h-screen 
+        fixed top-0 shadow-[0_0_40px_rgba(0,0,0,0.08)] z-[80] transition-all duration-500
+        ${lang === 'ar' ? 'right-0 border-l' : 'left-0 border-r'} border-border/50
         ${isMobileOpen ? 'translate-x-0' : `${lang === 'ar' ? 'translate-x-full' : '-translate-x-full'} lg:translate-x-0`}
       `}>
-        {/* Header Branding */}
-        <div className={`p-10 border-b border-theme flex justify-center items-center bg-card`}>
-          <img src="/logo.png" alt="Logo" className={`${isCollapsed ? 'h-8' : 'h-24'} w-auto transition-all duration-300 drop-shadow-sm`} />
+        {/* Close button for mobile */}
+        <button
+          onClick={() => setIsMobileOpen(false)}
+          className="lg:hidden absolute top-4 right-4 p-2 text-slate-400 hover:text-white"
+        >
+          <X size={20} />
+        </button>
+
+        {/* Header Branding & Zen Toggle */}
+        <div className={`relative flex flex-col items-center transition-all duration-500 ${isCollapsed ? 'py-6 px-2' : 'p-6'}`}>
+          <div className={`p-2.5 rounded-2xl bg-primary/5 border border-primary/10 flex items-center justify-center transition-all duration-500 ${isCollapsed ? 'w-11 h-11' : 'w-14 h-14 mb-3'}`}>
+            <img src="/logo.png" alt="Logo" className="w-full h-full object-contain drop-shadow-xl" />
+          </div>
+
+          {!isCollapsed && (
+            <div className="text-center animate-in fade-in slide-in-from-top-1 duration-700">
+              <h2 className="text-[9px] font-black text-primary tracking-[0.3em] uppercase opacity-70">Coduis Zen</h2>
+              <p className="text-[7px] font-black text-muted uppercase tracking-[0.1em] opacity-40">Intelligence OS</p>
+            </div>
+          )}
+
+          {/* Persistent Floating Toggle Hub */}
+          <button
+            onClick={toggleSidebar}
+            className={`
+                hidden lg:flex absolute top-10 ${lang === 'ar' ? '-left-3' : '-right-3'} 
+                w-7 h-10 bg-primary text-white rounded-xl items-center justify-center 
+                shadow-xl shadow-primary/30 hover:scale-110 active:scale-90 transition-all z-[100] 
+                border-2 border-white dark:border-slate-950 group
+             `}
+          >
+            <ChevronLeft size={16} className={`transition-transform duration-500 ${isCollapsed ? 'rotate-180' : ''} ${lang === 'ar' ? 'rotate-180' : ''}`} />
+          </button>
         </div>
 
-        {/* User Profile & Branch Selector */}
-        {!isCollapsed && user && (
-          <div className="p-6 border-b border-theme bg-elevated">
-            <div className="flex items-center gap-3 mb-4">
-              <div className="w-10 h-10 rounded-full bg-gradient-to-br from-indigo-500 to-violet-500 flex items-center justify-center font-black text-white shadow-md">
-                {user.name[0]}
-              </div>
-              <div className="flex-1 overflow-hidden">
-                <p className="text-xs font-black truncate">{user.name}</p>
-                <p className="text-[10px] font-bold text-muted uppercase tracking-widest">{user.role.replace('_', ' ')}</p>
-              </div>
-            </div>
-
-            {isAdmin && (
-              <div className="space-y-1">
-                <p className="text-[9px] font-black text-muted uppercase mb-2 tracking-widest">{t.switch_branch}</p>
-                <select
-                  value={activeBranchId}
-                  onChange={(e) => onSelectBranch(e.target.value)}
-                  className="w-full bg-card border border-theme rounded-xl px-3 py-2 text-[10px] font-black uppercase outline-none focus:ring-2 focus:ring-indigo-500"
-                >
-                  <option value="">{t.all_branches}</option>
-                  {branches.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
-                </select>
-              </div>
-            )}
-            {!isAdmin && user.assignedBranchId && (
-              <div className="p-2 bg-indigo-50 dark:bg-indigo-900/10 rounded-xl flex items-center gap-2 border border-theme">
-                <Building2 size={12} className="text-indigo-600" />
-                <span className="text-[10px] font-black uppercase text-indigo-700 dark:text-indigo-300">{currentBranchName}</span>
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* Nav Items */}
-        <div className="flex-1 overflow-y-auto py-6 px-3 no-scrollbar space-y-8">
-          {filteredSections.map(section => (
-            <div key={section.title} className="space-y-1">
+        {/* Navigation */}
+        <nav className="flex-1 overflow-y-auto py-2 px-3 space-y-4 no-scrollbar scroll-smooth">
+          {/* POS Quick Actions Integrated */}
+          {isPOS && (
+            <div className="mb-8 p-1.5 rounded-[2rem] bg-slate-50 dark:bg-white/5 border border-border/50 shadow-sm relative overflow-hidden group/pos">
+              <div className="absolute top-0 left-0 w-full h-[1px] bg-gradient-to-r from-transparent via-primary/20 to-transparent" />
               {!isCollapsed && (
-                <p className="px-4 text-[9px] font-black text-slate-400 uppercase tracking-[0.2em] mb-3">{section.title}</p>
+                <div className="px-4 pt-4 pb-2 flex justify-between items-center">
+                  <h3 className="text-[10px] font-black text-primary/60 uppercase tracking-[0.2em]">
+                    {lang === 'ar' ? 'التحكم السريع' : 'Command Center'}
+                  </h3>
+                  <div className="flex gap-1">
+                    <div className="w-1 h-1 rounded-full bg-primary animate-pulse" />
+                    <div className="w-1 h-1 rounded-full bg-primary/30" />
+                  </div>
+                </div>
               )}
-              {section.items.map(item => {
-                const isActive = currentView === item.id;
-                return (
+
+              <div className={`flex ${isCollapsed ? 'flex-col items-center mt-4' : 'justify-between px-2 pt-2'} gap-2`}>
+                {[
+                  { mode: OrderType.DINE_IN, icon: UtensilsCrossed, activeClass: 'bg-primary text-white shadow-lg shadow-primary/20 ring-1 ring-white/10', inactiveClass: 'bg-white/50 dark:bg-slate-900/50 text-muted hover:text-primary hover:bg-primary/5', label: t.dine_in },
+                  { mode: OrderType.TAKEAWAY, icon: ShoppingBag, activeClass: 'bg-emerald-500 text-white shadow-lg shadow-emerald-500/20 ring-1 ring-white/10', inactiveClass: 'bg-white/50 dark:bg-slate-900/50 text-muted hover:text-emerald-500 hover:bg-emerald-500/5', label: t.takeaway },
+                  { mode: OrderType.DELIVERY, icon: Building2, activeClass: 'bg-orange-500 text-white shadow-lg shadow-orange-500/20 ring-1 ring-white/10', inactiveClass: 'bg-white/50 dark:bg-slate-900/50 text-muted hover:text-orange-500 hover:bg-orange-500/5', label: t.delivery },
+                ].map((m) => (
                   <button
-                    key={item.id}
-                    onClick={() => handleNavClick(item.id)}
+                    key={m.mode}
+                    onClick={() => setOrderMode(m.mode)}
                     className={`
-                      w-full flex items-center gap-3 p-3 rounded-2xl transition-all group
-                      ${isActive
-                        ? 'bg-indigo-600 text-white shadow-xl shadow-indigo-600/20'
-                        : 'text-muted hover:bg-elevated hover:text-indigo-600'}
-                      ${isCollapsed ? 'justify-center' : ''}
-                      ${isTouchMode ? 'py-4' : 'py-3'}
+                      group relative rounded-2xl transition-all duration-500 hover:scale-105 active:scale-95
+                      ${activeOrderType === m.mode ? m.activeClass : m.inactiveClass}
+                      ${!isCollapsed ? 'flex-1 flex flex-col items-center gap-1.5 py-3.5' : 'p-3'}
                     `}
                   >
-                    <item.icon size={isTouchMode ? 24 : 20} className={isActive ? 'text-white' : 'group-hover:scale-110 transition-transform'} />
-                    {!isCollapsed && <span className={`font-black uppercase tracking-wider ${isTouchMode ? 'text-sm' : 'text-xs'}`}>{item.label}</span>}
-                  </button>
-                );
-              })}
-            </div>
-          ))}
-
-          {/* Cashier Toolkit */}
-          {isCashier && !isCollapsed && (
-            <div className="space-y-4 px-1 animate-in slide-in-from-bottom-5 duration-500">
-              <p className="px-3 text-[9px] font-black text-slate-400 uppercase tracking-[0.2em]">Quick Tools</p>
-
-              {/* Order Mode Toggles */}
-              <div className="grid grid-cols-3 gap-2 px-1">
-                {['DineIn', 'TakeAway', 'Delivery'].map((mode, idx) => (
-                  <button
-                    key={mode}
-                    onClick={() => handleModeClick(mode)}
-                    className={`flex flex-col items-center gap-1 p-2 rounded-xl bg-slate-50 dark:bg-slate-800 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 hover:text-indigo-600 transition-colors ${isTouchMode ? 'py-4' : 'p-2'}`}
-                  >
-                    {idx === 0 && <UtensilsCrossed size={isTouchMode ? 18 : 14} />}
-                    {idx === 1 && <ShoppingBag size={isTouchMode ? 18 : 14} />}
-                    {idx === 2 && <Building2 size={14} />}
-                    <span className={`${isTouchMode ? 'text-[11px]' : 'text-[9px]'} font-bold uppercase`}>{lang === 'ar' ? ['صالة', 'تيك اواي', 'توصيل'][idx] : mode}</span>
+                    <m.icon size={isCollapsed ? 18 : 16} className={`transition-transform duration-500 ${activeOrderType === m.mode ? 'scale-110' : ''}`} />
+                    {!isCollapsed && (
+                      <span className={`text-[8px] font-black uppercase tracking-widest text-center transition-colors ${activeOrderType === m.mode ? 'text-white' : 'text-muted'}`}>
+                        {m.label}
+                      </span>
+                    )}
+                    {isCollapsed && (
+                      <div className={`absolute ${lang === 'ar' ? 'right-full mr-5' : 'left-full ml-5'} top-1/2 -translate-y-1/2 px-4 py-2 bg-slate-900/90 backdrop-blur-md text-white text-[10px] font-black uppercase tracking-[0.2em] rounded-xl opacity-0 group-hover:opacity-100 transition-all duration-300 pointer-events-none whitespace-nowrap shadow-2xl z-[100]`}>
+                        {m.label}
+                      </div>
+                    )}
                   </button>
                 ))}
               </div>
 
-              {/* Calculator Toggle */}
-              <div className="px-1">
-                <button onClick={() => setShowCalc(!showCalc)} className="w-full flex items-center justify-between p-3 bg-slate-50 dark:bg-slate-800 rounded-xl text-xs font-bold uppercase hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors">
-                  <span className="flex items-center gap-2"><Calculator size={14} /> Calculator</span>
-                  <span className="text-[10px] text-slate-400">{showCalc ? 'Hide' : 'Show'}</span>
-                </button>
-                {showCalc && <div className="mt-2"><CalculatorWidget isLarge={isTouchMode} /></div>}
-              </div>
-
-              {/* Style Picker */}
-              <div className="px-1 pt-2 border-t border-slate-100 dark:border-slate-800">
-                <div className="flex justify-between items-center mb-3 px-1">
-                  <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Theme Style</span>
-                  <span className="text-[9px] font-black text-indigo-500 bg-indigo-50 dark:bg-indigo-900/40 px-2 py-0.5 rounded-full uppercase">Active</span>
-                </div>
-                <div className="flex gap-2">
-                  {['xen', 'ember', 'graphite', 'ocean', 'carbon'].map(t => (
+              {!isCollapsed && (
+                <div className="flex flex-col gap-2 p-2 mt-2">
+                  {/* Quick Stats/Discount */}
+                  <div className="flex gap-2">
                     <button
-                      key={t}
-                      onClick={() => onThemeChange(t)}
-                      title={t.charAt(0).toUpperCase() + t.slice(1)}
-                      className={`w-6 h-6 rounded-full border-2 ${theme === t ? 'border-white ring-2 ring-cyan-500 scale-110' : 'border-transparent'} transition-all hover:scale-110`}
-                      style={{ backgroundColor: t === 'xen' ? '#00B4D8' : t === 'ember' ? '#F97316' : t === 'graphite' ? '#52525B' : t === 'ocean' ? '#3B82F6' : '#171717' }}
-                    />
-                  ))}
-                </div>
-              </div>
-
-              {/* POS Specific Quick Actions */}
-              {currentView === 'POS' && (
-                <div className="space-y-4 pt-4 border-t border-slate-100 dark:border-slate-800 animate-in slide-in-from-bottom-2">
-                  {/* Discount Control */}
-                  <div className="px-1 space-y-2">
-                    <div className="flex justify-between items-center">
-                      <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Discount</span>
-                      <span className="text-[10px] font-bold text-green-600 uppercase">{discount}% OFF</span>
-                    </div>
-                    <div className="flex gap-1">
-                      {[0, 5, 10, 15, 20].map(d => (
-                        <button
-                          key={d}
-                          onClick={() => onSetDiscount?.(d)}
-                          className={`flex-1 py-1.5 rounded-lg text-[10px] font-black transition-all ${discount === d ? 'bg-green-600 text-white shadow-md' : 'bg-slate-50 dark:bg-slate-800 text-slate-500 hover:bg-slate-100'}`}
-                        >
-                          {d}%
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-
-                  {/* Held Orders */}
-                  <div className="px-1">
-                    <button
-                      onClick={() => setShowHeld(!showHeld)}
-                      className={`w-full flex items-center justify-between p-3 rounded-xl text-xs font-bold uppercase transition-colors ${heldOrders.length > 0 ? 'bg-amber-50 dark:bg-amber-900/10 text-amber-600' : 'bg-slate-50 dark:bg-slate-800 text-slate-500'}`}
+                      onClick={() => setDiscount(discount === 0 ? 10 : 0)}
+                      className={`flex-1 flex flex-col items-center justify-center py-3 rounded-2xl border transition-all group ${discount > 0 ? 'bg-indigo-500/10 border-indigo-500/30 text-indigo-600' : 'bg-white/50 dark:bg-slate-900/50 border-border/50 hover:border-indigo-500/30'}`}
                     >
-                      <span className="flex items-center gap-2"><ShoppingBag size={14} /> Held Orders</span>
-                      <span className="bg-amber-100 dark:bg-amber-900/30 px-2 py-0.5 rounded-full text-[9px]">{heldOrders.length}</span>
+                      <span className="text-[8px] font-black uppercase opacity-60 mb-0.5">{lang === 'ar' ? 'خصم' : 'Discount'}</span>
+                      <span className="text-sm font-black tracking-tighter">{discount}%</span>
                     </button>
-                    {showHeld && heldOrders.length > 0 && (
-                      <div className="mt-2 space-y-1 max-h-40 overflow-y-auto no-scrollbar">
-                        {heldOrders.map((order, idx) => (
-                          <button
-                            key={idx}
-                            onClick={() => onRecallOrder?.(idx)}
-                            className="w-full p-3 bg-white dark:bg-slate-800 border border-slate-100 dark:border-slate-700 rounded-xl text-left hover:border-amber-400 transition-all group"
-                          >
-                            <div className="flex justify-between items-center">
-                              <span className="text-[10px] font-black uppercase">Order #{idx + 1}</span>
-                              <span className="text-[9px] text-slate-400">{order.cart.length} items</span>
-                            </div>
-                            {order.tableId && <p className="text-[9px] font-bold text-indigo-600 mt-1 uppercase">Table {order.tableId}</p>}
-                          </button>
-                        ))}
-                      </div>
-                    )}
+                    <button
+                      disabled
+                      className="flex-1 flex flex-col items-center justify-center py-3 rounded-2xl border border-border/50 bg-white/30 dark:bg-slate-900/30 opacity-40 cursor-not-allowed"
+                    >
+                      <span className="text-[8px] font-black uppercase opacity-60 mb-0.5">{lang === 'ar' ? 'نقاط' : 'Points'}</span>
+                      <span className="text-sm font-black tracking-tighter">0</span>
+                    </button>
                   </div>
+
+                  <button
+                    onClick={() => setShowCalc(!showCalc)}
+                    className="w-full flex items-center justify-between p-2.5 bg-white/50 dark:bg-slate-900/50 border border-border/50 rounded-2xl text-[8px] font-black uppercase tracking-widest hover:border-primary/50 transition-all group"
+                  >
+                    <span className="flex items-center gap-2.5"><Calculator size={13} className="text-primary group-hover:rotate-12 transition-transform" /> {lang === 'ar' ? 'الآلة الحاسبة' : 'Calculator'}</span>
+                    <div className={`w-1.5 h-1.5 rounded-full ${showCalc ? 'bg-primary animate-pulse shadow-[0_0_8px_rgba(var(--primary-rgb),0.5)]' : 'bg-slate-300 dark:bg-slate-700'}`} />
+                  </button>
+
+                  {showCalc && (
+                    <div className="mt-1 p-0.5 rounded-2xl bg-white/80 dark:bg-slate-900/80 backdrop-blur-md border border-primary/20 animate-in zoom-in-95 duration-300 overflow-hidden">
+                      <CalculatorWidget isCompact />
+                    </div>
+                  )}
+
+                  <button
+                    onClick={handleToggleTouchMode}
+                    className={`w-full flex items-center justify-between p-2.5 border rounded-2xl text-[8px] font-black uppercase tracking-widest transition-all group ${isTouchMode ? 'bg-amber-500/10 border-amber-500/50 text-amber-600' : 'bg-white/50 dark:bg-slate-900/50 border-border/50 hover:border-amber-500/30'}`}
+                  >
+                    <span className="flex items-center gap-2.5"><Tablet size={13} className={`${isTouchMode ? 'animate-bounce' : 'group-hover:scale-110'}`} /> {lang === 'ar' ? 'وضع اللمس' : 'Touch Mode'}</span>
+                    <div className={`w-1.5 h-1.5 rounded-full ${isTouchMode ? 'bg-amber-500 animate-pulse shadow-[0_0_8px_rgba(245,158,11,0.5)]' : 'bg-slate-300 dark:bg-slate-700'}`} />
+                  </button>
+
+                  <div className="grid grid-cols-2 gap-1.5 mt-0.5">
+                    <button
+                      onClick={() => { if (confirm(t.void_confirm)) clearCart() }}
+                      className="p-2.5 bg-rose-500/10 text-rose-500 rounded-2xl border border-rose-500/20 hover:bg-rose-500 hover:text-white transition-all flex flex-col items-center justify-center gap-1 group"
+                    >
+                      <Zap size={13} className="group-hover:animate-pulse" />
+                      <span className="text-[7px] font-black uppercase tracking-tighter">{lang === 'ar' ? 'إلغاء' : 'Void'}</span>
+                    </button>
+                    <button className="p-2.5 bg-white/50 dark:bg-slate-900/50 rounded-2xl border border-border/50 hover:bg-slate-900 dark:hover:bg-white hover:text-white dark:hover:text-black transition-all flex flex-col items-center justify-center gap-1 group">
+                      <PrinterIcon size={13} />
+                      <span className="text-[7px] font-black uppercase tracking-tighter">{lang === 'ar' ? 'الأخير' : 'Last'}</span>
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {isCollapsed && (
+                <div className="flex flex-col items-center gap-4 mt-4 py-4 border-t border-primary/10">
+                  <button onClick={() => setDiscount(discount === 0 ? 10 : 0)} className={`group relative p-3 rounded-2xl border transition-all ${discount > 0 ? 'bg-indigo-500 text-white shadow-lg' : 'bg-card border-border'}`}>
+                    <Sparkles size={18} />
+                    <div className={`absolute ${lang === 'ar' ? 'right-full mr-5' : 'left-full ml-5'} top-1/2 -translate-y-1/2 px-4 py-2 bg-slate-900/90 backdrop-blur-md text-white text-[10px] font-black uppercase tracking-[0.2em] rounded-xl opacity-0 group-hover:opacity-100 transition-all duration-300 pointer-events-none whitespace-nowrap shadow-2xl z-[100]`}>
+                      {lang === 'ar' ? 'خصم 10%' : '10% Discount'}
+                    </div>
+                  </button>
+                  <button onClick={() => setShowCalc(!showCalc)} className="group relative p-3 rounded-2xl bg-card border border-border hover:border-primary/50 transition-all">
+                    <Calculator size={18} className={showCalc ? 'text-primary' : 'text-muted'} />
+                    <div className={`absolute ${lang === 'ar' ? 'right-full mr-5' : 'left-full ml-5'} top-1/2 -translate-y-1/2 px-4 py-2 bg-slate-900/90 backdrop-blur-md text-white text-[10px] font-black uppercase tracking-[0.2em] rounded-xl opacity-0 group-hover:opacity-100 transition-all duration-300 pointer-events-none whitespace-nowrap shadow-2xl z-[100]`}>
+                      {lang === 'ar' ? 'الآلة الحاسبة' : 'Calculator'}
+                    </div>
+                  </button>
+                  <button onClick={handleToggleTouchMode} className={`group relative p-3 rounded-2xl border transition-all ${isTouchMode ? 'bg-amber-500 text-white shadow-lg' : 'bg-card border-border'}`}>
+                    <Tablet size={18} />
+                    <div className={`absolute ${lang === 'ar' ? 'right-full mr-5' : 'left-full ml-5'} top-1/2 -translate-y-1/2 px-4 py-2 bg-slate-900/90 backdrop-blur-md text-white text-[10px] font-black uppercase tracking-[0.2em] rounded-xl opacity-0 group-hover:opacity-100 transition-all duration-300 pointer-events-none whitespace-nowrap shadow-2xl z-[100]`}>
+                      {lang === 'ar' ? 'وضع اللمس' : 'Touch Mode'}
+                    </div>
+                  </button>
                 </div>
               )}
             </div>
           )}
-        </div>
+
+          {filteredSections.map((section, sectionIdx) => (
+            <div key={sectionIdx}>
+              {!isCollapsed && (
+                <h3 className="px-4 text-[10px] font-black text-muted uppercase tracking-[0.2em] mb-4 opacity-50">
+                  {section.title}
+                </h3>
+              )}
+              <div className="space-y-1.5">
+                {section.items.map((item) => (
+                  <NavLink
+                    key={item.path}
+                    to={item.path}
+                    onClick={handleNavClick}
+                    className={({ isActive }) => `
+                      flex items-center gap-4 px-4 py-3.5 rounded-[1.25rem] transition-all duration-300 group relative overflow-hidden
+                      ${isActive
+                        ? 'bg-primary text-white shadow-xl shadow-primary/30 ring-4 ring-primary/5'
+                        : 'text-muted hover:bg-primary/5 hover:text-primary'
+                      }
+                      ${isCollapsed ? 'justify-center p-4' : ''}
+                    `}
+                  >
+                    <item.icon size={22} className={`transition-transform duration-500 ${isCollapsed ? '' : 'group-hover:scale-110'}`} />
+                    {!isCollapsed && <span className="font-black text-[11px] uppercase tracking-widest">{item.label}</span>}
+                    {isCollapsed && (
+                      <div className="absolute left-full ml-4 px-4 py-2 bg-slate-900 text-white rounded-xl text-xs font-black opacity-0 group-hover:opacity-100 transition-all pointer-events-none whitespace-nowrap shadow-2xl z-[100]">
+                        {item.label}
+                      </div>
+                    )}
+                  </NavLink>
+                ))}
+              </div>
+            </div>
+          ))}
+
+
+
+          {/* Theme Picker */}
+          {!isCollapsed && (
+            <div className="px-2 pt-6 border-t border-border">
+              <div className="flex justify-between items-center mb-4 px-2">
+                <span className="text-[10px] font-black text-muted uppercase tracking-[0.2em] opacity-50">Interface Skin</span>
+              </div>
+              <div className="flex justify-between px-2">
+                {[
+                  { id: 'xen', color: '#00B4D8' },
+                  { id: 'ember', color: '#F97316' },
+                  { id: 'graphite', color: '#52525B' },
+                  { id: 'ocean', color: '#3B82F6' },
+                  { id: 'carbon', color: '#171717' }
+                ].map(t => (
+                  <button
+                    key={t.id}
+                    onClick={() => handleThemeChange(t.id)}
+                    title={t.id.charAt(0).toUpperCase() + t.id.slice(1)}
+                    className={`w-7 h-7 rounded-full border-2 transition-all hover:scale-125 hover:rotate-12 ${theme === t.id ? 'border-primary ring-4 ring-primary/20 scale-125' : 'border-transparent opacity-60 hover:opacity-100'}`}
+                    style={{ backgroundColor: t.color }}
+                  />
+                ))}
+              </div>
+            </div>
+          )}
+        </nav>
 
         {/* Footer Actions */}
-        <div className="p-4 border-t border-slate-100 dark:border-slate-800 space-y-2">
+        <div className="p-6 border-t border-border space-y-4">
           {!isCollapsed && (
             <div className="grid grid-cols-2 gap-2 mb-2">
-              <button onClick={onToggleDarkMode} className="p-3 bg-slate-50 dark:bg-slate-800 rounded-xl flex items-center justify-center hover:bg-indigo-50 transition-colors text-slate-500 hover:text-indigo-600">
-                {isDarkMode ? <Sun size={18} /> : <Moon size={18} />}
+              <button
+                onClick={handleToggleDarkMode}
+                className="p-2.5 bg-slate-100 dark:bg-slate-900 rounded-xl flex items-center justify-center hover:bg-primary/10 transition-all text-muted hover:text-primary shadow-sm"
+              >
+                {isDarkMode ? <Sun size={16} /> : <Moon size={16} />}
               </button>
-              <button onClick={onToggleTouchMode} className={`p-3 rounded-xl flex items-center justify-center transition-all ${isTouchMode ? 'bg-indigo-600 text-white shadow-lg' : 'bg-slate-50 dark:bg-slate-800 text-slate-500 hover:bg-indigo-50'}`}>
-                <Tablet size={18} />
+              <button
+                onClick={handleToggleTouchMode}
+                className={`p-2.5 rounded-xl flex items-center justify-center transition-all ${isTouchMode ? 'bg-primary text-white shadow-xl shadow-primary/30' : 'bg-slate-100 dark:bg-slate-900 text-muted hover:bg-primary/10 hover:text-primary shadow-sm'}`}
+              >
+                <Tablet size={16} />
               </button>
-              <button onClick={onToggleLang} className="p-3 bg-slate-50 dark:bg-slate-800 rounded-xl flex items-center justify-center hover:bg-indigo-50 transition-colors text-[10px] font-black uppercase col-span-2">
-                {lang === 'en' ? 'AR' : 'EN'}
+              <button
+                onClick={handleToggleLang}
+                className="p-2.5 bg-slate-100 dark:bg-slate-900 rounded-xl flex items-center justify-center hover:bg-primary/10 transition-all text-[9px] font-black uppercase col-span-2 text-muted hover:text-primary shadow-sm tracking-widest"
+              >
+                {lang === 'en' ? 'العربية' : 'English'}
               </button>
             </div>
           )}
 
           <button
-            className={`w-full flex items-center gap-3 p-3 rounded-2xl bg-rose-50 dark:bg-rose-950/30 text-rose-600 hover:bg-rose-100 transition-all ${isCollapsed ? 'justify-center' : ''}`}
-            onClick={onLogout}
+            className={`w-full flex items-center gap-3 p-3.5 rounded-2xl bg-rose-500/5 text-rose-500 hover:bg-rose-500 hover:text-white transition-all duration-500 ${isCollapsed ? 'justify-center p-4' : ''} shadow-sm group`}
+            onClick={handleLogout}
           >
-            <LogOut size={20} />
-            {!isCollapsed && <span className="text-xs font-black uppercase tracking-widest">{t.sign_out}</span>}
+            <LogOut size={18} className="group-hover:rotate-12 transition-transform" />
+            {!isCollapsed && <span className="text-[9px] font-black uppercase tracking-[0.2em]">{t.sign_out}</span>}
           </button>
-
-          {!isCollapsed && (
-            <button
-              onClick={onToggleCollapse}
-              className="w-full flex items-center justify-center p-2 text-slate-300 hover:text-slate-600 transition-colors"
-            >
-              <ChevronLeft size={16} className={lang === 'ar' ? 'rotate-180' : ''} />
-            </button>
-          )}
         </div>
-      </div >
+      </aside>
     </>
   );
 };

@@ -295,8 +295,11 @@ export interface Table {
 export interface MenuCategory {
   id: string;
   name: string;
+  nameAr?: string;
   items: MenuItem[];
   menuIds: string[]; // Linked to these menu IDs
+  image?: string;
+  targetOrderTypes?: OrderType[]; // Which modes (Dine-in, Takeaway, etc.)
 }
 
 export interface RestaurantMenu {

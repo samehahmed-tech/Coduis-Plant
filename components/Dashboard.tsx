@@ -16,6 +16,9 @@ import SensitiveData from './SensitiveData';
 import { AppPermission } from '../types';
 import { DollarSign, ShoppingBag, Users, TrendingUp, Sparkles, AlertCircle, ArrowRight } from 'lucide-react';
 import { getBusinessInsights } from '../services/geminiService';
+import { useAuthStore } from '../stores/useAuthStore';
+import { useNavigate } from 'react-router-dom';
+import { translations } from '../services/translations';
 
 const DAILY_DATA = [
   { name: '08 AM', revenue: 400 },
@@ -68,18 +71,20 @@ const categoryData = [
 
 const COLORS = ['#6366f1', '#8b5cf6', '#ec4899', '#10b981', '#f59e0b'];
 
-interface DashboardProps {
-  settings: AppSettings;
-  isDarkMode?: boolean;
-  t: any;
-  lang: 'en' | 'ar';
-  onChangeView: (view: any) => void;
-  hasPermission: (perm: AppPermission) => boolean;
-}
+const Dashboard: React.FC = () => {
+  const { settings, hasPermission } = useAuthStore();
+  const navigate = useNavigate();
+  const { language: lang, isDarkMode } = settings;
 
-const Dashboard: React.FC<DashboardProps> = ({
-  settings, isDarkMode = false, t, lang, onChangeView, hasPermission
-}) => {
+  // Re-create t object for compatibility with existing JSX
+  const t = {
+    total_rev: lang === 'ar' ? 'إجمالي الإيرادات' : 'Total Revenue',
+    orders: lang === 'ar' ? 'الطلبات' : 'Orders',
+    // Add generic fallback or other keys if needed dynamic
+  };
+
+  const getT = (key: string) => translate(key, lang);
+
   const [insight, setInsight] = useState<string>("");
   const [loadingInsight, setLoadingInsight] = useState(false);
   const [isError, setIsError] = useState(false);
@@ -106,13 +111,19 @@ const Dashboard: React.FC<DashboardProps> = ({
     setLoadingInsight(false);
   };
 
-  const chartTextColor = isDarkMode ? '#94a3b8' : '#64748b';
+  // Dynamic theme colors for charts
+  const primaryColor = `rgb(var(--primary))`;
+  const chartTextColor = isDarkMode ? 'rgba(255,255,255,0.4)' : 'rgba(0,0,0,0.4)';
+  const gridColor = isDarkMode ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)';
+
   const tooltipStyle = {
-    backgroundColor: isDarkMode ? '#1e293b' : '#fff',
-    borderColor: isDarkMode ? '#334155' : '#fff',
-    color: isDarkMode ? '#f8fafc' : '#1e293b',
-    borderRadius: '8px',
-    boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)',
+    backgroundColor: isDarkMode ? 'rgba(15, 23, 42, 0.9)' : 'rgba(255, 255, 255, 0.9)',
+    borderColor: 'rgba(var(--border-color), 0.2)',
+    color: 'rgb(var(--text-main))',
+    borderRadius: '16px',
+    boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1)',
+    backdropFilter: 'blur(10px)',
+    border: '1px solid rgba(var(--border-color), 0.1)',
     textAlign: lang === 'ar' ? 'right' : 'left' as any
   };
 
@@ -173,18 +184,18 @@ const Dashboard: React.FC<DashboardProps> = ({
       </div>
 
       {/* Main Stats Grid */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-6">
         {[
-          { label: t.total_rev, value: viewScope === 'DAILY' ? '12,450 ج.م' : '255,550 ج.م', icon: DollarSign, color: 'text-emerald-600', bg: 'bg-emerald-100', trend: '+12%' },
-          { label: t.orders, value: viewScope === 'DAILY' ? '142' : '4,890', icon: ShoppingBag, color: 'text-blue-600', bg: 'bg-blue-100', trend: '+5%' },
-          { label: lang === 'ar' ? 'متوسط الطلب' : 'Avg Order', value: viewScope === 'DAILY' ? '87.5 ج.م' : '52.3 ج.م', icon: TrendingUp, color: 'text-purple-600', bg: 'bg-purple-100', trend: '+3%' },
-          { label: lang === 'ar' ? 'الإلغاءات' : 'Cancellations', value: viewScope === 'DAILY' ? '2' : '48', icon: AlertCircle, color: 'text-rose-600', bg: 'bg-rose-100', trend: '-10%' },
+          { label: t.total_rev, value: viewScope === 'DAILY' ? '12,450 ج.م' : '255,550 ج.م', icon: DollarSign, color: 'text-emerald-500', bg: 'bg-emerald-500/10', trend: '+12%' },
+          { label: t.orders, value: viewScope === 'DAILY' ? '142' : '4,890', icon: ShoppingBag, color: 'text-primary', bg: 'bg-primary/10', trend: '+5%' },
+          { label: lang === 'ar' ? 'متوسط الطلب' : 'Avg Order', value: viewScope === 'DAILY' ? '87.5 ج.م' : '52.3 ج.م', icon: TrendingUp, color: 'text-purple-500', bg: 'bg-purple-500/10', trend: '+3%' },
+          { label: lang === 'ar' ? 'الإلغاءات' : 'Cancellations', value: viewScope === 'DAILY' ? '2' : '48', icon: AlertCircle, color: 'text-rose-500', bg: 'bg-rose-500/10', trend: '-10%' },
         ].map((stat, index) => (
-          <div key={index} className="card-primary p-5 hover:-translate-y-1 group">
+          <div key={index} className="card-primary p-8 rounded-[2rem] hover:-translate-y-2 group">
             <div className="flex justify-between items-start">
-              <div className="space-y-1 shrink-0">
-                <p className="text-xs font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest leading-none mb-1">{stat.label}</p>
-                <h3 className="text-2xl md:text-3xl font-black text-slate-800 dark:text-white tracking-tight">
+              <div className="space-y-2 shrink-0">
+                <p className="text-[10px] font-black text-muted uppercase tracking-[0.2em] mb-1">{stat.label}</p>
+                <h3 className="text-3xl font-black text-main tracking-tight">
                   <SensitiveData
                     permission={AppPermission.DATA_VIEW_REVENUE}
                     hasPermission={hasPermission}
@@ -193,12 +204,12 @@ const Dashboard: React.FC<DashboardProps> = ({
                     {stat.value}
                   </SensitiveData>
                 </h3>
-                <span className={`text-[10px] font-black px-1.5 py-0.5 rounded-full ${stat.trend.startsWith('+') ? 'text-emerald-500 bg-emerald-100 dark:bg-emerald-900/30' : 'text-rose-500 bg-rose-100 dark:bg-rose-900/30'}`}>
+                <span className={`inline-flex items-center px-2.5 py-1 rounded-lg text-[10px] font-black uppercase tracking-widest ${stat.trend.startsWith('+') ? 'text-emerald-500 bg-emerald-500/10' : 'text-rose-500 bg-rose-500/10'}`}>
                   {stat.trend}
                 </span>
               </div>
-              <div className={`p-3 btn-theme ${stat.bg} dark:bg-opacity-10 group-hover:scale-110 transition-transform`}>
-                <stat.icon size={20} className={stat.color} />
+              <div className={`p-4 rounded-2xl ${stat.bg} group-hover:scale-110 transition-transform duration-500 shadow-sm border border-white/5`}>
+                <stat.icon size={24} className={stat.color} />
               </div>
             </div>
           </div>
@@ -209,27 +220,30 @@ const Dashboard: React.FC<DashboardProps> = ({
         {/* Left Column: Main Charts */}
         <div className="xl:col-span-2 space-y-6">
           {/* Revenue Chart */}
-          <div className="card-primary !p-6 md:!p-8">
-            <div className="flex justify-between items-center mb-8">
-              <h3 className="text-lg font-black text-slate-800 dark:text-white flex items-center gap-2">
-                <div className="w-1.5 h-6 bg-indigo-600 rounded-full" />
-                {viewScope === 'DAILY' ? (lang === 'ar' ? 'نبض المبيعات (اليوم)' : 'Sales Pulse (Today)') : (lang === 'ar' ? 'أداء الإيرادات' : 'Revenue Performance')}
-              </h3>
-              <div className="flex gap-2">
-                <div className="flex items-center gap-1.5">
-                  <div className="w-2 h-2 rounded-full bg-indigo-600" />
-                  <span className="text-[10px] font-bold text-slate-500 uppercase">{lang === 'ar' ? 'الإيرادات' : 'Revenue'}</span>
+          <div className="card-primary !p-8 md:!p-10 rounded-[2.5rem]">
+            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-10">
+              <div>
+                <h3 className="text-xl font-black text-main flex items-center gap-3">
+                  <div className="w-2 h-8 bg-primary rounded-full" />
+                  {viewScope === 'DAILY' ? (lang === 'ar' ? 'نبض المبيعات (اليوم)' : 'Sales Pulse (Today)') : (lang === 'ar' ? 'أداء الإيرادات' : 'Revenue Performance')}
+                </h3>
+                <p className="text-[10px] font-black text-muted uppercase tracking-[0.2em] mt-1 ml-5">Volume Metrics Index</p>
+              </div>
+              <div className="flex gap-4">
+                <div className="flex items-center gap-2">
+                  <div className="w-2.5 h-2.5 rounded-full bg-primary shadow-lg shadow-primary/40" />
+                  <span className="text-[10px] font-black text-muted uppercase tracking-widest">{lang === 'ar' ? 'الإيرادات' : 'Revenue'}</span>
                 </div>
               </div>
             </div>
-            <div className="h-64 md:h-80 w-full min-h-[250px] relative overflow-hidden">
-              <ResponsiveContainer width="100%" height="100%" minHeight={250}>
+            <div className="h-80 md:h-[400px] w-full relative overflow-hidden">
+              <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={viewScope === 'DAILY' ? DAILY_DATA : WEEKLY_DATA}>
-                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={isDarkMode ? "#334155" : "#e2e8f0"} />
-                  <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: chartTextColor, fontSize: 10, fontWeight: 700 }} />
-                  <YAxis axisLine={false} tickLine={false} tick={{ fill: chartTextColor, fontSize: 10, fontWeight: 700 }} />
-                  <Tooltip contentStyle={tooltipStyle} cursor={{ fill: isDarkMode ? '#1e293b' : '#f1f5f9' }} />
-                  <Bar dataKey="revenue" fill="#6366f1" radius={[10, 10, 0, 0]} barSize={viewScope === 'DAILY' ? 15 : 30} />
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={gridColor} />
+                  <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: chartTextColor, fontSize: 10, fontWeight: 900 }} />
+                  <YAxis axisLine={false} tickLine={false} tick={{ fill: chartTextColor, fontSize: 10, fontWeight: 900 }} />
+                  <Tooltip contentStyle={tooltipStyle} cursor={{ fill: 'rgba(var(--primary), 0.03)' }} />
+                  <Bar dataKey="revenue" fill={primaryColor} radius={[12, 12, 0, 0]} barSize={viewScope === 'DAILY' ? 20 : 40} />
                 </BarChart>
               </ResponsiveContainer>
             </div>
@@ -321,7 +335,7 @@ const Dashboard: React.FC<DashboardProps> = ({
               </div>
 
               <button
-                onClick={() => onChangeView('AI_INSIGHTS')}
+                onClick={() => navigate('/ai-insights')}
                 className="w-full py-3 bg-white text-indigo-700 rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-slate-100 transition-all active:scale-95 shadow-xl"
               >
                 {lang === 'ar' ? 'عرض التحليل الكامل' : 'Full Analysis'}

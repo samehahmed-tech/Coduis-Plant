@@ -1,8 +1,19 @@
 
 import React, { useState, useRef, useEffect } from 'react';
 import { Send, Bot, User, Loader2 } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import { chatWithRestaurantAI } from '../services/geminiService';
-import { AppSettings, InventoryItem, Order, MenuItem, FinancialAccount, Branch, ViewState } from '../types';
+import { ViewState } from '../types';
+
+// Stores
+import { useAuthStore } from '../stores/useAuthStore';
+import { useInventoryStore } from '../stores/useInventoryStore';
+import { useOrderStore } from '../stores/useOrderStore';
+import { useMenuStore } from '../stores/useMenuStore';
+import { useFinanceStore } from '../stores/useFinanceStore';
+
+// Services
+import { translations } from '../services/translations';
 
 interface Message {
   id: string;
@@ -12,29 +23,28 @@ interface Message {
   suggestion?: { label: string; view: ViewState };
 }
 
-interface AIAssistantProps {
-  settings: AppSettings;
-  inventory: InventoryItem[];
-  orders: Order[];
-  menuItems: MenuItem[];
-  accounts: FinancialAccount[];
-  branches: Branch[];
-  lang: 'en' | 'ar';
-  t: any;
-  onChangeView: (view: ViewState) => void;
-}
+const AIAssistant: React.FC = () => {
+  const navigate = useNavigate();
+  const { settings, branches } = useAuthStore();
+  const { inventory } = useInventoryStore();
+  const { orders } = useOrderStore();
+  const { categories } = useMenuStore();
+  const { accounts } = useFinanceStore();
 
-const AIAssistant: React.FC<AIAssistantProps> = ({ settings, inventory, orders, menuItems, accounts, branches, lang, t, onChangeView }) => {
+  const menuItems = categories.flatMap(cat => cat.items);
+  const lang = (settings.language || 'en') as 'en' | 'ar';
+  const t = translations[lang] || translations['en'];
+
   const [messages, setMessages] = useState<Message[]>([
     {
       id: '1',
       sender: 'ai',
-      text: lang === 'ar' ? 'أهلاً بك في مركز قيادة Coduis Zen! أنا Zen AI، محرك البيانات الذكي الخاص بك. كيف يمكنني خدمتك اليوم؟' : 'Welcome to Coduis Zen Command Center! I am Zen AI, your intelligent data orchestrator. How can I assist you today?',
+      text: lang === 'ar' ? 'مرحباً! أنا مساعدك الذكي. كيف يمكنني مساعدتك اليوم؟' : "Hello! I'm your AI assistant. How can I help you today?",
       timestamp: new Date()
     }
   ]);
   const [input, setInput] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
+  const [isTyping, setIsTyping] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const scrollToBottom = () => {
@@ -43,23 +53,10 @@ const AIAssistant: React.FC<AIAssistantProps> = ({ settings, inventory, orders, 
 
   useEffect(() => {
     scrollToBottom();
-  }, [messages]);
-
-  const parseAction = (text: string): { cleanText: string; suggestion?: { label: string; view: ViewState } } => {
-    // Example format: [COMMAND:NAVIGATE:POS|Go to Point of Sale]
-    const navRegex = /\[COMMAND:NAVIGATE:(\w+)\|([^\]]+)\]/;
-    const match = text.match(navRegex);
-    if (match) {
-      return {
-        cleanText: text.replace(navRegex, '').trim(),
-        suggestion: { view: match[1] as ViewState, label: match[2] }
-      };
-    }
-    return { cleanText: text };
-  };
+  }, [messages, isTyping]);
 
   const handleSend = async () => {
-    if (!input.trim() || isLoading) return;
+    if (!input.trim() || isTyping) return;
 
     const userMessage: Message = {
       id: Date.now().toString(),
@@ -70,111 +67,133 @@ const AIAssistant: React.FC<AIAssistantProps> = ({ settings, inventory, orders, 
 
     setMessages(prev => [...prev, userMessage]);
     setInput('');
-    setIsLoading(true);
+    setIsTyping(true);
 
-    const context = `
-      --- RESTAURANT OPERATIONAL SNAPSHOT ---
-      Name: ${settings.restaurantName}
-      Branches: ${branches.map(b => b.name).join(', ')}
-      Accounts: ${JSON.stringify(accounts.map(a => ({ name: a.name, balance: a.balance })))}
-      Inventory Status: ${JSON.stringify(inventory.slice(0, 10).map(i => ({ name: i.name, stock: i.warehouseQuantities.reduce((a, b) => a + b.quantity, 0) })))}
-      Latest Activity: ${orders.length} orders today. Total Revenue roughly ${orders.reduce((sum, o) => sum + o.total, 0)} ${settings.currency}.
-      Available Screens: DASHBOARD, POS, KDS, INVENTORY, FINANCE, CRM, REPORTS, MENU_MANAGER, RECIPES, SETTINGS.
-      
-      GUIDELINE: If the user wants to go somewhere or do something available in the list above, end your response with: [COMMAND:NAVIGATE:SCREEN_NAME|Button Label].
-      Example: If they ask to sell items, suggest [COMMAND:NAVIGATE:POS|Open POS Screen].
-    `;
+    try {
+      const response = await chatWithRestaurantAI(
+        input,
+        {
+          inventory,
+          orders,
+          menuItems,
+          accounts,
+          branches,
+          settings
+        }
+      );
 
-    const responseText = await chatWithRestaurantAI(userMessage.text, context, lang, settings.geminiApiKey);
-    const { cleanText, suggestion } = parseAction(responseText);
+      const aiMessage: Message = {
+        id: (Date.now() + 1).toString(),
+        sender: 'ai',
+        text: response.text,
+        timestamp: new Date(),
+        suggestion: response.suggestion
+      };
 
-    const aiMessage: Message = {
-      id: (Date.now() + 1).toString(),
-      sender: 'ai',
-      text: cleanText,
-      timestamp: new Date(),
-      suggestion
-    };
+      setMessages(prev => [...prev, aiMessage]);
+    } catch (error) {
+      console.error("AI Communication Error:", error);
+      const errorMessage: Message = {
+        id: (Date.now() + 1).toString(),
+        sender: 'ai',
+        text: lang === 'ar' ? 'عذراً، حدث خطأ في الاتصال. يرجى المحاولة مرة أخرى.' : "Sorry, I encountered an error. Please try again.",
+        timestamp: new Date()
+      };
+      setMessages(prev => [...prev, errorMessage]);
+    } finally {
+      setIsTyping(false);
+    }
+  };
 
-    setMessages(prev => [...prev, aiMessage]);
-    setIsLoading(false);
+  const handleSuggestion = (view: ViewState) => {
+    // In web app with router, ViewState strings might need to be mapped to paths
+    const pathMap: Record<ViewState, string> = {
+      'DASHBOARD': '/',
+      'POS': '/pos',
+      'INVENTORY': '/inventory',
+      'REPORTS': '/reports',
+      'SETTINGS': '/settings',
+      'MENU': '/menu',
+      'CRM': '/crm',
+      'FINANCE': '/finance',
+      'AI_INSIGHTS': '/ai-insights',
+      'KDS': '/kds',
+      'TABLES': '/floor-designer'
+    } as any;
+
+    const path = pathMap[view] || '/';
+    navigate(path);
   };
 
   return (
-    <div className="p-8 h-screen flex flex-col transition-colors">
-      <div className="mb-6 flex justify-between items-end">
-        <div>
-          <h2 className="text-4xl font-black text-slate-800 dark:text-white uppercase tracking-tighter flex items-center gap-3">
-            <Bot className="text-indigo-600 animate-bounce" size={40} />
-            {t.ai}
-          </h2>
-          <p className="text-slate-500 dark:text-slate-400 font-bold">{lang === 'ar' ? 'مساعدك الذكي لإدارة العمليات والبيانات.' : 'Your neural link to restaurant operations and data.'}</p>
-        </div>
-        <div className="flex gap-2">
-          <div className="px-4 py-2 bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 rounded-xl text-[10px] font-black uppercase tracking-widest border border-emerald-200">System Synced</div>
-          <div className="px-4 py-2 bg-indigo-100 dark:bg-indigo-900/30 text-indigo-600 rounded-xl text-[10px] font-black uppercase tracking-widest border border-indigo-200">OpenRouter Active</div>
-        </div>
-      </div>
-
-      <div className="flex-1 bg-white dark:bg-slate-900 rounded-[3rem] shadow-2xl border border-slate-200 dark:border-slate-800 flex flex-col overflow-hidden max-w-5xl mx-auto w-full transition-all border-b-[12px] border-indigo-600/20">
-        {/* Chat Area */}
-        <div className="flex-1 overflow-y-auto p-10 space-y-10 no-scrollbar">
-          {messages.map((msg) => (
+    <div className="flex flex-col h-screen bg-slate-50 dark:bg-slate-950 transition-colors pb-24 lg:pb-0 lg:pt-0">
+      <div className="flex-1 overflow-y-auto p-4 md:p-8 space-y-6 no-scrollbar">
+        <div className="max-w-4xl mx-auto space-y-6">
+          {messages.map((message) => (
             <div
-              key={msg.id}
-              className={`flex items-start gap-6 ${msg.sender === 'user' ? 'flex-row-reverse' : ''}`}
+              key={message.id}
+              className={`flex items-start gap-4 ${message.sender === 'user' ? 'flex-row-reverse' : ''} animate-in fade-in slide-in-from-bottom-2 duration-300`}
             >
-              <div className={`w-14 h-14 rounded-[1.25rem] flex items-center justify-center shrink-0 shadow-lg ${msg.sender === 'ai' ? 'bg-indigo-600 text-white rotate-3' : 'bg-slate-200 dark:bg-slate-800 text-slate-600 dark:text-slate-300 -rotate-3'
+              <div className={`w-10 h-10 rounded-2xl flex items-center justify-center shrink-0 shadow-lg ${message.sender === 'ai' ? 'bg-indigo-600 text-white' : 'bg-white dark:bg-slate-800 text-slate-600'
                 }`}>
-                {msg.sender === 'ai' ? <Bot size={28} /> : <User size={28} />}
+                {message.sender === 'ai' ? <Bot size={20} /> : <User size={20} />}
               </div>
 
-              <div className="flex flex-col gap-3 min-w-[200px] max-w-[75%]">
-                <div className={`p-6 rounded-[2rem] shadow-xl ${msg.sender === 'ai'
-                  ? 'bg-slate-50 dark:bg-slate-800/50 text-slate-800 dark:text-slate-100 rounded-tl-none border border-slate-100 dark:border-slate-700'
-                  : 'bg-indigo-600 text-white rounded-tr-none shadow-indigo-200/50'
+              <div className={`max-w-[80%] flex flex-col gap-3 ${message.sender === 'user' ? 'items-end' : 'items-start'}`}>
+                <div className={`p-4 md:p-6 rounded-[2rem] shadow-sm border ${message.sender === 'ai'
+                    ? 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-slate-800 dark:text-slate-100'
+                    : 'bg-indigo-600 border-indigo-500 text-white'
                   }`}>
-                  <p className={`whitespace-pre-wrap leading-relaxed font-bold text-sm ${lang === 'ar' ? 'text-right' : 'text-left'}`}>{msg.text}</p>
-                  <span className={`text-[9px] mt-4 block font-black uppercase tracking-[0.2em] opacity-40 ${msg.sender === 'ai' ? 'text-left' : 'text-right'}`}>
-                    {msg.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                  </span>
+                  <p className="text-sm md:text-base leading-relaxed whitespace-pre-wrap">{message.text}</p>
                 </div>
 
-                {msg.suggestion && (
+                {message.suggestion && (
                   <button
-                    onClick={() => onChangeView(msg.suggestion!.view)}
-                    className="flex items-center gap-2 px-6 py-4 bg-white dark:bg-slate-800 border-2 border-indigo-600 text-indigo-600 rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-indigo-600 hover:text-white transition-all shadow-lg active:scale-95 self-start animate-in zoom-in duration-300"
+                    onClick={() => handleSuggestion(message.suggestion!.view)}
+                    className="bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400 px-6 py-2.5 rounded-2xl text-xs font-black uppercase tracking-widest hover:bg-emerald-200 transition-all border border-emerald-200 dark:border-emerald-800/50 flex items-center gap-2"
                   >
-                    <Send size={16} />
-                    {msg.suggestion.label}
+                    {lang === 'ar' ? 'انتقال إلى ' : 'Go to '} {message.suggestion.label}
                   </button>
                 )}
+
+                <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-2">
+                  {message.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                </span>
               </div>
             </div>
           ))}
+          {isTyping && (
+            <div className="flex items-center gap-4 animate-pulse">
+              <div className="w-10 h-10 rounded-2xl bg-indigo-600 text-white flex items-center justify-center shrink-0">
+                <Bot size={20} />
+              </div>
+              <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-4 rounded-2xl flex items-center gap-2">
+                <Loader2 size={16} className="animate-spin text-indigo-600" />
+                <span className="text-xs font-black text-slate-400 uppercase tracking-widest">Assistant is thinking...</span>
+              </div>
+            </div>
+          )}
           <div ref={messagesEndRef} />
         </div>
+      </div>
 
-        {/* Input Area */}
-        <div className="p-6 bg-slate-50/50 dark:bg-slate-950/30 border-t border-slate-200 dark:border-slate-800">
-          <div className="flex gap-4 max-w-4xl mx-auto">
-            <input
-              type="text"
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && handleSend()}
-              placeholder={lang === 'ar' ? 'اسأل عن المبيعات، المخزون، أو اطلب المساعدة في التنقل...' : "Ask about sales, stock, or ask for navigation help..."}
-              className={`flex-1 bg-white dark:bg-slate-900 border-2 border-slate-100 dark:border-slate-800 rounded-[1.5rem] px-8 py-5 outline-none focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 font-bold text-slate-800 dark:text-white shadow-inner transition-all ${lang === 'ar' ? 'text-right' : 'text-left'}`}
-              disabled={isLoading}
-            />
-            <button
-              onClick={handleSend}
-              disabled={isLoading || !input.trim()}
-              className="px-8 bg-indigo-600 text-white rounded-[1.5rem] hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-xl shadow-indigo-600/30 flex items-center justify-center group"
-            >
-              {isLoading ? <Loader2 className="animate-spin" size={28} /> : <Send size={28} className={`transition-transform group-hover:translate-x-1 ${lang === 'ar' ? 'rotate-180' : ''}`} />}
-            </button>
-          </div>
+      <div className="p-4 md:p-8 bg-white/50 dark:bg-slate-950/50 backdrop-blur-xl border-t border-slate-200 dark:border-slate-800 sticky bottom-24 lg:bottom-0">
+        <div className="max-w-4xl mx-auto relative group">
+          <input
+            type="text"
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            onKeyPress={(e) => e.key === 'Enter' && handleSend()}
+            placeholder={lang === 'ar' ? 'اكتب تساؤلك هنا... (مثال: ما هي الأصناف الأكثر ربحية؟)' : 'Type your query... (e.g., Which items are most profitable?)'}
+            className="w-full bg-white dark:bg-slate-900 border-2 border-slate-200 dark:border-slate-800 rounded-[2rem] py-5 px-8 pr-20 text-sm md:text-base font-bold outline-none focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-600 transition-all shadow-xl group-hover:shadow-2xl"
+          />
+          <button
+            onClick={handleSend}
+            disabled={!input.trim() || isTyping}
+            className="absolute right-3 top-1/2 -translate-y-1/2 w-14 h-14 bg-indigo-600 text-white rounded-full flex items-center justify-center hover:bg-indigo-700 transition-all disabled:bg-slate-300 dark:disabled:bg-slate-800 disabled:shadow-none shadow-lg shadow-indigo-600/30"
+          >
+            <Send size={24} />
+          </button>
         </div>
       </div>
     </div>

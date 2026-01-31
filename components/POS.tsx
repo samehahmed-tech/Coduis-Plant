@@ -1,9 +1,10 @@
+
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { Search, ShoppingBag, X } from 'lucide-react';
 import {
    Order, OrderItem, OrderStatus, Table, PaymentMethod,
    OrderType, Customer, PaymentRecord, RestaurantMenu,
-   MenuCategory, AppPermission
+   MenuCategory, AppPermission, RecipeIngredient, WarehouseType, JournalEntry
 } from '../types';
 
 import TableMap from './TableMap';
@@ -15,48 +16,36 @@ import PaymentSummary from './pos/PaymentSummary';
 import SplitBillModal from './pos/SplitBillModal';
 import NoteModal from './pos/NoteModal';
 import CustomerSelectView from './pos/CustomerSelectView';
+import CalculatorWidget from './common/CalculatorWidget';
 
-interface POSProps {
-   onPlaceOrder: (order: Order) => void;
-   customers: Customer[];
-   menus: RestaurantMenu[];
-   categories: MenuCategory[];
-   currencySymbol: string;
-   setGlobalCurrency: (curr: 'USD' | 'EGP') => void;
-   t: any;
-   lang: 'en' | 'ar';
-   isDarkMode: boolean;
-   tables: Table[];
-   isSidebarCollapsed?: boolean;
-   branchId: string;
-   hasPermission: (perm: AppPermission) => boolean;
-   activeMode: OrderType;
-   isTouchMode: boolean;
-   onSetOrderMode: (mode: OrderType) => void;
-   onToggleDarkMode: () => void;
-   onToggleTouchMode: () => void;
-   theme: string;
-   onThemeChange: (theme: string) => void;
-   discount: number;
-   onSetDiscount: (val: number) => void;
-   heldOrders: any[];
-   onHoldOrder: (order: any) => void;
-   onRecallOrder: (index: number) => void;
-   recalledOrder?: { cart: any[], tableId?: string, customerId?: string } | null;
-   onClearRecalledOrder?: () => void;
-}
+// Services
+import { translations } from '../services/translations';
 
-const POS: React.FC<POSProps> = ({
-   onPlaceOrder, customers, menus, categories,
-   currencySymbol, t, lang, tables,
-   isSidebarCollapsed = false, branchId, activeMode = OrderType.DINE_IN,
-   isTouchMode, discount, onSetDiscount, onHoldOrder,
-   recalledOrder, onClearRecalledOrder
-}) => {
-   // --- Internal State ---
+// Stores
+import { useAuthStore } from '../stores/useAuthStore';
+import { useOrderStore } from '../stores/useOrderStore';
+import { useMenuStore } from '../stores/useMenuStore';
+import { useCRMStore } from '../stores/useCRMStore';
+import { useInventoryStore } from '../stores/useInventoryStore';
+import { useFinanceStore } from '../stores/useFinanceStore';
+
+const POS: React.FC = () => {
+   // --- Global State ---
+   const { settings, branches, hasPermission, updateSettings, isSidebarCollapsed, setSidebarCollapsed } = useAuthStore();
+   const {
+      orders, activeCart, addToCart, removeFromCart, updateCartItemQuantity, updateCartItemNotes,
+      clearCart, placeOrder, activeOrderType, setOrderMode, discount, setDiscount,
+      heldOrders, recallOrder, recalledOrder, clearRecalledOrder, tables
+   } = useOrderStore();
+   const { menus, categories } = useMenuStore();
+   const { customers } = useCRMStore();
+   const { inventory, updateStock, warehouses } = useInventoryStore();
+   const { recordTransaction } = useFinanceStore();
+
+   // --- Local State ---
    const [selectedTableId, setSelectedTableId] = useState<string | null>(null);
    const [deliveryCustomer, setDeliveryCustomer] = useState<Customer | null>(null);
-   const [cart, setCart] = useState<OrderItem[]>([]);
+   // cart is now activeCart from store
    const [activeCategory, setActiveCategory] = useState('All');
    const [searchQuery, setSearchQuery] = useState('');
    const [editingItemId, setEditingItemId] = useState<string | null>(null);
@@ -64,11 +53,21 @@ const POS: React.FC<POSProps> = ({
    const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>(PaymentMethod.CASH);
    const [splitPayments, setSplitPayments] = useState<PaymentRecord[]>([]);
    const [showSplitModal, setShowSplitModal] = useState(false);
-   const [activeMenuId] = useState((menus || []).find(m => m.isDefault)?.id || (menus || [])[0]?.id);
+   const [showCalculator, setShowCalculator] = useState(false);
+
+   // Default menu
+   const activeMenuId = (menus || []).find(m => m.isDefault)?.id || (menus || [])[0]?.id;
 
    const searchInputRef = useRef<HTMLInputElement>(null);
 
    // --- Derived Data ---
+   const lang = settings.language;
+   const t = translations[lang];
+   const isDarkMode = settings.isDarkMode;
+   const isTouchMode = settings.isTouchMode;
+   const currencySymbol = settings.currencySymbol;
+   const branchId = settings.activeBranchId || 'b1';
+
    const currentCategories = (categories || []).filter(cat => cat.menuIds.includes(activeMenuId || ''));
    const dynamicCategories = ['All', ...currentCategories.map(c => c.name)];
 
@@ -81,25 +80,25 @@ const POS: React.FC<POSProps> = ({
       );
    }, [currentCategories, activeCategory, searchQuery]);
 
-   const cartSubtotal = cart.reduce((acc, item) => {
+   const cartSubtotal = activeCart.reduce((acc, item) => {
       const modsPrice = item.selectedModifiers?.reduce((sum, mod) => sum + mod.price, 0) || 0;
       return acc + ((item.price + modsPrice) * item.quantity);
    }, 0);
    const cartAfterDiscount = cartSubtotal * (1 - discount / 100);
-   const cartTotal = cartAfterDiscount * 1.1; // 10% tax
+   const cartTotal = cartAfterDiscount * 1.1; // 10% tax (hardcoded 10% or use settings.taxRate?) Using 1.1 to match strict logic
 
    // --- Effects ---
    useEffect(() => {
       if (recalledOrder) {
-         setCart(recalledOrder.cart);
+         // Active cart is already set by store recallOrder action
          if (recalledOrder.tableId) setSelectedTableId(recalledOrder.tableId);
          if (recalledOrder.customerId) {
             const customer = customers.find(c => c.id === recalledOrder.customerId);
             if (customer) setDeliveryCustomer(customer);
          }
-         onClearRecalledOrder?.();
+         clearRecalledOrder(); // Clear the "signal"
       }
-   }, [recalledOrder, customers, onClearRecalledOrder]);
+   }, [recalledOrder, customers, clearRecalledOrder]);
 
    useEffect(() => {
       const handleKeyDown = (e: KeyboardEvent) => {
@@ -113,16 +112,16 @@ const POS: React.FC<POSProps> = ({
             }
             if (e.key === 'Enter' && !isTextarea) {
                (e.target as HTMLElement).blur();
-               if (cart.length > 0) handleSubmitOrder();
+               if (activeCart.length > 0) handleSubmitOrder();
             }
             return;
          }
 
          if (e.key === 'Escape') {
             if (showSplitModal) setShowSplitModal(false);
-            else if (cart.length > 0 || selectedTableId) {
-               if (activeMode === OrderType.DINE_IN) setSelectedTableId(null);
-               else setCart([]);
+            else if (activeCart.length > 0 || selectedTableId) {
+               if (activeOrderType === OrderType.DINE_IN) setSelectedTableId(null);
+               else clearCart();
             }
          }
          if (!isInput && e.key >= '1' && e.key <= '9') {
@@ -133,34 +132,32 @@ const POS: React.FC<POSProps> = ({
             e.preventDefault();
             searchInputRef.current?.focus();
          }
-         if (e.key === 'Enter' && cart.length > 0 && !showSplitModal) handleSubmitOrder();
-         if (e.key === 'Delete' && cart.length > 0) handleVoidOrder();
+         if (e.key === 'Enter' && activeCart.length > 0 && !showSplitModal) handleSubmitOrder();
+         if (e.key === 'Delete' && activeCart.length > 0) handleVoidOrder();
       };
       window.addEventListener('keydown', handleKeyDown);
       return () => window.removeEventListener('keydown', handleKeyDown);
-   }, [cart, selectedTableId, showSplitModal, editingItemId, activeMode, dynamicCategories]);
+   }, [activeCart, selectedTableId, showSplitModal, editingItemId, activeOrderType, dynamicCategories, clearCart]);
 
    // --- Handlers ---
    const handleAddItem = (item: any) => {
-      setCart(prev => {
-         const existingIndex = prev.findIndex(ci =>
-            ci.id === item.id && JSON.stringify(ci.selectedModifiers) === JSON.stringify([])
-         );
-         if (existingIndex !== -1) {
-            const updated = [...prev];
-            updated[existingIndex] = { ...updated[existingIndex], quantity: updated[existingIndex].quantity + 1 };
-            return updated;
-         }
-         return [...prev, { ...item, cartId: Math.random().toString(36).substr(2, 9), quantity: 1, selectedModifiers: [] }];
-      });
+      const existingItem = activeCart.find(ci =>
+         ci.id === item.id && JSON.stringify(ci.selectedModifiers) === JSON.stringify([])
+      );
+
+      if (existingItem) {
+         updateCartItemQuantity(existingItem.cartId, 1);
+      } else {
+         addToCart({ ...item, cartId: Math.random().toString(36).substr(2, 9), quantity: 1, selectedModifiers: [] });
+      }
    };
 
    const handleUpdateQuantity = (cartId: string, delta: number) => {
-      setCart(prev => prev.map(item => item.cartId === cartId ? { ...item, quantity: Math.max(1, item.quantity + delta) } : item));
+      updateCartItemQuantity(cartId, delta);
    };
 
    const handleSubmitOrder = () => {
-      if (cart.length === 0) return;
+      if (activeCart.length === 0) return;
       if (paymentMethod === PaymentMethod.SPLIT) {
          const splitTotal = splitPayments.reduce((sum, p) => sum + p.amount, 0);
          if (Math.abs(splitTotal - cartTotal) > 0.01) {
@@ -171,32 +168,92 @@ const POS: React.FC<POSProps> = ({
 
       const newOrder: Order = {
          id: Math.random().toString(36).substr(2, 9).toUpperCase(),
-         type: activeMode,
+         type: activeOrderType,
          branchId: branchId,
          tableId: selectedTableId || undefined,
-         customerId: activeMode === OrderType.DELIVERY ? deliveryCustomer?.id : undefined,
-         items: [...cart],
+         customerId: activeOrderType === OrderType.DELIVERY ? deliveryCustomer?.id : undefined,
+         items: [...activeCart],
          status: OrderStatus.PENDING,
          subtotal: cartTotal / 1.1,
          tax: cartTotal - (cartTotal / 1.1),
          total: cartTotal,
          createdAt: new Date(),
          paymentMethod: paymentMethod,
-         payments: paymentMethod === PaymentMethod.SPLIT ? splitPayments : [{ method: paymentMethod, amount: cartTotal }]
+         payments: paymentMethod === PaymentMethod.SPLIT ? splitPayments : [{ method: paymentMethod, amount: cartTotal }],
+         syncStatus: 'PENDING'
       };
 
-      onPlaceOrder(newOrder);
-      setCart([]);
+      // 1. Place Order in Store
+      placeOrder(newOrder);
+
+      // 2. Deduct Inventory (Logic Restored from App.tsx)
+      let totalCOGS = 0;
+      const targetBranchWarehouse = warehouses.find(w => w.branchId === branchId && (w.type === WarehouseType.KITCHEN || w.type === WarehouseType.POINT_OF_SALE)) || warehouses.find(w => w.branchId === branchId);
+
+      // We need to operate on the current inventory state
+      const currentInventory = inventory;
+
+      newOrder.items.forEach(orderItem => {
+         // Get Recipe
+         const menuItems = categories.flatMap(c => c.items);
+         const baseItem = menuItems.find(mi => mi.id === orderItem.id);
+         const receiptsToProcess: RecipeIngredient[] = [...(baseItem?.recipe || [])];
+
+         // Modifiers Recipe
+         orderItem.selectedModifiers?.forEach(mod => {
+            const modGroup = baseItem?.modifierGroups?.find(mg => mg.name === mod.groupName);
+            const modOption = modGroup?.options.find(o => o.name === mod.optionName);
+            if (modOption?.recipe) {
+               receiptsToProcess.push(...modOption.recipe);
+            }
+         });
+
+         // Deduct Stock
+         receiptsToProcess.forEach(ri => {
+            const invItem = currentInventory.find(ii => ii.id === ri.itemId);
+            if (invItem) {
+               totalCOGS += (invItem.costPrice * ri.quantity * orderItem.quantity);
+
+               // Find relevant warehouse quantity
+               const wq = invItem.warehouseQuantities.find(q => q.warehouseId === targetBranchWarehouse?.id);
+               if (wq && targetBranchWarehouse) {
+                  const newQuantity = Math.max(0, wq.quantity - (ri.quantity * orderItem.quantity));
+                  updateStock(invItem.id, targetBranchWarehouse.id, newQuantity);
+               }
+            }
+         });
+      });
+
+      // 3. Record Finance Transactions
+      recordTransaction({
+         date: new Date(),
+         description: `Sale - Order #${newOrder.id}`,
+         debitAccountId: '1-1-1', // Asset: Cashier Main
+         creditAccountId: '4-1', // Revenue: Food Sales
+         amount: newOrder.total,
+         referenceId: newOrder.id
+      });
+
+      recordTransaction({
+         date: new Date(),
+         description: `COGS - Order #${newOrder.id}`,
+         debitAccountId: '5-1-1', // Expense: Food Cost
+         creditAccountId: '1-2-1', // Asset: Raw Materials
+         amount: totalCOGS,
+         referenceId: newOrder.id
+      });
+
+      // Reset Local State
       setDeliveryCustomer(null);
       setSplitPayments([]);
       setPaymentMethod(PaymentMethod.CASH);
-      if (activeMode === OrderType.DINE_IN) setSelectedTableId(null);
+      if (activeOrderType === OrderType.DINE_IN) setSelectedTableId(null);
    };
 
    const handleVoidOrder = () => {
-      if (cart.length === 0) return;
+      if (activeCart.length === 0) return;
       if (confirm(t.void_confirm)) {
-         setCart([]);
+         clearCart();
          setDeliveryCustomer(null);
          setSplitPayments([]);
          setPaymentMethod(PaymentMethod.CASH);
@@ -204,171 +261,194 @@ const POS: React.FC<POSProps> = ({
       }
    };
 
-   const showMap = activeMode === OrderType.DINE_IN && !selectedTableId;
-   const showCustomerSelect = activeMode === OrderType.DELIVERY && !deliveryCustomer;
+   // Auto-expand sidebar on POS entry to show icons + titles
+   useEffect(() => {
+      const wasCollapsed = isSidebarCollapsed;
+      if (wasCollapsed) {
+         setSidebarCollapsed(false);
+      }
+      return () => {
+         if (wasCollapsed) {
+            setSidebarCollapsed(true);
+         }
+      };
+   }, []);
+   const showMap = activeOrderType === OrderType.DINE_IN && !selectedTableId;
+   const showCustomerSelect = activeOrderType === OrderType.DELIVERY && !deliveryCustomer;
 
    return (
-      <div className="flex h-screen bg-slate-50 dark:bg-slate-950 transition-colors overflow-hidden">
-         <POSHeader
-            activeMode={activeMode}
-            lang={lang}
-            t={t}
-            selectedTableId={selectedTableId}
-            onClearTable={() => setSelectedTableId(null)}
-            deliveryCustomer={deliveryCustomer}
-            onClearCustomer={() => setDeliveryCustomer(null)}
-            isSidebarCollapsed={isSidebarCollapsed}
-            isTouchMode={isTouchMode}
-         />
+      <div className="flex h-screen bg-app text-main transition-colors overflow-hidden">
+         {showCalculator && (
+            <div className="fixed inset-0 z-[100] flex items-center justify-center p-6 sm:p-20">
+               <div className="absolute inset-0 bg-black/60 backdrop-blur-md" onClick={() => setShowCalculator(false)} />
+               <div className="relative w-full max-w-md">
+                  <CalculatorWidget onClose={() => setShowCalculator(false)} />
+               </div>
+            </div>
+         )}
 
-         <NoteModal
-            isOpen={!!editingItemId}
-            onClose={() => setEditingItemId(null)}
-            note={noteInput}
-            onNoteChange={setNoteInput}
-            onSave={() => {
-               setCart(prev => prev.map(i => i.cartId === editingItemId ? { ...i, notes: noteInput } : i));
-               setEditingItemId(null);
-            }}
-            lang={lang}
-            t={t}
-         />
+         <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
+            <POSHeader
+               activeMode={activeOrderType}
+               lang={lang}
+               t={t}
+               selectedTableId={selectedTableId}
+               onClearTable={() => setSelectedTableId(null)}
+               deliveryCustomer={deliveryCustomer}
+               onClearCustomer={() => setDeliveryCustomer(null)}
+               isSidebarCollapsed={isSidebarCollapsed}
+               isTouchMode={isTouchMode}
+            />
 
-         <div className="flex-1 mt-14 md:mt-16 flex overflow-hidden relative">
-            {/* Cart Mobile Overlay */}
-            {(cart.length > 0 || selectedTableId) && !showMap && !showCustomerSelect && (
-               <div className="lg:hidden fixed inset-0 bg-black/40 backdrop-blur-sm z-30 animate-in fade-in" />
-            )}
+            <NoteModal
+               isOpen={!!editingItemId}
+               onClose={() => setEditingItemId(null)}
+               note={noteInput}
+               onNoteChange={setNoteInput}
+               onSave={() => {
+                  if (editingItemId) updateCartItemNotes(editingItemId, noteInput);
+                  setEditingItemId(null);
+               }}
+               lang={lang}
+               t={t}
+            />
 
-            {showMap ? (
-               <div className="flex-1 p-4 md:p-6 lg:p-10 bg-slate-100 dark:bg-slate-950 overflow-y-auto">
-                  <TableMap
-                     tables={tables}
-                     onSelectTable={(table) => { setSelectedTableId(table.id); setCart([]); }}
+            <div className="flex-1 flex overflow-hidden relative">
+               {/* Cart Mobile Overlay */}
+               {(activeCart.length > 0 || selectedTableId) && !showMap && !showCustomerSelect && (
+                  <div className="lg:hidden fixed inset-0 bg-black/40 backdrop-blur-sm z-30 animate-in fade-in" />
+               )}
+
+               {showMap ? (
+                  <div className="flex-1 p-4 md:p-6 lg:p-10 bg-slate-100 dark:bg-slate-950 overflow-y-auto">
+                     <TableMap
+                        tables={tables}
+                        onSelectTable={(table) => { setSelectedTableId(table.id); clearCart(); }}
+                        lang={lang}
+                        t={t}
+                        isDarkMode={isDarkMode}
+                     />
+                  </div>
+               ) : showCustomerSelect ? (
+                  <CustomerSelectView
+                     customers={customers}
+                     onSelectCustomer={setDeliveryCustomer}
                      lang={lang}
                      t={t}
-                     isDarkMode={false}
                   />
-               </div>
-            ) : showCustomerSelect ? (
-               <CustomerSelectView
-                  customers={customers}
-                  onSelectCustomer={setDeliveryCustomer}
-                  lang={lang}
-                  t={t}
-               />
-            ) : (
-               <>
-                  <div className="flex-1 flex flex-col h-full overflow-hidden">
-                     <div className="bg-white dark:bg-slate-900 p-3 md:p-5 border-b border-slate-200 dark:border-slate-800 flex flex-col sm:flex-row justify-between items-stretch sm:items-center gap-3 shadow-sm">
-                        <CategoryTabs
-                           categories={dynamicCategories}
-                           activeCategory={activeCategory}
-                           onSetCategory={setActiveCategory}
+               ) : (
+                  <>
+                     <div className="flex-1 flex flex-col h-full overflow-hidden">
+                        <div className="bg-white dark:bg-slate-900 p-3 md:p-5 border-b border-slate-200 dark:border-slate-800 flex flex-col sm:flex-row justify-between items-stretch sm:items-center gap-3 shadow-sm">
+                           <CategoryTabs
+                              categories={dynamicCategories}
+                              activeCategory={activeCategory}
+                              onSetCategory={setActiveCategory}
+                              isTouchMode={isTouchMode}
+                              lang={lang}
+                              t={t}
+                           />
+                           <div className="relative w-full sm:w-64 xl:w-80">
+                              <Search className={`absolute top-1/2 -translate-y-1/2 text-slate-400 ${isTouchMode ? 'w-6 h-6' : 'w-3.5 h-3.5 md:w-4 md:h-4'} ${lang === 'ar' ? 'right-4' : 'left-4'} `} />
+                              <input
+                                 ref={searchInputRef}
+                                 type="text"
+                                 placeholder={t.search_placeholder}
+                                 value={searchQuery}
+                                 onChange={(e) => setSearchQuery(e.target.value)}
+                                 className={`w-full ${isTouchMode ? 'py-4 text-lg pr-12 pl-12' : 'py-2 md:py-3 text-sm pr-10 md:pr-12 pl-4 text-right'} bg-slate-100 dark:bg-slate-800 border-none rounded-xl md:rounded-2xl focus:ring-2 focus:ring-indigo-500 font-bold ${lang === 'ar' ? 'text-right' : 'text-left'} `}
+                              />
+                           </div>
+                        </div>
+                        <div className="flex-1 overflow-y-auto p-4 md:p-6">
+                           <ItemGrid
+                              items={filteredItems}
+                              onAddItem={handleAddItem}
+                              currencySymbol={currencySymbol}
+                              isTouchMode={isTouchMode}
+                           />
+                        </div>
+                     </div>
+
+                     {/* Cart Sidebar */}
+                     <div className={`
+                     fixed lg:relative inset-y-0 w-[85%] sm:w-[400px] xl:w-[480px] bg-white dark:bg-slate-900 flex flex-col h-full shadow-2xl z-40 transition-transform duration-300
+                     ${lang === 'ar' ? 'border-r left-0' : 'border-l right-0'} border-slate-200 dark:border-slate-800
+                     ${activeCart.length > 0 || selectedTableId ? 'translate-x-0' : (lang === 'ar' ? '-translate-x-full' : 'translate-x-full')} lg:translate-x-0
+                  `}>
+                        <div className="p-4 md:p-8 border-b border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950/50 flex justify-between items-center shrink-0">
+                           <div className="min-w-0">
+                              <h2 className="text-xl md:text-2xl font-black text-slate-800 dark:text-white uppercase tracking-tight truncate">
+                                 {activeOrderType === OrderType.DINE_IN ? t.dine_in : (activeOrderType === OrderType.DELIVERY ? t.delivery : t.takeaway)}
+                              </h2>
+                              <p className="text-[10px] font-black text-indigo-600 uppercase tracking-widest mt-0.5 md:mt-1 truncate">
+                                 {activeOrderType === OrderType.DINE_IN ? `${t.table} ${selectedTableId}` : (activeOrderType === OrderType.DELIVERY ? deliveryCustomer?.name : t.quick_order)}
+                              </p>
+                           </div>
+                           <button onClick={() => { if (activeOrderType === OrderType.DINE_IN) setSelectedTableId(null); }} className="p-2 md:p-3 text-slate-400 hover:text-indigo-600 transition-all bg-white dark:bg-slate-800 rounded-full shadow-sm flex-shrink-0">
+                              <X size={20} className="md:w-6 md:h-6" />
+                           </button>
+                        </div>
+
+                        <div className="flex-1 overflow-y-auto p-4 space-y-3 no-scrollbar">
+                           {activeCart.map(item => (
+                              <CartItem
+                                 key={item.cartId}
+                                 item={item}
+                                 currencySymbol={currencySymbol}
+                                 isTouchMode={isTouchMode}
+                                 onEditNote={(id, note) => { setEditingItemId(id); setNoteInput(note); }}
+                                 onUpdateQuantity={handleUpdateQuantity}
+                                 onRemove={(id) => removeFromCart(id)}
+                              />
+                           ))}
+                           {activeCart.length === 0 && (
+                              <div className="h-full flex flex-col items-center justify-center text-slate-400 py-20 opacity-30">
+                                 <ShoppingBag size={60} className="mb-4" />
+                                 <p className="font-black uppercase tracking-widest">{t.empty_cart}</p>
+                              </div>
+                           )}
+                        </div>
+
+                        <PaymentSummary
+                           subtotal={cartSubtotal}
+                           discount={discount}
+                           tax={cartAfterDiscount * 0.1}
+                           total={cartTotal}
+                           currencySymbol={currencySymbol}
+                           paymentMethod={paymentMethod}
+                           onSetPaymentMethod={setPaymentMethod}
+                           onShowSplitModal={() => setShowSplitModal(true)}
                            isTouchMode={isTouchMode}
                            lang={lang}
                            t={t}
-                        />
-                        <div className="relative w-full sm:w-64 xl:w-80">
-                           <Search className={`absolute top-1/2 -translate-y-1/2 text-slate-400 ${isTouchMode ? 'w-6 h-6' : 'w-3.5 h-3.5 md:w-4 md:h-4'} ${lang === 'ar' ? 'right-4' : 'left-4'} `} />
-                           <input
-                              ref={searchInputRef}
-                              type="text"
-                              placeholder={t.search_placeholder}
-                              value={searchQuery}
-                              onChange={(e) => setSearchQuery(e.target.value)}
-                              className={`w-full ${isTouchMode ? 'py-4 text-lg pr-12 pl-12' : 'py-2 md:py-3 text-sm pr-10 md:pr-12 pl-4 text-right'} bg-slate-100 dark:bg-slate-800 border-none rounded-xl md:rounded-2xl focus:ring-2 focus:ring-indigo-500 font-bold ${lang === 'ar' ? 'text-right' : 'text-left'} `}
-                           />
-                        </div>
-                     </div>
-                     <div className="flex-1 overflow-y-auto p-4 md:p-6">
-                        <ItemGrid
-                           items={filteredItems}
-                           onAddItem={handleAddItem}
-                           currencySymbol={currencySymbol}
-                           isTouchMode={isTouchMode}
+                           onVoid={handleVoidOrder}
+                           onSubmit={handleSubmitOrder}
+                           canSubmit={activeCart.length > 0}
                         />
                      </div>
-                  </div>
+                  </>
+               )}
+            </div>
 
-                  {/* Cart Sidebar */}
-                  <div className={`
-                     fixed lg:relative inset-y-0 w-[85%] sm:w-[400px] xl:w-[480px] bg-white dark:bg-slate-900 flex flex-col h-full shadow-2xl z-40 transition-transform duration-300
-                     ${lang === 'ar' ? 'border-r left-0' : 'border-l right-0'} border-slate-200 dark:border-slate-800
-                     ${cart.length > 0 || selectedTableId ? 'translate-x-0' : (lang === 'ar' ? '-translate-x-full' : 'translate-x-full')} lg:translate-x-0
-                  `}>
-                     <div className="p-4 md:p-8 border-b border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950/50 flex justify-between items-center shrink-0">
-                        <div className="min-w-0">
-                           <h2 className="text-xl md:text-2xl font-black text-slate-800 dark:text-white uppercase tracking-tight truncate">
-                              {activeMode === OrderType.DINE_IN ? t.dine_in : (activeMode === OrderType.DELIVERY ? t.delivery : t.takeaway)}
-                           </h2>
-                           <p className="text-[10px] font-black text-indigo-600 uppercase tracking-widest mt-0.5 md:mt-1 truncate">
-                              {activeMode === OrderType.DINE_IN ? `${t.table} ${selectedTableId}` : (activeMode === OrderType.DELIVERY ? deliveryCustomer?.name : t.quick_order)}
-                           </p>
-                        </div>
-                        <button onClick={() => { if (activeMode === OrderType.DINE_IN) setSelectedTableId(null); }} className="p-2 md:p-3 text-slate-400 hover:text-indigo-600 transition-all bg-white dark:bg-slate-800 rounded-full shadow-sm flex-shrink-0">
-                           <X size={20} className="md:w-6 md:h-6" />
-                        </button>
-                     </div>
-
-                     <div className="flex-1 overflow-y-auto p-4 space-y-3 no-scrollbar">
-                        {cart.map(item => (
-                           <CartItem
-                              key={item.cartId}
-                              item={item}
-                              currencySymbol={currencySymbol}
-                              isTouchMode={isTouchMode}
-                              onEditNote={(id, note) => { setEditingItemId(id); setNoteInput(note); }}
-                              onUpdateQuantity={handleUpdateQuantity}
-                              onRemove={(id) => setCart(prev => prev.filter(i => i.cartId !== id))}
-                           />
-                        ))}
-                        {cart.length === 0 && (
-                           <div className="h-full flex flex-col items-center justify-center text-slate-400 py-20 opacity-30">
-                              <ShoppingBag size={60} className="mb-4" />
-                              <p className="font-black uppercase tracking-widest">{t.empty_cart}</p>
-                           </div>
-                        )}
-                     </div>
-
-                     <PaymentSummary
-                        subtotal={cartSubtotal}
-                        discount={discount}
-                        tax={cartAfterDiscount * 0.1}
-                        total={cartTotal}
-                        currencySymbol={currencySymbol}
-                        paymentMethod={paymentMethod}
-                        onSetPaymentMethod={setPaymentMethod}
-                        onShowSplitModal={() => setShowSplitModal(true)}
-                        isTouchMode={isTouchMode}
-                        lang={lang}
-                        t={t}
-                        onVoid={handleVoidOrder}
-                        onSubmit={handleSubmitOrder}
-                        canSubmit={cart.length > 0}
-                     />
-                  </div>
-               </>
-            )}
+            <SplitBillModal
+               isOpen={showSplitModal}
+               onClose={() => setShowSplitModal(false)}
+               total={cartTotal}
+               currencySymbol={currencySymbol}
+               lang={lang}
+               t={t}
+               splitPayments={splitPayments}
+               onAddPayment={(method) => {
+                  const currentSplitSum = splitPayments.reduce((s, p) => s + p.amount, 0);
+                  const remaining = Math.max(0, cartTotal - currentSplitSum);
+                  if (remaining > 0) setSplitPayments(prev => [...prev, { method, amount: remaining }]);
+               }}
+               onRemovePayment={(idx) => setSplitPayments(prev => prev.filter((_, i) => i !== idx))}
+               onUpdateAmount={(idx, val) => setSplitPayments(prev => prev.map((p, i) => i === idx ? { ...p, amount: val } : p))}
+            />
          </div>
-
-         <SplitBillModal
-            isOpen={showSplitModal}
-            onClose={() => setShowSplitModal(false)}
-            total={cartTotal}
-            currencySymbol={currencySymbol}
-            lang={lang}
-            t={t}
-            splitPayments={splitPayments}
-            onAddPayment={(method) => {
-               const currentSplitSum = splitPayments.reduce((s, p) => s + p.amount, 0);
-               const remaining = Math.max(0, cartTotal - currentSplitSum);
-               if (remaining > 0) setSplitPayments(prev => [...prev, { method, amount: remaining }]);
-            }}
-            onRemovePayment={(idx) => setSplitPayments(prev => prev.filter((_, i) => i !== idx))}
-            onUpdateAmount={(idx, val) => setSplitPayments(prev => prev.map((p, i) => i === idx ? { ...p, amount: val } : p))}
-         />
-      </div >
+      </div>
    );
 };
 

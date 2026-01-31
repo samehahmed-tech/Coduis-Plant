@@ -1,4 +1,6 @@
+
 import React, { useState, useEffect } from 'react';
+import { useAuthStore } from '../stores/useAuthStore';
 import {
     Lock,
     AtSign,
@@ -6,13 +8,7 @@ import {
     Globe,
     ShieldCheck
 } from 'lucide-react';
-
-interface LoginProps {
-    onLogin: (email: string, password: string) => void;
-    lang: 'en' | 'ar';
-    setLang: (lang: 'en' | 'ar') => void;
-    error?: string;
-}
+import { useNavigate } from 'react-router-dom';
 
 const backgrounds = [
     '/BG/1.png',
@@ -22,11 +18,40 @@ const backgrounds = [
     '/BG/5.png'
 ];
 
-const Login: React.FC<LoginProps> = ({ onLogin, lang, setLang, error }) => {
+const Login: React.FC = () => {
+    const { login, settings, updateSettings } = useAuthStore();
+    const navigate = useNavigate();
+
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [bgIndex, setBgIndex] = useState(0);
+    const [error, setError] = useState<string | undefined>();
+
+    // Mock User Database for Demo
+    const handleLogin = (e: string, p: string) => {
+        // In a real app, this would hit an API
+        // For demo, we verify against hardcoded demo users (which we could also pull from a constant or store)
+        const DEMO_USERS = [
+            { email: 'admin@1.com', role: 'SUPER_ADMIN', name: 'Super Admin', id: 'u1', isActive: true, permissions: [] },
+            { email: 'manager@1.com', role: 'BRANCH_MANAGER', name: 'Manager Base', id: 'u2', isActive: true, permissions: [], assignedBranchId: 'b1' },
+            { email: 'cashier@1.com', role: 'CASHIER', name: 'Cashier Main', id: 'u3', isActive: true, permissions: [], assignedBranchId: 'b1' },
+            { email: 'kitchen@1.com', role: 'KITCHEN_STAFF', name: 'Kitchen Display', id: 'u4', isActive: true, permissions: [], assignedBranchId: 'b1' },
+            { email: 'callcenter@1.com', role: 'CALL_CENTER', name: 'Call Center', id: 'u5', isActive: true, permissions: [] }
+        ];
+
+        const user = DEMO_USERS.find(u => u.email === e);
+
+        if (user) {
+            // @ts-ignore - simplistic casting for demo
+            login(user);
+            if (user.role === 'CASHIER') navigate('/pos');
+            else if (user.role === 'KITCHEN_STAFF') navigate('/kitchen');
+            else navigate('/');
+        } else {
+            setError(settings.language === 'ar' ? 'بيانات الدخول غير صحيحة' : 'Invalid credentials');
+        }
+    };
 
     useEffect(() => {
         // Random initial background
@@ -44,7 +69,7 @@ const Login: React.FC<LoginProps> = ({ onLogin, lang, setLang, error }) => {
         e.preventDefault();
         setIsSubmitting(true);
         setTimeout(() => {
-            onLogin(email, password);
+            handleLogin(email, password);
             setIsSubmitting(false);
         }, 800);
     };
@@ -72,7 +97,7 @@ const Login: React.FC<LoginProps> = ({ onLogin, lang, setLang, error }) => {
             footer: '© ٢٠٢٦ كوديوس زين. الدعم: Sameh@coduis.com',
             switch: 'English'
         }
-    }[lang];
+    }[settings.language];
 
     return (
         <div className="fixed inset-0 min-h-screen flex items-center justify-center p-4 overflow-hidden font-outfit">
@@ -93,9 +118,28 @@ const Login: React.FC<LoginProps> = ({ onLogin, lang, setLang, error }) => {
             {/* Overlay */}
             <div className="absolute inset-0 bg-slate-950/40 backdrop-blur-[2px]" />
 
+            {/* Demo Login Helpers */}
+            <div className="absolute bottom-8 left-8 right-8 z-50 flex gap-2 justify-center flex-wrap">
+                {[
+                    { email: 'admin@1.com', label: 'Admin' },
+                    { email: 'manager@1.com', label: 'Manager' },
+                    { email: 'cashier@1.com', label: 'Cashier' },
+                    { email: 'kitchen@1.com', label: 'Kitchen' },
+                    { email: 'callcenter@1.com', label: 'Call Center' }
+                ].map(u => (
+                    <button
+                        key={u.email}
+                        onClick={() => handleLogin(u.email, '123456')}
+                        className="px-3 py-1 bg-white/10 hover:bg-white/20 backdrop-blur-md rounded-lg text-white/60 hover:text-white text-[10px] font-bold uppercase transition-all tracking-wider border border-white/5"
+                    >
+                        {u.label}
+                    </button>
+                ))}
+            </div>
+
             {/* Language Toggle */}
             <button
-                onClick={() => setLang(lang === 'en' ? 'ar' : 'en')}
+                onClick={() => updateSettings({ language: settings.language === 'en' ? 'ar' : 'en' })}
                 className="absolute top-8 right-8 z-50 px-6 py-3 bg-black/20 backdrop-blur-md border border-white/10 rounded-2xl flex items-center gap-2 text-white/70 hover:text-white hover:bg-black/40 transition-all text-sm font-black tracking-widest uppercase"
             >
                 <Globe size={18} />
@@ -103,7 +147,7 @@ const Login: React.FC<LoginProps> = ({ onLogin, lang, setLang, error }) => {
             </button>
 
             {/* Center Content */}
-            <div className={`relative z-10 w-full max-w-md ${lang === 'ar' ? 'rtl' : 'ltr'}`}>
+            <div className={`relative z-10 w-full max-w-md ${settings.language === 'ar' ? 'rtl' : 'ltr'}`}>
                 {/* Large Logo */}
                 <div className="flex flex-col items-center mb-10 text-center">
                     <div className="relative group mb-6">
@@ -120,7 +164,7 @@ const Login: React.FC<LoginProps> = ({ onLogin, lang, setLang, error }) => {
                 <div className="bg-slate-900/60 backdrop-blur-2xl p-10 rounded-[2.5rem] border border-white/10 shadow-[0_32px_64px_-16px_rgba(0,0,0,0.6)]">
                     <div className="mb-10 text-center">
                         <h2 className="text-3xl font-black text-white mb-3 tracking-tight">
-                            {lang === 'ar' ? 'مرحباً بعودتك' : 'Welcome Back'}
+                            {settings.language === 'ar' ? 'مرحباً بعودتك' : 'Welcome Back'}
                         </h2>
                         <div className="h-1.5 w-12 bg-indigo-500 rounded-full mx-auto" />
                     </div>
@@ -164,7 +208,7 @@ const Login: React.FC<LoginProps> = ({ onLogin, lang, setLang, error }) => {
                                     <input type="checkbox" className="peer appearance-none w-5 h-5 rounded-lg border-2 border-slate-700 bg-slate-800 checked:bg-indigo-500 checked:border-indigo-500 transition-all cursor-pointer" />
                                     <ShieldCheck className="absolute opacity-0 peer-checked:opacity-100 left-0.5 top-0.5 text-white transition-opacity pointer-events-none" size={16} />
                                 </div>
-                                <span className="text-slate-400 text-sm font-bold">{lang === 'ar' ? 'تذكرني' : 'Remember me'}</span>
+                                <span className="text-slate-400 text-sm font-bold">{settings.language === 'ar' ? 'تذكرني' : 'Remember me'}</span>
                             </label>
                             <button type="button" className="text-slate-300 text-sm font-bold hover:text-white transition-colors">
                                 {t.forgot}

@@ -25,12 +25,8 @@ const POSHeader: React.FC<POSHeaderProps> = ({
     isSidebarCollapsed,
     isTouchMode,
 }) => {
-    const sideClasses = lang === 'ar'
-        ? `left-0 ${isSidebarCollapsed ? 'lg:right-16' : (isTouchMode ? 'lg:right-80' : 'lg:right-64')} right-0`
-        : `right-0 ${isSidebarCollapsed ? 'lg:left-16' : (isTouchMode ? 'lg:left-80' : 'lg:left-64')} left-0`;
-
     return (
-        <div className={`fixed top-0 h-14 md:h-16 bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 flex justify-between items-center px-4 md:px-6 z-20 ${sideClasses} transition-all duration-300`}>
+        <div className={`h-14 md:h-20 bg-card border-b border-border flex justify-between items-center px-6 md:px-10 z-20 transition-all duration-300`}>
 
             <div className="flex items-center gap-4">
                 {activeMode === OrderType.DINE_IN && (

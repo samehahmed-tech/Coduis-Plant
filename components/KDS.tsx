@@ -1,13 +1,11 @@
+
 import React from 'react';
 import { Clock, CheckCircle } from 'lucide-react';
-import { Order, OrderStatus } from '../types';
+import { OrderStatus } from '../types';
+import { useOrderStore } from '../stores/useOrderStore';
 
-interface KDSProps {
-  orders: Order[];
-  onUpdateStatus: (orderId: string, status: OrderStatus) => void;
-}
-
-const KDS: React.FC<KDSProps> = ({ orders, onUpdateStatus }) => {
+const KDS: React.FC = () => {
+  const { orders, updateOrderStatus } = useOrderStore();
   const activeOrders = orders.filter(o => o.status !== OrderStatus.DELIVERED && o.status !== OrderStatus.CANCELLED);
 
   const getStatusColor = (status: OrderStatus) => {
@@ -20,7 +18,7 @@ const KDS: React.FC<KDSProps> = ({ orders, onUpdateStatus }) => {
   };
 
   const getHeaderColor = (status: OrderStatus) => {
-     switch (status) {
+    switch (status) {
       case OrderStatus.PENDING: return 'bg-yellow-50/50 dark:bg-yellow-900/20';
       case OrderStatus.PREPARING: return 'bg-blue-50/50 dark:bg-blue-900/20';
       case OrderStatus.READY: return 'bg-green-50/50 dark:bg-green-900/20';
@@ -29,88 +27,89 @@ const KDS: React.FC<KDSProps> = ({ orders, onUpdateStatus }) => {
   }
 
   return (
-    <div className="p-8 min-h-screen bg-slate-50 dark:bg-slate-950 transition-colors">
+    <div className="p-8 min-h-screen bg-slate-50 dark:bg-slate-950 transition-colors pb-24">
       <div className="flex justify-between items-center mb-8">
-        <h2 className="text-3xl font-bold text-slate-800 dark:text-white">Kitchen Display System</h2>
-        <div className="text-sm font-medium text-slate-500 dark:text-slate-400 bg-white dark:bg-slate-900 px-4 py-2 rounded-full shadow-sm border border-slate-200 dark:border-slate-800">
-          {activeOrders.length} Active Orders
+        <div>
+          <h2 className="text-3xl font-black text-slate-800 dark:text-white uppercase tracking-tight">Kitchen Module</h2>
+          <p className="text-slate-500 dark:text-slate-400 font-semibold text-sm">Real-time order tracking and kitchen efficiency.</p>
+        </div>
+        <div className="text-sm font-black text-indigo-600 bg-white dark:bg-slate-900 px-6 py-2.5 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-800 uppercase tracking-widest">
+          {activeOrders.length} Active Tickets
         </div>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
         {activeOrders.map(order => (
-          <div key={order.id} className="bg-white dark:bg-slate-900 rounded-xl shadow-sm border border-slate-200 dark:border-slate-800 overflow-hidden flex flex-col animate-fade-in transition-colors">
+          <div key={order.id} className="bg-white dark:bg-slate-900 rounded-[2rem] shadow-sm border border-slate-200 dark:border-slate-800 overflow-hidden flex flex-col animate-fade-in transition-colors">
             {/* Ticket Header */}
-            <div className={`p-4 border-b dark:border-slate-800 flex justify-between items-center ${getHeaderColor(order.status)}`}>
+            <div className={`p-6 border-b dark:border-slate-800 flex justify-between items-center ${getHeaderColor(order.status)}`}>
               <div>
-                <span className="text-xs font-bold uppercase text-slate-500 dark:text-slate-400 block mb-1">Order ID</span>
-                <span className="font-mono font-bold text-slate-800 dark:text-slate-100">#{order.id}</span>
+                <span className="text-[10px] font-black uppercase text-slate-400 dark:text-slate-500 block mb-1 tracking-widest">Order ID</span>
+                <span className="font-mono font-black text-slate-800 dark:text-slate-100">#{order.id}</span>
               </div>
               <div className="text-right">
-                 <span className="text-xs font-bold uppercase text-slate-500 dark:text-slate-400 block mb-1">Table</span>
-                 <span className="font-mono font-bold text-slate-800 dark:text-slate-100">{order.tableId}</span>
+                <span className="text-[10px] font-black uppercase text-slate-400 dark:text-slate-500 block mb-1 tracking-widest">Table / Mode</span>
+                <span className="font-mono font-black text-slate-800 dark:text-slate-100">{order.tableId || order.type}</span>
               </div>
             </div>
-            
+
             {/* Timer Strip */}
-            <div className="bg-slate-900 dark:bg-slate-950 text-white text-xs py-1 px-4 flex items-center justify-between">
-               <span className="flex items-center gap-1 opacity-80">
-                 <Clock size={12} />
-                 {new Date(order.createdAt).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
-               </span>
-               <span className="font-bold tracking-wider">
-                 {Math.floor((new Date().getTime() - new Date(order.createdAt).getTime()) / 60000)} MIN AGO
-               </span>
+            <div className="bg-slate-900 dark:bg-slate-950 text-white text-[10px] font-black py-2 px-6 flex items-center justify-between uppercase tracking-widest">
+              <span className="flex items-center gap-1 opacity-80">
+                <Clock size={12} />
+                {new Date(order.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+              </span>
+              <span className="font-bold">
+                {Math.floor((new Date().getTime() - new Date(order.createdAt).getTime()) / 60000)} MINS ELAPSED
+              </span>
             </div>
 
             {/* Items List */}
-            <div className="p-4 flex-1">
-              <ul className="space-y-3">
+            <div className="p-6 flex-1">
+              <ul className="space-y-4">
                 {order.items.map((item, idx) => (
-                  <li key={idx} className="flex gap-3 text-slate-700 dark:text-slate-300">
-                    <span className="font-bold w-6 h-6 flex items-center justify-center bg-slate-100 dark:bg-slate-800 rounded text-sm shrink-0">
+                  <li key={idx} className="flex gap-4 text-slate-700 dark:text-slate-300">
+                    <span className="font-black w-8 h-8 flex items-center justify-center bg-slate-100 dark:bg-slate-800 rounded-xl text-xs shrink-0 border border-slate-200 dark:border-slate-700">
                       {item.quantity}
                     </span>
-                    <span className="font-medium leading-snug">{item.name}</span>
+                    <div className="flex-1">
+                      <span className="font-bold text-sm uppercase leading-snug">{item.name}</span>
+                      {item.notes && <p className="text-[10px] text-rose-500 font-bold mt-1 italic">Note: {item.notes}</p>}
+                    </div>
                   </li>
                 ))}
               </ul>
-              {order.notes && (
-                <div className="mt-4 p-3 bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-300 text-sm rounded border border-red-100 dark:border-red-900/30">
-                  <span className="font-bold">Note:</span> {order.notes}
-                </div>
-              )}
             </div>
 
             {/* Actions */}
-            <div className="p-4 bg-slate-50 dark:bg-slate-950/50 border-t border-slate-200 dark:border-slate-800 grid gap-2">
-              <div className={`text-center py-1 px-3 rounded-full text-xs font-bold uppercase border ${getStatusColor(order.status)} mb-2`}>
+            <div className="p-6 bg-slate-50 dark:bg-slate-950/50 border-t border-slate-200 dark:border-slate-800 grid gap-3">
+              <div className={`text-center py-2 px-4 rounded-xl text-[10px] font-black uppercase tracking-widest border shadow-sm ${getStatusColor(order.status)}`}>
                 {order.status}
               </div>
-              
+
               {order.status === OrderStatus.PENDING && (
-                <button 
-                  onClick={() => onUpdateStatus(order.id, OrderStatus.PREPARING)}
-                  className="w-full py-2 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 transition-colors"
+                <button
+                  onClick={() => updateOrderStatus(order.id, OrderStatus.PREPARING)}
+                  className="w-full py-3 bg-indigo-600 text-white rounded-2xl font-black uppercase text-xs hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-600/20"
                 >
-                  Start Cooking
+                  Start Preparation
                 </button>
               )}
-              
+
               {order.status === OrderStatus.PREPARING && (
-                <button 
-                  onClick={() => onUpdateStatus(order.id, OrderStatus.READY)}
-                  className="w-full py-2 bg-green-600 text-white rounded-lg font-medium hover:bg-green-700 transition-colors flex items-center justify-center gap-2"
+                <button
+                  onClick={() => updateOrderStatus(order.id, OrderStatus.READY)}
+                  className="w-full py-3 bg-emerald-600 text-white rounded-2xl font-black uppercase text-xs hover:bg-emerald-700 transition-all flex items-center justify-center gap-2 shadow-lg shadow-emerald-600/20"
                 >
                   <CheckCircle size={18} />
-                  Mark Ready
+                  Mark as Ready
                 </button>
               )}
-              
+
               {order.status === OrderStatus.READY && (
-                <button 
-                  onClick={() => onUpdateStatus(order.id, OrderStatus.DELIVERED)}
-                  className="w-full py-2 bg-slate-800 text-white dark:bg-slate-700 dark:hover:bg-slate-600 rounded-lg font-medium hover:bg-slate-900 transition-colors"
+                <button
+                  onClick={() => updateOrderStatus(order.id, OrderStatus.DELIVERED)}
+                  className="w-full py-3 bg-slate-800 text-white dark:bg-slate-700 dark:hover:bg-slate-600 rounded-2xl font-black uppercase text-xs hover:bg-slate-900 transition-all shadow-lg"
                 >
                   Complete Order
                 </button>
@@ -120,33 +119,17 @@ const KDS: React.FC<KDSProps> = ({ orders, onUpdateStatus }) => {
         ))}
 
         {activeOrders.length === 0 && (
-          <div className="col-span-full flex flex-col items-center justify-center h-64 text-slate-400 dark:text-slate-500 border-2 border-dashed border-slate-300 dark:border-slate-700 rounded-xl">
-             <ChefHat size={48} className="mb-4 opacity-50" />
-             <p className="text-lg">All caught up! No active orders.</p>
+          <div className="col-span-full flex flex-col items-center justify-center h-96 text-slate-400 dark:text-slate-500 border-2 border-dashed border-slate-200 dark:border-slate-800 rounded-[3rem] bg-white dark:bg-slate-900/50">
+            <div className="w-20 h-20 rounded-full bg-slate-50 dark:bg-slate-800 flex items-center justify-center mb-6">
+              <Clock size={40} className="opacity-20" />
+            </div>
+            <p className="text-xl font-black uppercase tracking-tighter">Kitchen is Quiet</p>
+            <p className="text-sm font-bold opacity-60 mt-1">All orders have been dispatched.</p>
           </div>
         )}
       </div>
     </div>
   );
 };
-
-// Helper component for empty state
-const ChefHat = ({size, className}: {size: number, className?: string}) => (
-  <svg 
-    xmlns="http://www.w3.org/2000/svg" 
-    width={size} 
-    height={size} 
-    viewBox="0 0 24 24" 
-    fill="none" 
-    stroke="currentColor" 
-    strokeWidth="2" 
-    strokeLinecap="round" 
-    strokeLinejoin="round"
-    className={className}
-  >
-    <path d="M6 13.87A4 4 0 0 1 7.41 6a5.11 5.11 0 0 1 1.05-1.54 5 5 0 0 1 7.08 0A5.11 5.11 0 0 1 16.59 6 4 4 0 0 1 18 13.87V21H6Z"/>
-    <line x1="6" y1="17" x2="18" y2="17"/>
-  </svg>
-);
 
 export default KDS;

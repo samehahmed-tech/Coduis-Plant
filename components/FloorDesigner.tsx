@@ -1,3 +1,4 @@
+
 import React, { useState, useRef, useCallback, useMemo } from 'react';
 import {
     Plus,
@@ -6,513 +7,291 @@ import {
     Save,
     Square,
     Circle,
-    ChevronLeft,
     Layout,
     Users,
     Move,
     Layers,
-    Percent,
-    Crown,
     StickyNote,
-    DollarSign,
     Copy,
-    Palette,
     RectangleHorizontal,
-    AlertTriangle
+    X
 } from 'lucide-react';
 import { Table, TableStatus, FloorZone } from '../types';
 
-interface FloorDesignerProps {
-    tables: Table[];
-    onSave: (tables: Table[], zones: FloorZone[]) => void;
-    onClose: () => void;
-    lang: 'en' | 'ar';
-}
+// Stores
+import { useOrderStore } from '../stores/useOrderStore';
+import { useAuthStore } from '../stores/useAuthStore';
 
-const DEFAULT_ZONES: FloorZone[] = [
-    { id: 'hall', name: 'Main Hall', color: '#6366f1' },
-    { id: 'terrace', name: 'Terrace', color: '#10b981' },
-    { id: 'vip', name: 'VIP Lounge', color: '#f59e0b' },
-];
+// Services
+import { translations } from '../services/translations';
 
-const LAYOUT_TEMPLATES = [
-    {
-        id: 'classic',
-        name: 'Classic Restaurant',
-        tables: [
-            { x: 15, y: 20 }, { x: 35, y: 20 }, { x: 55, y: 20 }, { x: 75, y: 20 },
-            { x: 15, y: 50 }, { x: 35, y: 50 }, { x: 55, y: 50 }, { x: 75, y: 50 },
-            { x: 25, y: 80 }, { x: 50, y: 80 }, { x: 75, y: 80 }
-        ]
-    },
-    {
-        id: 'cafe',
-        name: 'Café Style',
-        tables: [
-            { x: 20, y: 25 }, { x: 40, y: 25 }, { x: 60, y: 25 }, { x: 80, y: 25 },
-            { x: 20, y: 55 }, { x: 40, y: 55 }, { x: 60, y: 55 }, { x: 80, y: 55 },
-        ]
-    },
-    {
-        id: 'fine-dining',
-        name: 'Fine Dining',
-        tables: [
-            { x: 25, y: 30 }, { x: 50, y: 30 }, { x: 75, y: 30 },
-            { x: 25, y: 70 }, { x: 50, y: 70 }, { x: 75, y: 70 },
-        ]
-    },
-];
+const FloorDesigner: React.FC<{ onClose: () => void }> = ({ onClose }) => {
+    const { tables, updateTables } = useOrderStore();
+    const { settings } = useAuthStore();
 
-const TABLE_SIZE = 100; // px
-const COLLISION_THRESHOLD = 12; // % distance
+    const lang = (settings.language || 'en') as 'en' | 'ar';
+    const t = translations[lang] || translations['en'];
 
-const FloorDesigner: React.FC<FloorDesignerProps> = ({ tables, onSave, onClose, lang }) => {
+    const [selectedId, setSelectedId] = useState<string | null>(null);
     const [localTables, setLocalTables] = useState<Table[]>(tables);
-    const [zones, setZones] = useState<FloorZone[]>(DEFAULT_ZONES);
-    const [activeZone, setActiveZone] = useState<string>('hall');
-    const [selectedTableId, setSelectedTableId] = useState<string | null>(null);
-    const [collisionWarning, setCollisionWarning] = useState<string | null>(null);
-    const [showZoneEditor, setShowZoneEditor] = useState(false);
-    const canvasRef = useRef<HTMLDivElement>(null);
+    const [activeZone, setActiveZone] = useState<string>('MAIN');
+    const designerRef = useRef<HTMLDivElement>(null);
 
-    // Check for collision with other tables
-    const checkCollision = useCallback((tableId: string, x: number, y: number): boolean => {
-        for (const t of localTables) {
-            if (t.id === tableId) continue;
-            if (t.zoneId !== activeZone) continue;
-            if (!t.position) continue;
-
-            const distance = Math.sqrt(Math.pow(t.position.x - x, 2) + Math.pow(t.position.y - y, 2));
-            if (distance < COLLISION_THRESHOLD) {
-                return true;
-            }
-        }
-        return false;
-    }, [localTables, activeZone]);
-
-    const addTable = () => {
-        // Find free spot
-        let x = 20, y = 20;
-        let attempts = 0;
-        while (checkCollision('', x, y) && attempts < 50) {
-            x += 15;
-            if (x > 85) { x = 20; y += 15; }
-            if (y > 85) y = 20;
-            attempts++;
-        }
-
-        const zonePrefix = zones.find(z => z.id === activeZone)?.name.charAt(0) || 'T';
-        const zoneTableCount = localTables.filter(t => t.zoneId === activeZone).length;
-
+    const handleAddTable = (shape: 'ROUND' | 'SQUARE' | 'RECTANGULAR') => {
         const newTable: Table = {
-            id: `table-${Date.now()}`,
-            name: `${zonePrefix}${zoneTableCount + 1}`,
+            id: `tbl-${Date.now()}`,
+            number: String(localTables.length + 1),
+            capacity: shape === 'RECTANGULAR' ? 6 : 4,
             status: TableStatus.AVAILABLE,
-            seats: 4,
-            position: { x, y },
-            zoneId: activeZone,
-            shape: 'square',
-            discount: 0,
-            isVIP: activeZone === 'vip'
+            x: 100,
+            y: 100,
+            width: shape === 'RECTANGULAR' ? 120 : 80,
+            height: 80,
+            shape,
+            zoneId: activeZone
         };
         setLocalTables([...localTables, newTable]);
-        setSelectedTableId(newTable.id);
+        setSelectedId(newTable.id);
     };
 
-    const deleteTable = (id: string) => {
-        setLocalTables(localTables.filter(t => t.id !== id));
-        setSelectedTableId(null);
-    };
-
-    const duplicateTable = (table: Table) => {
-        const newTable: Table = {
-            ...table,
-            id: `table-${Date.now()}`,
-            name: `${table.name}-copy`,
-            position: { x: (table.position?.x || 50) + 10, y: (table.position?.y || 50) + 10 }
-        };
-        setLocalTables([...localTables, newTable]);
-        setSelectedTableId(newTable.id);
-    };
-
-    const updateTable = (id: string, updates: Partial<Table>) => {
+    const handleUpdateTable = (id: string, updates: Partial<Table>) => {
         setLocalTables(localTables.map(t => t.id === id ? { ...t, ...updates } : t));
     };
 
-    const applyTemplate = (template: typeof LAYOUT_TEMPLATES[0]) => {
-        const newTables = template.tables.map((pos, i) => ({
-            id: `table-${Date.now()}-${i}`,
-            name: `${i + 1}`,
-            status: TableStatus.AVAILABLE,
-            seats: 4,
-            position: pos,
-            zoneId: activeZone,
-            shape: 'square' as const
-        }));
-        setLocalTables(prev => [...prev.filter(t => t.zoneId !== activeZone), ...newTables]);
+    const handleDeleteTable = (id: string) => {
+        setLocalTables(localTables.filter(t => t.id !== id));
+        setSelectedId(null);
     };
 
-    const addZone = () => {
-        const colors = ['#ec4899', '#8b5cf6', '#06b6d4', '#84cc16'];
-        const newZone: FloorZone = {
-            id: `zone-${Date.now()}`,
-            name: `Zone ${zones.length + 1}`,
-            color: colors[zones.length % colors.length]
+    const handleDuplicateTable = (table: Table) => {
+        const newTable: Table = {
+            ...table,
+            id: `tbl-${Date.now()}`,
+            number: String(localTables.length + 1),
+            x: table.x + 20,
+            y: table.y + 20
         };
-        setZones([...zones, newZone]);
-        setActiveZone(newZone.id);
+        setLocalTables([...localTables, newTable]);
+        setSelectedId(newTable.id);
     };
 
-    const handleDrag = (e: React.MouseEvent | React.TouchEvent, tableId: string) => {
-        if (!canvasRef.current) return;
-        setSelectedTableId(tableId);
-
-        const canvas = canvasRef.current.getBoundingClientRect();
-
-        const moveHandler = (moveEvent: MouseEvent | TouchEvent) => {
-            const clientX = 'touches' in moveEvent ? moveEvent.touches[0].clientX : moveEvent.clientX;
-            const clientY = 'touches' in moveEvent ? moveEvent.touches[0].clientY : moveEvent.clientY;
-
-            let x = ((clientX - canvas.left) / canvas.width) * 100;
-            let y = ((clientY - canvas.top) / canvas.height) * 100;
-
-            x = Math.max(5, Math.min(95, x));
-            y = Math.max(5, Math.min(95, y));
-
-            // Collision check
-            if (checkCollision(tableId, x, y)) {
-                setCollisionWarning(lang === 'ar' ? 'لا يمكن وضع طاولتين في نفس المكان!' : 'Tables cannot overlap!');
-                return;
-            } else {
-                setCollisionWarning(null);
-            }
-
-            updateTable(tableId, { position: { x, y } });
-        };
-
-        const stopHandler = () => {
-            setCollisionWarning(null);
-            window.removeEventListener('mousemove', moveHandler);
-            window.removeEventListener('mouseup', stopHandler);
-            window.removeEventListener('touchmove', moveHandler);
-            window.removeEventListener('touchend', stopHandler);
-        };
-
-        window.addEventListener('mousemove', moveHandler);
-        window.addEventListener('mouseup', stopHandler);
-        window.addEventListener('touchmove', moveHandler);
-        window.addEventListener('touchend', stopHandler);
+    const handleSave = () => {
+        updateTables(localTables);
+        onClose();
     };
 
-    const selectedTable = localTables.find(t => t.id === selectedTableId);
-    const activeZoneData = zones.find(z => z.id === activeZone);
-    const zoneTables = localTables.filter(t => t.zoneId === activeZone);
+    const selectedTable = localTables.find(t => t.id === selectedId);
 
     return (
-        <div className="fixed inset-0 bg-slate-900 z-[200] flex flex-col animate-in slide-in-from-bottom duration-300">
-            {/* Header - Responsive */}
-            <div className="h-14 md:h-16 bg-slate-950 border-b border-slate-800 flex items-center justify-between px-4 md:px-6 shrink-0">
-                <div className="flex items-center gap-2 md:gap-4 overflow-hidden">
-                    <button onClick={onClose} className="p-2 hover:bg-slate-800 rounded-xl text-slate-400 transition-all">
-                        <ChevronLeft size={20} />
+        <div className="fixed inset-0 bg-slate-100 dark:bg-slate-950 z-[200] flex flex-col animate-in fade-in duration-300">
+            {/* Top Navigation */}
+            <div className="h-20 bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 px-8 flex items-center justify-between shadow-sm">
+                <div className="flex items-center gap-6">
+                    <button onClick={onClose} className="p-3 bg-slate-50 dark:bg-slate-800 rounded-2xl text-slate-400 hover:text-rose-500 transition-all">
+                        <X size={24} />
                     </button>
-                    <div className="truncate">
-                        <h2 className="text-sm md:text-lg font-black text-white uppercase tracking-tight flex items-center gap-2">
-                            <Layout size={16} className="text-indigo-500 hidden sm:block" />
-                            {lang === 'ar' ? 'مصمم الصالات' : 'Designer'}
+                    <div className="h-8 w-[1px] bg-slate-200 dark:bg-slate-700 mx-2" />
+                    <div>
+                        <h2 className="text-xl font-black text-slate-800 dark:text-white uppercase tracking-tight flex items-center gap-3">
+                            <Layout className="text-indigo-600" /> Architectural Designer
                         </h2>
+                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Interactive Floor Mapping Tool v3.0</p>
                     </div>
                 </div>
-                <div className="flex items-center gap-2">
-                    <button onClick={() => setLocalTables(tables)} className="hidden sm:block px-3 py-2 text-slate-400 font-bold text-[10px] md:text-xs uppercase tracking-wider hover:text-white transition-all">
-                        {lang === 'ar' ? 'إعادة' : 'Reset'}
-                    </button>
+
+                <div className="flex items-center gap-4">
                     <button
-                        onClick={() => { onSave(localTables, zones); onClose(); }}
-                        className="px-4 md:px-6 py-1.5 md:py-2.5 bg-indigo-600 text-white rounded-lg md:rounded-xl font-bold text-[10px] md:text-xs uppercase tracking-wider shadow-lg hover:bg-indigo-700 transition-all"
+                        onClick={handleSave}
+                        className="bg-indigo-600 text-white px-8 py-3.5 rounded-[1.5rem] font-black uppercase text-xs tracking-widest flex items-center gap-3 shadow-xl shadow-indigo-600/30 hover:bg-indigo-700 transition-all active:scale-95"
                     >
-                        {lang === 'ar' ? 'حفظ' : 'Save'}
+                        <Save size={18} /> Compile & Update
                     </button>
                 </div>
             </div>
-
-            {/* Zone Tabs */}
-            <div className="h-14 bg-slate-900 border-b border-slate-800 flex items-center px-6 gap-2 overflow-x-auto">
-                {zones.map(zone => (
-                    <button
-                        key={zone.id}
-                        onClick={() => setActiveZone(zone.id)}
-                        className={`px-5 py-2 rounded-xl text-xs font-black uppercase tracking-wider transition-all flex items-center gap-2 ${activeZone === zone.id
-                            ? 'text-white shadow-lg'
-                            : 'bg-slate-800 text-slate-400 hover:text-white'
-                            }`}
-                        style={{ backgroundColor: activeZone === zone.id ? zone.color : undefined }}
-                    >
-                        <Layers size={14} />
-                        {zone.name}
-                        <span className="bg-white/20 px-1.5 py-0.5 rounded text-[10px]">
-                            {localTables.filter(t => t.zoneId === zone.id).length}
-                        </span>
-                    </button>
-                ))}
-                <button
-                    onClick={addZone}
-                    className="p-2 rounded-xl bg-slate-800 text-slate-500 hover:text-indigo-400 hover:bg-slate-700 transition-all"
-                >
-                    <Plus size={16} />
-                </button>
-            </div>
-
-            {/* Collision Warning */}
-            {collisionWarning && (
-                <div className="absolute top-32 left-1/2 -translate-x-1/2 z-50 bg-red-500 text-white px-6 py-3 rounded-2xl font-bold text-sm flex items-center gap-2 shadow-2xl animate-in zoom-in">
-                    <AlertTriangle size={18} /> {collisionWarning}
-                </div>
-            )}
 
             <div className="flex-1 flex overflow-hidden">
-                {/* Canvas Area - Adaptive Padding */}
-                <div className="flex-1 bg-slate-900 relative p-3 md:p-6 overflow-hidden">
-                    {/* Templates Bar - Responsive */}
-                    <div className="absolute top-2 md:top-4 left-2 md:left-4 z-20 flex gap-1.5 max-w-[90%] overflow-x-auto no-scrollbar py-1">
-                        {LAYOUT_TEMPLATES.map(template => (
+                {/* Left Toolbar */}
+                <div className="w-80 bg-white dark:bg-slate-900 border-r border-slate-200 dark:border-slate-800 p-8 flex flex-col gap-10 overflow-y-auto no-scrollbar">
+                    {/* Element Library */}
+                    <div>
+                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-6 flex items-center gap-2">
+                            <Layers size={14} className="text-indigo-600" /> Element Library
+                        </p>
+                        <div className="grid grid-cols-1 gap-4">
                             <button
-                                key={template.id}
-                                onClick={() => applyTemplate(template)}
-                                className="px-3 md:px-4 py-1.5 md:py-2 bg-slate-800/90 backdrop-blur-md text-slate-300 rounded-lg md:rounded-xl text-[9px] md:text-xs font-bold hover:bg-indigo-600 hover:text-white transition-all whitespace-nowrap border border-white/5"
+                                onClick={() => handleAddTable('SQUARE')}
+                                className="w-full flex items-center justify-between p-5 bg-slate-50 dark:bg-slate-800/50 rounded-2xl border-2 border-transparent hover:border-indigo-600/30 hover:bg-indigo-50 dark:hover:bg-indigo-900/10 transition-all group"
                             >
-                                {template.name}
+                                <div className="flex items-center gap-4">
+                                    <div className="w-12 h-12 bg-white dark:bg-slate-800 rounded-xl shadow-sm flex items-center justify-center text-slate-400 group-hover:text-indigo-600 transition-colors">
+                                        <Square size={24} />
+                                    </div>
+                                    <span className="text-xs font-black uppercase tracking-widest text-slate-600 dark:text-slate-300">Square Table</span>
+                                </div>
+                                <Plus size={18} className="text-indigo-600 opacity-0 group-hover:opacity-100 transition-opacity" />
                             </button>
-                        ))}
-                    </div>
 
-                    <div
-                        ref={canvasRef}
-                        className="w-full h-full rounded-2xl md:rounded-3xl border-2 border-dashed relative overflow-hidden"
-                        style={{
-                            borderColor: activeZoneData?.color || '#334155',
-                            backgroundColor: `${activeZoneData?.color}10`,
-                            backgroundImage: 'radial-gradient(circle, rgba(255,255,255,0.03) 1px, transparent 1px)',
-                            backgroundSize: '30px 30px'
-                        }}
-                    >
-                        {/* Zone Label */}
-                        <div
-                            className="absolute top-2 md:top-4 right-2 md:right-4 px-3 md:px-4 py-1 md:py-2 rounded-lg md:rounded-xl text-[9px] md:text-xs font-black uppercase tracking-wider text-white shadow-lg z-10"
-                            style={{ backgroundColor: activeZoneData?.color }}
-                        >
-                            {activeZoneData?.name}
-                        </div>
-
-                        {zoneTables.map((table) => (
-                            <div
-                                key={table.id}
-                                onMouseDown={(e) => handleDrag(e, table.id)}
-                                onTouchStart={(e) => handleDrag(e, table.id)}
-                                className={`absolute cursor-move transition-all duration-100 ${selectedTableId === table.id ? 'ring-4 ring-white shadow-2xl z-10 scale-105' : 'hover:scale-105'
-                                    }`}
-                                style={{
-                                    left: `${table.position?.x}%`,
-                                    top: `${table.position?.y}%`,
-                                    transform: 'translate(-50%, -50%)',
-                                    width: `${TABLE_SIZE}px`,
-                                    height: `${TABLE_SIZE}px`,
-                                }}
+                            <button
+                                onClick={() => handleAddTable('RECTANGULAR')}
+                                className="w-full flex items-center justify-between p-5 bg-slate-50 dark:bg-slate-800/50 rounded-2xl border-2 border-transparent hover:border-indigo-600/30 hover:bg-indigo-50 dark:hover:bg-indigo-900/10 transition-all group"
                             >
-                                <div
-                                    className={`w-full h-full flex flex-col items-center justify-center relative shadow-xl border-2 ${table.shape === 'round' ? 'rounded-full' : table.shape === 'rectangle' ? 'rounded-2xl' : 'rounded-2xl'
-                                        }`}
-                                    style={{
-                                        backgroundColor: table.isVIP ? '#f59e0b' : '#475569',
-                                        borderColor: selectedTableId === table.id ? '#fff' : '#64748b',
-                                        aspectRatio: table.shape === 'rectangle' ? '1.5' : '1'
-                                    }}
-                                >
-                                    <span className="text-xl font-black text-white">{table.name}</span>
-                                    <div className="flex items-center gap-1 mt-0.5">
-                                        <Users size={10} className="text-white/60" />
-                                        <span className="text-[10px] font-bold text-white/60">{table.seats}</span>
+                                <div className="flex items-center gap-4">
+                                    <div className="w-12 h-12 bg-white dark:bg-slate-800 rounded-xl shadow-sm flex items-center justify-center text-slate-400 group-hover:text-indigo-600 transition-colors">
+                                        <RectangleHorizontal size={24} />
                                     </div>
-
-                                    {table.isVIP && (
-                                        <Crown size={12} className="absolute top-1 right-1 text-white" />
-                                    )}
-                                    {table.discount && table.discount > 0 && (
-                                        <div className="absolute -top-2 -left-2 w-5 h-5 bg-green-500 rounded-full flex items-center justify-center">
-                                            <Percent size={10} className="text-white" />
-                                        </div>
-                                    )}
-
-                                    <div className="absolute bottom-1 text-white/30">
-                                        <Move size={10} />
-                                    </div>
+                                    <span className="text-xs font-black uppercase tracking-widest text-slate-600 dark:text-slate-300">Long Table</span>
                                 </div>
-                            </div>
-                        ))}
+                                <Plus size={18} className="text-indigo-600 opacity-0 group-hover:opacity-100 transition-opacity" />
+                            </button>
+
+                            <button
+                                onClick={() => handleAddTable('ROUND')}
+                                className="w-full flex items-center justify-between p-5 bg-slate-50 dark:bg-slate-800/50 rounded-2xl border-2 border-transparent hover:border-indigo-600/30 hover:bg-indigo-50 dark:hover:bg-indigo-900/10 transition-all group"
+                            >
+                                <div className="flex items-center gap-4">
+                                    <div className="w-12 h-12 bg-white dark:bg-slate-800 rounded-xl shadow-sm flex items-center justify-center text-slate-400 group-hover:text-indigo-600 transition-colors">
+                                        <Circle size={24} />
+                                    </div>
+                                    <span className="text-xs font-black uppercase tracking-widest text-slate-600 dark:text-slate-300">Round Station</span>
+                                </div>
+                                <Plus size={18} className="text-indigo-600 opacity-0 group-hover:opacity-100 transition-opacity" />
+                            </button>
+                        </div>
                     </div>
-                </div>
 
-                {/* Sidebar Controls - Optimized for Space */}
-                <div className="w-64 md:w-72 bg-slate-950 border-l border-slate-800 p-3 md:p-5 flex flex-col gap-4 md:gap-5 overflow-y-auto shrink-0 hidden lg:flex">
-                    <button
-                        onClick={addTable}
-                        className="w-full py-2.5 md:py-3 bg-indigo-600 hover:bg-indigo-700 rounded-xl text-white font-bold text-[11px] md:text-xs uppercase tracking-wider transition-all flex items-center justify-center gap-2 shadow-lg"
-                    >
-                        <Plus size={16} /> {lang === 'ar' ? 'إضافة طاولة' : 'Add Table'}
-                    </button>
-
+                    {/* Inspector */}
                     {selectedTable ? (
-                        <div className="space-y-4 md:space-y-5 animate-in fade-in slide-in-from-right duration-200">
-                            <div className="flex justify-between items-center bg-slate-900/50 p-2 rounded-lg border border-white/5">
-                                <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-wider truncate">
-                                    {lang === 'ar' ? 'إعدادات الطاولة' : 'Settings'}
-                                </h3>
-                                <div className="flex gap-1">
-                                    <button onClick={() => duplicateTable(selectedTable)} className="p-1.5 text-slate-500 hover:text-indigo-400 rounded transition-all">
-                                        <Copy size={13} />
-                                    </button>
-                                    <button onClick={() => deleteTable(selectedTable.id)} className="p-1.5 text-slate-500 hover:text-red-400 rounded transition-all">
-                                        <Trash2 size={13} />
-                                    </button>
-                                </div>
-                            </div>
+                        <div className="space-y-8 animate-in slide-in-from-left-4 duration-300">
+                            <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] flex items-center gap-2">
+                                <Move size={14} className="text-indigo-600" /> Entity Inspector
+                            </p>
 
-                            {/* Name */}
-                            <div className="space-y-1">
-                                <label className="text-[9px] font-bold text-slate-500 uppercase tracking-wider">{lang === 'ar' ? 'الاسم' : 'Label'}</label>
-                                <input
-                                    type="text"
-                                    value={selectedTable.name}
-                                    onChange={(e) => updateTable(selectedTable.id, { name: e.target.value })}
-                                    className="w-full bg-slate-900 border border-slate-800 rounded-lg px-3 py-1.5 text-white font-bold text-sm outline-none focus:ring-1 focus:ring-indigo-500"
-                                />
-                            </div>
-
-                            {/* Seats & Shape - Grid for better density */}
-                            <div className="grid grid-cols-2 gap-3">
-                                <div className="space-y-1">
-                                    <label className="text-[9px] font-bold text-slate-500 uppercase tracking-wider">{lang === 'ar' ? 'المقاعد' : 'Seats'}</label>
-                                    <select
-                                        value={selectedTable.seats}
-                                        onChange={(e) => updateTable(selectedTable.id, { seats: parseInt(e.target.value) })}
-                                        className="w-full bg-slate-900 border border-slate-800 rounded-lg px-2 py-1.5 text-white font-bold text-xs outline-none"
-                                    >
-                                        {[1, 2, 4, 6, 8, 10, 12].map(s => <option key={s} value={s}>{s}</option>)}
-                                    </select>
+                            <div className="space-y-6 bg-slate-50 dark:bg-slate-800/30 p-6 rounded-[2rem] border border-slate-100 dark:border-slate-800 shadow-inner">
+                                <div className="space-y-2">
+                                    <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest ml-1">Node Identity</label>
+                                    <input
+                                        type="text"
+                                        value={selectedTable.number}
+                                        onChange={(e) => handleUpdateTable(selectedTable.id, { number: e.target.value })}
+                                        className="w-full p-4 bg-white dark:bg-slate-900 rounded-xl font-black text-sm uppercase tracking-widest outline-none border-2 border-transparent focus:border-indigo-600 transition-all"
+                                    />
                                 </div>
-                                <div className="space-y-1">
-                                    <label className="text-[9px] font-bold text-slate-500 uppercase tracking-wider">{lang === 'ar' ? 'الشكل' : 'Shape'}</label>
-                                    <div className="flex gap-1 overflow-x-auto no-scrollbar">
-                                        {[
-                                            { id: 'square', icon: Square },
-                                            { id: 'round', icon: Circle },
-                                            { id: 'rectangle', icon: RectangleHorizontal }
-                                        ].map(({ id, icon: Icon }) => (
-                                            <button
-                                                key={id}
-                                                onClick={() => updateTable(selectedTable.id, { shape: id as any })}
-                                                className={`p-2 rounded-lg transition-all flex items-center justify-center flex-1 ${selectedTable.shape === id ? 'bg-indigo-600 text-white' : 'bg-slate-900 text-slate-500'}`}
-                                            >
-                                                <Icon size={12} />
-                                            </button>
-                                        ))}
+
+                                <div className="space-y-2">
+                                    <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest ml-1">Seating Payload</label>
+                                    <div className="flex items-center gap-3">
+                                        <div className="p-3 bg-white dark:bg-slate-900 rounded-xl text-indigo-600 shadow-sm">
+                                            <Users size={18} />
+                                        </div>
+                                        <input
+                                            type="number"
+                                            value={selectedTable.capacity}
+                                            onChange={(e) => handleUpdateTable(selectedTable.id, { capacity: parseInt(e.target.value) || 0 })}
+                                            className="flex-1 p-4 bg-white dark:bg-slate-900 rounded-xl font-black text-sm outline-none border-2 border-transparent focus:border-indigo-600 transition-all"
+                                        />
                                     </div>
                                 </div>
-                            </div>
 
-                            {/* VIP Toggle */}
-                            <div className="flex items-center justify-between p-2.5 bg-slate-900 rounded-xl border border-white/5">
-                                <div className="flex items-center gap-2 overflow-hidden">
-                                    <Crown size={12} className="text-amber-500 shrink-0" />
-                                    <span className="text-[10px] font-bold text-slate-300 truncate">{lang === 'ar' ? 'طاولة VIP' : 'VIP'}</span>
+                                <div className="pt-6 grid grid-cols-2 gap-3">
+                                    <button
+                                        onClick={() => handleDuplicateTable(selectedTable)}
+                                        className="p-4 bg-white dark:bg-slate-900 text-slate-500 rounded-xl flex items-center justify-center gap-2 hover:text-indigo-600 transition-all shadow-sm group"
+                                    >
+                                        <Copy size={16} /> <span className="text-[10px] font-black uppercase">Clone</span>
+                                    </button>
+                                    <button
+                                        onClick={() => handleDeleteTable(selectedTable.id)}
+                                        className="p-4 bg-rose-50 text-rose-500 rounded-xl flex items-center justify-center gap-2 hover:bg-rose-100 transition-all shadow-sm group"
+                                    >
+                                        <Trash2 size={16} /> <span className="text-[10px] font-black uppercase">Wipe</span>
+                                    </button>
                                 </div>
-                                <button
-                                    onClick={() => updateTable(selectedTable.id, { isVIP: !selectedTable.isVIP })}
-                                    className={`w-8 h-4 rounded-full transition-all relative shrink-0 ${selectedTable.isVIP ? 'bg-amber-500' : 'bg-slate-700'}`}
-                                >
-                                    <div className={`absolute top-0.5 w-3 h-3 bg-white rounded-full transition-all ${selectedTable.isVIP ? 'right-0.5' : 'left-0.5'}`} />
-                                </button>
-                            </div>
-
-                            {/* Discount & Min Spend */}
-                            <div className="grid grid-cols-2 gap-3">
-                                <div className="space-y-1">
-                                    <label className="text-[9px] font-bold text-slate-500 uppercase tracking-wider flex items-center gap-1 truncate">
-                                        <Percent size={9} /> {lang === 'ar' ? 'خصم %' : 'Disc%'}
-                                    </label>
-                                    <input
-                                        type="number"
-                                        min="0"
-                                        max="100"
-                                        value={selectedTable.discount || 0}
-                                        onChange={(e) => updateTable(selectedTable.id, { discount: parseInt(e.target.value) || 0 })}
-                                        className="w-full bg-slate-900 border border-slate-800 rounded-lg px-2 py-1.5 text-white font-bold text-xs outline-none"
-                                    />
-                                </div>
-                                <div className="space-y-1">
-                                    <label className="text-[9px] font-bold text-slate-500 uppercase tracking-wider flex items-center gap-1 truncate">
-                                        <DollarSign size={9} /> {lang === 'ar' ? 'أدنى طلب' : 'Min$'}
-                                    </label>
-                                    <input
-                                        type="number"
-                                        min="0"
-                                        value={selectedTable.minSpend || 0}
-                                        onChange={(e) => updateTable(selectedTable.id, { minSpend: parseInt(e.target.value) || 0 })}
-                                        className="w-full bg-slate-900 border border-slate-800 rounded-lg px-2 py-1.5 text-white font-bold text-xs outline-none"
-                                    />
-                                </div>
-                            </div>
-
-                            {/* Notes */}
-                            <div className="space-y-1">
-                                <label className="text-[9px] font-bold text-slate-500 uppercase tracking-wider flex items-center gap-1">
-                                    <StickyNote size={9} /> {lang === 'ar' ? 'ملاحظات' : 'Notes'}
-                                </label>
-                                <textarea
-                                    value={selectedTable.notes || ''}
-                                    onChange={(e) => updateTable(selectedTable.id, { notes: e.target.value })}
-                                    rows={2}
-                                    className="w-full bg-slate-900 border border-slate-800 rounded-lg px-3 py-1.5 text-white font-bold text-xs outline-none focus:ring-1 focus:ring-indigo-500 resize-none"
-                                    placeholder="..."
-                                />
                             </div>
                         </div>
                     ) : (
-                        <div className="flex-1 flex flex-col items-center justify-center text-center p-4 bg-slate-900/50 rounded-2xl border border-dashed border-slate-800">
-                            <Layout size={24} className="text-slate-700 mb-2" />
-                            <p className="text-[10px] font-bold text-slate-600 uppercase tracking-wider">
-                                {lang === 'ar' ? 'اختر طاولة' : 'Select table'}
-                            </p>
+                        <div className="flex-1 flex flex-col items-center justify-center text-center opacity-30 mt-20">
+                            <StickyNote size={64} className="mb-6" />
+                            <p className="text-[10px] font-black uppercase tracking-[0.2em]">Idle Inspector</p>
                         </div>
                     )}
+                </div>
 
-                    {/* Zone Editor - Compact */}
-                    <div className="mt-auto p-3 bg-slate-900 rounded-xl border border-slate-800">
-                        <div className="flex items-center justify-between mb-2">
-                            <h4 className="text-[9px] font-black text-slate-500 uppercase tracking-tight flex items-center gap-1">
-                                <Palette size={10} /> {lang === 'ar' ? 'إعدادات الصالة' : 'Zone'}
-                            </h4>
-                        </div>
-                        {activeZoneData && (
-                            <div className="space-y-2">
-                                <input
-                                    type="text"
-                                    value={activeZoneData.name}
-                                    onChange={(e) => setZones(prev => prev.map(z => z.id === activeZone ? { ...z, name: e.target.value } : z))}
-                                    className="w-full bg-slate-800 border-none rounded-lg px-3 py-1.5 text-white font-bold text-xs outline-none focus:ring-1 focus:ring-indigo-500"
-                                />
-                                <div className="flex flex-wrap gap-1">
-                                    {['#6366f1', '#10b981', '#f59e0b', '#ec4899', '#8b5cf6', '#06b6d4'].map(color => (
-                                        <button
-                                            key={color}
-                                            onClick={() => setZones(prev => prev.map(z => z.id === activeZone ? { ...z, color } : z))}
-                                            className={`w-6 h-6 rounded-md transition-all ${activeZoneData.color === color ? 'ring-2 ring-white ring-offset-1 ring-offset-slate-900 scale-110' : 'opacity-60 hover:opacity-100'}`}
-                                            style={{ backgroundColor: color }}
-                                        />
-                                    ))}
+                {/* Main Design Area */}
+                <div className="flex-1 relative bg-slate-50 dark:bg-slate-950 overflow-hidden group">
+                    {/* Visual Grid Background */}
+                    <div className="absolute inset-0 opacity-[0.03] dark:opacity-[0.05] pointer-events-none"
+                        style={{
+                            backgroundImage: 'linear-gradient(#000 1px, transparent 1px), linear-gradient(90deg, #000 1px, transparent 1px)',
+                            backgroundSize: '40px 40px'
+                        }}
+                    />
+
+                    <div
+                        ref={designerRef}
+                        className="w-full h-full relative"
+                        onClick={() => setSelectedId(null)}
+                    >
+                        {localTables.map(table => (
+                            <div
+                                key={table.id}
+                                onClick={(e) => { e.stopPropagation(); setSelectedId(table.id); }}
+                                onMouseDown={(e) => {
+                                    const startX = e.clientX - table.x;
+                                    const startY = e.clientY - table.y;
+                                    const onMouseMove = (moveEvent: MouseEvent) => {
+                                        handleUpdateTable(table.id, {
+                                            x: moveEvent.clientX - startX,
+                                            y: moveEvent.clientY - startY
+                                        });
+                                    };
+                                    const onMouseUp = () => {
+                                        document.removeEventListener('mousemove', onMouseMove);
+                                        document.removeEventListener('mouseup', onMouseUp);
+                                    };
+                                    document.addEventListener('mousemove', onMouseMove);
+                                    document.addEventListener('mouseup', onMouseUp);
+                                }}
+                                style={{
+                                    position: 'absolute',
+                                    left: table.x,
+                                    top: table.y,
+                                    width: table.width,
+                                    height: table.height,
+                                    cursor: 'move',
+                                    borderRadius: table.shape === 'ROUND' ? '100%' : '1.5rem',
+                                }}
+                                className={`flex flex-col items-center justify-center border-4 transition-all shadow-2xl ${selectedId === table.id ? 'border-indigo-600 bg-white dark:bg-indigo-900/40 ring-8 ring-indigo-500/10' : 'border-slate-800 dark:border-white/20 bg-white/80 dark:bg-slate-900/80 backdrop-blur-md'}`}
+                            >
+                                <span className={`text-sm font-black transition-colors ${selectedId === table.id ? 'text-indigo-600 dark:text-white' : 'text-slate-900 dark:text-white'}`}>
+                                    {table.number}
+                                </span>
+                                <div className="flex items-center gap-1 mt-1 opacity-50">
+                                    <Users size={10} />
+                                    <span className="text-[10px] font-black">{table.capacity}</span>
                                 </div>
+                                {selectedId === table.id && (
+                                    <div className="absolute -bottom-10 flex gap-2 animate-in slide-in-from-top-2">
+                                        <button className="w-8 h-8 rounded-full bg-white dark:bg-slate-800 shadow-xl border border-slate-100 dark:border-slate-700 flex items-center justify-center text-slate-400 hover:text-indigo-600 transition-all">
+                                            <RotateCcw size={14} />
+                                        </button>
+                                        <div className="w-8 h-8 rounded-full bg-white dark:bg-slate-800 shadow-xl border border-slate-100 dark:border-slate-700 flex items-center justify-center text-slate-400 hover:text-indigo-600 transition-all">
+                                            <Layout size={14} />
+                                        </div>
+                                    </div>
+                                )}
                             </div>
-                        )}
+                        ))}
+                    </div>
+
+                    <div className="absolute right-10 bottom-10 flex flex-col items-end gap-3 pointer-events-none opacity-20 group-hover:opacity-100 transition-opacity">
+                        <div className="p-4 bg-white/80 dark:bg-slate-900/80 backdrop-blur-md rounded-2xl border border-white/20 shadow-2xl flex items-center gap-4">
+                            <div className="flex items-center gap-2">
+                                <div className="w-3 h-3 rounded-full bg-indigo-600" />
+                                <span className="text-[10px] font-black uppercase text-slate-900 dark:text-white">Active Layer</span>
+                            </div>
+                            <div className="w-[1px] h-4 bg-slate-300 dark:bg-slate-700" />
+                            <span className="text-[10px] font-black uppercase text-slate-400">Resolution: 100% (Vector)</span>
+                        </div>
                     </div>
                 </div>
             </div>

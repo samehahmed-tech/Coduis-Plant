@@ -5,37 +5,33 @@ import {
   Layers, Clock, CheckCircle2, AlertCircle,
   ChevronRight, MoreVertical, Image as ImageIcon,
   DollarSign, Percent, Gift, Eye, EyeOff, Scale,
-  Save, X, Info, LayoutGrid, List, Sparkles,
+  Save, X, Info, LayoutGrid, List, Sparkles, Link, ShoppingBag,
   ArrowRight, Filter, ChevronDown, UtensilsCrossed,
   Settings, Building2, Globe, Truck, Map, Printer as PrinterIcon
 } from 'lucide-react';
 import { RestaurantMenu, MenuItem, Offer, MenuCategory, InventoryItem, RecipeIngredient, Branch, DeliveryPlatform, Printer, AppSettings } from '../types';
 
-interface MenuManagerProps {
-  inventory: InventoryItem[];
-  menus: RestaurantMenu[];
-  categories: MenuCategory[];
-  branches: Branch[];
-  platforms: DeliveryPlatform[];
-  onUpdateMenuItem: (menuId: string, categoryId: string, updatedItem: MenuItem) => void;
-  onAddMenuItem: (menuId: string, categoryId: string, newItem: MenuItem) => void;
-  onDeleteMenuItem: (menuId: string, categoryId: string, itemId: string) => void;
-  onAddCategory: (menuId: string, category: MenuCategory) => void;
-  onDeleteCategory: (menuId: string, categoryId: string) => void;
-  onAddMenu: (menu: RestaurantMenu) => void;
-  onUpdateMenu: (menu: RestaurantMenu) => void;
-  onLinkCategory: (menuId: string, categoryId: string) => void;
-  printers: Printer[];
-  settings: AppSettings;
-  lang: 'en' | 'ar';
-}
+// Stores
+import { useMenuStore } from '../stores/useMenuStore';
+import { useAuthStore } from '../stores/useAuthStore';
+import { useInventoryStore } from '../stores/useInventoryStore';
 
-const MenuManager: React.FC<MenuManagerProps> = ({
-  inventory, menus, categories, branches, platforms,
-  onUpdateMenuItem, onAddMenuItem,
-  onDeleteMenuItem, onAddCategory, onDeleteCategory,
-  onAddMenu, onUpdateMenu, onLinkCategory, printers, settings, lang
-}) => {
+// Services
+import { translations } from '../services/translations';
+
+const MenuManager: React.FC = () => {
+  // Global State
+  const {
+    menus, categories, platforms,
+    updateMenuItem, addMenuItem, deleteMenuItem,
+    addCategory, updateCategory, deleteCategory,
+    addMenu, updateMenu, linkCategory
+  } = useMenuStore();
+  const { inventory } = useInventoryStore();
+  const { branches, printers, settings } = useAuthStore();
+  const lang = settings.language;
+  // const t = translations[lang]; // Not heavily used here yet, using ternary for labels
+
   const [activeTab, setActiveTab] = useState<'MENUS' | 'OFFERS'>('MENUS');
   const [selectedMenuId, setSelectedMenuId] = useState<string>(menus[0]?.id || '');
   const [searchQuery, setSearchQuery] = useState('');
@@ -43,7 +39,11 @@ const MenuManager: React.FC<MenuManagerProps> = ({
 
   // Modals
   const [itemModal, setItemModal] = useState<{ isOpen: boolean; mode: 'ADD' | 'EDIT'; menuId: string; categoryId: string; item: MenuItem; } | null>(null);
-  const [categoryModal, setCategoryModal] = useState<{ isOpen: boolean; menuId: string; name: string; } | null>(null);
+  const [categoryModal, setCategoryModal] = useState<{
+    isOpen: boolean;
+    mode: 'ADD' | 'EDIT';
+    category: MenuCategory
+  } | null>(null);
   const [recipeModal, setRecipeModal] = useState<{ isOpen: boolean; menuId: string; categoryId: string; item: MenuItem; tempRecipe: RecipeIngredient[]; } | null>(null);
   const [menuSettingsModal, setMenuSettingsModal] = useState<RestaurantMenu | null>(null);
 
@@ -74,22 +74,32 @@ const MenuManager: React.FC<MenuManagerProps> = ({
   const handleSaveItem = () => {
     if (!itemModal) return;
     if (itemModal.mode === 'ADD') {
-      onAddMenuItem(itemModal.menuId, itemModal.categoryId, { ...itemModal.item, id: `item-${Date.now()}` });
+      addMenuItem(itemModal.menuId, itemModal.categoryId, { ...itemModal.item, id: `item-${Date.now()}` });
     } else {
-      onUpdateMenuItem(itemModal.menuId, itemModal.categoryId, itemModal.item);
+      updateMenuItem(itemModal.menuId, itemModal.categoryId, itemModal.item);
     }
     setItemModal(null);
   };
 
   const handleSaveCategory = () => {
     if (!categoryModal) return;
-    onAddCategory(categoryModal.menuId, { id: `cat-${Date.now()}`, name: categoryModal.name, items: [], menuIds: [categoryModal.menuId] });
+    if (categoryModal.mode === 'ADD') {
+      const newCat: MenuCategory = {
+        ...categoryModal.category,
+        id: `cat-${Date.now()}`,
+        items: []
+      };
+      // The modal logic ensures menuIds has at least the current menu
+      addCategory(selectedMenuId, newCat);
+    } else {
+      updateCategory(categoryModal.category);
+    }
     setCategoryModal(null);
   };
 
   const handleSaveRecipe = () => {
     if (!recipeModal) return;
-    onUpdateMenuItem(recipeModal.menuId, recipeModal.categoryId, { ...recipeModal.item, recipe: recipeModal.tempRecipe });
+    updateMenuItem(recipeModal.menuId, recipeModal.categoryId, { ...recipeModal.item, recipe: recipeModal.tempRecipe });
     setRecipeModal(null);
   };
 
@@ -138,14 +148,25 @@ const MenuManager: React.FC<MenuManagerProps> = ({
           </p>
         </div>
         <div className="flex flex-wrap gap-2 w-full sm:w-auto">
-          <button onClick={() => setCategoryModal({ isOpen: true, menuId: selectedMenuId, name: '' })} className="flex-1 sm:flex-none flex items-center justify-center gap-2 bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-200 px-4 md:px-6 py-2.5 md:py-3 rounded-2xl font-black text-xs uppercase tracking-widest border border-slate-200 dark:border-slate-800 shadow-sm hover:bg-slate-50 transition-all">
-            <Layers size={18} /> {lang === 'ar' ? 'إضافة قسم' : 'New Group'}
+          <button
+            onClick={() => setCategoryModal({
+              isOpen: true,
+              mode: 'ADD',
+              category: { id: '', name: '', items: [], menuIds: [selectedMenuId], targetOrderTypes: [] }
+            })}
+            className="flex-1 sm:flex-none flex items-center justify-center gap-2 bg-slate-900 dark:bg-slate-800 text-white px-6 py-4 rounded-[1.5rem] font-black text-xs uppercase tracking-widest hover:bg-slate-800 transition-all border border-slate-900 dark:border-slate-700"
+          >
+            <Plus size={18} />
+            {lang === 'ar' ? 'قسم جديد' : 'New Section'}
           </button>
-          <button onClick={() => setMenuSettingsModal(selectedMenu || null)} className="flex-1 sm:flex-none flex items-center justify-center gap-2 bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-200 px-4 md:px-6 py-2.5 md:py-3 rounded-2xl font-black text-xs uppercase tracking-widest border border-slate-200 dark:border-slate-800 shadow-sm hover:bg-slate-50 transition-all">
-            <Settings size={18} /> {lang === 'ar' ? 'إعدادات' : 'Targets'}
-          </button>
-          <button onClick={() => onAddMenu({ id: `menu-${Date.now()}`, name: 'New Seasonal Menu', isDefault: false, status: 'ACTIVE' })} className="flex-1 sm:flex-none flex items-center justify-center gap-2 bg-indigo-600 text-white px-4 md:px-6 py-2.5 md:py-3 rounded-2xl font-black text-xs uppercase tracking-widest shadow-lg shadow-indigo-600/20 hover:bg-indigo-700 transition-all">
-            <Plus size={18} /> {lang === 'ar' ? 'منيو جديد' : 'New Menu'}
+
+          <button
+            onClick={() => setItemModal({ isOpen: true, mode: 'ADD', menuId: selectedMenuId, categoryId: filteredCategories[0]?.id || '', item: { id: '', name: '', price: 0, categoryId: '', isAvailable: true } })}
+            className="flex-1 sm:flex-none flex items-center justify-center gap-2 bg-indigo-600 text-white px-6 py-4 rounded-[1.5rem] font-black text-xs uppercase tracking-widest shadow-xl shadow-indigo-600/20 hover:bg-indigo-700 transition-all active:scale-95"
+            disabled={filteredCategories.length === 0}
+          >
+            <UtensilsCrossed size={18} />
+            {lang === 'ar' ? 'صنف جديد' : 'New Item'}
           </button>
         </div>
       </div>
@@ -187,7 +208,7 @@ const MenuManager: React.FC<MenuManagerProps> = ({
               <button
                 onClick={() => {
                   const newName = prompt(lang === 'ar' ? 'اسم المنيو الجديد:' : 'New Menu Name:', menu.name);
-                  if (newName) onUpdateMenu({ ...menu, name: newName });
+                  if (newName) updateMenu({ ...menu, name: newName });
                 }}
                 className="absolute top-4 right-4 p-2 opacity-0 group-hover:opacity-100 transition-opacity bg-white/10 hover:bg-white/20 rounded-xl text-white"
               >
@@ -200,15 +221,40 @@ const MenuManager: React.FC<MenuManagerProps> = ({
         {/* Categories & Items */}
         <div className="lg:col-span-9 space-y-12">
           {filteredCategories.length > 0 ? filteredCategories.map(category => (
-            <div key={category.id} className="space-y-6">
-              <div className="flex justify-between items-center px-2">
-                <div className="flex items-center gap-3">
-                  <div className="w-8 h-1.5 bg-indigo-600 rounded-full" />
-                  <h4 className="text-sm md:text-base font-black text-slate-800 dark:text-white uppercase tracking-widest">{category.name}</h4>
+            <div key={category.id} className="relative z-10">
+              <div className="flex justify-between items-end mb-6 px-2 border-b border-slate-200 dark:border-slate-800 pb-4">
+                <div className="flex items-center gap-4">
+                  {category.image ? (
+                    <img src={category.image} alt={category.name} className="w-16 h-16 rounded-2xl object-cover shadow-sm" />
+                  ) : (
+                    <div className="p-4 bg-indigo-100 dark:bg-indigo-900/20 rounded-[1.5rem] text-indigo-600">
+                      <Layers size={24} />
+                    </div>
+                  )}
+                  <div>
+                    <h4 className="text-2xl font-black text-slate-800 dark:text-white uppercase tracking-tight">{lang === 'ar' ? (category.nameAr || category.name) : category.name}</h4>
+                    <div className="flex items-center gap-2 mt-1">
+                      <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{category.items.length} {lang === 'ar' ? 'أصناف' : 'Items'}</p>
+                      {category.targetOrderTypes && category.targetOrderTypes.length > 0 && (
+                        <div className="flex gap-1">
+                          {category.targetOrderTypes.includes('DINE_IN' as any) && <span className="p-1 rounded bg-orange-100 text-orange-600" title="Dine In"><UtensilsCrossed size={10} /></span>}
+                          {category.targetOrderTypes.includes('TAKEAWAY' as any) && <span className="p-1 rounded bg-blue-100 text-blue-600" title="Takeaway"><ShoppingBag size={10} /></span>}
+                          {category.targetOrderTypes.includes('DELIVERY' as any) && <span className="p-1 rounded bg-green-100 text-green-600" title="Delivery"><Truck size={10} /></span>}
+                        </div>
+                      )}
+                    </div>
+                  </div>
                 </div>
-                <div className="flex gap-1">
-                  <button onClick={() => setItemModal({ isOpen: true, mode: 'ADD', menuId: selectedMenuId, categoryId: category.id, item: { id: '', name: '', price: 0, category: category.name, isActive: true } })} className="p-2 text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 rounded-xl transition-all"><Plus size={20} /></button>
-                  <button onClick={() => onDeleteCategory(selectedMenuId, category.id)} className="p-2 text-slate-400 hover:text-red-500 rounded-xl transition-all"><Trash2 size={18} /></button>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => setCategoryModal({ isOpen: true, mode: 'EDIT', category })}
+                    className="p-2 text-slate-400 hover:text-indigo-600 transition-all"
+                  >
+                    <Edit3 size={18} />
+                  </button>
+                  <button onClick={() => deleteCategory(selectedMenuId, category.id)} className="p-2 text-slate-400 hover:text-rose-500 transition-all">
+                    <Trash2 size={18} />
+                  </button>
                 </div>
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
@@ -226,7 +272,7 @@ const MenuManager: React.FC<MenuManagerProps> = ({
                       {item.image ? (
                         <img src={item.image} alt={item.name} className={`${item.layoutType === 'wide' ? 'w-32 h-32' : 'w-40 h-40'} object-cover rounded-[2rem] shadow-lg`} />
                       ) : (
-                        <div className={`${item.layoutType === 'wide' ? 'w-32 h-32' : 'w-40 h-40'} bg-slate-50 dark:bg-slate-800 rounded-[2rem] flex items-center justify-center text-slate-200 group-hover:text-indigo-400 transition-colors`}>
+                        <div className={`${item.layoutType === 'wide' ? 'w-32 h-32' : 'w-40 h-40'} bg-slate-5: dark:bg-slate-800 rounded-[2rem] flex items-center justify-center text-slate-200 group-hover:text-indigo-400 transition-colors`}>
                           <ImageIcon size={48} />
                         </div>
                       )}
@@ -241,7 +287,7 @@ const MenuManager: React.FC<MenuManagerProps> = ({
                     <div className="mt-auto flex gap-2 pt-4 border-t border-slate-100 dark:border-slate-800/50">
                       <button onClick={() => setItemModal({ isOpen: true, mode: 'EDIT', menuId: selectedMenuId, categoryId: category.id, item })} className="flex-1 py-3 bg-slate-900 dark:bg-slate-800 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all hover:bg-indigo-600">Edit</button>
                       <button onClick={() => setRecipeModal({ isOpen: true, menuId: selectedMenuId, categoryId: category.id, item, tempRecipe: item.recipe || [] })} className="p-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-500 hover:text-indigo-600 rounded-2xl transition-all shadow-sm"><Scale size={18} /></button>
-                      <button onClick={() => onDeleteMenuItem(selectedMenuId, category.id, item.id)} className="p-3 text-slate-400 hover:text-rose-500 transition-all"><Trash2 size={18} /></button>
+                      <button onClick={() => deleteMenuItem(selectedMenuId, category.id, item.id)} className="p-3 text-slate-400 hover:text-rose-500 transition-all"><Trash2 size={18} /></button>
                     </div>
                   </div>
                 ))}
@@ -261,7 +307,7 @@ const MenuManager: React.FC<MenuManagerProps> = ({
               <div className="flex justify-between items-center mb-6"><h4 className="text-sm font-black text-indigo-600 uppercase tracking-widest">Available to link</h4><button onClick={() => setShowAddExistingCategory(false)} className="text-slate-400 hover:text-slate-600 font-bold text-xs uppercase">Close</button></div>
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                 {otherCategories.map(cat => (
-                  <button key={cat.id} onClick={() => { onLinkCategory(selectedMenuId, cat.id); setShowAddExistingCategory(false); }} className="p-4 bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 hover:border-indigo-500 transition-all text-left">
+                  <button key={cat.id} onClick={() => { linkCategory(selectedMenuId, cat.id); setShowAddExistingCategory(false); }} className="p-4 bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 hover:border-indigo-500 transition-all text-left">
                     <p className="font-black text-xs text-slate-800 dark:text-white">{cat.name}</p>
                     <p className="text-[9px] font-bold text-slate-400 uppercase">{cat.items.length} Items</p>
                   </button>
@@ -310,7 +356,7 @@ const MenuManager: React.FC<MenuManagerProps> = ({
             </div>
             <div className="p-8 border-t border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-950/50 flex gap-4">
               <button onClick={() => setMenuSettingsModal(null)} className="flex-1 py-4 bg-white dark:bg-slate-900 text-slate-500 rounded-2xl font-black uppercase tracking-widest border border-slate-200">Cancel</button>
-              <button onClick={() => { onUpdateMenu(menuSettingsModal); setMenuSettingsModal(null); }} className="flex-[2] py-4 bg-indigo-600 text-white rounded-2xl font-black uppercase tracking-widest shadow-xl shadow-indigo-600/20">Apply Configuration</button>
+              <button onClick={() => { updateMenu(menuSettingsModal); setMenuSettingsModal(null); }} className="flex-[2] py-4 bg-indigo-600 text-white rounded-2xl font-black uppercase tracking-widest shadow-xl shadow-indigo-600/20">Apply Configuration</button>
             </div>
           </div>
         </div>
@@ -443,28 +489,98 @@ const MenuManager: React.FC<MenuManagerProps> = ({
 
       {/* CATEGORY MODAL */}
       {categoryModal && (
-        <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-md flex items-center justify-center z-[110] p-4">
-          <div className="bg-white dark:bg-slate-900 w-full max-w-sm rounded-[3rem] shadow-2xl p-10 relative overflow-hidden">
-            <div className="absolute top-0 left-0 w-full h-2 bg-indigo-600" />
-            <button onClick={() => setCategoryModal(null)} className="absolute top-6 right-6 p-2 text-slate-400 hover:rotate-90 transition-all"><X size={24} /></button>
-            <div className="text-center mb-10">
-              <div className="w-24 h-24 bg-indigo-100 dark:bg-indigo-900/30 text-indigo-600 rounded-[2.5rem] flex items-center justify-center mx-auto mb-6 shadow-lg shadow-indigo-600/10">
-                <Layers size={48} />
+        <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-md flex items-center justify-center z-[110] p-4 animate-in fade-in zoom-in duration-300">
+          <div className="bg-white dark:bg-slate-900 w-full max-w-lg rounded-[3rem] shadow-2xl overflow-hidden">
+            <div className="p-8 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center bg-slate-50/50 dark:bg-slate-950/20">
+              <div className="flex items-center gap-4">
+                <div className="w-14 h-14 bg-indigo-600 text-white rounded-[1.2rem] flex items-center justify-center shadow-lg shadow-indigo-600/20">
+                  <Layers size={28} />
+                </div>
+                <div>
+                  <h3 className="text-xl font-black text-slate-800 dark:text-white uppercase">{categoryModal.mode === 'ADD' ? (lang === 'ar' ? 'قسم جديد' : 'New Section') : (lang === 'ar' ? 'تعديل قسم' : 'Edit Section')}</h3>
+                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{lang === 'ar' ? 'تهيئة وتخصيص المجموعات' : 'Configure group & visibility'}</p>
+                </div>
               </div>
-              <h3 className="text-2xl font-black text-slate-800 dark:text-white uppercase">{lang === 'ar' ? 'إضافة قسم جديد' : 'New Department'}</h3>
-              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-2">{lang === 'ar' ? 'تنظيم الأصناف في مجموعات' : 'Organize items in groups'}</p>
+              <button onClick={() => setCategoryModal(null)} className="p-2 text-slate-400 hover:rotate-90 transition-all"><X size={24} /></button>
             </div>
-            <div className="space-y-6">
-              <input
-                type="text"
-                value={categoryModal.name}
-                onChange={(e) => setCategoryModal({ ...categoryModal, name: e.target.value })}
-                className="w-full p-5 bg-slate-50 dark:bg-slate-800 rounded-[1.5rem] text-center font-black text-lg outline-none border-2 border-transparent focus:border-indigo-600 transition-all"
-                placeholder={lang === 'ar' ? 'اسم القسم...' : 'Section Name...'}
-                autoFocus
-              />
+
+            <div className="p-8 space-y-6 max-h-[70vh] overflow-y-auto no-scrollbar">
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">{lang === 'ar' ? 'الاسم (EN)' : 'Name (English)'}</label>
+                  <input type="text" value={categoryModal.category.name} onChange={(e) => setCategoryModal({ ...categoryModal, category: { ...categoryModal.category, name: e.target.value } })} className="w-full p-4 bg-slate-50 dark:bg-slate-800 rounded-2xl font-bold border border-transparent focus:border-indigo-600 transition-all outline-none" />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">{lang === 'ar' ? 'الاسم (AR)' : 'Name (Arabic)'}</label>
+                  <input type="text" value={categoryModal.category.nameAr || ''} onChange={(e) => setCategoryModal({ ...categoryModal, category: { ...categoryModal.category, nameAr: e.target.value } })} className="w-full p-4 bg-slate-50 dark:bg-slate-800 rounded-2xl font-bold text-right border border-transparent focus:border-indigo-600 transition-all outline-none" />
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">{lang === 'ar' ? 'صورة القسم' : 'Cover Image URL'}</label>
+                <div className="flex gap-3">
+                  <input type="text" value={categoryModal.category.image || ''} onChange={(e) => setCategoryModal({ ...categoryModal, category: { ...categoryModal.category, image: e.target.value } })} className="flex-1 p-4 bg-slate-50 dark:bg-slate-800 rounded-2xl font-mono text-xs border border-transparent focus:border-indigo-600 transition-all outline-none" placeholder="https://..." />
+                  <div className="w-14 h-14 rounded-2xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center overflow-hidden border border-slate-200 dark:border-slate-700">
+                    {categoryModal.category.image ? <img src={categoryModal.category.image} alt="Preview" className="w-full h-full object-cover" /> : <ImageIcon size={20} className="text-slate-300" />}
+                  </div>
+                </div>
+              </div>
+
+              <div className="space-y-3">
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">{lang === 'ar' ? 'أنواع الطلبات المسموحة' : 'Available Order Modes'}</label>
+                <div className="grid grid-cols-3 gap-3">
+                  {[
+                    { id: 'DINE_IN', icon: UtensilsCrossed, label: 'Dine In' },
+                    { id: 'TAKEAWAY', icon: ShoppingBag, label: 'Takeaway' },
+                    { id: 'DELIVERY', icon: Truck, label: 'Delivery' }
+                  ].map(mode => {
+                    const isSelected = categoryModal.category.targetOrderTypes?.includes(mode.id as any);
+                    return (
+                      <button
+                        key={mode.id}
+                        onClick={() => {
+                          const types = categoryModal.category.targetOrderTypes || [];
+                          const newTypes = types.includes(mode.id as any)
+                            ? types.filter(t => t !== mode.id)
+                            : [...types, mode.id];
+                          setCategoryModal({ ...categoryModal, category: { ...categoryModal.category, targetOrderTypes: newTypes as any } });
+                        }}
+                        className={`p-4 rounded-2xl border-2 transition-all flex flex-col items-center gap-2 ${isSelected ? 'border-indigo-500 bg-indigo-50 dark:bg-indigo-900/20 text-indigo-600' : 'border-slate-100 dark:border-slate-800 text-slate-400'}`}
+                      >
+                        <mode.icon size={20} />
+                        <span className="text-[9px] font-black uppercase">{mode.label}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              <div className="space-y-3">
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">{lang === 'ar' ? 'ربط بالقوائم' : 'Linked Menus'}</label>
+                <div className="flex flex-wrap gap-2">
+                  {menus.map(menu => {
+                    const isLinked = categoryModal.category.menuIds.includes(menu.id);
+                    return (
+                      <button
+                        key={menu.id}
+                        onClick={() => {
+                          const ids = categoryModal.category.menuIds;
+                          const newIds = ids.includes(menu.id) ? ids.filter(id => id !== menu.id) : [...ids, menu.id];
+                          setCategoryModal({ ...categoryModal, category: { ...categoryModal.category, menuIds: newIds } });
+                        }}
+                        className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-wider border transition-all ${isLinked ? 'bg-indigo-600 border-indigo-600 text-white' : 'bg-transparent border-slate-200 dark:border-slate-800 text-slate-500'}`}
+                      >
+                        {menu.name}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+
+            <div className="p-8 border-t border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-950/20">
               <button onClick={handleSaveCategory} className="w-full py-5 bg-indigo-600 text-white rounded-[1.5rem] font-black uppercase tracking-widest shadow-xl shadow-indigo-600/20 hover:bg-indigo-700 transition-all">
-                Create Section
+                {categoryModal.mode === 'ADD' ? (lang === 'ar' ? 'إنشاء القسم' : 'Create Section') : (lang === 'ar' ? 'حفظ التعديلات' : 'Save Changes')}
               </button>
             </div>
           </div>

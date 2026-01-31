@@ -16,37 +16,33 @@ import {
     ShoppingBag
 } from 'lucide-react';
 import {
-    Customer,
-    Branch,
     OrderItem,
-    MenuCategory,
-    Order,
     OrderStatus,
     OrderType,
-    PaymentMethod
+    Order
 } from '../types';
 
-interface CallCenterProps {
-    customers: Customer[];
-    branches: Branch[];
-    categories: MenuCategory[];
-    onPlaceOrder: (order: Order) => void;
-    lang: 'en' | 'ar';
-    t: any;
-    orders: Order[]; // To show dispatch history
-}
+// Stores
+import { useCRMStore } from '../stores/useCRMStore';
+import { useAuthStore } from '../stores/useAuthStore';
+import { useMenuStore } from '../stores/useMenuStore';
+import { useOrderStore } from '../stores/useOrderStore';
 
-const CallCenter: React.FC<CallCenterProps> = ({
-    customers,
-    branches,
-    categories,
-    onPlaceOrder,
-    lang,
-    t,
-    orders
-}) => {
+// Services
+import { translations } from '../services/translations';
+
+const CallCenter: React.FC = () => {
+    // --- Global State ---
+    const { customers } = useCRMStore();
+    const { branches, settings } = useAuthStore();
+    const { categories } = useMenuStore();
+    const { orders, placeOrder } = useOrderStore();
+
+    const lang = (settings.language || 'en') as 'en' | 'ar';
+    const t = translations[lang] || translations['en'];
+
     const [phoneSearch, setPhoneSearch] = useState('');
-    const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
+    const [selectedCustomer, setSelectedCustomer] = useState<any>(null);
     const [cart, setCart] = useState<OrderItem[]>([]);
     const [selectedBranchId, setSelectedBranchId] = useState<string>('');
     const [deliveryAddress, setDeliveryAddress] = useState('');
@@ -66,7 +62,7 @@ const CallCenter: React.FC<CallCenterProps> = ({
         if (existing) {
             setCart(cart.map(i => i.id === item.id ? { ...i, quantity: i.quantity + 1 } : i));
         } else {
-            setCart([...cart, { ...item, quantity: 1, cartId: Math.random().toString() }]);
+            setCart([...cart, { ...item, quantity: 1, cartId: Math.random().toString(36).substr(2, 9) }]);
         }
     };
 
@@ -97,7 +93,8 @@ const CallCenter: React.FC<CallCenterProps> = ({
             notes: "Call Center Dispatch"
         };
 
-        onPlaceOrder(newOrder);
+        placeOrder(newOrder);
+
         // Reset state
         setCart([]);
         setSelectedCustomer(null);
@@ -109,12 +106,12 @@ const CallCenter: React.FC<CallCenterProps> = ({
     const dispatchOrders = orders.filter(o => o.isCallCenterOrder);
 
     return (
-        <div className="grid grid-cols-1 xl:grid-cols-12 gap-6 p-4 md:p-8 bg-slate-50 dark:bg-slate-950 min-h-screen">
+        <div className="grid grid-cols-1 xl:grid-cols-12 gap-6 p-4 md:p-8 bg-slate-50 dark:bg-slate-950 min-h-screen pb-24">
             {/* Left Panel: Customer & Order Entry */}
             <div className="xl:col-span-8 space-y-6">
 
                 {/* Step 1: Customer Lookup */}
-                <div className="card-primary !p-6">
+                <div className="bg-white dark:bg-slate-900 rounded-3xl p-6 shadow-sm border border-slate-200 dark:border-slate-800">
                     <div className="flex items-center gap-3 mb-6">
                         <div className="w-10 h-10 rounded-xl bg-indigo-100 dark:bg-indigo-900/30 text-indigo-600 flex items-center justify-center">
                             <User size={20} />
@@ -138,7 +135,7 @@ const CallCenter: React.FC<CallCenterProps> = ({
                         </div>
                         <button
                             onClick={handleCustomerSearch}
-                            className="btn-theme bg-indigo-600 text-white px-8 py-3 font-black uppercase text-xs flex items-center gap-2"
+                            className="bg-indigo-600 text-white px-8 py-3 rounded-xl font-black uppercase text-xs flex items-center gap-2 hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-600/20"
                         >
                             <Search size={16} /> {lang === 'ar' ? 'بحث' : 'Search'}
                         </button>
@@ -163,7 +160,7 @@ const CallCenter: React.FC<CallCenterProps> = ({
                 </div>
 
                 {/* Step 2: Item Selection */}
-                <div className="card-primary !p-6">
+                <div className="bg-white dark:bg-slate-900 rounded-3xl p-6 shadow-sm border border-slate-200 dark:border-slate-800">
                     <div className="flex items-center gap-3 mb-6">
                         <div className="w-10 h-10 rounded-xl bg-orange-100 dark:bg-orange-900/30 text-orange-600 flex items-center justify-center">
                             <Plus size={20} />
@@ -188,7 +185,7 @@ const CallCenter: React.FC<CallCenterProps> = ({
                 </div>
 
                 {/* Dispatch History */}
-                <div className="card-primary !p-6">
+                <div className="bg-white dark:bg-slate-900 rounded-3xl p-6 shadow-sm border border-slate-200 dark:border-slate-800">
                     <h3 className="font-black text-slate-800 dark:text-white uppercase tracking-tight mb-4 flex items-center gap-2">
                         <Clock size={18} className="text-slate-400" />
                         {lang === 'ar' ? 'سجل التوصيل اليوم' : 'Daily Dispatch History'}
@@ -218,7 +215,7 @@ const CallCenter: React.FC<CallCenterProps> = ({
 
             {/* Right Panel: Cart & Dispatch */}
             <div className="xl:col-span-4 space-y-6">
-                <div className="card-primary !p-6 sticky top-8 flex flex-col min-h-[600px]">
+                <div className="bg-white dark:bg-slate-900 rounded-3xl p-6 shadow-sm border border-slate-200 dark:border-slate-800 sticky top-24 flex flex-col min-h-[600px]">
                     <div className="flex items-center justify-between mb-6 pb-4 border-b border-slate-100 dark:border-slate-800">
                         <h3 className="font-black text-slate-800 dark:text-white uppercase tracking-tight">
                             {lang === 'ar' ? 'سلة الطلبات' : 'Order Basket'}
@@ -293,7 +290,7 @@ const CallCenter: React.FC<CallCenterProps> = ({
                         <button
                             disabled={!selectedBranchId || cart.length === 0 || !selectedCustomer}
                             onClick={handleSubmitOrder}
-                            className="w-full btn-theme bg-indigo-600 disabled:bg-slate-300 dark:disabled:bg-slate-800 disabled:text-slate-500 text-white py-4 font-black uppercase tracking-widest flex items-center justify-center gap-2"
+                            className="w-full bg-indigo-600 disabled:bg-slate-300 dark:disabled:bg-slate-800 disabled:text-slate-500 text-white py-4 rounded-2xl font-black uppercase tracking-widest flex items-center justify-center gap-2 hover:bg-indigo-700 transition-all shadow-xl shadow-indigo-600/20"
                         >
                             Dispatch to Branch <ArrowRight size={18} />
                         </button>

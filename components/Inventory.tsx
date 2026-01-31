@@ -1,23 +1,27 @@
+import React, { useState } from 'react';
 import {
   AlertTriangle, Plus, Search, Bell, X, Truck, FileText, Package,
   User, Phone, Mail, Tag, ExternalLink, Briefcase, CheckCircle, Clock
 } from 'lucide-react';
-import { InventoryItem, Supplier, PurchaseOrder, Warehouse, Branch, WarehouseType } from '../types';
+import { Supplier, PurchaseOrder, Warehouse, Branch, WarehouseType } from '../types';
 
-interface InventoryProps {
-  inventory: InventoryItem[];
-  suppliers: Supplier[];
-  purchaseOrders: PurchaseOrder[];
-  onAddPO: (po: PurchaseOrder) => void;
-  onReceivePO: (poId: string, date: Date) => void;
-  lang: 'en' | 'ar';
-  warehouses: Warehouse[];
-  branches: Branch[];
-}
+// Stores
+import { useInventoryStore } from '../stores/useInventoryStore';
+import { useAuthStore } from '../stores/useAuthStore';
 
-const Inventory: React.FC<InventoryProps> = ({
-  inventory, suppliers, purchaseOrders, onAddPO, onReceivePO, lang, warehouses, branches
-}) => {
+// Services
+import { translations } from '../services/translations';
+
+const Inventory: React.FC = () => {
+  // Global State
+  const {
+    inventory, suppliers, purchaseOrders, warehouses,
+    addPurchaseOrder, receivePurchaseOrder, addSupplier, updateStock
+  } = useInventoryStore();
+  const { branches, settings } = useAuthStore();
+  const lang = settings.language;
+  const t = translations[lang]; // Fallback if needed, though Inventory uses hardcoded strings mostly
+
   const [activeTab, setActiveTab] = useState<'STOCK' | 'SUPPLIERS' | 'PO' | 'WAREHOUSES' | 'BRANCHES'>('STOCK');
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedSupplier, setSelectedSupplier] = useState<Supplier | null>(null);
@@ -195,8 +199,8 @@ const Inventory: React.FC<InventoryProps> = ({
                 <td className="px-6 py-4">
                   <div className="flex items-center gap-2">
                     <span className={`px-2 py-1 rounded-lg text-[10px] font-black uppercase tracking-widest ${po.status === 'RECEIVED' ? 'bg-emerald-100 text-emerald-600 dark:bg-emerald-900/30' :
-                        po.status === 'ORDERED' ? 'bg-amber-100 text-amber-600 dark:bg-amber-900/30' :
-                          'bg-slate-100 text-slate-500'
+                      po.status === 'ORDERED' ? 'bg-amber-100 text-amber-600 dark:bg-amber-900/30' :
+                        'bg-slate-100 text-slate-500'
                       }`}>
                       {po.status}
                     </span>
@@ -209,7 +213,7 @@ const Inventory: React.FC<InventoryProps> = ({
                     <span className="text-xs text-slate-500 font-medium">{po.date.toLocaleDateString()}</span>
                     {canReceive && (
                       <button
-                        onClick={() => onReceivePO(po.id, new Date())}
+                        onClick={() => receivePurchaseOrder(po.id, new Date())}
                         className="px-4 py-1.5 bg-indigo-600 text-white rounded-lg text-[10px] font-black uppercase hover:bg-indigo-700 opacity-0 group-hover:opacity-100 transition-all shadow-lg shadow-indigo-600/20"
                       >
                         {lang === 'ar' ? 'استلام' : 'Confirm Receipt'}
@@ -293,7 +297,7 @@ const Inventory: React.FC<InventoryProps> = ({
         {activeTab === 'BRANCHES' && renderBranches()}
       </div>
 
-      {/* Supplier Details Modal - Fully Responsive */}
+      {/* Supplier Details Modal */}
       {selectedSupplier && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center z-[100] p-4 animate-in fade-in duration-300">
           <div className="bg-white dark:bg-slate-900 w-full max-w-2xl rounded-[2rem] shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200 flex flex-col max-h-[90vh]">
