@@ -1,23 +1,27 @@
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, lazy, Suspense } from 'react';
 import Sidebar from './components/Sidebar';
-import Dashboard from './components/Dashboard';
-import POS from './components/POS';
-import KDS from './components/KDS';
-import Inventory from './components/Inventory';
-import Finance from './components/Finance';
-import AIAssistant from './components/AIAssistant';
-import CRM from './components/CRM';
-import Reports from './components/Reports';
-import MenuManager from './components/MenuManager';
-import AIInsights from './components/AIInsights';
-import SettingsHub from './components/SettingsHub';
-import FloorDesigner from './components/FloorDesigner';
-import AdminDashboard from './components/AdminDashboard';
-import CallCenter from './components/CallCenter';
-import SecurityHub from './components/SecurityHub';
-import RecipeManager from './components/RecipeManager';
-import ForensicsHub from './components/ForensicsHub';
+import Login from './components/Login';
+
+// Lazy loaded components for better performance
+const Dashboard = lazy(() => import('./components/Dashboard'));
+const POS = lazy(() => import('./components/POS'));
+const KDS = lazy(() => import('./components/KDS'));
+const Inventory = lazy(() => import('./components/Inventory'));
+const Finance = lazy(() => import('./components/Finance'));
+const AIAssistant = lazy(() => import('./components/AIAssistant'));
+const CRM = lazy(() => import('./components/CRM'));
+const Reports = lazy(() => import('./components/Reports'));
+const MenuManager = lazy(() => import('./components/MenuManager'));
+const AIInsights = lazy(() => import('./components/AIInsights'));
+const SettingsHub = lazy(() => import('./components/SettingsHub'));
+const FloorDesigner = lazy(() => import('./components/FloorDesigner'));
+const AdminDashboard = lazy(() => import('./components/AdminDashboard'));
+const CallCenter = lazy(() => import('./components/CallCenter'));
+const SecurityHub = lazy(() => import('./components/SecurityHub'));
+const RecipeManager = lazy(() => import('./components/RecipeManager'));
+const ForensicsHub = lazy(() => import('./components/ForensicsHub'));
+const KeyboardHelp = lazy(() => import('./components/KeyboardHelp'));
 import {
   ViewState, Order, OrderStatus, OrderItem, PaymentMethod,
   OrderType, Customer, Supplier, PurchaseOrder, InventoryItem,
@@ -25,8 +29,18 @@ import {
   Table, TableStatus, MenuCategory, Branch, DeliveryPlatform, Warehouse, WarehouseType, User, UserRole,
   AppPermission, INITIAL_ROLE_PERMISSIONS, AppSettings, AuditLog, AuditEventType, RecipeIngredient
 } from './types';
-import Login from './components/Login';
 import { translations } from './services/translations';
+
+// Loading skeleton component for Suspense fallback
+const LoadingSkeleton = () => (
+  <div className="flex-1 flex items-center justify-center h-full">
+    <div className="flex flex-col items-center gap-4">
+      <div className="w-16 h-16 border-4 border-indigo-200 border-t-indigo-600 rounded-full animate-spin" />
+      <p className="text-sm font-bold text-slate-400 animate-pulse">Loading...</p>
+    </div>
+  </div>
+);
+
 
 const INITIAL_TABLES: Table[] = [
   { id: '1', name: 'H1', status: TableStatus.AVAILABLE, seats: 2, zoneId: 'hall', position: { x: 15, y: 20 } },
@@ -655,120 +669,124 @@ const App: React.FC = () => {
     // const commonProps = { lang, t, isDarkMode: settings.isDarkMode };
 
     return (
-      <div className="view-transition w-full h-full overflow-y-auto no-scrollbar pb-20">
-        {(() => {
-          switch (currentView) {
-            case 'DASHBOARD': return isAdmin ? <AdminDashboard {...commonProps} branches={branches} /> : <Dashboard {...commonProps} onChangeView={setCurrentView} />;
-            case 'POS': return (
-              <POS
-                {...commonProps}
-                onPlaceOrder={handlePlaceOrder}
-                customers={customers}
-                menus={menus}
-                categories={categories}
-                currencySymbol={currencySymbol}
-                setGlobalCurrency={setCurrency}
-                tables={tables}
-                isSidebarCollapsed={isSidebarCollapsed}
-                branchId={effectiveBranchId}
-              />
-            );
-            case 'KDS':
-              const branchOrders = orders.filter(o => o.branchId === effectiveBranchId);
-              return <KDS {...commonProps} orders={branchOrders} onReady={(id) => { }} />;
-            case 'FINANCE': return <Finance {...commonProps} accounts={accounts} transactions={transactions} />;
-            case 'INVENTORY': return (
-              <Inventory
-                {...commonProps}
-                inventory={inventory}
-                suppliers={suppliers}
-                purchaseOrders={purchaseOrders}
-                onAddPO={(po) => setPurchaseOrders(prev => [...prev, po])}
-                onReceivePO={handleReceivePO}
-                warehouses={warehouses}
-                branches={branches}
-              />
-            );
-            case 'REPORTS': return <Reports {...commonProps} menuItems={allItems} inventory={inventory} />;
-            case 'MENU_MANAGER': return (
-              <MenuManager
-                {...commonProps}
-                inventory={inventory}
-                menus={menus}
-                categories={categories}
-                branches={branches}
-                platforms={platforms}
-                onUpdateMenuItem={handleUpdateMenuItem}
-                onAddMenuItem={handleAddMenuItem}
-                onDeleteMenuItem={handleDeleteMenuItem}
-                onAddCategory={handleAddCategory}
-                onDeleteCategory={handleDeleteCategory}
-                onAddMenu={handleAddMenu}
-                onUpdateMenu={handleUpdateMenu}
-                onLinkCategory={handleLinkCategory}
-              />
-            );
-            case 'RECIPES': return (
-              <RecipeManager
-                {...commonProps}
-                menuItems={categories.flatMap(c => c.items)}
-                inventoryItems={inventory}
-                categories={categories}
-                onUpdateRecipe={handleUpdateRecipe}
-                currencySymbol={currencySymbol}
-              />
-            );
-            case 'CRM': return <CRM {...commonProps} customers={customers} onAddCustomer={() => { }} />;
-            case 'AI_ASSISTANT': return <AIAssistant {...commonProps} />;
-            case 'AI_INSIGHTS': return (
-              <AIInsights
-                {...commonProps}
-                menuItems={allItems}
-                inventory={inventory}
-                orders={orders}
-              />
-            );
-            case 'SETTINGS': return (
-              <SettingsHub
-                {...commonProps}
-                settings={settings}
-                branches={branches}
-                platforms={platforms}
-                warehouses={warehouses}
-                onUpdateSettings={setSettings}
-                onChangeView={setCurrentView}
-                onOpenFloorDesigner={() => setShowFloorDesigner(true)}
-              />
-            );
-            case 'CALL_CENTER': return (
-              <CallCenter
-                {...commonProps}
-                customers={customers}
-                branches={branches}
-                categories={categories}
-                onPlaceOrder={handlePlaceOrder}
-                orders={orders}
-              />
-            );
-            case 'SECURITY': return (
-              <SecurityHub
-                users={users}
-                onUpdateUsers={setUsers}
-                branches={branches}
-                {...commonProps}
-              />
-            );
-            case 'FORENSICS': return (
-              <ForensicsHub
-                logs={auditLogs}
-                users={users}
-                {...commonProps}
-              />
-            );
-            default: return <Dashboard {...commonProps} />;
-          }
-        })()}
-      </div>
+      <Suspense fallback={<LoadingSkeleton />}>
+        <div className="view-transition w-full h-full overflow-y-auto no-scrollbar pb-20">
+          {(() => {
+            switch (currentView) {
+              case 'DASHBOARD': return isAdmin ? <AdminDashboard {...commonProps} branches={branches} /> : <Dashboard {...commonProps} onChangeView={setCurrentView} />;
+              case 'POS': return (
+                <POS
+                  {...commonProps}
+                  onPlaceOrder={handlePlaceOrder}
+                  customers={customers}
+                  menus={menus}
+                  categories={categories}
+                  currencySymbol={currencySymbol}
+                  setGlobalCurrency={setCurrency}
+                  tables={tables}
+                  isSidebarCollapsed={isSidebarCollapsed}
+                  branchId={effectiveBranchId}
+                  hasPermission={hasPermission}
+                  activeMode={posMode}
+                />
+              );
+              case 'KDS':
+                const branchOrders = orders.filter(o => o.branchId === effectiveBranchId);
+                return <KDS {...commonProps} orders={branchOrders} onReady={(id) => { }} />;
+              case 'FINANCE': return <Finance {...commonProps} accounts={accounts} transactions={transactions} />;
+              case 'INVENTORY': return (
+                <Inventory
+                  {...commonProps}
+                  inventory={inventory}
+                  suppliers={suppliers}
+                  purchaseOrders={purchaseOrders}
+                  onAddPO={(po) => setPurchaseOrders(prev => [...prev, po])}
+                  onReceivePO={handleReceivePO}
+                  warehouses={warehouses}
+                  branches={branches}
+                />
+              );
+              case 'REPORTS': return <Reports {...commonProps} menuItems={allItems} inventory={inventory} />;
+              case 'MENU_MANAGER': return (
+                <MenuManager
+                  {...commonProps}
+                  inventory={inventory}
+                  menus={menus}
+                  categories={categories}
+                  branches={branches}
+                  platforms={platforms}
+                  onUpdateMenuItem={handleUpdateMenuItem}
+                  onAddMenuItem={handleAddMenuItem}
+                  onDeleteMenuItem={handleDeleteMenuItem}
+                  onAddCategory={handleAddCategory}
+                  onDeleteCategory={handleDeleteCategory}
+                  onAddMenu={handleAddMenu}
+                  onUpdateMenu={handleUpdateMenu}
+                  onLinkCategory={handleLinkCategory}
+                />
+              );
+              case 'RECIPES': return (
+                <RecipeManager
+                  {...commonProps}
+                  menuItems={categories.flatMap(c => c.items)}
+                  inventoryItems={inventory}
+                  categories={categories}
+                  onUpdateRecipe={handleUpdateRecipe}
+                  currencySymbol={currencySymbol}
+                />
+              );
+              case 'CRM': return <CRM {...commonProps} customers={customers} onAddCustomer={() => { }} />;
+              case 'AI_ASSISTANT': return <AIAssistant {...commonProps} />;
+              case 'AI_INSIGHTS': return (
+                <AIInsights
+                  {...commonProps}
+                  menuItems={allItems}
+                  inventory={inventory}
+                  orders={orders}
+                />
+              );
+              case 'SETTINGS': return (
+                <SettingsHub
+                  {...commonProps}
+                  settings={settings}
+                  branches={branches}
+                  platforms={platforms}
+                  warehouses={warehouses}
+                  onUpdateSettings={setSettings}
+                  onChangeView={setCurrentView}
+                  onOpenFloorDesigner={() => setShowFloorDesigner(true)}
+                />
+              );
+              case 'CALL_CENTER': return (
+                <CallCenter
+                  {...commonProps}
+                  customers={customers}
+                  branches={branches}
+                  categories={categories}
+                  onPlaceOrder={handlePlaceOrder}
+                  orders={orders}
+                />
+              );
+              case 'SECURITY': return (
+                <SecurityHub
+                  users={users}
+                  onUpdateUsers={setUsers}
+                  branches={branches}
+                  {...commonProps}
+                />
+              );
+              case 'FORENSICS': return (
+                <ForensicsHub
+                  logs={auditLogs}
+                  users={users}
+                  {...commonProps}
+                />
+              );
+              default: return <Dashboard {...commonProps} />;
+            }
+          })()}
+        </div>
+      </Suspense>
     );
   };
 
@@ -823,6 +841,11 @@ const App: React.FC = () => {
           lang={lang}
         />
       )}
+
+      {/* Keyboard Shortcuts Help Overlay */}
+      <Suspense fallback={null}>
+        <KeyboardHelp lang={lang} />
+      </Suspense>
     </div>
   );
 };
