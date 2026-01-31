@@ -1,17 +1,11 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
-    User as UserIcon,
     Lock,
     AtSign,
     ArrowRight,
-    Sparkles,
     Globe,
-    ShieldCheck,
-    Building2,
-    ChefHat,
-    LayoutDashboard
+    ShieldCheck
 } from 'lucide-react';
-import { User, UserRole } from '../types';
 
 interface LoginProps {
     onLogin: (email: string, password: string) => void;
@@ -20,10 +14,31 @@ interface LoginProps {
     error?: string;
 }
 
+const backgrounds = [
+    '/BG/1.png',
+    '/BG/2.png',
+    '/BG/3.png',
+    '/BG/4.png',
+    '/BG/5.png'
+];
+
 const Login: React.FC<LoginProps> = ({ onLogin, lang, setLang, error }) => {
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const [bgIndex, setBgIndex] = useState(0);
+
+    useEffect(() => {
+        // Random initial background
+        setBgIndex(Math.floor(Math.random() * backgrounds.length));
+
+        // Slideshow every 10 seconds
+        const interval = setInterval(() => {
+            setBgIndex(prev => (prev + 1) % backgrounds.length);
+        }, 10000);
+
+        return () => clearInterval(interval);
+    }, []);
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
@@ -36,178 +51,149 @@ const Login: React.FC<LoginProps> = ({ onLogin, lang, setLang, error }) => {
 
     const t = {
         en: {
-            title: 'RestoFlow ERP',
-            subtitle: 'Enterprise Operation Center 2026',
-            email: 'Professional Email',
-            password: 'Secure Pin / Password',
-            login: 'Authenticate',
-            forgot: 'Forgot Identity?',
-            desc: 'Secure multi-branch network access with biometric-ready encryption.',
-            footer: 'Authorized Personnel Only',
+            title: 'Coduis Xen',
+            subtitle: 'Enterprise Systems',
+            email: 'Email Address',
+            password: 'Password',
+            login: 'Sign In',
+            forgot: 'Forgot Password?',
+            desc: 'Unified platform for restaurant operations.',
+            footer: '© 2026 Coduis Xen. All rights reserved.',
             switch: 'العربية'
         },
         ar: {
-            title: 'ريستو فلو ERP',
-            subtitle: 'مركز العمليات المؤسسي ٢٠٢٦',
-            email: 'البريد المهني',
-            password: 'كلمة المرور / الرقم السري',
+            title: 'كوديوس زين',
+            subtitle: 'الأنظمة المؤسسية',
+            email: 'البريد الإلكتروني',
+            password: 'كلمة المرور',
             login: 'تسجيل الدخول',
-            forgot: 'نسيت الهوية؟',
-            desc: 'وصول آمن لشبكة الفروع المتعددة مع تشفير جاهز للقياسات الحيوية.',
-            footer: 'للموظفين المصرح لهم فقط',
+            forgot: 'نسيت كلمة المرور؟',
+            desc: 'منصة موحدة لعمليات المطاعم.',
+            footer: '© ٢٠٢٦ كوديوس زين. جميع الحقوق محفوظة.',
             switch: 'English'
         }
     }[lang];
 
     return (
-        <div className="fixed inset-0 min-h-screen bg-[#020617] flex items-center justify-center p-4 overflow-hidden">
-            {/* Dynamic Background Elements */}
-            <div className="absolute top-0 left-0 w-full h-full">
-                <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-indigo-600/20 rounded-full blur-[120px] animate-pulse" />
-                <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-violet-600/20 rounded-full blur-[120px] animate-pulse" style={{ animationDelay: '2s' }} />
+        <div className="fixed inset-0 min-h-screen flex items-center justify-center p-4 overflow-hidden font-outfit">
+            {/* Background Slideshow */}
+            {backgrounds.map((bg, index) => (
+                <div
+                    key={bg}
+                    className={`absolute inset-0 transition-opacity duration-1000 ease-in-out ${bgIndex === index ? 'opacity-100 scale-105' : 'opacity-0 scale-100'}`}
+                    style={{
+                        backgroundImage: `url(${bg})`,
+                        backgroundSize: 'cover',
+                        backgroundPosition: 'center',
+                        transition: 'opacity 2000ms ease-in-out, transform 15000ms linear'
+                    }}
+                />
+            ))}
 
-                {/* Grid Overlay */}
-                <div className="absolute inset-0 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-20 brightness-100 contrast-150 pointer-events-none" />
-                <div className="absolute inset-0 bg-[linear-gradient(to_right,#80808012_1px,transparent_1px),linear-gradient(to_bottom,#80808012_1px,transparent_1px)] bg-[size:24px_24px]" />
-            </div>
+            {/* Overlay */}
+            <div className="absolute inset-0 bg-slate-950/40 backdrop-blur-[2px]" />
 
             {/* Language Toggle */}
             <button
                 onClick={() => setLang(lang === 'en' ? 'ar' : 'en')}
-                className="absolute top-8 right-8 z-50 px-4 py-2 glass rounded-2xl flex items-center gap-2 text-white/70 hover:text-white transition-all text-sm font-black"
+                className="absolute top-8 right-8 z-50 px-6 py-3 bg-black/20 backdrop-blur-md border border-white/10 rounded-2xl flex items-center gap-2 text-white/70 hover:text-white hover:bg-black/40 transition-all text-sm font-black tracking-widest uppercase"
             >
-                <Globe size={16} />
+                <Globe size={18} />
                 {t.switch}
             </button>
 
-            <div className={`relative z-10 w-full max-w-5xl grid grid-cols-1 lg:grid-cols-2 bg-white/5 backdrop-blur-3xl rounded-[3rem] border border-white/10 shadow-2xl overflow-hidden animate-in zoom-in duration-700 ${lang === 'ar' ? 'rtl' : 'ltr'}`}>
-
-                {/* Artistic Branding Side */}
-                <div className="hidden lg:flex flex-col p-12 bg-gradient-to-br from-indigo-600/40 via-violet-600/30 to-transparent relative border-r border-white/10">
-                    <div className="mb-auto">
-                        <div className="w-16 h-16 bg-white rounded-3xl flex items-center justify-center shadow-2xl mb-8 group hover:scale-110 transition-transform duration-500">
-                            <Sparkles className="text-indigo-600" size={32} />
-                        </div>
-                        <h1 className="text-5xl font-black text-white leading-tight tracking-tighter mb-4">
-                            {t.title}
-                        </h1>
-                        <p className="text-white/60 text-lg font-bold tracking-wide uppercase italic">
-                            {t.subtitle}
-                        </p>
-                    </div>
-
-                    <div className="space-y-8 mt-12">
-                        <div className="flex items-center gap-4 text-white/80">
-                            <div className="p-3 bg-white/10 rounded-2xl">
-                                <Building2 size={24} className="text-indigo-400" />
-                            </div>
-                            <div>
-                                <h4 className="font-black text-sm uppercase tracking-widest">Multi-Branch Sync</h4>
-                                <p className="text-xs text-white/40 font-bold">Real-time global reconciliation.</p>
-                            </div>
-                        </div>
-                        <div className="flex items-center gap-4 text-white/80">
-                            <div className="p-3 bg-white/10 rounded-2xl">
-                                <ShieldCheck size={24} className="text-emerald-400" />
-                            </div>
-                            <div>
-                                <h4 className="font-black text-sm uppercase tracking-widest">Enterprise Security</h4>
-                                <p className="text-xs text-white/40 font-bold">Encrypted role-based access.</p>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div className="mt-auto border-t border-white/10 pt-8 flex justify-between items-center">
-                        <span className="text-[10px] font-black uppercase text-white/30 tracking-[0.3em]">{t.footer}</span>
-                        <div className="flex gap-2">
-                            <div className="w-1.5 h-1.5 rounded-full bg-indigo-500 animate-bounce" />
-                            <div className="w-1.5 h-1.5 rounded-full bg-indigo-500 animate-bounce" style={{ animationDelay: '0.2s' }} />
-                            <div className="w-1.5 h-1.5 rounded-full bg-indigo-500 animate-bounce" style={{ animationDelay: '0.4s' }} />
-                        </div>
+            {/* Center Content */}
+            <div className={`relative z-10 w-full max-w-md ${lang === 'ar' ? 'rtl' : 'ltr'}`}>
+                {/* Large Logo */}
+                <div className="flex flex-col items-center mb-10 text-center">
+                    <div className="relative group mb-6">
+                        <div className="absolute -inset-4 bg-cyan-500/20 rounded-full blur-2xl group-hover:bg-cyan-500/40 transition-all duration-500" />
+                        <img
+                            src="/logo.png"
+                            alt="Coduis Xen"
+                            className="relative h-32 w-auto drop-shadow-[0_0_30px_rgba(6,182,212,0.3)] group-hover:scale-110 transition-transform duration-500"
+                        />
                     </div>
                 </div>
 
-                {/* Form Side */}
-                <div className="p-8 md:p-16 lg:p-20 flex flex-col justify-center">
-                    <div className="mb-12">
-                        <h2 className="text-3xl font-black text-white mb-3">
-                            {lang === 'ar' ? 'مرحباً بعودتك' : 'Identity Verification'}
+                {/* Glassy Form Box */}
+                <div className="bg-slate-900/60 backdrop-blur-2xl p-10 rounded-[2.5rem] border border-white/10 shadow-[0_32px_64px_-16px_rgba(0,0,0,0.6)]">
+                    <div className="mb-10 text-center">
+                        <h2 className="text-3xl font-black text-white mb-3 tracking-tight">
+                            {lang === 'ar' ? 'مرحباً بعودتك' : 'Welcome Back'}
                         </h2>
-                        <p className="text-white/40 text-sm font-bold leading-relaxed max-w-xs">
-                            {t.desc}
-                        </p>
+                        <div className="h-1.5 w-12 bg-indigo-500 rounded-full mx-auto" />
                     </div>
 
                     <form onSubmit={handleSubmit} className="space-y-6">
                         <div className="space-y-4">
                             <div className="relative group">
-                                <AtSign className="absolute left-6 top-1/2 -translate-y-1/2 text-white/30 group-focus-within:text-indigo-400 transition-colors" size={20} />
+                                <AtSign className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-indigo-400 transition-colors" size={20} />
                                 <input
                                     type="email"
                                     required
                                     value={email}
                                     onChange={(e) => setEmail(e.target.value)}
                                     placeholder={t.email}
-                                    className="w-full bg-white/5 border border-white/10 rounded-3xl py-5 pl-14 pr-6 text-white font-black placeholder:text-white/20 focus:ring-4 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition-all text-sm"
+                                    className="w-full bg-slate-800/40 border border-white/5 rounded-2xl py-5 pl-14 pr-6 text-white placeholder:text-slate-500 focus:ring-4 focus:ring-indigo-500/20 focus:border-indigo-500/50 outline-none transition-all text-base font-semibold backdrop-blur-sm"
                                 />
                             </div>
 
                             <div className="relative group">
-                                <Lock className="absolute left-6 top-1/2 -translate-y-1/2 text-white/30 group-focus-within:text-violet-400 transition-colors" size={20} />
+                                <Lock className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-indigo-400 transition-colors" size={20} />
                                 <input
                                     type="password"
                                     required
                                     value={password}
                                     onChange={(e) => setPassword(e.target.value)}
                                     placeholder={t.password}
-                                    className="w-full bg-white/5 border border-white/10 rounded-3xl py-5 pl-14 pr-6 text-white font-black placeholder:text-white/20 focus:ring-4 focus:ring-violet-500/20 focus:border-violet-500 outline-none transition-all text-sm"
+                                    className="w-full bg-slate-800/40 border border-white/5 rounded-2xl py-5 pl-14 pr-6 text-white placeholder:text-slate-500 focus:ring-4 focus:ring-indigo-500/20 focus:border-indigo-500/50 outline-none transition-all text-base font-semibold backdrop-blur-sm"
                                 />
                             </div>
                         </div>
 
                         {error && (
-                            <div className="p-4 bg-rose-500/10 border border-rose-500/30 rounded-2xl text-rose-400 text-xs font-black uppercase text-center animate-shake">
+                            <div className="p-4 bg-rose-500/10 border border-rose-500/20 rounded-2xl text-rose-400 text-sm font-bold text-center">
                                 {error}
                             </div>
                         )}
 
-                        <div className="flex items-center justify-between px-2">
+                        <div className="flex items-center justify-between px-1">
                             <label className="flex items-center gap-3 cursor-pointer group">
-                                <div className="w-5 h-5 rounded-lg border-2 border-white/10 flex items-center justify-center bg-white/5 group-hover:border-indigo-500 transition-all">
-                                    <div className="w-2 h-2 rounded-full bg-indigo-500 opacity-0 group-has-[:checked]:opacity-100" />
+                                <div className="relative flex items-center">
+                                    <input type="checkbox" className="peer appearance-none w-5 h-5 rounded-lg border-2 border-slate-700 bg-slate-800 checked:bg-indigo-500 checked:border-indigo-500 transition-all cursor-pointer" />
+                                    <ShieldCheck className="absolute opacity-0 peer-checked:opacity-100 left-0.5 top-0.5 text-white transition-opacity pointer-events-none" size={16} />
                                 </div>
-                                <input type="checkbox" className="hidden" />
-                                <span className="text-white/40 text-[10px] font-black uppercase tracking-widest">{lang === 'ar' ? 'تذكرني' : 'Remember'}</span>
+                                <span className="text-slate-400 text-sm font-bold">{lang === 'ar' ? 'تذكرني' : 'Remember me'}</span>
                             </label>
-                            <button type="button" className="text-white/40 text-[10px] font-black uppercase tracking-widest hover:text-indigo-400 transition-colors">{t.forgot}</button>
+                            <button type="button" className="text-slate-300 text-sm font-bold hover:text-white transition-colors">
+                                {t.forgot}
+                            </button>
                         </div>
 
                         <button
                             type="submit"
                             disabled={isSubmitting}
-                            className="w-full py-6 bg-gradient-to-r from-indigo-600 to-violet-600 text-white rounded-[2.5rem] font-black text-xs uppercase tracking-[0.3em] flex items-center justify-center gap-3 shadow-2xl shadow-indigo-500/20 hover:scale-[1.02] active:scale-95 disabled:opacity-50 transition-all group"
+                            className="w-full py-5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-2xl font-black text-lg flex items-center justify-center gap-3 shadow-2xl shadow-indigo-500/20 hover:shadow-indigo-500/40 disabled:opacity-50 transition-all group active:scale-[0.98]"
                         >
                             {isSubmitting ? (
                                 <div className="flex gap-1.5">
-                                    <div className="w-2 h-2 rounded-full bg-white animate-pulse" />
-                                    <div className="w-2 h-2 rounded-full bg-white animate-pulse delay-75" />
-                                    <div className="w-2 h-2 rounded-full bg-white animate-pulse delay-150" />
+                                    <div className="w-2.5 h-2.5 rounded-full bg-white animate-bounce" />
+                                    <div className="w-2.5 h-2.5 rounded-full bg-white animate-bounce" style={{ animationDelay: '0.1s' }} />
+                                    <div className="w-2.5 h-2.5 rounded-full bg-white animate-bounce" style={{ animationDelay: '0.2s' }} />
                                 </div>
                             ) : (
                                 <>
                                     {t.login}
-                                    <ArrowRight size={18} className="group-hover:translate-x-2 transition-transform" />
+                                    <ArrowRight size={22} className="group-hover:translate-x-1.5 transition-transform" />
                                 </>
                             )}
                         </button>
                     </form>
+                </div>
 
-                    <div className="mt-12 lg:hidden border-t border-white/10 pt-8 flex justify-center flex-col items-center gap-4">
-                        <div className="w-10 h-10 bg-indigo-500/20 rounded-xl flex items-center justify-center text-indigo-400">
-                            <Sparkles size={20} />
-                        </div>
-                        <h1 className="text-xl font-black text-white italic tracking-tighter">{t.title}</h1>
-                    </div>
+                <div className="mt-12 text-center">
+                    <p className="text-white/40 text-sm font-bold tracking-widest uppercase">{t.footer}</p>
                 </div>
             </div>
         </div>

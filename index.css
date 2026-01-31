@@ -5,145 +5,198 @@
   --font-sans: "Cairo", "Outfit", "Inter", ui-sans-serif, system-ui, sans-serif;
 }
 
-
 :root {
-  /* Common default tokens */
-  --radius-card: 1.5rem;
+  /* Common design tokens */
+  --radius-card: 1.25rem;
   --radius-button: 0.75rem;
   --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
   --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
   --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+  --shadow-glow: 0 0 40px rgba(var(--primary), 0.15);
   --border-width: 1px;
 }
 
-/* 0. Classic - Professional & Clean */
-[data-theme='classic'] {
-  --primary: 99 102 241;
-  --primary-hover: 79 70 229;
-  --accent: 236 72 153;
+/* ═══════════════════════════════════════════════════════════════════════════
+   1. XEN (Default) - Inspired by Logo: Steel Grey + Cyan
+   ═══════════════════════════════════════════════════════════════════════════ */
+[data-theme='xen'] {
+  --primary: 0 180 216;
+  /* Cyan #00B4D8 */
+  --primary-hover: 0 150 199;
+  --secondary: 107 114 128;
+  /* Steel Grey #6B7280 */
+  --accent: 56 189 248;
+  /* Sky Blue */
+  --success: 34 197 94;
+  --warning: 251 146 60;
+  --danger: 239 68 68;
+
   --bg-app: 248 250 252;
   --bg-card: 255 255 255;
-  --text-main: 15 23 42;
+  --bg-elevated: 241 245 249;
+  --text-main: 30 41 59;
   --text-muted: 100 116 139;
   --border-color: 226 232 240;
-  --radius-card: 1.5rem;
-  --radius-button: 0.75rem;
 }
 
-/* 1. Nebula - Glassmorphism & High-Tech */
-[data-theme='nebula'] {
-  --primary: 59 130 246;
-  --primary-hover: 37 99 235;
-  --accent: 139 92 246;
-  --bg-app: 3 7 18;
-  --bg-card: 17 24 39;
-  --text-main: 248 250 252;
-  --text-muted: 148 163 184;
-  --border-color: 31 41 55;
-  --radius-card: 2rem;
-  --radius-button: 1rem;
-  --shadow-lg: 0 0 30px rgba(59, 130, 246, 0.15);
-  --border-width: 1px;
-}
-
-/* 2. Emerald - Organic & Fluid */
-[data-theme='emerald'] {
-  --primary: 16 185 129;
-  --primary-hover: 5 150 105;
-  --accent: 20 184 166;
-  --bg-app: 240 253 244;
-  --bg-card: 255 255 255;
-  --text-main: 6 78 59;
-  --text-muted: 52 211 153;
-  --border-color: 209 250 229;
-  --radius-card: 3rem;
-  --radius-button: 2rem;
-  --border-width: 2px;
-}
-
-/* 3. Sunset - Sharp & High-Fashion */
-[data-theme='sunset'] {
-  --primary: 245 158 11;
-  --primary-hover: 217 119 6;
-  --accent: 244 63 94;
-  --bg-app: 255 251 235;
-  --bg-card: 255 255 255;
-  --text-main: 120 53 15;
-  --text-muted: 180 83 9;
-  --border-color: 254 243 199;
-  --radius-card: 0.5rem;
-  --radius-button: 0rem;
-  --border-width: 1px;
-}
-
-/* 4. Deep Quartz - Brutalist Industrial */
-[data-theme='quartz'] {
-  --primary: 100 116 139;
-  --primary-hover: 71 85 105;
-  --accent: 148 163 184;
+[data-theme='xen'].dark,
+.dark [data-theme='xen'] {
   --bg-app: 15 23 42;
   --bg-card: 30 41 59;
-  --text-main: 241 245 249;
+  --bg-elevated: 51 65 85;
+  --text-main: 248 250 252;
   --text-muted: 148 163 184;
-  --border-color: 71 85 105;
-  --radius-card: 0rem;
-  --radius-button: 0rem;
-  --border-width: 3px;
+  --border-color: 51 65 85;
+  --shadow-lg: 0 0 30px rgba(0, 180, 216, 0.1);
 }
 
-/* 5. Electric Violet - Playful & Modern */
-[data-theme='violet'] {
-  --primary: 139 92 246;
-  --primary-hover: 124 58 237;
-  --accent: 217 70 239;
-  --bg-app: 250 245 255;
+/* ═══════════════════════════════════════════════════════════════════════════
+   2. EMBER - Grey + Orange (Professional Warmth)
+   ═══════════════════════════════════════════════════════════════════════════ */
+[data-theme='ember'] {
+  --primary: 249 115 22;
+  /* Orange #F97316 */
+  --primary-hover: 234 88 12;
+  --secondary: 115 115 115;
+  /* Neutral Grey */
+  --accent: 251 146 60;
+  /* Amber */
+  --success: 34 197 94;
+  --warning: 251 191 36;
+  --danger: 239 68 68;
+
+  --bg-app: 250 250 250;
   --bg-card: 255 255 255;
-  --text-main: 88 28 135;
-  --text-muted: 168 85 247;
-  --border-color: 243 232 255;
-  --radius-card: 2.5rem;
-  --radius-button: 1.25rem;
-  --shadow-lg: 0 20px 25px -5px rgba(139, 92, 246, 0.2);
+  --bg-elevated: 245 245 245;
+  --text-main: 38 38 38;
+  --text-muted: 115 115 115;
+  --border-color: 229 229 229;
+  --radius-card: 1rem;
 }
 
-/* 6. Touch optimized - Gigantic & High Contrast */
-[data-theme='touch'] {
-  --primary: 79 70 229;
-  --primary-hover: 67 56 202;
-  --accent: 249 115 22;
-  --bg-app: 241 245 249;
+[data-theme='ember'].dark,
+.dark [data-theme='ember'] {
+  --bg-app: 23 23 23;
+  --bg-card: 38 38 38;
+  --bg-elevated: 64 64 64;
+  --text-main: 250 250 250;
+  --text-muted: 163 163 163;
+  --border-color: 64 64 64;
+  --shadow-lg: 0 0 30px rgba(249, 115, 22, 0.12);
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   3. GRAPHITE - Minimal & Premium
+   ═══════════════════════════════════════════════════════════════════════════ */
+[data-theme='graphite'] {
+  --primary: 82 82 91;
+  /* Zinc #52525B */
+  --primary-hover: 63 63 70;
+  --secondary: 113 113 122;
+  --accent: 161 161 170;
+  --success: 34 197 94;
+  --warning: 234 179 8;
+  --danger: 220 38 38;
+
+  --bg-app: 255 255 255;
+  --bg-card: 250 250 250;
+  --bg-elevated: 244 244 245;
+  --text-main: 24 24 27;
+  --text-muted: 113 113 122;
+  --border-color: 228 228 231;
+  --radius-card: 0.75rem;
+  --radius-button: 0.5rem;
+}
+
+[data-theme='graphite'].dark,
+.dark [data-theme='graphite'] {
+  --bg-app: 9 9 11;
+  --bg-card: 24 24 27;
+  --bg-elevated: 39 39 42;
+  --text-main: 250 250 250;
+  --text-muted: 161 161 170;
+  --border-color: 39 39 42;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   4. OCEAN - Fresh & Modern (Deep Blue)
+   ═══════════════════════════════════════════════════════════════════════════ */
+[data-theme='ocean'] {
+  --primary: 59 130 246;
+  /* Blue #3B82F6 */
+  --primary-hover: 37 99 235;
+  --secondary: 99 102 241;
+  /* Indigo */
+  --accent: 14 165 233;
+  /* Sky */
+  --success: 16 185 129;
+  --warning: 245 158 11;
+  --danger: 239 68 68;
+
+  --bg-app: 240 249 255;
   --bg-card: 255 255 255;
-  --text-main: 2 6 23;
-  --text-muted: 71 85 105;
-  --border-color: 203 213 225;
+  --bg-elevated: 224 242 254;
+  --text-main: 30 58 138;
+  --text-muted: 96 165 250;
+  --border-color: 191 219 254;
   --radius-card: 1.5rem;
   --radius-button: 1rem;
+}
+
+[data-theme='ocean'].dark,
+.dark [data-theme='ocean'] {
+  --bg-app: 15 23 42;
+  --bg-card: 30 41 59;
+  --bg-elevated: 51 65 85;
+  --text-main: 248 250 252;
+  --text-muted: 147 197 253;
+  --border-color: 51 65 85;
+  --shadow-lg: 0 0 40px rgba(59, 130, 246, 0.15);
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   5. CARBON - High Contrast Enterprise
+   ═══════════════════════════════════════════════════════════════════════════ */
+[data-theme='carbon'] {
+  --primary: 24 24 27;
+  /* Near Black */
+  --primary-hover: 39 39 42;
+  --secondary: 82 82 91;
+  --accent: 34 197 94;
+  /* Green accent */
+  --success: 34 197 94;
+  --warning: 234 179 8;
+  --danger: 239 68 68;
+
+  --bg-app: 255 255 255;
+  --bg-card: 250 250 250;
+  --bg-elevated: 244 244 245;
+  --text-main: 9 9 11;
+  --text-muted: 82 82 91;
+  --border-color: 212 212 216;
+  --radius-card: 0.5rem;
+  --radius-button: 0.25rem;
   --border-width: 2px;
 }
 
-[data-theme='touch'] .card-primary {
-  padding: 3rem !important;
-  border-width: 3px !important;
+[data-theme='carbon'].dark,
+.dark [data-theme='carbon'] {
+  --primary: 250 250 250;
+  --primary-hover: 228 228 231;
+  --bg-app: 0 0 0;
+  --bg-card: 9 9 11;
+  --bg-elevated: 24 24 27;
+  --text-main: 250 250 250;
+  --text-muted: 161 161 170;
+  --border-color: 39 39 42;
 }
 
-[data-theme='touch'] button {
-  min-height: 4rem;
-  font-size: 1.125rem !important;
-  padding-left: 2rem !important;
-  padding-right: 2rem !important;
-}
-
-[data-theme='touch'] .heading-xl {
-  font-size: 3.5rem;
-}
-
-[data-theme='touch'] .body-md {
-  font-size: 1.25rem;
-}
-
-/* Base Styles */
+/* ═══════════════════════════════════════════════════════════════════════════
+   BASE STYLES
+   ═══════════════════════════════════════════════════════════════════════════ */
 html {
   font-size: 16px;
+  scroll-behavior: smooth;
 }
 
 @media (min-width: 1024px) {
@@ -156,25 +209,51 @@ body {
   font-family: 'Cairo', 'Outfit', 'Inter', sans-serif;
   background-color: rgb(var(--bg-app));
   color: rgb(var(--text-main));
-  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: background-color 0.3s ease, color 0.3s ease;
   line-height: 1.6;
   -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
-/* Themed Components Base */
+/* ═══════════════════════════════════════════════════════════════════════════
+   THEMED COMPONENTS
+   ═══════════════════════════════════════════════════════════════════════════ */
 .card-primary {
   background-color: rgb(var(--bg-card));
   border: var(--border-width) solid rgb(var(--border-color));
   box-shadow: var(--shadow-lg);
   border-radius: var(--radius-card);
-  padding: 2rem;
-  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  padding: 1.5rem;
+  transition: all 0.3s ease;
+}
+
+.card-primary:hover {
+  box-shadow: var(--shadow-glow);
+  transform: translateY(-2px);
+}
+
+.card-elevated {
+  background-color: rgb(var(--bg-elevated));
+  border-radius: var(--radius-card);
+  padding: 1rem;
 }
 
 button,
 .btn {
   border-radius: var(--radius-button);
-  transition: all 0.3s ease;
+  transition: all 0.2s ease;
+  font-weight: 600;
+}
+
+.btn-primary {
+  background-color: rgb(var(--primary));
+  color: white;
+  padding: 0.75rem 1.5rem;
+}
+
+.btn-primary:hover {
+  background-color: rgb(var(--primary-hover));
+  transform: translateY(-1px);
 }
 
 input,
@@ -182,13 +261,27 @@ select,
 textarea {
   border-radius: var(--radius-button) !important;
   border: var(--border-width) solid rgb(var(--border-color));
+  background-color: rgb(var(--bg-card));
+  color: rgb(var(--text-main));
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
 }
 
-/* Typography */
+input:focus,
+select:focus,
+textarea:focus {
+  border-color: rgb(var(--primary));
+  box-shadow: 0 0 0 3px rgba(var(--primary), 0.1);
+  outline: none;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   TYPOGRAPHY
+   ═══════════════════════════════════════════════════════════════════════════ */
 .heading-xl {
   font-size: 2.5rem;
   font-weight: 900;
   letter-spacing: -0.02em;
+  line-height: 1.1;
 }
 
 .heading-lg {
@@ -199,7 +292,7 @@ textarea {
 
 .heading-md {
   font-size: 1.5rem;
-  font-weight: 800;
+  font-weight: 700;
 }
 
 .body-lg {
@@ -222,33 +315,66 @@ textarea {
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.05em;
+  color: rgb(var(--text-muted));
 }
 
-/* Global Utilities */
+/* ═══════════════════════════════════════════════════════════════════════════
+   UTILITIES
+   ═══════════════════════════════════════════════════════════════════════════ */
+.text-primary {
+  color: rgb(var(--primary));
+}
+
+.text-muted {
+  color: rgb(var(--text-muted));
+}
+
+.bg-primary {
+  background-color: rgb(var(--primary));
+}
+
+.bg-card {
+  background-color: rgb(var(--bg-card));
+}
+
+.bg-elevated {
+  background-color: rgb(var(--bg-elevated));
+}
+
+.border-theme {
+  border-color: rgb(var(--border-color));
+}
+
 .rounded-theme {
   border-radius: var(--radius-card);
 }
 
-.btn-theme {
+.rounded-btn {
   border-radius: var(--radius-button);
 }
 
 .glass {
-  background: rgba(var(--bg-card), 0.7);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  border: 1px solid rgba(var(--border-color), 0.3);
+  background: rgba(var(--bg-card), 0.8);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(var(--border-color), 0.4);
 }
 
-/* Animations */
+.glow {
+  box-shadow: var(--shadow-glow);
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   ANIMATIONS
+   ═══════════════════════════════════════════════════════════════════════════ */
 .view-transition {
-  animation: slideUpFade 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+  animation: slideUpFade 0.4s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 @keyframes slideUpFade {
   from {
     opacity: 0;
-    transform: translateY(20px);
+    transform: translateY(16px);
   }
 
   to {
@@ -257,10 +383,28 @@ textarea {
   }
 }
 
-/* Custom Scrollbar */
+@keyframes pulse-glow {
+
+  0%,
+  100% {
+    box-shadow: 0 0 20px rgba(var(--primary), 0.2);
+  }
+
+  50% {
+    box-shadow: 0 0 40px rgba(var(--primary), 0.4);
+  }
+}
+
+.animate-glow {
+  animation: pulse-glow 2s ease-in-out infinite;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   CUSTOM SCROLLBAR
+   ═══════════════════════════════════════════════════════════════════════════ */
 ::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
+  width: 6px;
+  height: 6px;
 }
 
 ::-webkit-scrollbar-track {
@@ -268,10 +412,121 @@ textarea {
 }
 
 ::-webkit-scrollbar-thumb {
-  background: rgba(var(--primary), 0.2);
-  border-radius: 10px;
+  background: rgba(var(--primary), 0.25);
+  border-radius: 100px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
   background: rgba(var(--primary), 0.4);
+}
+
+/* Hide scrollbar for Chrome, Safari and Opera */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+/* Hide scrollbar for IE, Edge and Firefox */
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   GLOBAL THEME ACCENT OVERRIDES
+   These override common Tailwind accent colors to use theme variables
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* Primary buttons and backgrounds */
+.bg-indigo-600,
+.bg-indigo-500,
+.bg-cyan-500,
+.bg-cyan-600 {
+  background-color: rgb(var(--primary)) !important;
+}
+
+.bg-indigo-700,
+.bg-cyan-700 {
+  background-color: rgb(var(--primary-hover)) !important;
+}
+
+.hover\:bg-indigo-600:hover,
+.hover\:bg-indigo-700:hover,
+.hover\:bg-cyan-600:hover,
+.hover\:bg-cyan-700:hover {
+  background-color: rgb(var(--primary-hover)) !important;
+}
+
+/* Text colors */
+.text-indigo-600,
+.text-indigo-500,
+.text-cyan-500,
+.text-cyan-400 {
+  color: rgb(var(--primary)) !important;
+}
+
+.hover\:text-indigo-600:hover,
+.hover\:text-cyan-500:hover {
+  color: rgb(var(--primary)) !important;
+}
+
+/* Ring/Focus states */
+.ring-indigo-500,
+.ring-cyan-500,
+.focus\:ring-indigo-500:focus,
+.focus\:ring-cyan-500:focus {
+  --tw-ring-color: rgb(var(--primary)) !important;
+}
+
+.focus\:ring-cyan-500\/50:focus {
+  --tw-ring-color: rgba(var(--primary), 0.5) !important;
+}
+
+/* Border colors */
+.border-indigo-500,
+.border-cyan-500,
+.focus\:border-indigo-500:focus,
+.focus\:border-cyan-500:focus {
+  border-color: rgb(var(--primary)) !important;
+}
+
+/* Shadow */
+.shadow-indigo-500\/20,
+.shadow-indigo-500\/25,
+.shadow-cyan-500\/25,
+.shadow-cyan-500\/40 {
+  --tw-shadow-color: rgba(var(--primary), 0.25) !important;
+}
+
+/* Gradient FROM */
+.from-indigo-600,
+.from-cyan-500,
+.from-cyan-600 {
+  --tw-gradient-from: rgb(var(--primary)) !important;
+}
+
+.to-indigo-700,
+.to-cyan-600,
+.to-cyan-700 {
+  --tw-gradient-to: rgb(var(--primary-hover)) !important;
+}
+
+/* Light backgrounds */
+.bg-indigo-50,
+.bg-indigo-100,
+.bg-cyan-50,
+.bg-cyan-100 {
+  background-color: rgba(var(--primary), 0.1) !important;
+}
+
+.dark .bg-indigo-900\/30,
+.dark .bg-cyan-900\/30,
+[data-theme].dark .bg-indigo-900\/30,
+[data-theme].dark .bg-cyan-900\/30 {
+  background-color: rgba(var(--primary), 0.15) !important;
+}
+
+/* Sidebar selected state */
+.bg-indigo-600\/10,
+.bg-cyan-500\/10 {
+  background-color: rgba(var(--primary), 0.1) !important;
 }

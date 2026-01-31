@@ -144,13 +144,11 @@ const SettingsHub: React.FC<SettingsHubProps> = ({
             customRender: () => (
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
                     {[
-                        { id: 'classic', name: lang === 'ar' ? 'إنديجو كلاسيك' : 'Classic Indigo', colors: ['#6366f1', '#f8fafc'] },
-                        { id: 'nebula', name: lang === 'ar' ? 'سديم الليل' : 'Midnight Nebula', colors: ['#3b82f6', '#030712'] },
-                        { id: 'emerald', name: lang === 'ar' ? 'زمردي عصري' : 'Emerald Glass', colors: ['#10b981', '#f0fdf4'] },
-                        { id: 'sunset', name: lang === 'ar' ? 'ذهب الغروب' : 'Sunset Gold', colors: ['#f59e0b', '#fffbeb'] },
-                        { id: 'quartz', name: lang === 'ar' ? 'كوارتز أنيق' : 'Deep Quartz', colors: ['#64748b', '#0f172a'] },
-                        { id: 'violet', name: lang === 'ar' ? 'بنفسجي جريء' : 'Electric Violet', colors: ['#8b5cf6', '#faf5ff'] },
-                        { id: 'touch', name: lang === 'ar' ? 'نظام اللمس' : 'Touch Optimized', colors: ['#4f46e5', '#f1f5f9'] },
+                        { id: 'xen', name: lang === 'ar' ? 'زين الأساسي' : 'Xen Default', colors: ['#00B4D8', '#1E293B'] },
+                        { id: 'ember', name: lang === 'ar' ? 'رمادي وبرتقالي' : 'Grey & Orange', colors: ['#F97316', '#262626'] },
+                        { id: 'graphite', name: lang === 'ar' ? 'جرافيت أنيق' : 'Graphite Minimal', colors: ['#52525B', '#18181B'] },
+                        { id: 'ocean', name: lang === 'ar' ? 'أوشن أزرق' : 'Ocean Blue', colors: ['#3B82F6', '#0F172A'] },
+                        { id: 'carbon', name: lang === 'ar' ? 'كاربون داكن' : 'Carbon Dark', colors: ['#171717', '#22C55E'] },
                     ].map(theme => (
                         <button
                             key={theme.id}

@@ -304,7 +304,8 @@ const App: React.FC = () => {
     serviceCharge: 12,
     language: 'ar',
     isDarkMode: true,
-    theme: 'nebula',
+    isTouchMode: false,
+    theme: 'xen',
     branchAddress: 'Sheikh Zayed, Cairo',
     phone: '19000',
     currentUser: undefined, // Start logged out
@@ -334,6 +335,9 @@ const App: React.FC = () => {
   };
 
   const [posMode, setPosMode] = useState<OrderType>(OrderType.DINE_IN); // Default POS Mode
+  const [discount, setDiscount] = useState(0);
+  const [heldOrders, setHeldOrders] = useState<{ cart: any[], tableId?: string, customerId?: string }[]>([]);
+  const [recalledOrder, setRecalledOrder] = useState<{ cart: any[], tableId?: string, customerId?: string } | null>(null);
 
   const handleSetPosMode = (mode: OrderType) => {
     setPosMode(mode);
@@ -353,6 +357,7 @@ const App: React.FC = () => {
 
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const toggleSidebar = () => setIsSidebarCollapsed(!isSidebarCollapsed);
+  const toggleTouchMode = () => setSettings(prev => ({ ...prev, isTouchMode: !prev.isTouchMode }));
   const [showFloorDesigner, setShowFloorDesigner] = useState(false);
 
   const t = translations[settings.language];
@@ -688,6 +693,23 @@ const App: React.FC = () => {
                   branchId={effectiveBranchId}
                   hasPermission={hasPermission}
                   activeMode={posMode}
+                  isTouchMode={settings.isTouchMode}
+                  onSetOrderMode={setPosMode}
+                  onToggleDarkMode={() => setSettings(prev => ({ ...prev, isDarkMode: !prev.isDarkMode }))}
+                  onToggleTouchMode={() => setSettings(prev => ({ ...prev, isTouchMode: !prev.isTouchMode }))}
+                  theme={settings.theme}
+                  onThemeChange={(theme) => setSettings(prev => ({ ...prev, theme }))}
+                  discount={discount}
+                  onSetDiscount={setDiscount}
+                  heldOrders={heldOrders}
+                  onHoldOrder={(order) => setHeldOrders(prev => [...prev, order])}
+                  onRecallOrder={(index) => {
+                    const order = heldOrders[index];
+                    setHeldOrders(prev => prev.filter((_, i) => i !== index));
+                    setRecalledOrder(order);
+                  }}
+                  recalledOrder={recalledOrder}
+                  onClearRecalledOrder={() => setRecalledOrder(null)}
                 />
               );
               case 'KDS':
@@ -822,11 +844,22 @@ const App: React.FC = () => {
         theme={settings.theme}
         onThemeChange={(newTheme) => setSettings({ ...settings, theme: newTheme })}
         onSetOrderMode={handleSetPosMode}
+        isTouchMode={settings.isTouchMode}
+        onToggleTouchMode={() => setSettings(prev => ({ ...prev, isTouchMode: !prev.isTouchMode }))}
+        discount={discount}
+        onSetDiscount={setDiscount}
+        heldOrders={heldOrders}
+        onRecallOrder={(index) => {
+          const order = heldOrders[index];
+          setHeldOrders(prev => prev.filter((_, i) => i !== index));
+          setRecalledOrder(order);
+          setCurrentView('POS');
+        }}
       />
 
       <main className={`flex-1 flex flex-col min-h-screen transition-all duration-300 ${lang === 'ar'
-        ? (isSidebarCollapsed ? 'lg:mr-16' : 'lg:mr-56 xl:mr-64')
-        : (isSidebarCollapsed ? 'lg:ml-16' : 'lg:ml-56 xl:ml-64')
+        ? (isSidebarCollapsed ? 'lg:mr-16' : (settings.isTouchMode ? 'lg:mr-80' : 'lg:mr-64'))
+        : (isSidebarCollapsed ? 'lg:ml-16' : (settings.isTouchMode ? 'lg:ml-80' : 'lg:ml-64'))
         } relative overflow-hidden`}>
         {renderView()}
       </main>

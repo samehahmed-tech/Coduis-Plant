@@ -432,6 +432,7 @@ export interface AppSettings {
   serviceCharge: number;
   language: 'en' | 'ar';
   isDarkMode: boolean;
+  isTouchMode: boolean;
   theme: AppTheme;
   branchAddress: string;
   phone: string;
