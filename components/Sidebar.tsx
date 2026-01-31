@@ -223,35 +223,35 @@ const Sidebar: React.FC<SidebarProps> = ({
       )}
 
       <div className={`
-        ${isCollapsed ? 'w-20' : (isTouchMode ? 'w-80' : 'w-64')} bg-white dark:bg-slate-900 text-slate-800 dark:text-white flex flex-col h-screen fixed top-0 shadow-2xl z-[80] transition-all duration-300
-        ${lang === 'ar' ? 'right-0 border-l' : 'left-0 border-r'} border-slate-100 dark:border-slate-800
+        ${isCollapsed ? 'w-20' : (isTouchMode ? 'w-80' : 'w-64')} bg-card text-main flex flex-col h-screen fixed top-0 shadow-2xl z-[80] transition-all duration-300
+        ${lang === 'ar' ? 'right-0 border-l' : 'left-0 border-r'} border-theme
         ${isMobileOpen ? 'translate-x-0' : `${lang === 'ar' ? 'translate-x-full' : '-translate-x-full'} lg:translate-x-0`}
       `}>
         {/* Header Branding */}
-        <div className={`p-10 border-b border-slate-100 dark:border-slate-800 flex justify-center items-center bg-white dark:bg-slate-900`}>
+        <div className={`p-10 border-b border-theme flex justify-center items-center bg-card`}>
           <img src="/logo.png" alt="Logo" className={`${isCollapsed ? 'h-8' : 'h-24'} w-auto transition-all duration-300 drop-shadow-sm`} />
         </div>
 
         {/* User Profile & Branch Selector */}
         {!isCollapsed && user && (
-          <div className="p-6 border-b border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/20">
+          <div className="p-6 border-b border-theme bg-elevated">
             <div className="flex items-center gap-3 mb-4">
               <div className="w-10 h-10 rounded-full bg-gradient-to-br from-indigo-500 to-violet-500 flex items-center justify-center font-black text-white shadow-md">
                 {user.name[0]}
               </div>
               <div className="flex-1 overflow-hidden">
                 <p className="text-xs font-black truncate">{user.name}</p>
-                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{user.role.replace('_', ' ')}</p>
+                <p className="text-[10px] font-bold text-muted uppercase tracking-widest">{user.role.replace('_', ' ')}</p>
               </div>
             </div>
 
             {isAdmin && (
               <div className="space-y-1">
-                <p className="text-[9px] font-black text-slate-400 uppercase mb-2 tracking-widest">{t.switch_branch}</p>
+                <p className="text-[9px] font-black text-muted uppercase mb-2 tracking-widest">{t.switch_branch}</p>
                 <select
                   value={activeBranchId}
                   onChange={(e) => onSelectBranch(e.target.value)}
-                  className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2 text-[10px] font-black uppercase outline-none focus:ring-2 focus:ring-indigo-500"
+                  className="w-full bg-card border border-theme rounded-xl px-3 py-2 text-[10px] font-black uppercase outline-none focus:ring-2 focus:ring-indigo-500"
                 >
                   <option value="">{t.all_branches}</option>
                   {branches.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
@@ -259,7 +259,7 @@ const Sidebar: React.FC<SidebarProps> = ({
               </div>
             )}
             {!isAdmin && user.assignedBranchId && (
-              <div className="p-2 bg-indigo-50 dark:bg-indigo-900/10 rounded-xl flex items-center gap-2 border border-indigo-100 dark:border-indigo-900/30">
+              <div className="p-2 bg-indigo-50 dark:bg-indigo-900/10 rounded-xl flex items-center gap-2 border border-theme">
                 <Building2 size={12} className="text-indigo-600" />
                 <span className="text-[10px] font-black uppercase text-indigo-700 dark:text-indigo-300">{currentBranchName}</span>
               </div>
@@ -284,7 +284,7 @@ const Sidebar: React.FC<SidebarProps> = ({
                       w-full flex items-center gap-3 p-3 rounded-2xl transition-all group
                       ${isActive
                         ? 'bg-indigo-600 text-white shadow-xl shadow-indigo-600/20'
-                        : 'text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 hover:text-indigo-600'}
+                        : 'text-muted hover:bg-elevated hover:text-indigo-600'}
                       ${isCollapsed ? 'justify-center' : ''}
                       ${isTouchMode ? 'py-4' : 'py-3'}
                     `}

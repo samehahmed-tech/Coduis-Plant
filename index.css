@@ -402,33 +402,42 @@ textarea:focus {
 /* ═══════════════════════════════════════════════════════════════════════════
    CUSTOM SCROLLBAR
    ═══════════════════════════════════════════════════════════════════════════ */
+/* ═══════════════════════════════════════════════════════════════════════════
+   SCROLLBARS - ALWAYS VISIBLE
+   ═══════════════════════════════════════════════════════════════════════════ */
 ::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
+  width: 10px;
+  height: 10px;
 }
 
 ::-webkit-scrollbar-track {
-  background: transparent;
+  background: rgba(var(--border-color), 0.2);
+  border-radius: 100px;
 }
 
 ::-webkit-scrollbar-thumb {
-  background: rgba(var(--primary), 0.25);
+  background: rgba(var(--primary), 0.6) !important;
+  border: 2px solid rgb(var(--bg-app));
   border-radius: 100px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: rgba(var(--primary), 0.4);
+  background: rgba(var(--primary), 0.9) !important;
 }
 
-/* Hide scrollbar for Chrome, Safari and Opera */
+/* Ensure scrollbars are visible even when not active in some browsers */
+* {
+  scrollbar-width: auto !important;
+  scrollbar-color: rgba(var(--primary), 0.6) rgba(var(--border-color), 0.2) !important;
+}
+
+/* Disable no-scrollbar hiding functionality */
 .no-scrollbar::-webkit-scrollbar {
-  display: none;
+  display: block !important;
 }
-
-/* Hide scrollbar for IE, Edge and Firefox */
 .no-scrollbar {
-  -ms-overflow-style: none;
-  scrollbar-width: none;
+  -ms-overflow-style: auto !important;
+  scrollbar-width: auto !important;
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════

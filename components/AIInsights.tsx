@@ -17,11 +17,12 @@ interface AIInsightsProps {
     menuItems: MenuItem[];
     inventory: InventoryItem[];
     orders: Order[];
+    settings: AppSettings;
     lang: 'en' | 'ar';
     t: any;
 }
 
-const AIInsights: React.FC<AIInsightsProps> = ({ menuItems, inventory, orders, lang, t }) => {
+const AIInsights: React.FC<AIInsightsProps> = ({ menuItems, inventory, orders, settings, lang, t }) => {
     const [menuAnalysis, setMenuAnalysis] = useState<string>('');
     const [inventoryForecast, setInventoryForecast] = useState<string>('');
     const [isAnalyzing, setIsAnalyzing] = useState(false);
@@ -30,8 +31,8 @@ const AIInsights: React.FC<AIInsightsProps> = ({ menuItems, inventory, orders, l
         setIsAnalyzing(true);
         try {
             const [menuRes, invRes] = await Promise.all([
-                analyzeMenuEngineering(menuItems, orders.slice(-50), lang),
-                forecastInventory(inventory, orders.slice(-100), lang)
+                analyzeMenuEngineering(menuItems, orders.slice(-50), lang, settings.geminiApiKey),
+                forecastInventory(inventory, orders.slice(-100), lang, settings.geminiApiKey)
             ]);
             setMenuAnalysis(menuRes);
             setInventoryForecast(invRes);

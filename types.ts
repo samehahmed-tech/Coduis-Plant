@@ -438,6 +438,7 @@ export interface AppSettings {
   phone: string;
   activeBranchId?: string; // Current operating branch context
   currentUser?: User;
+  geminiApiKey?: string;
 }
 
 export type ViewState = 'DASHBOARD' | 'POS' | 'KDS' | 'INVENTORY' | 'FINANCE' | 'CRM' | 'REPORTS' | 'MENU_MANAGER' | 'AI_ASSISTANT' | 'AI_INSIGHTS' | 'SETTINGS' | 'CALL_CENTER' | 'FORENSICS' | 'SECURITY' | 'RECIPES';

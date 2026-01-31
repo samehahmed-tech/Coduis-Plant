@@ -127,7 +127,7 @@ const INITIAL_USERS: User[] = [
   {
     id: 'u1',
     name: 'Super Admin',
-    email: 'admin@restoflow.com',
+    email: 'admin@1.com',
     role: UserRole.SUPER_ADMIN,
     isActive: true,
     permissions: INITIAL_ROLE_PERMISSIONS[UserRole.SUPER_ADMIN]
@@ -153,7 +153,7 @@ const INITIAL_USERS: User[] = [
   {
     id: 'u4',
     name: 'Call Center Agent',
-    email: 'cc@restoflow.com',
+    email: 'f',
     role: UserRole.CALL_CENTER,
     isActive: true,
     permissions: INITIAL_ROLE_PERMISSIONS[UserRole.CALL_CENTER]
@@ -295,21 +295,39 @@ const App: React.FC = () => {
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [purchaseOrders, setPurchaseOrders] = useState<PurchaseOrder[]>([]);
   const [tables, setTables] = useState<Table[]>(INITIAL_TABLES);
-  const [settings, setSettings] = useState<AppSettings>({
-    restaurantName: 'RestoFlow ERP',
-    currency: 'EGP',
-    currencySymbol: 'ج.م',
-    taxRate: 14,
-    serviceCharge: 12,
-    language: 'ar',
-    isDarkMode: true,
-    isTouchMode: false,
-    theme: 'xen',
-    branchAddress: 'Sheikh Zayed, Cairo',
-    phone: '19000',
-    currentUser: undefined, // Start logged out
-    activeBranchId: undefined
+  const [settings, setSettings] = useState<AppSettings>(() => {
+    const saved = localStorage.getItem('erp_settings');
+    const initial = {
+      restaurantName: 'Coduis Zen ERP',
+      currency: 'EGP',
+      currencySymbol: 'ج.م',
+      taxRate: 14,
+      serviceCharge: 12,
+      language: 'ar',
+      isDarkMode: true,
+      isTouchMode: false,
+      theme: 'xen',
+      branchAddress: 'Sheikh Zayed, Cairo',
+      phone: '19000',
+      currentUser: undefined,
+      activeBranchId: undefined,
+      geminiApiKey: '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'
+    };
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        return { ...initial, ...parsed, currentUser: undefined }; // Don't persist user session for security
+      } catch (e) {
+        return initial;
+      }
+    }
+    return initial;
   });
+
+  useEffect(() => {
+    const { currentUser, ...toSave } = settings;
+    localStorage.setItem('erp_settings', JSON.stringify(toSave));
+  }, [settings]);
 
   const [loginError, setLoginError] = useState<string | undefined>();
 
@@ -757,10 +775,11 @@ const App: React.FC = () => {
                 />
               );
               case 'CRM': return <CRM {...commonProps} customers={customers} onAddCustomer={() => { }} />;
-              case 'AI_ASSISTANT': return <AIAssistant {...commonProps} />;
+              case 'AI_ASSISTANT': return <AIAssistant {...commonProps} inventory={inventory} orders={orders} menuItems={allItems} accounts={accounts} branches={branches} />;
               case 'AI_INSIGHTS': return (
                 <AIInsights
                   {...commonProps}
+                  settings={settings}
                   menuItems={allItems}
                   inventory={inventory}
                   orders={orders}
@@ -811,6 +830,15 @@ const App: React.FC = () => {
     );
   };
 
+  useEffect(() => {
+    document.documentElement.setAttribute('data-theme', settings.theme);
+    if (settings.isDarkMode) {
+      document.documentElement.classList.add('dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+    }
+  }, [settings.theme, settings.isDarkMode]);
+
   if (!settings.currentUser) {
     return (
       <Login
@@ -823,7 +851,7 @@ const App: React.FC = () => {
   }
 
   return (
-    <div className={`flex min-h-screen transition-all duration-500 bg-slate-50 dark:bg-slate-950`} dir={settings.language === 'ar' ? 'rtl' : 'ltr'}>
+    <div className={`flex min-h-screen transition-all duration-500 bg-[rgb(var(--bg-app))] text-[rgb(var(--text-main))]`} dir={settings.language === 'ar' ? 'rtl' : 'ltr'}>
       <Sidebar
         currentView={currentView}
         onChangeView={setCurrentView}

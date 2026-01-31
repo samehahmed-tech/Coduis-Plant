@@ -15,7 +15,8 @@ import {
     Store,
     Plus,
     Package,
-    ExternalLink
+    ExternalLink,
+    Cpu
 } from 'lucide-react';
 import { AppSettings, Branch, DeliveryPlatform, Warehouse, WarehouseType } from '../types';
 
@@ -168,6 +169,15 @@ const SettingsHub: React.FC<SettingsHubProps> = ({
                     ))}
                 </div>
             )
+        },
+        {
+            id: 'AI_AUTOMATION',
+            title: lang === 'ar' ? 'الذكاء الاصطناعي والأتمتة' : 'AI & Automation',
+            icon: Cpu,
+            color: 'bg-cyan-600',
+            fields: [
+                { key: 'geminiApiKey', label: lang === 'ar' ? 'مفتاح OpenRouter API' : 'OpenRouter API Key', type: 'text' },
+            ]
         }
     ];
 

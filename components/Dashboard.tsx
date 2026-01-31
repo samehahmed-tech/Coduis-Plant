@@ -69,6 +69,7 @@ const categoryData = [
 const COLORS = ['#6366f1', '#8b5cf6', '#ec4899', '#10b981', '#f59e0b'];
 
 interface DashboardProps {
+  settings: AppSettings;
   isDarkMode?: boolean;
   t: any;
   lang: 'en' | 'ar';
@@ -77,7 +78,7 @@ interface DashboardProps {
 }
 
 const Dashboard: React.FC<DashboardProps> = ({
-  isDarkMode = false, t, lang, onChangeView, hasPermission
+  settings, isDarkMode = false, t, lang, onChangeView, hasPermission
 }) => {
   const [insight, setInsight] = useState<string>("");
   const [loadingInsight, setLoadingInsight] = useState(false);
@@ -94,7 +95,7 @@ const Dashboard: React.FC<DashboardProps> = ({
     setIsError(false);
     const salesSummary = { weeklyTotal: 25550, topDay: 'Saturday', trend: 'Upward' };
     const lowStock = ['Tomatoes', 'Ribeye Steak', 'Red Wine'];
-    const result = await getBusinessInsights(salesSummary, lowStock, lang);
+    const result = await getBusinessInsights(salesSummary, lowStock, lang, settings.geminiApiKey);
 
     // Simple check to see if the result contains keywords indicating a quota error
     if (result.toLowerCase().includes("quota") || result.includes("حصة الاستخدام")) {
@@ -116,7 +117,7 @@ const Dashboard: React.FC<DashboardProps> = ({
   };
 
   return (
-    <div className="p-4 md:p-6 lg:p-8 space-y-6 animate-fade-in bg-slate-50 dark:bg-slate-950 transition-colors duration-200 min-h-screen pb-20">
+    <div className="p-4 md:p-6 lg:p-8 space-y-6 animate-fade-in transition-colors duration-200 min-h-screen pb-20">
       {/* Header & Controls */}
       <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4">
         <div>
