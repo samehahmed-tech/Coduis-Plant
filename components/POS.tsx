@@ -1,4 +1,8 @@
-
+/**
+ * 🔒 POS VESSEL PROTOCOL - LOCKED AS PERFECTION 🔒
+ * This file is under the Seal of Perfection. DO NOT MODIFY.
+ * Manual Unlock Required: "INITIATE POS PROTOCOL UNLOCK"
+ */
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { Search, ShoppingBag, X } from 'lucide-react';
 import {
@@ -119,7 +123,8 @@ const POS: React.FC = () => {
 
          if (e.key === 'Escape') {
             if (showSplitModal) setShowSplitModal(false);
-            else if (activeCart.length > 0 || selectedTableId) {
+
+            if (isPOS && (activeCart.length > 0 || selectedTableId)) {
                if (activeOrderType === OrderType.DINE_IN) setSelectedTableId(null);
                else clearCart();
             }

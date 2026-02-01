@@ -200,6 +200,8 @@ export interface Order {
   branchId: string; // The branch handling this order
   tableId?: string;
   customerId?: string;
+  customerName?: string; // Call Center - customer name for display
+  customerPhone?: string; // Call Center - customer phone for contact
   deliveryAddress?: string;
   isCallCenterOrder?: boolean;
   items: OrderItem[];
@@ -208,10 +210,14 @@ export interface Order {
   subtotal: number;
   tax: number;
   total: number;
+  discount?: number; // Discount percentage applied
+  freeDelivery?: boolean; // Call Center - free delivery flag
+  isUrgent?: boolean; // Call Center - priority order flag
   createdAt: Date;
   paymentMethod?: PaymentMethod;
   payments?: PaymentRecord[];
   notes?: string;
+  kitchenNotes?: string; // Notes for kitchen staff
 }
 
 export interface Supplier {

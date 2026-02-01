@@ -52,8 +52,9 @@ const INITIAL_PRINTERS: any[] = [
 
 const INITIAL_USERS: User[] = [
     { id: 'u1', name: 'Super Admin', email: 'admin@restoflow.com', role: UserRole.SUPER_ADMIN, permissions: INITIAL_ROLE_PERMISSIONS[UserRole.SUPER_ADMIN], isActive: true },
-    { id: 'u2', name: 'Branch Manager', email: 'manager@restoflow.com', role: UserRole.MANAGER, permissions: INITIAL_ROLE_PERMISSIONS[UserRole.MANAGER], isActive: true, assignedBranchId: 'b1' },
+    { id: 'u2', name: 'Branch Manager', email: 'manager@restoflow.com', role: UserRole.BRANCH_MANAGER, permissions: INITIAL_ROLE_PERMISSIONS[UserRole.BRANCH_MANAGER], isActive: true, assignedBranchId: 'b1' },
     { id: 'u3', name: 'Cashier One', email: 'pos1@restoflow.com', role: UserRole.CASHIER, permissions: INITIAL_ROLE_PERMISSIONS[UserRole.CASHIER], isActive: true, assignedBranchId: 'b1' },
+    { id: 'u4', name: 'Call Center Agent', email: 'callcenter@1.com', role: UserRole.CALL_CENTER, permissions: INITIAL_ROLE_PERMISSIONS[UserRole.CALL_CENTER], isActive: true },
 ];
 
 export const useAuthStore = create<AuthState>()(
@@ -99,6 +100,8 @@ export const useAuthStore = create<AuthState>()(
                 const user = get().settings.currentUser;
                 if (!user) return false;
                 if (user.role === UserRole.SUPER_ADMIN) return true;
+                // Branch managers get elevated access to all navigation items
+                if (user.role === UserRole.BRANCH_MANAGER && permission.startsWith('NAV_')) return true;
                 return user.permissions.includes(permission);
             }
         }),

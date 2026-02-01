@@ -81,6 +81,21 @@ const Sidebar: React.FC = () => {
   const [showCalc, setShowCalc] = useState(false);
   const t = translations[lang] || translations['en'];
 
+  const isCallCenter = user?.role === UserRole.CALL_CENTER;
+  const isCallCenterPage = location.pathname === '/call-center';
+
+  // Navigation sections for Call Center users (limited)
+  const callCenterNavigationSections = [
+    {
+      title: lang === 'ar' ? 'مركز الاتصال' : 'Call Center',
+      items: [
+        { path: '/call-center', label: t.call_center, icon: Headset, permission: AppPermission.NAV_CALL_CENTER },
+        { path: '/crm', label: t.crm, icon: Users, permission: AppPermission.NAV_CRM },
+      ]
+    }
+  ];
+
+  // Full navigation sections for admins/managers
   const navigationSections = [
     {
       title: lang === 'ar' ? 'العمليات الميدانية' : 'Operations',
@@ -120,9 +135,14 @@ const Sidebar: React.FC = () => {
     }
   ];
 
-  const filteredSections = navigationSections.map(section => ({
+  // Call Center users get their dedicated nav, others get full nav
+  const userRole = settings.currentUser?.role;
+  const isFullAccess = userRole === UserRole.SUPER_ADMIN || userRole === UserRole.BRANCH_MANAGER;
+
+  const sectionsToUse = isCallCenter ? callCenterNavigationSections : navigationSections;
+  const filteredSections = sectionsToUse.map(section => ({
     ...section,
-    items: section.items.filter(item => hasPermission(item.permission))
+    items: isFullAccess || isCallCenter ? section.items : section.items.filter(item => hasPermission(item.permission))
   })).filter(section => section.items.length > 0);
 
   const handleNavClick = () => {
@@ -215,7 +235,11 @@ const Sidebar: React.FC = () => {
 
         {/* Navigation */}
         <nav className="flex-1 overflow-y-auto py-2 px-3 space-y-4 no-scrollbar scroll-smooth">
-          {/* POS Quick Actions Integrated */}
+          {/* 
+             🛡️ POS VESSEL PROTOCOL - PROTECTED SECTION 
+             This section is isolated from global design changes to maintain 
+             cashier consistency. DO NOT MODIFY without Protocol Unlock.
+          */}
           {isPOS && (
             <div className="mb-8 p-1.5 rounded-[2rem] bg-slate-50 dark:bg-white/5 border border-border/50 shadow-sm relative overflow-hidden group/pos">
               <div className="absolute top-0 left-0 w-full h-[1px] bg-gradient-to-r from-transparent via-primary/20 to-transparent" />
@@ -337,6 +361,114 @@ const Sidebar: React.FC = () => {
                     <Tablet size={18} />
                     <div className={`absolute ${lang === 'ar' ? 'right-full mr-5' : 'left-full ml-5'} top-1/2 -translate-y-1/2 px-4 py-2 bg-slate-900/90 backdrop-blur-md text-white text-[10px] font-black uppercase tracking-[0.2em] rounded-xl opacity-0 group-hover:opacity-100 transition-all duration-300 pointer-events-none whitespace-nowrap shadow-2xl z-[100]`}>
                       {lang === 'ar' ? 'وضع اللمس' : 'Touch Mode'}
+                    </div>
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* 📞 CALL CENTER COMMAND CENTER */}
+          {isCallCenter && (
+            <div className="mb-8 p-1.5 rounded-[2rem] bg-gradient-to-br from-indigo-50 to-violet-50 dark:from-indigo-950/30 dark:to-violet-950/30 border border-indigo-200/50 dark:border-indigo-800/30 shadow-sm relative overflow-hidden">
+              <div className="absolute top-0 left-0 w-full h-[1px] bg-gradient-to-r from-transparent via-indigo-400/30 to-transparent" />
+              {!isCollapsed && (
+                <div className="px-4 pt-4 pb-2 flex justify-between items-center">
+                  <h3 className="text-[10px] font-black text-indigo-600 dark:text-indigo-400 uppercase tracking-[0.2em]">
+                    {lang === 'ar' ? 'أدوات الاتصال' : 'Operator Tools'}
+                  </h3>
+                  <div className="flex gap-1">
+                    <div className="w-1.5 h-1.5 rounded-full bg-indigo-500 animate-pulse" />
+                    <div className="w-1.5 h-1.5 rounded-full bg-indigo-300" />
+                  </div>
+                </div>
+              )}
+
+              {!isCollapsed && (
+                <div className="flex flex-col gap-3 p-3">
+                  {/* Discount Quick Select */}
+                  <div className="bg-white/60 dark:bg-slate-900/40 rounded-2xl p-3 border border-indigo-100 dark:border-indigo-900/30">
+                    <span className="text-[8px] font-black uppercase text-indigo-500 tracking-widest block mb-2">
+                      {lang === 'ar' ? 'خصم سريع' : 'Quick Discount'}
+                    </span>
+                    <div className="flex gap-1">
+                      {[0, 5, 10, 15, 20].map(d => (
+                        <button
+                          key={d}
+                          onClick={() => setDiscount(d)}
+                          className={`flex-1 py-2 rounded-xl text-[10px] font-black transition-all ${discount === d
+                              ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-500/30'
+                              : 'bg-slate-100 dark:bg-slate-800 text-slate-500 hover:bg-indigo-100'
+                            }`}
+                        >
+                          {d}%
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Branch Selector */}
+                  <div className="bg-white/60 dark:bg-slate-900/40 rounded-2xl p-3 border border-indigo-100 dark:border-indigo-900/30">
+                    <span className="text-[8px] font-black uppercase text-indigo-500 tracking-widest block mb-2">
+                      {lang === 'ar' ? 'توجيه الطلب إلى' : 'Route to Branch'}
+                    </span>
+                    <select
+                      value={activeBranchId || ''}
+                      onChange={(e) => setActiveBranch(e.target.value)}
+                      className="w-full bg-slate-100 dark:bg-slate-800 border-none rounded-xl py-2.5 px-3 text-xs font-bold text-slate-700 dark:text-white outline-none focus:ring-2 focus:ring-indigo-500/50"
+                    >
+                      {branches.map(b => (
+                        <option key={b.id} value={b.id}>{b.name}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {/* Quick Actions Row */}
+                  <div className="grid grid-cols-2 gap-2">
+                    <button
+                      onClick={() => setShowCalc(!showCalc)}
+                      className={`flex flex-col items-center gap-1 p-3 rounded-2xl border transition-all ${showCalc
+                          ? 'bg-indigo-600 text-white border-indigo-600'
+                          : 'bg-white/60 dark:bg-slate-900/40 border-indigo-100 dark:border-indigo-900/30 hover:border-indigo-300'
+                        }`}
+                    >
+                      <Calculator size={16} />
+                      <span className="text-[8px] font-black uppercase">{lang === 'ar' ? 'حاسبة' : 'Calc'}</span>
+                    </button>
+                    <button
+                      onClick={handleToggleTouchMode}
+                      className={`flex flex-col items-center gap-1 p-3 rounded-2xl border transition-all ${isTouchMode
+                          ? 'bg-amber-500 text-white border-amber-500'
+                          : 'bg-white/60 dark:bg-slate-900/40 border-indigo-100 dark:border-indigo-900/30 hover:border-amber-300'
+                        }`}
+                    >
+                      <Tablet size={16} />
+                      <span className="text-[8px] font-black uppercase">{lang === 'ar' ? 'لمس' : 'Touch'}</span>
+                    </button>
+                  </div>
+
+                  {/* Calculator Panel */}
+                  {showCalc && (
+                    <div className="animate-in slide-in-from-top-2 duration-300">
+                      <CalculatorWidget isLarge={false} />
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Collapsed State Icons */}
+              {isCollapsed && (
+                <div className="flex flex-col items-center gap-3 py-4">
+                  <button onClick={() => setDiscount(discount === 0 ? 10 : 0)} className={`group relative p-3 rounded-2xl transition-all ${discount > 0 ? 'bg-indigo-600 text-white' : 'bg-white/60 dark:bg-slate-800 border border-indigo-200 dark:border-indigo-800'}`}>
+                    <Sparkles size={18} />
+                    <div className={`absolute ${lang === 'ar' ? 'right-full mr-4' : 'left-full ml-4'} top-1/2 -translate-y-1/2 px-3 py-2 bg-slate-900 text-white text-[10px] font-black rounded-xl opacity-0 group-hover:opacity-100 transition-all whitespace-nowrap z-[100]`}>
+                      {lang === 'ar' ? 'خصم' : 'Discount'}
+                    </div>
+                  </button>
+                  <button onClick={() => setShowCalc(!showCalc)} className="group relative p-3 rounded-2xl bg-white/60 dark:bg-slate-800 border border-indigo-200 dark:border-indigo-800">
+                    <Calculator size={18} className={showCalc ? 'text-indigo-600' : ''} />
+                    <div className={`absolute ${lang === 'ar' ? 'right-full mr-4' : 'left-full ml-4'} top-1/2 -translate-y-1/2 px-3 py-2 bg-slate-900 text-white text-[10px] font-black rounded-xl opacity-0 group-hover:opacity-100 transition-all whitespace-nowrap z-[100]`}>
+                      {lang === 'ar' ? 'حاسبة' : 'Calculator'}
                     </div>
                   </button>
                 </div>
