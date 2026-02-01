@@ -131,6 +131,12 @@ export const useOrderStore = create<OrderState>((set, get) => ({
                 }))
             });
 
+            // Emit event for other systems (Inventory, Audit, etc.)
+            eventBus.emit(AuditEventType.POS_ORDER_PLACEMENT, {
+                order: savedOrder,
+                timestamp: new Date()
+            });
+
             // Update local state
             set((state) => ({
                 orders: [order, ...state.orders],

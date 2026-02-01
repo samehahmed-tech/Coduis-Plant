@@ -17,7 +17,9 @@ import {
     Plus,
     Package,
     ExternalLink,
-    Cpu
+    Cpu,
+    Settings,
+    ChevronRight,
 } from 'lucide-react';
 import { AppSettings } from '../types';
 
@@ -204,7 +206,13 @@ const SettingsHub: React.FC = () => {
                     >
                         Exit Terminal
                     </button>
-                    <button className="flex items-center gap-3 px-8 py-4 bg-primary text-white rounded-[1.5rem] font-black text-[10px] uppercase tracking-[0.2em] hover:bg-opacity-90 transition-all shadow-2xl shadow-primary/30">
+                    <button
+                        onClick={() => {
+                            updateSettings(settings);
+                            alert(lang === 'ar' ? 'تم حفظ الإعدادات بنجاح!' : 'Settings deployed successfully!');
+                        }}
+                        className="flex items-center gap-3 px-8 py-4 bg-primary text-white rounded-[1.5rem] font-black text-[10px] uppercase tracking-[0.2em] hover:bg-opacity-90 transition-all shadow-2xl shadow-primary/30"
+                    >
                         <Save size={18} /> Deploy Configurations
                     </button>
                 </div>

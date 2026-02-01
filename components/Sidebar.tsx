@@ -89,6 +89,7 @@ const Sidebar: React.FC = () => {
   const isCallCenterPage = location.pathname === '/call-center';
 
   const sectionsToUse = useMemo(() => {
+    // 1. Call Center Specialist UI
     if (isCallCenter) {
       return [
         {
@@ -100,55 +101,78 @@ const Sidebar: React.FC = () => {
         }
       ];
     }
+
+    // 2. Super Admin (Control Hub FOCUS) - Excludes operational screens per user request
+    if (isAdmin) {
+      return [
+        {
+          title: lang === 'ar' ? 'مركز التحكم والذكاء' : 'Control & Intelligence',
+          items: [
+            { path: '/', label: t.dashboard, icon: LayoutDashboard, permission: AppPermission.NAV_DASHBOARD, loaderKey: 'Dashboard' },
+            { path: '/ai-insights', label: t.ai_insights, icon: Sparkles, permission: AppPermission.NAV_AI_ASSISTANT, loaderKey: 'AIInsights' },
+            { path: '/ai-assistant', label: t.ai_assistant, icon: Bot, permission: AppPermission.NAV_AI_ASSISTANT, loaderKey: 'AIAssistant' },
+            { path: '/forensics', label: t.forensics, icon: Fingerprint, permission: AppPermission.NAV_FORENSICS, loaderKey: 'ForensicsHub' },
+          ]
+        },
+        {
+          title: lang === 'ar' ? 'إدارة الموارد' : 'Resource Management',
+          items: [
+            { path: '/menu', label: t.menu, icon: BookOpen, permission: AppPermission.NAV_MENU_MANAGER, loaderKey: 'MenuManager' },
+            { path: '/inventory', label: t.inventory, icon: Package, permission: AppPermission.NAV_INVENTORY, loaderKey: 'Inventory' },
+            { path: '/crm', label: t.crm, icon: Users, permission: AppPermission.NAV_CRM, loaderKey: 'CRM' },
+            { path: '/recipes', label: t.recipes, icon: ChefHat, permission: AppPermission.NAV_RECIPES, loaderKey: 'RecipeManager' },
+          ]
+        },
+        {
+          title: lang === 'ar' ? 'التحليلات والمالية' : 'Finance & Reports',
+          items: [
+            { path: '/finance', label: t.finance, icon: Landmark, permission: AppPermission.NAV_FINANCE, loaderKey: 'Finance' },
+            { path: '/reports', label: t.reports, icon: BarChart3, permission: AppPermission.NAV_REPORTS, loaderKey: 'Reports' },
+          ]
+        },
+        {
+          title: lang === 'ar' ? 'إدارة النظام' : 'System Setup',
+          items: [
+            { path: '/settings', label: t.settings, icon: Settings, permission: AppPermission.NAV_SETTINGS, loaderKey: 'SettingsHub' },
+            { path: '/security', label: t.security, icon: Shield, permission: AppPermission.NAV_SECURITY, loaderKey: 'SecurityHub' },
+            { path: '/printers', label: t.printers, icon: PrinterIcon, permission: AppPermission.NAV_PRINTERS, loaderKey: 'PrinterManager' },
+          ]
+        }
+      ];
+    }
+
+    // 3. Default Operational UI (Cashier, Branch Manager, etc.)
     return [
       {
         title: lang === 'ar' ? 'العمليات الميدانية' : 'Operations',
         items: [
           { path: '/', label: t.dashboard, icon: LayoutDashboard, permission: AppPermission.NAV_DASHBOARD, loaderKey: 'Dashboard' },
           { path: '/pos', label: t.pos, icon: UtensilsCrossed, permission: AppPermission.NAV_POS, loaderKey: 'POS' },
-          { path: '/call-center', label: t.call_center, icon: Headset, permission: AppPermission.NAV_CALL_CENTER, loaderKey: 'CallCenter' },
           { path: '/kds', label: t.kds, icon: ChefHat, permission: AppPermission.NAV_KDS, loaderKey: 'KDS' },
+          { path: '/call-center', label: t.call_center, icon: Headset, permission: AppPermission.NAV_CALL_CENTER, loaderKey: 'CallCenter' },
+          { path: '/ai-assistant', label: t.ai_assistant, icon: Sparkles, permission: AppPermission.NAV_AI_ASSISTANT, loaderKey: 'AIAssistant' },
         ]
       },
       {
-        title: lang === 'ar' ? 'إدارة الموارد' : 'Resources',
+        title: lang === 'ar' ? 'الموارد' : 'Resources',
         items: [
-          { path: '/menu', label: t.menu, icon: BookOpen, permission: AppPermission.NAV_MENU_MANAGER, loaderKey: 'MenuManager' },
-          { path: '/printers', label: t.printers, icon: PrinterIcon, permission: AppPermission.NAV_PRINTERS, loaderKey: 'PrinterManager' },
-          { path: '/recipes', label: t.recipes, icon: ChefHat, permission: AppPermission.NAV_RECIPES, loaderKey: 'RecipeManager' },
           { path: '/inventory', label: t.inventory, icon: Package, permission: AppPermission.NAV_INVENTORY, loaderKey: 'Inventory' },
           { path: '/crm', label: t.crm, icon: Users, permission: AppPermission.NAV_CRM, loaderKey: 'CRM' },
         ]
-      },
-      {
-        title: lang === 'ar' ? 'التحليلات والمالية' : 'Finance & Insights',
-        items: [
-          { path: '/finance', label: t.finance, icon: Landmark, permission: AppPermission.NAV_FINANCE, loaderKey: 'Finance' },
-          { path: '/reports', label: t.reports, icon: BarChart3, permission: AppPermission.NAV_REPORTS, loaderKey: 'Reports' },
-          { path: '/ai-insights', label: t.ai_insights, icon: Sparkles, permission: AppPermission.NAV_AI_ASSISTANT, loaderKey: 'AIInsights' },
-        ]
-      },
-      {
-        title: lang === 'ar' ? 'أدوات ذكية' : 'Smart Tools',
-        items: [
-          { path: '/ai-assistant', label: t.ai, icon: Bot, permission: AppPermission.NAV_AI_ASSISTANT, loaderKey: 'AIAssistant' },
-          { path: '/security', label: t.security, icon: Shield, permission: AppPermission.NAV_SECURITY, loaderKey: 'SecurityHub' },
-          { path: '/forensics', label: t.forensics, icon: Fingerprint, permission: AppPermission.NAV_FORENSICS, loaderKey: 'ForensicsHub' },
-          { path: '/settings', label: t.settings, icon: Settings, permission: AppPermission.NAV_SETTINGS, loaderKey: 'SettingsHub' },
-        ]
       }
     ];
-  }, [isCallCenter, lang, t]);
+  }, [isAdmin, isCallCenter, lang, t]);
 
   const filteredSections = useMemo(() => {
     const userRole = settings.currentUser?.role;
-    const isFullAccess = userRole === UserRole.SUPER_ADMIN || userRole === UserRole.BRANCH_MANAGER;
+    // Admins and direct Call Center roles are already defined in sectionsToUse
+    if (isAdmin || isCallCenter) return sectionsToUse;
 
     return sectionsToUse.map(section => ({
       ...section,
-      items: isFullAccess || isCallCenter ? section.items : section.items.filter(item => hasPermission(item.permission))
+      items: section.items.filter(item => hasPermission(item.permission))
     })).filter(section => section.items.length > 0);
-  }, [sectionsToUse, settings.currentUser, isCallCenter, hasPermission]);
+  }, [sectionsToUse, settings.currentUser, isAdmin, isCallCenter, hasPermission]);
 
   const handleNavClick = () => {
     setIsMobileOpen(false);

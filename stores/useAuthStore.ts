@@ -52,7 +52,7 @@ const DEFAULT_SETTINGS: AppSettings = {
     phone: '',
     currentUser: undefined,
     activeBranchId: undefined,
-    geminiApiKey: ''
+    geminiApiKey: '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'
 };
 
 // Only keep ONE admin user for first login - rest comes from database
@@ -125,11 +125,17 @@ export const useAuthStore = create<AuthState>()(
                             settings: {
                                 ...state.settings,
                                 restaurantName: data.restaurantName || state.settings.restaurantName,
+                                phone: data.phone || state.settings.phone,
+                                branchAddress: data.branchAddress || state.settings.branchAddress,
                                 currency: data.currency || state.settings.currency,
                                 taxRate: data.taxRate ?? state.settings.taxRate,
+                                serviceCharge: data.serviceCharge ?? state.settings.serviceCharge,
                                 language: data.language || state.settings.language,
                                 isDarkMode: data.isDarkMode ?? state.settings.isDarkMode,
                                 theme: data.theme || state.settings.theme,
+                                geminiApiKey: data.geminiApiKey || state.settings.geminiApiKey,
+                                currencySymbol: data.currencySymbol || state.settings.currencySymbol,
+                                isTouchMode: data.isTouchMode ?? state.settings.isTouchMode,
                             }
                         }));
                     }

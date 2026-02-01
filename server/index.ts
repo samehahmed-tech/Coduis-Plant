@@ -336,11 +336,11 @@ app.get('/api/menu/items/:id', async (req, res) => {
 
 app.post('/api/menu/items', async (req, res) => {
     try {
-        const { id, category_id, name, name_ar, description, description_ar, price, cost, image, is_available, preparation_time, is_popular, is_featured, sort_order } = req.body;
+        const { id, category_id, name, name_ar, description, description_ar, price, cost, image, is_available, preparation_time, is_popular, is_featured, sort_order, recipe } = req.body;
         const result = await pool.query(
-            `INSERT INTO menu_items (id, category_id, name, name_ar, description, description_ar, price, cost, image, is_available, preparation_time, is_popular, is_featured, sort_order, created_at, updated_at)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, NOW(), NOW()) RETURNING *`,
-            [id, category_id, name, name_ar, description, description_ar, price, cost || 0, image, is_available ?? true, preparation_time || 15, is_popular ?? false, is_featured ?? false, sort_order || 0]
+            `INSERT INTO menu_items (id, category_id, name, name_ar, description, description_ar, price, cost, image, is_available, preparation_time, is_popular, is_featured, sort_order, recipe, created_at, updated_at)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, NOW(), NOW()) RETURNING *`,
+            [id, category_id, name, name_ar, description, description_ar, price, cost || 0, image, is_available ?? true, preparation_time || 15, is_popular ?? false, is_featured ?? false, sort_order || 0, JSON.stringify(recipe || [])]
         );
         res.status(201).json(result.rows[0]);
     } catch (error: any) {
@@ -350,11 +350,11 @@ app.post('/api/menu/items', async (req, res) => {
 
 app.put('/api/menu/items/:id', async (req, res) => {
     try {
-        const { category_id, name, name_ar, description, description_ar, price, cost, image, is_available, preparation_time, is_popular, is_featured, sort_order } = req.body;
+        const { category_id, name, name_ar, description, description_ar, price, cost, image, is_available, preparation_time, is_popular, is_featured, sort_order, recipe } = req.body;
         const result = await pool.query(
-            `UPDATE menu_items SET category_id = $1, name = $2, name_ar = $3, description = $4, description_ar = $5, price = $6, cost = $7, image = $8, is_available = $9, preparation_time = $10, is_popular = $11, is_featured = $12, sort_order = $13, updated_at = NOW()
+            `UPDATE menu_items SET category_id = $1, name = $2, name_ar = $3, description = $4, description_ar = $5, price = $6, cost = $7, image = $8, is_available = $9, preparation_time = $10, is_popular = $11, is_featured = $12, sort_order = $13, recipe = $15, updated_at = NOW()
        WHERE id = $14 RETURNING *`,
-            [category_id, name, name_ar, description, description_ar, price, cost, image, is_available, preparation_time, is_popular, is_featured, sort_order, req.params.id]
+            [category_id, name, name_ar, description, description_ar, price, cost, image, is_available, preparation_time, is_popular, is_featured, sort_order, req.params.id, JSON.stringify(recipe || [])]
         );
         res.json(result.rows[0]);
     } catch (error: any) {
@@ -483,12 +483,41 @@ app.post('/api/orders', async (req, res) => {
             [id, status || 'PENDING', call_center_agent_id]
         );
 
-        // Update customer stats if customer exists
-        if (customer_id) {
-            await client.query(
-                `UPDATE customers SET visits = visits + 1, total_spent = total_spent + $1, updated_at = NOW() WHERE id = $2`,
-                [total, customer_id]
-            );
+        // Deduct inventory based on recipes
+        for (const item of items || []) {
+            const menuItemId = item.menu_item_id || item.id;
+            const menuItemResult = await client.query('SELECT recipe FROM menu_items WHERE id = $1', [menuItemId]);
+            const recipe = menuItemResult.rows[0]?.recipe;
+
+            if (recipe && Array.isArray(recipe)) {
+                // Find a warehouse for this branch to deduct from (Kitchen preferred)
+                const warehouseResult = await client.query(
+                    "SELECT id FROM warehouses WHERE branch_id = $1 AND type IN ('KITCHEN', 'POINT_OF_SALE') ORDER BY type DESC LIMIT 1",
+                    [branch_id]
+                );
+                const warehouseId = warehouseResult.rows[0]?.id;
+
+                if (warehouseId) {
+                    for (const ingredient of recipe) {
+                        const deductionQty = ingredient.quantity * item.quantity;
+
+                        // Deduct from stock
+                        await client.query(
+                            `UPDATE inventory_stock 
+                             SET quantity = quantity - $1, last_audit_date = NOW() 
+                             WHERE item_id = $2 AND warehouse_id = $3`,
+                            [deductionQty, ingredient.itemId, warehouseId]
+                        );
+
+                        // Record movement
+                        await client.query(
+                            `INSERT INTO stock_movements (item_id, from_warehouse_id, quantity, type, reason, actor_id, reference_id, created_at)
+                             VALUES ($1, $2, $3, 'SALE_CONSUMPTION', 'Automatic deduction from Order', $4, $5, NOW())`,
+                            [ingredient.itemId, warehouseId, deductionQty, call_center_agent_id || 'system', id]
+                        );
+                    }
+                }
+            }
         }
 
         await client.query('COMMIT');

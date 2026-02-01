@@ -350,6 +350,12 @@ export interface Printer {
   branchId: string;
 }
 
+export enum AuditEventType {
+  // AI & Intelligence
+  AI_INSIGHT_GENERATED = 'AI_INSIGHT_GENERATED',
+  AI_ANOMALY_DETECTED = 'AI_ANOMALY_DETECTED'
+}
+
 export interface Offer {
   id: string;
   title: string;
@@ -449,7 +455,8 @@ export const INITIAL_ROLE_PERMISSIONS: Record<UserRole, AppPermission[]> = {
     AppPermission.OP_PLACE_ORDER,
     AppPermission.OP_APPLY_DISCOUNT,
     AppPermission.OP_TRANSFER_STOCK,
-    AppPermission.OP_ADJUST_STOCK
+    AppPermission.OP_ADJUST_STOCK,
+    AppPermission.NAV_AI_ASSISTANT
   ],
   [UserRole.CASHIER]: [
     AppPermission.NAV_POS,
@@ -462,7 +469,8 @@ export const INITIAL_ROLE_PERMISSIONS: Record<UserRole, AppPermission[]> = {
     AppPermission.NAV_CALL_CENTER,
     AppPermission.NAV_CRM,
     AppPermission.OP_PLACE_ORDER,
-    AppPermission.DATA_VIEW_CUSTOMER_SENSITIVE
+    AppPermission.DATA_VIEW_CUSTOMER_SENSITIVE,
+    AppPermission.NAV_AI_ASSISTANT
   ],
   [UserRole.CUSTOM]: []
 };

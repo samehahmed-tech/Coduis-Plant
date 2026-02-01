@@ -191,7 +191,28 @@ const POS: React.FC = () => {
       updateCartItemQuantity(cartId, delta);
    }, [updateCartItemQuantity]);
 
-   const handleSubmitOrder = () => {
+   const handleQuickPay = () => {
+      setPaymentMethod(PaymentMethod.CASH);
+      setTimeout(() => handleSubmitOrder(), 0);
+   };
+
+   const handleRecallLastOrder = () => {
+      if (orders.length > 0) {
+         const lastOrder = orders[0];
+         // Restore items to cart
+         clearCart();
+         lastOrder.items.forEach(item => {
+            addToCart({
+               ...item,
+               cartId: Math.random().toString(36).substr(2, 9)
+            });
+         });
+         if (lastOrder.tableId) setSelectedTableId(lastOrder.tableId);
+         if (lastOrder.type) setOrderMode(lastOrder.type);
+      }
+   };
+
+   const handleSubmitOrder = async () => {
       if (activeCart.length === 0) return;
       if (paymentMethod === PaymentMethod.SPLIT) {
          const splitTotal = splitPayments.reduce((sum, p) => sum + p.amount, 0);
@@ -218,63 +239,16 @@ const POS: React.FC = () => {
          syncStatus: 'PENDING'
       };
 
-      // 1. Place Order in Store
-      placeOrder(newOrder);
+      // 1. Place Order in Store (Syncs with server which now handles inventory)
+      await placeOrder(newOrder);
 
-      // 2. Deduct Inventory (Logic Restored from App.tsx)
-      let totalCOGS = 0;
-      const targetBranchWarehouse = warehouses.find(w => w.branchId === branchId && (w.type === WarehouseType.KITCHEN || w.type === WarehouseType.POINT_OF_SALE)) || warehouses.find(w => w.branchId === branchId);
-
-      // We need to operate on the current inventory state
-      const currentInventory = inventory;
-
-      newOrder.items.forEach(orderItem => {
-         // Get Recipe
-         const menuItems = categories.flatMap(c => c.items);
-         const baseItem = menuItems.find(mi => mi.id === orderItem.id);
-         const receiptsToProcess: RecipeIngredient[] = [...(baseItem?.recipe || [])];
-
-         // Modifiers Recipe
-         orderItem.selectedModifiers?.forEach(mod => {
-            const modGroup = baseItem?.modifierGroups?.find(mg => mg.name === mod.groupName);
-            const modOption = modGroup?.options.find(o => o.name === mod.optionName);
-            if (modOption?.recipe) {
-               receiptsToProcess.push(...modOption.recipe);
-            }
-         });
-
-         // Deduct Stock
-         receiptsToProcess.forEach(ri => {
-            const invItem = currentInventory.find(ii => ii.id === ri.itemId);
-            if (invItem) {
-               totalCOGS += (invItem.costPrice * ri.quantity * orderItem.quantity);
-
-               // Find relevant warehouse quantity
-               const wq = invItem.warehouseQuantities.find(q => q.warehouseId === targetBranchWarehouse?.id);
-               if (wq && targetBranchWarehouse) {
-                  const newQuantity = Math.max(0, wq.quantity - (ri.quantity * orderItem.quantity));
-                  updateStock(invItem.id, targetBranchWarehouse.id, newQuantity);
-               }
-            }
-         });
-      });
-
-      // 3. Record Finance Transactions
+      // 2. Record Finance Transactions (Keeping for now although this belongs to an event listener too)
       recordTransaction({
          date: new Date(),
          description: `Sale - Order #${newOrder.id}`,
-         debitAccountId: '1-1-1', // Asset: Cashier Main
-         creditAccountId: '4-1', // Revenue: Food Sales
+         debitAccountId: '1-1-1',
+         creditAccountId: '4-1',
          amount: newOrder.total,
-         referenceId: newOrder.id
-      });
-
-      recordTransaction({
-         date: new Date(),
-         description: `COGS - Order #${newOrder.id}`,
-         debitAccountId: '5-1-1', // Expense: Food Cost
-         creditAccountId: '1-2-1', // Asset: Raw Materials
-         amount: totalCOGS,
          referenceId: newOrder.id
       });
 
@@ -333,6 +307,7 @@ const POS: React.FC = () => {
                onClearCustomer={() => setDeliveryCustomer(null)}
                isSidebarCollapsed={isSidebarCollapsed}
                isTouchMode={isTouchMode}
+               onRecall={handleRecallLastOrder}
             />
 
             <NoteModal
@@ -459,6 +434,7 @@ const POS: React.FC = () => {
                            t={t}
                            onVoid={handleVoidOrder}
                            onSubmit={handleSubmitOrder}
+                           onQuickPay={handleQuickPay}
                            canSubmit={activeCart.length > 0}
                         />
                      </div>

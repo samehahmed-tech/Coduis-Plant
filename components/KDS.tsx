@@ -1,12 +1,44 @@
 
 import React from 'react';
 import { Clock, CheckCircle } from 'lucide-react';
-import { OrderStatus } from '../types';
+import { OrderStatus, AuditEventType } from '../types';
 import { useOrderStore } from '../stores/useOrderStore';
+import { eventBus } from '../services/eventBus';
+import { useAuthStore } from '../stores/useAuthStore';
+import { translations } from '../services/translations';
 
 const KDS: React.FC = () => {
-  const { orders, updateOrderStatus } = useOrderStore();
-  const activeOrders = orders.filter(o => o.status !== OrderStatus.DELIVERED && o.status !== OrderStatus.CANCELLED);
+  const { orders, updateOrderStatus, fetchOrders } = useOrderStore();
+  const { settings } = useAuthStore();
+  const t = translations[settings.language || 'en'];
+
+  const [lastOrderTime, setLastOrderTime] = React.useState<number>(Date.now());
+  const [isFlashing, setIsFlashing] = React.useState(false);
+
+  React.useEffect(() => {
+    fetchOrders(); // Initial fetch
+
+    // Listen for new orders via EventBus
+    const unsubscribe = eventBus.on(AuditEventType.POS_ORDER_PLACEMENT, () => {
+      fetchOrders();
+      setLastOrderTime(Date.now());
+      setIsFlashing(true);
+      setTimeout(() => setIsFlashing(false), 3000);
+
+      // Play a subtle notification sound if possible
+      try {
+        const audio = new Audio('/sounds/notification.mp3');
+        audio.play();
+      } catch (e) {
+        // Ignore if sound fails
+      }
+    });
+
+    return () => unsubscribe();
+  }, [fetchOrders]);
+
+  const activeOrders = orders.filter(o => o.status !== OrderStatus.DELIVERED && o.status !== OrderStatus.CANCELLED)
+    .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
 
   const getStatusColor = (status: OrderStatus) => {
     switch (status) {
@@ -28,12 +60,16 @@ const KDS: React.FC = () => {
 
   return (
     <div className="p-8 min-h-screen bg-slate-50 dark:bg-slate-950 transition-colors pb-24">
-      <div className="flex justify-between items-center mb-8">
+      <div className={`flex justify-between items-center mb-8 p-6 rounded-[2rem] transition-all duration-700 ${isFlashing ? 'bg-indigo-600 shadow-2xl shadow-indigo-600/40' : 'bg-transparent'}`}>
         <div>
-          <h2 className="text-3xl font-black text-slate-800 dark:text-white uppercase tracking-tight">Kitchen Module</h2>
-          <p className="text-slate-500 dark:text-slate-400 font-semibold text-sm">Real-time order tracking and kitchen efficiency.</p>
+          <h2 className={`text-3xl font-black uppercase tracking-tight transition-colors ${isFlashing ? 'text-white' : 'text-slate-800 dark:text-white'}`}>
+            {isFlashing ? '🚨 NEW ORDER RECEIVED 🚨' : 'Kitchen Module'}
+          </h2>
+          <p className={`font-semibold text-sm transition-colors ${isFlashing ? 'text-indigo-100' : 'text-slate-500 dark:text-slate-400'}`}>
+            {isFlashing ? 'Immediate attention required for incoming ticket.' : 'Real-time order tracking and kitchen efficiency.'}
+          </p>
         </div>
-        <div className="text-sm font-black text-indigo-600 bg-white dark:bg-slate-900 px-6 py-2.5 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-800 uppercase tracking-widest">
+        <div className={`text-sm font-black px-6 py-2.5 rounded-2xl shadow-sm border uppercase tracking-widest transition-all ${isFlashing ? 'bg-white text-indigo-600 border-white scale-110' : 'bg-white dark:bg-slate-900 text-indigo-600 border-slate-200 dark:border-slate-800'}`}>
           {activeOrders.length} Active Tickets
         </div>
       </div>

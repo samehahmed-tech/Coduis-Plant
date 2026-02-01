@@ -1,5 +1,5 @@
 
-const DEFAULT_API_KEY = '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';
+const DEFAULT_API_KEY = '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';
 const OPENROUTER_URL = 'https://openrouter.ai/api/v1/chat/completions';
 const PRIMARY_MODEL = 'meta-llama/llama-3.1-8b-instruct';
 const FALLBACK_MODEL = 'mistralai/mistral-7b-instruct';
@@ -123,35 +123,74 @@ export async function forecastInventory(
 }
 
 /**
- * Intelligent Assistant (Point 06: Explanation and Help)
+ * Intelligent Agent Utility (Supporting actions and structured responses)
  */
 export async function chatWithRestaurantAI(
   message: string,
-  contextData: string,
+  context: {
+    inventory: any[];
+    orders: any[];
+    menuItems: any[];
+    accounts: any[];
+    branches: any[];
+    settings: any;
+  },
   lang: 'en' | 'ar' = 'en',
   apiKey?: string
-): Promise<string> {
+): Promise<{ text: string; actions?: any[]; suggestion?: any }> {
   try {
     const systemInstruction = `
-      You are an expert Restaurant ERP Assistant named Zen AI, part of the Coduis Zen ecosystem.
+      You are Zen AI, the expert agent for Coduis Zen Restaurant ERP.
       Respond in ${lang === 'ar' ? 'Arabic' : 'English'}.
       
-      Your core duties:
-      - Explain system screens and functions.
-      - Summarize recent operational trends (not financial decisions).
-      - Help users find where to perform specific tasks.
-      - Never modify data or finalize financial orders.
-      
-      The system is multilingual. Current language is ${lang === 'ar' ? 'Arabic' : 'English'}. 
-      Zen AI must be bilingual and understand context in both languages.
+      You are an ACTIVE AGENT. You can interact with the system by returning a JSON object.
+      RESPONSE FORMAT:
+      {
+        "text": "Your helpful response to the user",
+        "actions": [
+          { "type": "UPDATE_INVENTORY", "itemId": "id", "data": { "threshold": 10 } },
+          { "type": "UPDATE_MENU_PRICE", "itemId": "id", "price": 150 },
+          { "type": "CREATE_CUSTOMER", "data": { "name": "Name", "phone": "01..." } }
+        ],
+        "suggestion": { "label": "View Name", "view": "VIEW_CONSTANT" }
+      }
 
-      Current System Context: ${contextData}
+      AVAILABLE ACTIONS:
+      1. UPDATE_INVENTORY (itemId, data:Partial<InventoryItem>)
+      2. UPDATE_MENU_PRICE (itemId, price:number)
+      3. CREATE_CUSTOMER (data:Partial<Customer>)
+      4. SHOW_REPORT (reportType: 'SALES'|'INVENTORY'|'FINANCE')
+
+      CURRENT CONTEXT:
+      - Inventory Items: ${context.inventory.length}
+      - Recent Orders: ${context.orders.length}
+      - Menu Items: ${context.menuItems.map(i => `${i.name} (ID:${i.id}, Price:${i.price})`).join(', ')}
+      - Accounts: ${JSON.stringify(context.accounts.map(a => ({ name: a.name, balance: a.balance })))}
+      
+      If the user wants to change something, add the relevant object to "actions".
+      Always return valid JSON. If no actions are needed, "actions" should be [].
     `;
 
-    return await callAI(message, systemInstruction, apiKey);
+    const rawResponse = await callAI(message, systemInstruction, apiKey);
+
+    // Attempt to parse JSON
+    try {
+      const parsed = JSON.parse(rawResponse);
+      return {
+        text: parsed.text || "I processed your request.",
+        actions: parsed.actions || [],
+        suggestion: parsed.suggestion
+      };
+    } catch (e) {
+      // Fallback if AI didn't return valid JSON
+      return { text: rawResponse, actions: [] };
+    }
   } catch (error: any) {
-    console.error("Chat API Error:", error);
-    return lang === 'ar' ? `عذراً: ${error.message}` : `Error: ${error.message}`;
+    console.error("Agent API Error:", error);
+    return {
+      text: lang === 'ar' ? `عذراً: ${error.message}` : `Error: ${error.message}`,
+      actions: []
+    };
   }
 }
 

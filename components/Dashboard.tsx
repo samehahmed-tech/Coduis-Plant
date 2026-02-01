@@ -21,6 +21,7 @@ import { useOrderStore } from '../stores/useOrderStore';
 import { useCRMStore } from '../stores/useCRMStore';
 import { useMenuStore } from '../stores/useMenuStore';
 import { useNavigate } from 'react-router-dom';
+import AIAlertsWidget from './AIAlertsWidget';
 
 const COLORS = ['#6366f1', '#8b5cf6', '#ec4899', '#10b981', '#f59e0b'];
 
@@ -292,6 +293,9 @@ const Dashboard: React.FC = () => {
 
             {/* Right Column: AI & Customers */}
             <div className="space-y-6">
+              {/* AI Proactive Alerts */}
+              <AIAlertsWidget />
+
               {/* AI Advisor Card */}
               <div className="bg-gradient-to-br from-indigo-700 via-indigo-600 to-indigo-800 p-8 rounded-[2.5rem] text-white shadow-2xl shadow-indigo-500/20 relative overflow-hidden group">
                 <div className="absolute -right-10 -top-10 w-40 h-40 bg-white/10 rounded-full blur-3xl group-hover:scale-150 transition-transform duration-700" />

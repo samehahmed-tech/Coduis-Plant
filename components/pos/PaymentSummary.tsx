@@ -1,5 +1,5 @@
 import React from 'react';
-import { Banknote, CreditCard, Smartphone, Landmark, Calculator, Trash, Wallet } from 'lucide-react';
+import { Banknote, CreditCard, Smartphone, Landmark, Calculator, Trash, Wallet, Zap } from 'lucide-react';
 import { PaymentMethod } from '../../types';
 
 interface PaymentSummaryProps {
@@ -16,6 +16,7 @@ interface PaymentSummaryProps {
     t: any;
     onVoid: () => void;
     onSubmit: () => void;
+    onQuickPay: () => void;
     canSubmit: boolean;
 }
 
@@ -33,6 +34,7 @@ const PaymentSummary: React.FC<PaymentSummaryProps> = ({
     t,
     onVoid,
     onSubmit,
+    onQuickPay,
     canSubmit,
 }) => {
     const paymentMethods = [
@@ -96,6 +98,14 @@ const PaymentSummary: React.FC<PaymentSummaryProps> = ({
                 >
                     <Trash size={14} className="md:w-[18px] md:h-[18px]" />
                     <span className="hidden sm:inline">{t.void}</span>
+                </button>
+                <button
+                    onClick={onQuickPay}
+                    disabled={!canSubmit}
+                    title="Quick Pay (Cash)"
+                    className="p-3 md:p-5 bg-emerald-500 text-white rounded-xl md:rounded-[1.5rem] hover:bg-emerald-600 shadow-xl shadow-emerald-500/20 disabled:opacity-50 transition-all flex items-center justify-center aspect-square"
+                >
+                    <Zap size={24} className="animate-pulse" />
                 </button>
                 <button
                     onClick={onSubmit}

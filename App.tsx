@@ -34,11 +34,18 @@ const LoadingScreen: React.FC<{ isConnected: boolean }> = ({ isConnected }) => (
   </div>
 );
 
+import { auditService } from './services/auditService';
+import { aiIntelligenceService } from './services/aiIntelligenceService';
+
 const App: React.FC = () => {
   const { settings } = useAuthStore();
   const { isLoading, isConnected } = useDataInit();
 
   useEffect(() => {
+    // Initialize services
+    auditService.init();
+    aiIntelligenceService.init();
+
     // Apply theme to document root
     const root = document.documentElement;
     root.setAttribute('data-theme', settings.theme);

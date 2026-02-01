@@ -11,6 +11,7 @@ import { useInventoryStore } from '../stores/useInventoryStore';
 import { useOrderStore } from '../stores/useOrderStore';
 import { useMenuStore } from '../stores/useMenuStore';
 import { useFinanceStore } from '../stores/useFinanceStore';
+import { useCRMStore } from '../stores/useCRMStore';
 
 // Services
 import { translations } from '../services/translations';
@@ -21,15 +22,17 @@ interface Message {
   text: string;
   timestamp: Date;
   suggestion?: { label: string; view: ViewState };
+  actionsExecuted?: string[];
 }
 
 const AIAssistant: React.FC = () => {
   const navigate = useNavigate();
   const { settings, branches } = useAuthStore();
-  const { inventory } = useInventoryStore();
+  const { inventory, updateInventoryItem } = useInventoryStore();
   const { orders } = useOrderStore();
-  const { categories } = useMenuStore();
+  const { categories, updateMenuItem } = useMenuStore();
   const { accounts } = useFinanceStore();
+  const { addCustomer } = useCRMStore();
 
   const menuItems = categories.flatMap(cat => cat.items);
   const lang = (settings.language || 'en') as 'en' | 'ar';
@@ -39,7 +42,7 @@ const AIAssistant: React.FC = () => {
     {
       id: '1',
       sender: 'ai',
-      text: lang === 'ar' ? 'مرحباً! أنا مساعدك الذكي. كيف يمكنني مساعدتك اليوم؟' : "Hello! I'm your AI assistant. How can I help you today?",
+      text: lang === 'ar' ? 'مرحباً! أنا Zen AI. يمكنني مساعدتك في إدارة المتجر، إخراج التقارير، أو حتى تعديل البيانات مباشرة. كيف أخدمك اليوم؟' : "Hello! I'm Zen AI. I can help you manage the store, generate reports, or even modify data directly. How can I serve you today?",
       timestamp: new Date()
     }
   ]);
@@ -54,6 +57,38 @@ const AIAssistant: React.FC = () => {
   useEffect(() => {
     scrollToBottom();
   }, [messages, isTyping]);
+
+  const executeAction = async (action: any): Promise<string> => {
+    try {
+      switch (action.type) {
+        case 'UPDATE_INVENTORY':
+          await updateInventoryItem(action.itemId, action.data);
+          return lang === 'ar' ? `تم تحديث المخزون للصنف ${action.itemId}` : `Updated inventory for item ${action.itemId}`;
+
+        case 'UPDATE_MENU_PRICE':
+          const item = menuItems.find(i => i.id === action.itemId);
+          if (item) {
+            await updateMenuItem('menu-1', item.categoryId, { ...item, price: action.price });
+            return lang === 'ar' ? `تم تحديث سعر ${item.name} إلى ${action.price}` : `Updated price for ${item.name} to ${action.price}`;
+          }
+          return `Item ${action.itemId} not found`;
+
+        case 'CREATE_CUSTOMER':
+          await addCustomer(action.data);
+          return lang === 'ar' ? `تمت إضافة العميل ${action.data.name}` : `Added customer ${action.data.name}`;
+
+        case 'SHOW_REPORT':
+          navigate('/reports');
+          return lang === 'ar' ? 'تم فتح قسم التقارير' : 'Opened reports section';
+
+        default:
+          return `Unknown action type: ${action.type}`;
+      }
+    } catch (err: any) {
+      console.error(`Action failed: ${action.type}`, err);
+      return `Failed: ${err.message}`;
+    }
+  };
 
   const handleSend = async () => {
     if (!input.trim() || isTyping) return;
@@ -79,15 +114,26 @@ const AIAssistant: React.FC = () => {
           accounts,
           branches,
           settings
-        }
+        },
+        lang,
+        settings.geminiApiKey
       );
+
+      const executedActionResults: string[] = [];
+      if (response.actions && response.actions.length > 0) {
+        for (const action of response.actions) {
+          const result = await executeAction(action);
+          executedActionResults.push(result);
+        }
+      }
 
       const aiMessage: Message = {
         id: (Date.now() + 1).toString(),
         sender: 'ai',
         text: response.text,
         timestamp: new Date(),
-        suggestion: response.suggestion
+        suggestion: response.suggestion,
+        actionsExecuted: executedActionResults.length > 0 ? executedActionResults : undefined
       };
 
       setMessages(prev => [...prev, aiMessage]);
@@ -106,14 +152,13 @@ const AIAssistant: React.FC = () => {
   };
 
   const handleSuggestion = (view: ViewState) => {
-    // In web app with router, ViewState strings might need to be mapped to paths
     const pathMap: Record<ViewState, string> = {
       'DASHBOARD': '/',
       'POS': '/pos',
       'INVENTORY': '/inventory',
       'REPORTS': '/reports',
       'SETTINGS': '/settings',
-      'MENU': '/menu',
+      'MENU_MANAGER': '/menu',
       'CRM': '/crm',
       'FINANCE': '/finance',
       'AI_INSIGHTS': '/ai-insights',
@@ -141,11 +186,22 @@ const AIAssistant: React.FC = () => {
 
               <div className={`max-w-[80%] flex flex-col gap-3 ${message.sender === 'user' ? 'items-end' : 'items-start'}`}>
                 <div className={`p-4 md:p-6 rounded-[2rem] shadow-sm border ${message.sender === 'ai'
-                    ? 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-slate-800 dark:text-slate-100'
-                    : 'bg-indigo-600 border-indigo-500 text-white'
+                  ? 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-slate-800 dark:text-slate-100'
+                  : 'bg-indigo-600 border-indigo-500 text-white'
                   }`}>
                   <p className="text-sm md:text-base leading-relaxed whitespace-pre-wrap">{message.text}</p>
                 </div>
+
+                {message.actionsExecuted && (
+                  <div className="flex flex-col gap-2 w-full">
+                    {message.actionsExecuted.map((res, i) => (
+                      <div key={i} className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-900/20 px-4 py-2 rounded-xl border border-emerald-100 dark:border-emerald-800/30">
+                        <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                        {res}
+                      </div>
+                    ))}
+                  </div>
+                )}
 
                 {message.suggestion && (
                   <button

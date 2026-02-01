@@ -3,7 +3,7 @@ import React, { useState } from 'react';
 import {
   BarChart3, Wallet, ArrowUpRight, ArrowDownLeft,
   Plus, Search, ChevronRight, ChevronDown,
-  History, Landmark
+  History, Landmark, BookText
 } from 'lucide-react';
 import { FinancialAccount, AccountType } from '../types';
 import { useFinanceStore } from '../stores/useFinanceStore';
@@ -39,9 +39,9 @@ const Finance: React.FC = () => {
           </div>
           <div className="flex items-center gap-8">
             <span className={`text-[9px] font-black px-2 py-0.5 rounded-lg uppercase tracking-widest ${account.type === AccountType.ASSET ? 'bg-indigo-100 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-400' :
-                account.type === AccountType.REVENUE ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400' :
-                  account.type === AccountType.EXPENSE ? 'bg-rose-100 text-rose-700 dark:bg-rose-900/30 dark:text-rose-400' :
-                    'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-400'
+              account.type === AccountType.REVENUE ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400' :
+                account.type === AccountType.EXPENSE ? 'bg-rose-100 text-rose-700 dark:bg-rose-900/30 dark:text-rose-400' :
+                  'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-400'
               }`}>
               {account.type}
             </span>

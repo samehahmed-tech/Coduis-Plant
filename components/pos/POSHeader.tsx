@@ -1,5 +1,5 @@
 import React from 'react';
-import { ShoppingBag, Building2, X } from 'lucide-react';
+import { ShoppingBag, Building2, X, RotateCcw } from 'lucide-react';
 import { OrderType, Customer } from '../../types';
 
 interface POSHeaderProps {
@@ -12,6 +12,7 @@ interface POSHeaderProps {
     onClearCustomer: () => void;
     isSidebarCollapsed: boolean;
     isTouchMode: boolean;
+    onRecall?: () => void;
 }
 
 const POSHeader: React.FC<POSHeaderProps> = React.memo(({
@@ -24,6 +25,7 @@ const POSHeader: React.FC<POSHeaderProps> = React.memo(({
     onClearCustomer,
     isSidebarCollapsed,
     isTouchMode,
+    onRecall,
 }) => {
     return (
         <div className={`h-14 md:h-20 bg-card border-b border-border flex justify-between items-center px-6 md:px-10 z-20 transition-all duration-300`}>
@@ -78,7 +80,17 @@ const POSHeader: React.FC<POSHeaderProps> = React.memo(({
                 )}
             </div>
 
-            <div className="flex items-center gap-2 shrink-0">
+            <div className="flex items-center gap-4 shrink-0">
+                {onRecall && (
+                    <button
+                        onClick={onRecall}
+                        className="flex items-center gap-2 px-4 py-2 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 rounded-xl transition-all text-xs font-black uppercase tracking-widest"
+                        title="Recall Last Order"
+                    >
+                        <RotateCcw size={14} />
+                        <span className="hidden lg:inline">{t.recall || 'Recall'}</span>
+                    </button>
+                )}
                 <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest hidden md:block">
                     {lang === 'ar' ? 'الموظف: أدمن' : 'User: Admin'}
                 </span>
