@@ -8,7 +8,7 @@ interface MenuItemCardProps {
     isTouchMode: boolean;
 }
 
-const MenuItemCard: React.FC<MenuItemCardProps> = ({
+const MenuItemCard: React.FC<MenuItemCardProps> = React.memo(({
     item,
     onAddItem,
     currencySymbol,
@@ -27,6 +27,7 @@ const MenuItemCard: React.FC<MenuItemCardProps> = ({
                 <img
                     src={item.image || defaultImage}
                     alt={item.name}
+                    loading="lazy"
                     className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700 ease-in-out"
                 />
                 <div className="absolute inset-0 bg-gradient-to-r from-black/5 to-transparent dark:from-black/20" />
@@ -67,6 +68,6 @@ const MenuItemCard: React.FC<MenuItemCardProps> = ({
             </div>
         </div>
     );
-};
+});
 
 export default MenuItemCard;

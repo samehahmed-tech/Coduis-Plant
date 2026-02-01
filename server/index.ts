@@ -543,14 +543,23 @@ app.delete('/api/orders/:id', async (req, res) => {
 app.get('/api/inventory', async (req, res) => {
     try {
         const result = await pool.query(`
-      SELECT i.*, COALESCE(SUM(s.quantity), 0) as total_quantity
+      SELECT i.*, 
+             COALESCE(
+                 (SELECT json_agg(json_build_object('warehouseId', s.warehouse_id, 'quantity', s.quantity))
+                  FROM inventory_stock s WHERE s.item_id = i.id),
+                 '[]'::json
+             ) as warehouse_quantities
       FROM inventory_items i
-      LEFT JOIN inventory_stock s ON i.id = s.item_id
       WHERE i.is_active = true
-      GROUP BY i.id
       ORDER BY i.name
     `);
-        res.json(result.rows);
+        res.json(result.rows.map(row => ({
+            ...row,
+            warehouseQuantities: row.warehouse_quantities,
+            costPrice: Number(row.cost_price),
+            purchasePrice: Number(row.purchase_price),
+            threshold: Number(row.threshold)
+        })));
     } catch (error: any) {
         res.status(500).json({ error: error.message });
     }
@@ -558,17 +567,115 @@ app.get('/api/inventory', async (req, res) => {
 
 app.post('/api/inventory', async (req, res) => {
     try {
-        const { id, name, name_ar, sku, barcode, unit, category, threshold, cost_price, supplier_id } = req.body;
+        const { id, name, name_ar, sku, barcode, unit, category, threshold, cost_price, purchase_price, supplier_id, is_audited, audit_frequency, is_composite, bom } = req.body;
         const result = await pool.query(
-            `INSERT INTO inventory_items (id, name, name_ar, sku, barcode, unit, category, threshold, cost_price, supplier_id, is_active, created_at, updated_at)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, true, NOW(), NOW()) RETURNING *`,
-            [id, name, name_ar, sku, barcode, unit, category, threshold || 0, cost_price || 0, supplier_id]
+            `INSERT INTO inventory_items (
+                id, name, name_ar, sku, barcode, unit, category, threshold, cost_price, purchase_price, 
+                supplier_id, is_audited, audit_frequency, is_composite, bom, is_active, created_at, updated_at
+            )
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, true, NOW(), NOW()) 
+            RETURNING *`,
+            [
+                id, name, name_ar, sku, barcode, unit, category, threshold || 0, cost_price || 0, purchase_price || 0,
+                supplier_id, is_audited ?? true, audit_frequency || 'DAILY', is_composite ?? false, JSON.stringify(bom || [])
+            ]
         );
         res.status(201).json(result.rows[0]);
     } catch (error: any) {
         res.status(500).json({ error: error.message });
     }
 });
+
+app.put('/api/inventory/:id', async (req, res) => {
+    try {
+        const { name, name_ar, sku, barcode, unit, category, threshold, cost_price, purchase_price, supplier_id, is_audited, audit_frequency, is_composite, bom, is_active } = req.body;
+        const result = await pool.query(
+            `UPDATE inventory_items SET 
+                name = $1, name_ar = $2, sku = $3, barcode = $4, unit = $5, category = $6, threshold = $7, 
+                cost_price = $8, purchase_price = $9, supplier_id = $10, is_audited = $11, audit_frequency = $12, 
+                is_composite = $13, bom = $14, is_active = $15, updated_at = NOW()
+            WHERE id = $16 RETURNING *`,
+            [
+                name, name_ar, sku, barcode, unit, category, threshold, cost_price, purchase_price,
+                supplier_id, is_audited, audit_frequency, is_composite, JSON.stringify(bom), is_active, req.params.id
+            ]
+        );
+        res.json(result.rows[0]);
+    } catch (error: any) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// ============================================================================
+// 🏠 WAREHOUSES API
+// ============================================================================
+
+app.get('/api/warehouses', async (req, res) => {
+    try {
+        const result = await pool.query('SELECT * FROM warehouses WHERE is_active = true ORDER BY name');
+        res.json(result.rows);
+    } catch (error: any) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+app.post('/api/warehouses', async (req, res) => {
+    try {
+        const { id, name, name_ar, branch_id, type, parent_id } = req.body;
+        const result = await pool.query(
+            `INSERT INTO warehouses (id, name, name_ar, branch_id, type, parent_id, is_active, created_at, updated_at)
+             VALUES ($1, $2, $3, $4, $5, $6, true, NOW(), NOW()) RETURNING *`,
+            [id, name, name_ar, branch_id, type, parent_id]
+        );
+        res.status(201).json(result.rows[0]);
+    } catch (error: any) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// ============================================================================
+// 🔄 STOCK MANAGEMENT API
+// ============================================================================
+
+app.post('/api/inventory/stock/update', async (req, res) => {
+    const client = await pool.connect();
+    try {
+        await client.query('BEGIN');
+        const { item_id, warehouse_id, quantity, type, reason, actor_id, reference_id } = req.body;
+
+        // 1. Get current stock
+        const currentStock = await client.query(
+            'SELECT quantity FROM inventory_stock WHERE item_id = $1 AND warehouse_id = $2',
+            [item_id, warehouse_id]
+        );
+
+        const oldQty = currentStock.rows[0]?.quantity || 0;
+
+        // 2. Update stock
+        await client.query(
+            `INSERT INTO inventory_stock (item_id, warehouse_id, quantity, last_audit_date)
+             VALUES ($1, $2, $3, NOW())
+             ON CONFLICT (item_id, warehouse_id) DO UPDATE SET quantity = $3, last_audit_date = NOW()`,
+            [item_id, warehouse_id, quantity]
+        );
+
+        // 3. Record movement
+        await client.query(
+            `INSERT INTO stock_movements (item_id, to_warehouse_id, quantity, type, reason, actor_id, reference_id)
+             VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+            [item_id, warehouse_id, quantity - oldQty, type || 'ADJUSTMENT', reason, actor_id, reference_id]
+        );
+
+        await client.query('COMMIT');
+        res.json({ message: 'Stock updated successfully' });
+    } catch (error: any) {
+        await client.query('ROLLBACK');
+        res.status(500).json({ error: error.message });
+    } finally {
+        client.release();
+    }
+});
+
 
 // ============================================================================
 // ⚙️ SETTINGS API

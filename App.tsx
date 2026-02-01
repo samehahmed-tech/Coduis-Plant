@@ -63,6 +63,15 @@ const App: React.FC = () => {
     return <LoadingScreen isConnected={isConnected} />;
   }
 
+  // Warm up the module cache for important routes after initial data load
+  setTimeout(() => {
+    import('./routes').then(({ loaders }) => {
+      loaders.Dashboard();
+      loaders.POS();
+      loaders.MenuManager();
+    });
+  }, 2000);
+
   return <RouterProvider router={router} />;
 };
 

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   LayoutDashboard,
   UtensilsCrossed,
@@ -40,31 +40,35 @@ interface NavItem {
   label: string;
   icon: React.ComponentType<{ size?: number; className?: string }>;
   permission: AppPermission;
+  loaderKey?: string;
 }
 
 import CalculatorWidget from './common/CalculatorWidget';
+import { loaders } from '../routes';
 
 const Sidebar: React.FC = () => {
   const navigate = useNavigate();
 
-  const {
-    settings,
-    branches,
-    logout,
-    updateSettings,
-    hasPermission,
-    isSidebarCollapsed,
-    toggleSidebar,
-    setActiveBranch
-  } = useAuthStore();
+  const handlePreload = (key?: string) => {
+    if (key && (loaders as any)[key]) {
+      (loaders as any)[key]();
+    }
+  };
 
-  const {
-    activeOrderType,
-    setOrderMode,
-    discount,
-    setDiscount,
-    clearCart
-  } = useOrderStore();
+  const settings = useAuthStore(state => state.settings);
+  const branches = useAuthStore(state => state.branches);
+  const logout = useAuthStore(state => state.logout);
+  const updateSettings = useAuthStore(state => state.updateSettings);
+  const hasPermission = useAuthStore(state => state.hasPermission);
+  const isSidebarCollapsed = useAuthStore(state => state.isSidebarCollapsed);
+  const toggleSidebar = useAuthStore(state => state.toggleSidebar);
+  const setActiveBranch = useAuthStore(state => state.setActiveBranch);
+
+  const activeOrderType = useOrderStore(state => state.activeOrderType);
+  const setOrderMode = useOrderStore(state => state.setOrderMode);
+  const discount = useOrderStore(state => state.discount);
+  const setDiscount = useOrderStore(state => state.setDiscount);
+  const clearCart = useOrderStore(state => state.clearCart);
 
   const location = useLocation();
   const isPOS = location.pathname === '/pos';
@@ -84,66 +88,67 @@ const Sidebar: React.FC = () => {
   const isCallCenter = user?.role === UserRole.CALL_CENTER;
   const isCallCenterPage = location.pathname === '/call-center';
 
-  // Navigation sections for Call Center users (limited)
-  const callCenterNavigationSections = [
-    {
-      title: lang === 'ar' ? 'مركز الاتصال' : 'Call Center',
-      items: [
-        { path: '/call-center', label: t.call_center, icon: Headset, permission: AppPermission.NAV_CALL_CENTER },
-        { path: '/crm', label: t.crm, icon: Users, permission: AppPermission.NAV_CRM },
-      ]
+  const sectionsToUse = useMemo(() => {
+    if (isCallCenter) {
+      return [
+        {
+          title: lang === 'ar' ? 'مركز الاتصال' : 'Call Center',
+          items: [
+            { path: '/call-center', label: t.call_center, icon: Headset, permission: AppPermission.NAV_CALL_CENTER, loaderKey: 'CallCenter' },
+            { path: '/crm', label: t.crm, icon: Users, permission: AppPermission.NAV_CRM, loaderKey: 'CRM' },
+          ]
+        }
+      ];
     }
-  ];
+    return [
+      {
+        title: lang === 'ar' ? 'العمليات الميدانية' : 'Operations',
+        items: [
+          { path: '/', label: t.dashboard, icon: LayoutDashboard, permission: AppPermission.NAV_DASHBOARD, loaderKey: 'Dashboard' },
+          { path: '/pos', label: t.pos, icon: UtensilsCrossed, permission: AppPermission.NAV_POS, loaderKey: 'POS' },
+          { path: '/call-center', label: t.call_center, icon: Headset, permission: AppPermission.NAV_CALL_CENTER, loaderKey: 'CallCenter' },
+          { path: '/kds', label: t.kds, icon: ChefHat, permission: AppPermission.NAV_KDS, loaderKey: 'KDS' },
+        ]
+      },
+      {
+        title: lang === 'ar' ? 'إدارة الموارد' : 'Resources',
+        items: [
+          { path: '/menu', label: t.menu, icon: BookOpen, permission: AppPermission.NAV_MENU_MANAGER, loaderKey: 'MenuManager' },
+          { path: '/printers', label: t.printers, icon: PrinterIcon, permission: AppPermission.NAV_PRINTERS, loaderKey: 'PrinterManager' },
+          { path: '/recipes', label: t.recipes, icon: ChefHat, permission: AppPermission.NAV_RECIPES, loaderKey: 'RecipeManager' },
+          { path: '/inventory', label: t.inventory, icon: Package, permission: AppPermission.NAV_INVENTORY, loaderKey: 'Inventory' },
+          { path: '/crm', label: t.crm, icon: Users, permission: AppPermission.NAV_CRM, loaderKey: 'CRM' },
+        ]
+      },
+      {
+        title: lang === 'ar' ? 'التحليلات والمالية' : 'Finance & Insights',
+        items: [
+          { path: '/finance', label: t.finance, icon: Landmark, permission: AppPermission.NAV_FINANCE, loaderKey: 'Finance' },
+          { path: '/reports', label: t.reports, icon: BarChart3, permission: AppPermission.NAV_REPORTS, loaderKey: 'Reports' },
+          { path: '/ai-insights', label: t.ai_insights, icon: Sparkles, permission: AppPermission.NAV_AI_ASSISTANT, loaderKey: 'AIInsights' },
+        ]
+      },
+      {
+        title: lang === 'ar' ? 'أدوات ذكية' : 'Smart Tools',
+        items: [
+          { path: '/ai-assistant', label: t.ai, icon: Bot, permission: AppPermission.NAV_AI_ASSISTANT, loaderKey: 'AIAssistant' },
+          { path: '/security', label: t.security, icon: Shield, permission: AppPermission.NAV_SECURITY, loaderKey: 'SecurityHub' },
+          { path: '/forensics', label: t.forensics, icon: Fingerprint, permission: AppPermission.NAV_FORENSICS, loaderKey: 'ForensicsHub' },
+          { path: '/settings', label: t.settings, icon: Settings, permission: AppPermission.NAV_SETTINGS, loaderKey: 'SettingsHub' },
+        ]
+      }
+    ];
+  }, [isCallCenter, lang, t]);
 
-  // Full navigation sections for admins/managers
-  const navigationSections = [
-    {
-      title: lang === 'ar' ? 'العمليات الميدانية' : 'Operations',
-      items: [
-        { path: '/', label: t.dashboard, icon: LayoutDashboard, permission: AppPermission.NAV_DASHBOARD },
-        { path: '/pos', label: t.pos, icon: UtensilsCrossed, permission: AppPermission.NAV_POS },
-        { path: '/call-center', label: t.call_center, icon: Headset, permission: AppPermission.NAV_CALL_CENTER },
-        { path: '/kds', label: t.kds, icon: ChefHat, permission: AppPermission.NAV_KDS },
-      ]
-    },
-    {
-      title: lang === 'ar' ? 'إدارة الموارد' : 'Resources',
-      items: [
-        { path: '/menu', label: t.menu, icon: BookOpen, permission: AppPermission.NAV_MENU_MANAGER },
-        { path: '/printers', label: t.printers, icon: PrinterIcon, permission: AppPermission.NAV_PRINTERS },
-        { path: '/recipes', label: t.recipes, icon: ChefHat, permission: AppPermission.NAV_RECIPES },
-        { path: '/inventory', label: t.inventory, icon: Package, permission: AppPermission.NAV_INVENTORY },
-        { path: '/crm', label: t.crm, icon: Users, permission: AppPermission.NAV_CRM },
-      ]
-    },
-    {
-      title: lang === 'ar' ? 'التحليلات والمالية' : 'Finance & Insights',
-      items: [
-        { path: '/finance', label: t.finance, icon: Landmark, permission: AppPermission.NAV_FINANCE },
-        { path: '/reports', label: t.reports, icon: BarChart3, permission: AppPermission.NAV_REPORTS },
-        { path: '/ai-insights', label: t.ai_insights, icon: Sparkles, permission: AppPermission.NAV_AI_ASSISTANT },
-      ]
-    },
-    {
-      title: lang === 'ar' ? 'أدوات ذكية' : 'Smart Tools',
-      items: [
-        { path: '/ai-assistant', label: t.ai, icon: Bot, permission: AppPermission.NAV_AI_ASSISTANT },
-        { path: '/security', label: t.security, icon: Shield, permission: AppPermission.NAV_SECURITY },
-        { path: '/forensics', label: t.forensics, icon: Fingerprint, permission: AppPermission.NAV_FORENSICS },
-        { path: '/settings', label: t.settings, icon: Settings, permission: AppPermission.NAV_SETTINGS },
-      ]
-    }
-  ];
+  const filteredSections = useMemo(() => {
+    const userRole = settings.currentUser?.role;
+    const isFullAccess = userRole === UserRole.SUPER_ADMIN || userRole === UserRole.BRANCH_MANAGER;
 
-  // Call Center users get their dedicated nav, others get full nav
-  const userRole = settings.currentUser?.role;
-  const isFullAccess = userRole === UserRole.SUPER_ADMIN || userRole === UserRole.BRANCH_MANAGER;
-
-  const sectionsToUse = isCallCenter ? callCenterNavigationSections : navigationSections;
-  const filteredSections = sectionsToUse.map(section => ({
-    ...section,
-    items: isFullAccess || isCallCenter ? section.items : section.items.filter(item => hasPermission(item.permission))
-  })).filter(section => section.items.length > 0);
+    return sectionsToUse.map(section => ({
+      ...section,
+      items: isFullAccess || isCallCenter ? section.items : section.items.filter(item => hasPermission(item.permission))
+    })).filter(section => section.items.length > 0);
+  }, [sectionsToUse, settings.currentUser, isCallCenter, hasPermission]);
 
   const handleNavClick = () => {
     setIsMobileOpen(false);
@@ -397,8 +402,8 @@ const Sidebar: React.FC = () => {
                           key={d}
                           onClick={() => setDiscount(d)}
                           className={`flex-1 py-2 rounded-xl text-[10px] font-black transition-all ${discount === d
-                              ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-500/30'
-                              : 'bg-slate-100 dark:bg-slate-800 text-slate-500 hover:bg-indigo-100'
+                            ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-500/30'
+                            : 'bg-slate-100 dark:bg-slate-800 text-slate-500 hover:bg-indigo-100'
                             }`}
                         >
                           {d}%
@@ -428,8 +433,8 @@ const Sidebar: React.FC = () => {
                     <button
                       onClick={() => setShowCalc(!showCalc)}
                       className={`flex flex-col items-center gap-1 p-3 rounded-2xl border transition-all ${showCalc
-                          ? 'bg-indigo-600 text-white border-indigo-600'
-                          : 'bg-white/60 dark:bg-slate-900/40 border-indigo-100 dark:border-indigo-900/30 hover:border-indigo-300'
+                        ? 'bg-indigo-600 text-white border-indigo-600'
+                        : 'bg-white/60 dark:bg-slate-900/40 border-indigo-100 dark:border-indigo-900/30 hover:border-indigo-300'
                         }`}
                     >
                       <Calculator size={16} />
@@ -438,8 +443,8 @@ const Sidebar: React.FC = () => {
                     <button
                       onClick={handleToggleTouchMode}
                       className={`flex flex-col items-center gap-1 p-3 rounded-2xl border transition-all ${isTouchMode
-                          ? 'bg-amber-500 text-white border-amber-500'
-                          : 'bg-white/60 dark:bg-slate-900/40 border-indigo-100 dark:border-indigo-900/30 hover:border-amber-300'
+                        ? 'bg-amber-500 text-white border-amber-500'
+                        : 'bg-white/60 dark:bg-slate-900/40 border-indigo-100 dark:border-indigo-900/30 hover:border-amber-300'
                         }`}
                     >
                       <Tablet size={16} />
@@ -489,6 +494,7 @@ const Sidebar: React.FC = () => {
                     key={item.path}
                     to={item.path}
                     onClick={handleNavClick}
+                    onMouseEnter={() => handlePreload(item.loaderKey)}
                     className={({ isActive }) => `
                       flex items-center gap-4 px-4 py-3.5 rounded-[1.25rem] transition-all duration-300 group relative overflow-hidden
                       ${isActive

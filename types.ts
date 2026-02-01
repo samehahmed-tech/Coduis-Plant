@@ -147,12 +147,25 @@ export enum WarehouseType {
   POINT_OF_SALE = 'POINT_OF_SALE'
 }
 
+export enum InventoryUnit {
+  COUNT = 'COUNT',
+  KG = 'KG',
+  GRAM = 'GRAM',
+  LITER = 'LITER',
+  ML = 'ML',
+  PACK = 'PACK',
+  BOX = 'BOX',
+  BOTTLE = 'BOTTLE'
+}
+
 export interface Warehouse {
   id: string;
   name: string;
+  nameAr?: string;
   branchId: string;
   type: WarehouseType;
   isActive: boolean;
+  parentId?: string; // Link to central warehouse
   linkedWarehouses?: string[]; // IDs of warehouses for distribution
 }
 
@@ -160,16 +173,23 @@ export interface Warehouse {
 export interface InventoryItem {
   id: string;
   name: string;
-  unit: string;
+  nameAr?: string;
+  unit: InventoryUnit | string;
   category: string;
   threshold: number;
-  costPrice: number;
+  costPrice: number; // Current valuation
+  purchasePrice: number; // Last purchased price
   supplierId?: string;
+  sku?: string;
+  barcode?: string;
+  isAudited: boolean;
+  auditFrequency: 'DAILY' | 'WEEKLY' | 'MONTHLY';
+  isComposite: boolean;
+  bom?: RecipeIngredient[]; // Bill of Materials if composite
   warehouseQuantities: {
     warehouseId: string;
     quantity: number;
   }[];
-  recipe?: RecipeIngredient[]; // If this is a semi-finished product
 }
 
 export interface StockMovement {

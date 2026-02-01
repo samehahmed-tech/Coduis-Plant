@@ -5,23 +5,45 @@ import React, { Suspense } from 'react';
 import Login from './components/Login';
 
 // Lazy load components for better performance
-const Dashboard = React.lazy(() => import('./components/Dashboard'));
-const POS = React.lazy(() => import('./components/POS'));
-const CallCenter = React.lazy(() => import('./components/CallCenter'));
-const KDS = React.lazy(() => import('./components/KDS'));
-const MenuManager = React.lazy(() => import('./components/MenuManager'));
-const PrinterManager = React.lazy(() => import('./components/PrinterManager'));
-const RecipeManager = React.lazy(() => import('./components/RecipeManager'));
-const Inventory = React.lazy(() => import('./components/Inventory'));
-const CRM = React.lazy(() => import('./components/CRM'));
-const Finance = React.lazy(() => import('./components/Finance'));
-const Reports = React.lazy(() => import('./components/Reports'));
-const AIInsights = React.lazy(() => import('./components/AIInsights'));
-const AIAssistant = React.lazy(() => import('./components/AIAssistant'));
-const SecurityHub = React.lazy(() => import('./components/SecurityHub'));
-const ForensicsHub = React.lazy(() => import('./components/ForensicsHub'));
-const SettingsHub = React.lazy(() => import('./components/SettingsHub'));
-const FloorDesigner = React.lazy(() => import('./components/FloorDesigner'));
+// Export loaders for preloading
+export const loaders = {
+    Dashboard: () => import('./components/Dashboard'),
+    POS: () => import('./components/POS'),
+    CallCenter: () => import('./components/CallCenter'),
+    KDS: () => import('./components/KDS'),
+    MenuManager: () => import('./components/MenuManager'),
+    PrinterManager: () => import('./components/PrinterManager'),
+    RecipeManager: () => import('./components/RecipeManager'),
+    Inventory: () => import('./components/Inventory'),
+    CRM: () => import('./components/CRM'),
+    Finance: () => import('./components/Finance'),
+    Reports: () => import('./components/Reports'),
+    AIInsights: () => import('./components/AIInsights'),
+    AIAssistant: () => import('./components/AIAssistant'),
+    SecurityHub: () => import('./components/SecurityHub'),
+    ForensicsHub: () => import('./components/ForensicsHub'),
+    SettingsHub: () => import('./components/SettingsHub'),
+    FloorDesigner: () => import('./components/FloorDesigner'),
+};
+
+// Lazy load components using exported loaders
+const Dashboard = React.lazy(loaders.Dashboard);
+const POS = React.lazy(loaders.POS);
+const CallCenter = React.lazy(loaders.CallCenter);
+const KDS = React.lazy(loaders.KDS);
+const MenuManager = React.lazy(loaders.MenuManager);
+const PrinterManager = React.lazy(loaders.PrinterManager);
+const RecipeManager = React.lazy(loaders.RecipeManager);
+const Inventory = React.lazy(loaders.Inventory);
+const CRM = React.lazy(loaders.CRM);
+const Finance = React.lazy(loaders.Finance);
+const Reports = React.lazy(loaders.Reports);
+const AIInsights = React.lazy(loaders.AIInsights);
+const AIAssistant = React.lazy(loaders.AIAssistant);
+const SecurityHub = React.lazy(loaders.SecurityHub);
+const ForensicsHub = React.lazy(loaders.ForensicsHub);
+const SettingsHub = React.lazy(loaders.SettingsHub);
+const FloorDesigner = React.lazy(loaders.FloorDesigner);
 
 const Loading = () => <div className="p-8 text-center text-slate-400 font-black uppercase tracking-widest text-xs animate-pulse">Loading System Module...</div>;
 

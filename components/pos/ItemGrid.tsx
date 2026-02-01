@@ -9,7 +9,7 @@ interface ItemGridProps {
     isTouchMode: boolean;
 }
 
-const ItemGrid: React.FC<ItemGridProps> = ({
+const ItemGrid: React.FC<ItemGridProps> = React.memo(({
     items,
     onAddItem,
     currencySymbol,
@@ -28,6 +28,6 @@ const ItemGrid: React.FC<ItemGridProps> = ({
             ))}
         </div>
     );
-};
+});
 
 export default ItemGrid;

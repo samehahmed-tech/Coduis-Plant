@@ -11,7 +11,7 @@ interface CategoryTabsProps {
     t: any;
 }
 
-const CategoryTabs: React.FC<CategoryTabsProps> = ({
+const CategoryTabs: React.FC<CategoryTabsProps> = React.memo(({
     categories,
     activeCategory,
     onSetCategory,
@@ -97,19 +97,20 @@ const CategoryTabs: React.FC<CategoryTabsProps> = ({
                                     <img
                                         src={cat.image}
                                         alt={cat.name}
+                                        loading="lazy"
                                         className="w-full h-full object-cover"
                                     />
                                 ) : (
                                     <div className={`w-full h-full ${cat.name === 'All'
-                                            ? 'bg-gradient-to-br from-indigo-500 to-purple-600'
-                                            : 'bg-gradient-to-br from-slate-200 to-slate-300 dark:from-slate-700 dark:to-slate-800'
+                                        ? 'bg-gradient-to-br from-indigo-500 to-purple-600'
+                                        : 'bg-gradient-to-br from-slate-200 to-slate-300 dark:from-slate-700 dark:to-slate-800'
                                         }`} />
                                 )}
 
                                 {/* Overlay */}
                                 <div className={`absolute inset-0 ${activeCategory === cat.name
-                                        ? 'bg-indigo-600/70'
-                                        : 'bg-black/30 group-hover:bg-black/40'
+                                    ? 'bg-indigo-600/70'
+                                    : 'bg-black/30 group-hover:bg-black/40'
                                     } transition-all`} />
 
                                 {/* Icon for All */}
@@ -199,15 +200,15 @@ const CategoryTabs: React.FC<CategoryTabsProps> = ({
                             />
                         ) : (
                             <div className={`absolute inset-0 ${cat.name === 'All'
-                                    ? 'bg-gradient-to-br from-indigo-500 to-purple-600'
-                                    : 'bg-gradient-to-br from-slate-200 to-slate-300 dark:from-slate-700 dark:to-slate-800'
+                                ? 'bg-gradient-to-br from-indigo-500 to-purple-600'
+                                : 'bg-gradient-to-br from-slate-200 to-slate-300 dark:from-slate-700 dark:to-slate-800'
                                 }`} />
                         )}
 
                         {/* Overlay */}
                         <div className={`absolute inset-0 ${activeCategory === cat.name
-                                ? 'bg-indigo-600/60'
-                                : 'bg-black/20 group-hover:bg-black/30'
+                            ? 'bg-indigo-600/60'
+                            : 'bg-black/20 group-hover:bg-black/30'
                             } transition-all`} />
 
                         {/* Icon for All */}
@@ -253,6 +254,6 @@ const CategoryTabs: React.FC<CategoryTabsProps> = ({
             )}
         </div>
     );
-};
+});
 
 export default CategoryTabs;

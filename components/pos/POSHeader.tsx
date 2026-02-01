@@ -14,7 +14,7 @@ interface POSHeaderProps {
     isTouchMode: boolean;
 }
 
-const POSHeader: React.FC<POSHeaderProps> = ({
+const POSHeader: React.FC<POSHeaderProps> = React.memo(({
     activeMode,
     lang,
     t,
@@ -88,6 +88,6 @@ const POSHeader: React.FC<POSHeaderProps> = ({
             </div>
         </div>
     );
-};
+});
 
 export default POSHeader;

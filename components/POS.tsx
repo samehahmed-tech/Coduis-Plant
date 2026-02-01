@@ -3,7 +3,7 @@
  * This file is under the Seal of Perfection. DO NOT MODIFY.
  * Manual Unlock Required: "INITIATE POS PROTOCOL UNLOCK"
  */
-import React, { useState, useEffect, useRef, useMemo } from 'react';
+import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { Search, ShoppingBag, X } from 'lucide-react';
 import {
    Order, OrderItem, OrderStatus, Table, PaymentMethod,
@@ -34,17 +34,39 @@ import { useInventoryStore } from '../stores/useInventoryStore';
 import { useFinanceStore } from '../stores/useFinanceStore';
 
 const POS: React.FC = () => {
-   // --- Global State ---
-   const { settings, branches, hasPermission, updateSettings, isSidebarCollapsed, setSidebarCollapsed } = useAuthStore();
-   const {
-      orders, activeCart, addToCart, removeFromCart, updateCartItemQuantity, updateCartItemNotes,
-      clearCart, placeOrder, activeOrderType, setOrderMode, discount, setDiscount,
-      heldOrders, recallOrder, recalledOrder, clearRecalledOrder, tables
-   } = useOrderStore();
-   const { menus, categories } = useMenuStore();
-   const { customers } = useCRMStore();
-   const { inventory, updateStock, warehouses } = useInventoryStore();
-   const { recordTransaction } = useFinanceStore();
+   // --- Global State (Selective Picking for Performance) ---
+   const settings = useAuthStore(state => state.settings);
+   const branches = useAuthStore(state => state.branches);
+   const hasPermission = useAuthStore(state => state.hasPermission);
+   const updateSettings = useAuthStore(state => state.updateSettings);
+   const isSidebarCollapsed = useAuthStore(state => state.isSidebarCollapsed);
+   const setSidebarCollapsed = useAuthStore(state => state.setSidebarCollapsed);
+
+   const orders = useOrderStore(state => state.orders);
+   const activeCart = useOrderStore(state => state.activeCart);
+   const addToCart = useOrderStore(state => state.addToCart);
+   const removeFromCart = useOrderStore(state => state.removeFromCart);
+   const updateCartItemQuantity = useOrderStore(state => state.updateCartItemQuantity);
+   const updateCartItemNotes = useOrderStore(state => state.updateCartItemNotes);
+   const clearCart = useOrderStore(state => state.clearCart);
+   const placeOrder = useOrderStore(state => state.placeOrder);
+   const activeOrderType = useOrderStore(state => state.activeOrderType);
+   const setOrderMode = useOrderStore(state => state.setOrderMode);
+   const discount = useOrderStore(state => state.discount);
+   const setDiscount = useOrderStore(state => state.setDiscount);
+   const heldOrders = useOrderStore(state => state.heldOrders);
+   const recallOrder = useOrderStore(state => state.recallOrder);
+   const recalledOrder = useOrderStore(state => state.recalledOrder);
+   const clearRecalledOrder = useOrderStore(state => state.clearRecalledOrder);
+   const tables = useOrderStore(state => state.tables);
+
+   const menus = useMenuStore(state => state.menus);
+   const categories = useMenuStore(state => state.categories);
+   const customers = useCRMStore(state => state.customers);
+   const inventory = useInventoryStore(state => state.inventory);
+   const updateStock = useInventoryStore(state => state.updateStock);
+   const warehouses = useInventoryStore(state => state.warehouses);
+   const recordTransaction = useFinanceStore(state => state.recordTransaction);
 
    // --- Local State ---
    const [selectedTableId, setSelectedTableId] = useState<string | null>(null);
@@ -72,8 +94,13 @@ const POS: React.FC = () => {
    const currencySymbol = settings.currencySymbol;
    const branchId = settings.activeBranchId || 'b1';
 
-   const currentCategories = (categories || []).filter(cat => cat.menuIds.includes(activeMenuId || ''));
-   const dynamicCategories = ['All', ...currentCategories.map(c => c.name)];
+   const currentCategories = useMemo(() =>
+      (categories || []).filter(cat => cat.menuIds.includes(activeMenuId || '')),
+      [categories, activeMenuId]);
+
+   const dynamicCategories = useMemo(() =>
+      ['All', ...currentCategories.map(c => c.name)],
+      [currentCategories]);
 
    const filteredItems = useMemo(() => {
       const allItems = currentCategories.flatMap(c => c.items);
@@ -84,12 +111,15 @@ const POS: React.FC = () => {
       );
    }, [currentCategories, activeCategory, searchQuery]);
 
-   const cartSubtotal = activeCart.reduce((acc, item) => {
-      const modsPrice = item.selectedModifiers?.reduce((sum, mod) => sum + mod.price, 0) || 0;
-      return acc + ((item.price + modsPrice) * item.quantity);
-   }, 0);
-   const cartAfterDiscount = cartSubtotal * (1 - discount / 100);
-   const cartTotal = cartAfterDiscount * 1.1; // 10% tax (hardcoded 10% or use settings.taxRate?) Using 1.1 to match strict logic
+   const { cartSubtotal, cartTotal } = useMemo(() => {
+      const subtotal = activeCart.reduce((acc, item) => {
+         const modsPrice = item.selectedModifiers?.reduce((sum, mod) => sum + mod.price, 0) || 0;
+         return acc + ((item.price + modsPrice) * item.quantity);
+      }, 0);
+      const afterDiscount = subtotal * (1 - discount / 100);
+      const total = afterDiscount * 1.1; // 10% tax
+      return { cartSubtotal: subtotal, cartTotal: total };
+   }, [activeCart, discount]);
 
    // --- Effects ---
    useEffect(() => {
@@ -144,8 +174,8 @@ const POS: React.FC = () => {
       return () => window.removeEventListener('keydown', handleKeyDown);
    }, [activeCart, selectedTableId, showSplitModal, editingItemId, activeOrderType, dynamicCategories, clearCart]);
 
-   // --- Handlers ---
-   const handleAddItem = (item: any) => {
+   // --- Handlers (Memoized to prevent child re-renders) ---
+   const handleAddItem = useCallback((item: any) => {
       const existingItem = activeCart.find(ci =>
          ci.id === item.id && JSON.stringify(ci.selectedModifiers) === JSON.stringify([])
       );
@@ -155,11 +185,11 @@ const POS: React.FC = () => {
       } else {
          addToCart({ ...item, cartId: Math.random().toString(36).substr(2, 9), quantity: 1, selectedModifiers: [] });
       }
-   };
+   }, [activeCart, addToCart, updateCartItemQuantity]);
 
-   const handleUpdateQuantity = (cartId: string, delta: number) => {
+   const handleUpdateQuantity = useCallback((cartId: string, delta: number) => {
       updateCartItemQuantity(cartId, delta);
-   };
+   }, [updateCartItemQuantity]);
 
    const handleSubmitOrder = () => {
       if (activeCart.length === 0) return;
@@ -418,7 +448,7 @@ const POS: React.FC = () => {
                         <PaymentSummary
                            subtotal={cartSubtotal}
                            discount={discount}
-                           tax={cartAfterDiscount * 0.1}
+                           tax={cartTotal - (cartTotal / 1.1)}
                            total={cartTotal}
                            currencySymbol={currencySymbol}
                            paymentMethod={paymentMethod}

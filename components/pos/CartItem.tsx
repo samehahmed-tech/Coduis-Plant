@@ -11,7 +11,7 @@ interface CartItemProps {
     onRemove: (cartId: string) => void;
 }
 
-const CartItem: React.FC<CartItemProps> = ({
+const CartItem: React.FC<CartItemProps> = React.memo(({
     item,
     currencySymbol,
     isTouchMode,
@@ -68,6 +68,6 @@ const CartItem: React.FC<CartItemProps> = ({
             </div>
         </div>
     );
-};
+});
 
 export default CartItem;
