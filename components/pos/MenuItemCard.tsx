@@ -41,7 +41,7 @@ const MenuItemCard: React.FC<MenuItemCardProps> = ({
             <div className="flex-1 p-4 md:p-5 flex flex-col justify-between min-w-0">
                 <div className="space-y-1">
                     <span className="text-[9px] font-bold text-indigo-500/80 uppercase tracking-widest">
-                        {item.categoryId || 'Main'}
+                        {item.categoryAr || item.category || 'Main'}
                     </span>
                     <h3 className={`${isTouchMode ? 'text-base md:text-lg' : 'text-sm md:text-base'} font-black text-slate-800 dark:text-white leading-tight line-clamp-2`}>
                         {item.name}

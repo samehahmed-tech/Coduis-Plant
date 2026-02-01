@@ -1,12 +1,16 @@
-
+// Order Store - Connected to Database API (Production Ready)
 import { create } from 'zustand';
-import { Order, OrderType, OrderItem, PaymentMethod, PaymentRecord, Table, TableStatus } from '../types';
+import { Order, OrderType, OrderItem, OrderStatus, Table, TableStatus } from '../types';
+import { ordersApi } from '../services/api';
 
 interface HeldOrder {
+    id: string;
     cart: OrderItem[];
     tableId?: string;
     customerId?: string;
+    customerName?: string;
     timestamp: Date;
+    notes?: string;
 }
 
 interface OrderState {
@@ -15,12 +19,19 @@ interface OrderState {
     heldOrders: HeldOrder[];
     activeCart: OrderItem[];
     tables: Table[];
+    isLoading: boolean;
+    error: string | null;
 
     // POS State
     discount: number;
     recalledOrder: HeldOrder | null;
 
-    // Actions
+    // Async Actions (API)
+    fetchOrders: (params?: { status?: string; branch_id?: string; date?: string; limit?: number }) => Promise<void>;
+    placeOrder: (order: Order) => Promise<Order>;
+    updateOrderStatus: (orderId: string, status: OrderStatus, changedBy?: string) => Promise<void>;
+
+    // Local Actions
     setOrderMode: (mode: OrderType) => void;
     addToCart: (item: OrderItem) => void;
     removeFromCart: (itemId: string) => void;
@@ -28,34 +39,130 @@ interface OrderState {
     updateCartItemNotes: (itemId: string, notes: string) => void;
     clearCart: () => void;
     setDiscount: (amount: number) => void;
-    placeOrder: (order: Order) => void;
     holdOrder: (order: HeldOrder) => void;
     recallOrder: (index: number) => void;
     clearRecalledOrder: () => void;
     updateTables: (tables: Table[]) => void;
     updateTableStatus: (tableId: string, status: TableStatus) => void;
-    updateOrderStatus: (orderId: string, status: OrderStatus) => void;
+    clearError: () => void;
 }
 
-const INITIAL_TABLES: Table[] = [
-    { id: 't1', name: 'T1', status: TableStatus.AVAILABLE, seats: 4, position: { x: 10, y: 10 }, shape: 'square', zoneId: 'hall', type: 'DINE_IN' },
-    { id: 't2', name: 'T2', status: TableStatus.AVAILABLE, seats: 2, position: { x: 30, y: 10 }, shape: 'round', zoneId: 'hall', type: 'DINE_IN' },
-    { id: 't3', name: 'T3', status: TableStatus.AVAILABLE, seats: 6, position: { x: 50, y: 10 }, shape: 'rectangle', zoneId: 'hall', type: 'DINE_IN' },
-    { id: 't4', name: 'VIP-1', status: TableStatus.RESERVED, seats: 8, position: { x: 80, y: 20 }, shape: 'rectangle', zoneId: 'vip', isVIP: true, minSpend: 500, type: 'DINE_IN' },
-    { id: 't5', name: 'T4', status: TableStatus.AVAILABLE, seats: 4, position: { x: 10, y: 40 }, shape: 'square', zoneId: 'hall', type: 'DINE_IN' },
-    { id: 't6', name: 'T5', status: TableStatus.AVAILABLE, seats: 4, position: { x: 30, y: 40 }, shape: 'square', zoneId: 'hall', type: 'DINE_IN' },
-    { id: 't7', name: 'O-1', status: TableStatus.AVAILABLE, seats: 2, position: { x: 10, y: 70 }, shape: 'round', zoneId: 'terrace', type: 'DINE_IN' },
-    { id: 't8', name: 'O-2', status: TableStatus.AVAILABLE, seats: 2, position: { x: 30, y: 70 }, shape: 'round', zoneId: 'terrace', type: 'DINE_IN' },
-];
+// Empty tables - should be configured in settings
+const INITIAL_TABLES: Table[] = [];
 
-export const useOrderStore = create<OrderState>((set) => ({
-    orders: [],
+export const useOrderStore = create<OrderState>((set, get) => ({
+    orders: [], // Empty - loads from database
     activeOrderType: OrderType.DINE_IN,
     heldOrders: [],
     activeCart: [],
     tables: INITIAL_TABLES,
     discount: 0,
     recalledOrder: null,
+    isLoading: false,
+    error: null,
+
+    // ============ API Actions ============
+
+    fetchOrders: async (params) => {
+        set({ isLoading: true, error: null });
+        try {
+            const data = await ordersApi.getAll(params);
+            const orders = data.map((o: any) => ({
+                id: o.id,
+                type: o.type as OrderType,
+                branchId: o.branch_id,
+                tableId: o.table_id,
+                customerId: o.customer_id,
+                customerName: o.customer_name,
+                customerPhone: o.customer_phone,
+                deliveryAddress: o.delivery_address,
+                isCallCenterOrder: o.is_call_center_order,
+                items: o.items || [],
+                status: o.status as OrderStatus,
+                subtotal: o.subtotal,
+                tax: o.tax,
+                total: o.total,
+                discount: o.discount,
+                freeDelivery: o.free_delivery,
+                isUrgent: o.is_urgent,
+                paymentMethod: o.payment_method,
+                notes: o.notes,
+                createdAt: new Date(o.created_at),
+            }));
+            set({ orders, isLoading: false });
+        } catch (error: any) {
+            set({ error: error.message, isLoading: false });
+            console.error('Failed to fetch orders:', error);
+        }
+    },
+
+    placeOrder: async (order) => {
+        set({ isLoading: true, error: null });
+        try {
+            // Send to API
+            const savedOrder = await ordersApi.create({
+                id: order.id,
+                type: order.type,
+                source: order.isCallCenterOrder ? 'call_center' : 'pos',
+                branch_id: order.branchId,
+                table_id: order.tableId,
+                customer_id: order.customerId,
+                customer_name: order.customerName,
+                customer_phone: order.customerPhone,
+                delivery_address: order.deliveryAddress,
+                is_call_center_order: order.isCallCenterOrder,
+                status: order.status || 'PENDING',
+                subtotal: order.subtotal,
+                discount: order.discount,
+                tax: order.tax,
+                total: order.total,
+                free_delivery: order.freeDelivery,
+                is_urgent: order.isUrgent,
+                payment_method: order.paymentMethod,
+                notes: order.notes,
+                kitchen_notes: order.kitchenNotes,
+                items: order.items.map(item => ({
+                    menu_item_id: item.id,
+                    name: item.name,
+                    price: item.price,
+                    quantity: item.quantity,
+                    notes: item.notes,
+                    modifiers: item.selectedModifiers,
+                }))
+            });
+
+            // Update local state
+            set((state) => ({
+                orders: [order, ...state.orders],
+                activeCart: [],
+                discount: 0,
+                isLoading: false
+            }));
+
+            return savedOrder;
+        } catch (error: any) {
+            set({ error: error.message, isLoading: false });
+            console.error('Failed to save order:', error);
+            throw error;
+        }
+    },
+
+    updateOrderStatus: async (orderId, status, changedBy) => {
+        try {
+            await ordersApi.updateStatus(orderId, { status, changed_by: changedBy });
+            set((state) => ({
+                orders: state.orders.map(o => o.id === orderId ? { ...o, status } : o)
+            }));
+        } catch (error: any) {
+            // Update locally anyway for responsiveness
+            set((state) => ({
+                orders: state.orders.map(o => o.id === orderId ? { ...o, status } : o)
+            }));
+            console.error('Failed to update order status:', error);
+        }
+    },
+
+    // ============ Local Actions ============
 
     setOrderMode: (mode) => set({ activeOrderType: mode }),
 
@@ -83,12 +190,6 @@ export const useOrderStore = create<OrderState>((set) => ({
 
     setDiscount: (d) => set({ discount: d }),
 
-    placeOrder: (order) => set((state) => ({
-        orders: [order, ...state.orders],
-        activeCart: [],
-        discount: 0
-    })),
-
     holdOrder: (order) => set((state) => ({
         heldOrders: [...state.heldOrders, order],
         activeCart: [],
@@ -112,7 +213,6 @@ export const useOrderStore = create<OrderState>((set) => ({
     updateTableStatus: (tableId, status) => set((state) => ({
         tables: state.tables.map(t => t.id === tableId ? { ...t, status } : t)
     })),
-    updateOrderStatus: (orderId, status) => set((state) => ({
-        orders: state.orders.map(o => o.id === orderId ? { ...o, status } : o)
-    }))
+
+    clearError: () => set({ error: null }),
 }));

@@ -19,6 +19,9 @@ import { useInventoryStore } from '../stores/useInventoryStore';
 // Services
 import { translations } from '../services/translations';
 
+// Components
+import ImageUploader from './common/ImageUploader';
+
 const MenuManager: React.FC = () => {
   // Global State
   const {
@@ -410,11 +413,26 @@ const MenuManager: React.FC = () => {
                       <input type="number" value={itemModal.item.sortOrder || 0} onChange={(e) => setItemModal({ ...itemModal, item: { ...itemModal.item, sortOrder: parseInt(e.target.value) || 0 } })} className="w-full p-5 bg-slate-50 dark:bg-slate-800 rounded-2xl font-black outline-none border border-transparent focus:border-indigo-600 transition-all" />
                     </div>
                   </div>
-                  <div className="space-y-2">
-                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">{lang === 'ar' ? 'رابط الصورة' : 'Image URL'}</label>
-                    <div className="flex gap-3">
-                      <input type="text" value={itemModal.item.image || ''} onChange={(e) => setItemModal({ ...itemModal, item: { ...itemModal.item, image: e.target.value } })} className="flex-1 p-5 bg-slate-50 dark:bg-slate-800 rounded-2xl font-bold truncate outline-none border border-transparent focus:border-indigo-600 transition-all" placeholder="https://..." />
-                      <button className="p-5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-800 rounded-2xl text-indigo-600 hover:bg-slate-50"><ImageIcon size={20} /></button>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <ImageUploader
+                      value={itemModal.item.image || ''}
+                      onChange={(url) => setItemModal({ ...itemModal, item: { ...itemModal.item, image: url } })}
+                      type="item"
+                      size="md"
+                      label={lang === 'ar' ? 'صورة الصنف' : 'Item Image'}
+                      lang={lang}
+                    />
+                    <div className="space-y-2">
+                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">{lang === 'ar' ? 'القسم' : 'Category'}</label>
+                      <select
+                        value={itemModal.categoryId}
+                        onChange={(e) => setItemModal({ ...itemModal, categoryId: e.target.value, item: { ...itemModal.item, categoryId: e.target.value } })}
+                        className="w-full p-5 bg-slate-50 dark:bg-slate-800 rounded-2xl font-bold border border-transparent focus:border-indigo-600 transition-all outline-none appearance-none"
+                      >
+                        {categories.map(cat => (
+                          <option key={cat.id} value={cat.id}>{lang === 'ar' ? (cat.nameAr || cat.name) : cat.name}</option>
+                        ))}
+                      </select>
                     </div>
                   </div>
                 </div>
@@ -516,15 +534,14 @@ const MenuManager: React.FC = () => {
                 </div>
               </div>
 
-              <div className="space-y-2">
-                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">{lang === 'ar' ? 'صورة القسم' : 'Cover Image URL'}</label>
-                <div className="flex gap-3">
-                  <input type="text" value={categoryModal.category.image || ''} onChange={(e) => setCategoryModal({ ...categoryModal, category: { ...categoryModal.category, image: e.target.value } })} className="flex-1 p-4 bg-slate-50 dark:bg-slate-800 rounded-2xl font-mono text-xs border border-transparent focus:border-indigo-600 transition-all outline-none" placeholder="https://..." />
-                  <div className="w-14 h-14 rounded-2xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center overflow-hidden border border-slate-200 dark:border-slate-700">
-                    {categoryModal.category.image ? <img src={categoryModal.category.image} alt="Preview" className="w-full h-full object-cover" /> : <ImageIcon size={20} className="text-slate-300" />}
-                  </div>
-                </div>
-              </div>
+              <ImageUploader
+                value={categoryModal.category.image || ''}
+                onChange={(url) => setCategoryModal({ ...categoryModal, category: { ...categoryModal.category, image: url } })}
+                type="category"
+                size="md"
+                label={lang === 'ar' ? 'صورة القسم' : 'Category Image'}
+                lang={lang}
+              />
 
               <div className="space-y-3">
                 <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">{lang === 'ar' ? 'أنواع الطلبات المسموحة' : 'Available Order Modes'}</label>

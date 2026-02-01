@@ -1,40 +1,87 @@
-
+// Inventory Store - Connected to Database API (Production Ready)
 import { create } from 'zustand';
-import { InventoryItem, Supplier, PurchaseOrder, Warehouse, WarehouseType, Branch } from '../types';
-
-const INITIAL_WAREHOUSES: Warehouse[] = [
-    { id: 'w1', name: 'Main Kitchen Store', branchId: 'b1', type: WarehouseType.KITCHEN, isActive: true },
-    { id: 'w2', name: 'Bar Store', branchId: 'b1', type: WarehouseType.POINT_OF_SALE, isActive: true },
-];
-
-const INITIAL_INVENTORY: InventoryItem[] = [
-    { id: 'inv-1', name: 'Beef Patty', unit: 'pcs', category: 'Meat', costPrice: 40, threshold: 50, warehouseQuantities: [{ warehouseId: 'w1', quantity: 200 }] },
-    { id: 'inv-2', name: 'Burger Bun', unit: 'pcs', category: 'Bakery', costPrice: 5, threshold: 100, warehouseQuantities: [{ warehouseId: 'w1', quantity: 300 }] },
-    { id: 'inv-3', name: 'Tomato', unit: 'kg', category: 'Vegetables', costPrice: 15, threshold: 10, warehouseQuantities: [{ warehouseId: 'w1', quantity: 50 }] },
-    { id: 'inv-4', name: 'Lettuce', unit: 'head', category: 'Vegetables', costPrice: 10, threshold: 20, warehouseQuantities: [{ warehouseId: 'w1', quantity: 40 }] },
-    { id: 'inv-5', name: 'Mozzarella Cheese', unit: 'kg', category: 'Dairy', costPrice: 250, threshold: 15, warehouseQuantities: [{ warehouseId: 'w1', quantity: 30 }] },
-    { id: 'inv-6', name: 'Pizza Dough', unit: 'pcs', category: 'Bakery', costPrice: 10, threshold: 50, warehouseQuantities: [{ warehouseId: 'w1', quantity: 100 }] },
-    { id: 'inv-7', name: 'Cola Can', unit: 'pcs', category: 'Beverage', costPrice: 12, threshold: 100, warehouseQuantities: [{ warehouseId: 'w2', quantity: 500 }] },
-];
+import { InventoryItem, Supplier, PurchaseOrder, Warehouse, WarehouseType } from '../types';
+import { inventoryApi } from '../services/api';
 
 interface InventoryState {
     inventory: InventoryItem[];
     suppliers: Supplier[];
     purchaseOrders: PurchaseOrder[];
     warehouses: Warehouse[];
+    isLoading: boolean;
+    error: string | null;
 
-    // Actions
+    // Async Actions (API)
+    fetchInventory: () => Promise<void>;
+    addInventoryItem: (item: InventoryItem) => Promise<void>;
+
+    // Local Actions
     updateStock: (itemId: string, warehouseId: string, quantity: number) => void;
     addPurchaseOrder: (po: PurchaseOrder) => void;
     receivePurchaseOrder: (poId: string, receivedAt: Date) => void;
     addSupplier: (supplier: Supplier) => void;
+    addWarehouse: (warehouse: Warehouse) => void;
+    clearError: () => void;
 }
 
-export const useInventoryStore = create<InventoryState>((set) => ({
-    inventory: INITIAL_INVENTORY,
+export const useInventoryStore = create<InventoryState>((set, get) => ({
+    inventory: [], // Empty - loads from database
     suppliers: [],
     purchaseOrders: [],
-    warehouses: INITIAL_WAREHOUSES,
+    warehouses: [],
+    isLoading: false,
+    error: null,
+
+    // ============ API Actions ============
+
+    fetchInventory: async () => {
+        set({ isLoading: true, error: null });
+        try {
+            const data = await inventoryApi.getAll();
+            const inventory = data.map((item: any) => ({
+                id: item.id,
+                name: item.name,
+                nameAr: item.name_ar,
+                sku: item.sku,
+                barcode: item.barcode,
+                unit: item.unit,
+                category: item.category,
+                costPrice: item.cost_price,
+                threshold: item.threshold,
+                warehouseQuantities: [{ warehouseId: 'w1', quantity: item.total_quantity || 0 }],
+            }));
+            set({ inventory, isLoading: false });
+        } catch (error: any) {
+            set({ error: error.message, isLoading: false });
+            console.error('Failed to fetch inventory:', error);
+        }
+    },
+
+    addInventoryItem: async (item) => {
+        set({ isLoading: true });
+        try {
+            await inventoryApi.create({
+                id: item.id,
+                name: item.name,
+                name_ar: item.nameAr,
+                sku: item.sku,
+                barcode: item.barcode,
+                unit: item.unit,
+                category: item.category,
+                cost_price: item.costPrice,
+                threshold: item.threshold,
+            });
+            set((state) => ({
+                inventory: [...state.inventory, item],
+                isLoading: false
+            }));
+        } catch (error: any) {
+            set({ error: error.message, isLoading: false });
+            throw error;
+        }
+    },
+
+    // ============ Local Actions ============
 
     updateStock: (itemId, warehouseId, quantity) => set((state) => ({
         inventory: state.inventory.map(item => {
@@ -51,10 +98,13 @@ export const useInventoryStore = create<InventoryState>((set) => ({
     receivePurchaseOrder: (poId, receivedAt) => set((state) => ({
         purchaseOrders: state.purchaseOrders.map(po => {
             if (po.id !== poId) return po;
-            // Logic to increase stock should also be triggered here in a real app or effect
             return { ...po, status: 'RECEIVED', receivedDate: receivedAt };
         })
     })),
 
-    addSupplier: (supplier) => set((state) => ({ suppliers: [...state.suppliers, supplier] }))
+    addSupplier: (supplier) => set((state) => ({ suppliers: [...state.suppliers, supplier] })),
+
+    addWarehouse: (warehouse) => set((state) => ({ warehouses: [...state.warehouses, warehouse] })),
+
+    clearError: () => set({ error: null }),
 }));

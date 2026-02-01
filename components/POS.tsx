@@ -346,7 +346,7 @@ const POS: React.FC = () => {
                      <div className="flex-1 flex flex-col h-full overflow-hidden">
                         <div className="bg-white dark:bg-slate-900 p-3 md:p-5 border-b border-slate-200 dark:border-slate-800 flex flex-col sm:flex-row justify-between items-stretch sm:items-center gap-3 shadow-sm">
                            <CategoryTabs
-                              categories={dynamicCategories}
+                              categories={currentCategories}
                               activeCategory={activeCategory}
                               onSetCategory={setActiveCategory}
                               isTouchMode={isTouchMode}
