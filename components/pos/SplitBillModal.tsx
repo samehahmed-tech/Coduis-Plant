@@ -33,65 +33,65 @@ const SplitBillModal: React.FC<SplitBillModalProps> = ({
     const remaining = total - currentSum;
 
     return (
-        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center z-[100] p-4 animate-in fade-in duration-300">
-            <div className="bg-white dark:bg-slate-900 w-full max-w-xl rounded-[2.5rem] shadow-2xl overflow-hidden flex flex-col max-h-[85vh]">
-                <div className="p-8 border-b border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-950/50 flex justify-between items-center">
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[100] p-4 animate-in fade-in duration-300">
+            <div className="bg-card w-full max-w-xl rounded-[2.5rem] shadow-2xl overflow-hidden flex flex-col max-h-[85vh] border border-border">
+                <div className="p-8 border-b border-border bg-elevated/50 flex justify-between items-center">
                     <div className="flex items-center gap-4">
-                        <div className="p-4 bg-indigo-600 text-white rounded-2xl shadow-xl">
+                        <div className="p-4 bg-primary text-white rounded-2xl shadow-xl">
                             <Calculator size={28} />
                         </div>
-                        <h3 className="text-2xl font-black text-slate-800 dark:text-white uppercase tracking-tight">
+                        <h3 className="text-2xl font-black text-main uppercase tracking-tight">
                             {t.split_bill}
                         </h3>
                     </div>
-                    <button onClick={onClose} className="p-3 hover:bg-slate-200 dark:hover:bg-slate-800 rounded-full transition-colors text-slate-400">
+                    <button onClick={onClose} className="p-3 hover:bg-elevated rounded-full transition-colors text-muted">
                         <X size={28} />
                     </button>
                 </div>
 
                 <div className="flex-1 overflow-y-auto p-8 space-y-8 no-scrollbar">
-                    <div className="bg-indigo-50 dark:bg-indigo-900/20 p-6 rounded-3xl flex justify-between items-center border border-indigo-100 dark:border-indigo-800 shadow-sm">
-                        <span className="text-xs font-black text-indigo-600 uppercase tracking-widest">
+                    <div className="bg-primary/5 p-6 rounded-3xl flex justify-between items-center border border-primary/10 shadow-sm">
+                        <span className="text-xs font-black text-primary uppercase tracking-widest">
                             {lang === 'ar' ? 'إجمالي الفاتورة' : 'Bill Total'}
                         </span>
-                        <span className="text-3xl font-black text-indigo-700 dark:text-indigo-300">
+                        <span className="text-3xl font-black text-primary">
                             {currencySymbol}{total.toFixed(2)}
                         </span>
                     </div>
 
                     <div className="space-y-4">
-                        <h4 className="text-[10px] font-black uppercase text-slate-400 tracking-widest px-1">
+                        <h4 className="text-[10px] font-black uppercase text-muted tracking-widest px-1">
                             {lang === 'ar' ? 'دفعات مضافة' : 'Added Payments'}
                         </h4>
                         {splitPayments.map((p, idx) => (
-                            <div key={idx} className="flex items-center gap-4 p-4 bg-slate-50 dark:bg-slate-800 rounded-[1.5rem] border border-slate-100 dark:border-slate-700 animate-in slide-in-from-top-4 transition-all hover:border-indigo-100">
-                                <div className="p-3 bg-white dark:bg-slate-700 rounded-xl shadow-sm text-indigo-600">
+                            <div key={idx} className="flex items-center gap-4 p-4 bg-card rounded-[1.5rem] border border-border animate-in slide-in-from-top-4 transition-all hover:border-primary/40">
+                                <div className="p-3 bg-app rounded-xl shadow-sm text-primary">
                                     {p.method === PaymentMethod.CASH && <Banknote size={20} />}
                                     {p.method === PaymentMethod.VISA && <CreditCard size={20} />}
                                     {p.method === PaymentMethod.VODAFONE_CASH && <Smartphone size={20} />}
                                     {p.method === PaymentMethod.INSTAPAY && <Landmark size={20} />}
                                 </div>
-                                <span className="flex-1 text-xs font-black uppercase tracking-tight text-slate-700 dark:text-slate-300">
+                                <span className="flex-1 text-xs font-black uppercase tracking-tight text-main">
                                     {p.method.replace('_', ' ')}
                                 </span>
                                 <div className="relative w-40">
-                                    <span className={`absolute top-1/2 -translate-y-1/2 text-slate-400 text-sm font-bold ${lang === 'ar' ? 'left-4' : 'left-3'} `}>
+                                    <span className={`absolute top-1/2 -translate-y-1/2 text-muted text-sm font-bold ${lang === 'ar' ? 'left-4' : 'left-3'} `}>
                                         {currencySymbol}
                                     </span>
                                     <input
                                         type="number"
                                         value={p.amount}
                                         onChange={(e) => onUpdateAmount(idx, parseFloat(e.target.value) || 0)}
-                                        className={`w-full py-3 rounded-2xl bg-white dark:bg-slate-900 border-none outline-none font-black text-base shadow-sm ${lang === 'ar' ? 'pl-10 pr-4 text-left' : 'pl-8 pr-4 text-right'} `}
+                                        className={`w-full py-3 rounded-2xl bg-app border-none outline-none font-black text-base shadow-sm text-main ${lang === 'ar' ? 'pl-10 pr-4 text-left' : 'pl-8 pr-4 text-right'} `}
                                     />
                                 </div>
-                                <button onClick={() => onRemovePayment(idx)} className="text-slate-200 hover:text-red-500 transition-all p-2">
+                                <button onClick={() => onRemovePayment(idx)} className="text-muted/20 hover:text-danger transition-all p-2">
                                     <Trash2 size={20} />
                                 </button>
                             </div>
                         ))}
                         {splitPayments.length === 0 && (
-                            <p className="text-center text-slate-400 text-sm font-bold py-10 italic">
+                            <p className="text-center text-muted text-sm font-bold py-10 italic">
                                 {lang === 'ar' ? 'أضف طرق دفع لتقسيم الفاتورة...' : 'Add payment methods below to split the bill...'}
                             </p>
                         )}
@@ -104,17 +104,17 @@ const SplitBillModal: React.FC<SplitBillModalProps> = ({
                             { id: PaymentMethod.VODAFONE_CASH, icon: Smartphone },
                             { id: PaymentMethod.INSTAPAY, icon: Landmark }
                         ].map(m => (
-                            <button key={m.id} onClick={() => onAddPayment(m.id)} className="p-5 rounded-3xl bg-slate-100 dark:bg-slate-800 text-slate-500 hover:bg-indigo-600 hover:text-white transition-all flex items-center justify-center shadow-sm">
+                            <button key={m.id} onClick={() => onAddPayment(m.id)} className="p-5 rounded-3xl bg-app text-muted hover:bg-primary hover:text-white transition-all flex items-center justify-center shadow-sm">
                                 <m.icon size={28} />
                             </button>
                         ))}
                     </div>
                 </div>
 
-                <div className="p-8 border-t border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-950/50 space-y-6">
+                <div className="p-8 border-t border-border bg-elevated/50 space-y-6">
                     <div className="flex justify-between items-center text-[10px] font-black uppercase tracking-widest">
-                        <span className="text-slate-500">{t.remaining}</span>
-                        <span className={`text-lg ${remaining > 0.01 ? 'text-red-500' : 'text-green-500'} `}>
+                        <span className="text-muted">{t.remaining}</span>
+                        <span className={`text-lg ${remaining > 0.01 ? 'text-danger' : 'text-success'} `}>
                             {currencySymbol}{remaining.toFixed(2)}
                         </span>
                     </div>
@@ -123,7 +123,7 @@ const SplitBillModal: React.FC<SplitBillModalProps> = ({
                             if (Math.abs(remaining) < 0.01) onClose();
                             else alert(lang === 'ar' ? 'المجموع غير مطابق!' : "Payment sum doesn't match total!");
                         }}
-                        className="w-full py-5 bg-indigo-600 text-white rounded-2xl font-black text-sm uppercase tracking-widest hover:bg-indigo-700 shadow-2xl shadow-indigo-600/20 transition-all"
+                        className="w-full py-5 bg-primary text-white rounded-2xl font-black text-sm uppercase tracking-widest hover:bg-primary-hover shadow-2xl shadow-primary/20 transition-all"
                     >
                         {lang === 'ar' ? 'تأكيد التقسيم' : 'Confirm Split'}
                     </button>

@@ -24,6 +24,11 @@ export const loaders = {
     ForensicsHub: () => import('./components/ForensicsHub'),
     SettingsHub: () => import('./components/SettingsHub'),
     FloorDesigner: () => import('./components/FloorDesigner'),
+    Production: () => import('./components/Production'),
+    DispatchHub: () => import('./components/DispatchHub'),
+    CampaignHub: () => import('./components/CampaignHub'),
+    ZenPeople: () => import('./components/ZenPeople'),
+    FiscalHub: () => import('./components/FiscalHub'),
 };
 
 // Lazy load components using exported loaders
@@ -44,8 +49,13 @@ const SecurityHub = React.lazy(loaders.SecurityHub);
 const ForensicsHub = React.lazy(loaders.ForensicsHub);
 const SettingsHub = React.lazy(loaders.SettingsHub);
 const FloorDesigner = React.lazy(loaders.FloorDesigner);
+const Production = React.lazy(loaders.Production);
+const DispatchHub = React.lazy(loaders.DispatchHub);
+const CampaignHub = React.lazy(loaders.CampaignHub);
+const ZenPeople = React.lazy(loaders.ZenPeople);
+const FiscalHub = React.lazy(loaders.FiscalHub);
 
-const Loading = () => <div className="p-8 text-center text-slate-400 font-black uppercase tracking-widest text-xs animate-pulse">Loading System Module...</div>;
+const Loading = () => <div className="p-8 text-center text-slate-400 font-black uppercase tracking-widest text-[8px] opacity-40">Initializing Module...</div>;
 
 export const router = createBrowserRouter([
     {
@@ -185,6 +195,46 @@ export const router = createBrowserRouter([
                 element: (
                     <Suspense fallback={<Loading />}>
                         <FloorDesigner />
+                    </Suspense>
+                ),
+            },
+            {
+                path: 'production',
+                element: (
+                    <Suspense fallback={<Loading />}>
+                        <Production />
+                    </Suspense>
+                ),
+            },
+            {
+                path: 'dispatch',
+                element: (
+                    <Suspense fallback={<Loading />}>
+                        <DispatchHub />
+                    </Suspense>
+                ),
+            },
+            {
+                path: 'marketing',
+                element: (
+                    <Suspense fallback={<Loading />}>
+                        <CampaignHub />
+                    </Suspense>
+                ),
+            },
+            {
+                path: 'people',
+                element: (
+                    <Suspense fallback={<Loading />}>
+                        <ZenPeople />
+                    </Suspense>
+                ),
+            },
+            {
+                path: 'fiscal',
+                element: (
+                    <Suspense fallback={<Loading />}>
+                        <FiscalHub />
                     </Suspense>
                 ),
             },

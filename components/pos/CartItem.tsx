@@ -20,10 +20,10 @@ const CartItem: React.FC<CartItemProps> = React.memo(({
     onRemove,
 }) => {
     return (
-        <div className="bg-white dark:bg-slate-800 p-4 rounded-2xl border border-slate-100 dark:border-slate-700 flex justify-between items-center shadow-sm animate-in slide-in-from-right-2 transition-all hover:border-indigo-100">
+        <div className="bg-card dark:bg-card p-4 rounded-2xl border border-border/50 flex justify-between items-center shadow-sm animate-in slide-in-from-right-2 transition-all hover:border-primary/30">
             <div className="flex-1 min-w-0">
-                <h4 className="font-bold text-slate-800 dark:text-slate-100 leading-tight mb-0.5">{item.name}</h4>
-                <p className="text-sm font-bold text-indigo-600">
+                <h4 className="font-bold text-main dark:text-main leading-tight mb-0.5">{item.name}</h4>
+                <p className="text-sm font-bold text-primary">
                     {(item.price * item.quantity).toFixed(2)}
                 </p>
                 {item.notes && <p className="text-[10px] text-amber-600 font-bold mt-1">📝 {item.notes}</p>}
@@ -43,11 +43,11 @@ const CartItem: React.FC<CartItemProps> = React.memo(({
                         e.stopPropagation();
                         onUpdateQuantity(item.cartId, -1);
                     }}
-                    className={`${isTouchMode ? 'w-14 h-14' : 'w-8 h-8'} rounded-lg bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 flex items-center justify-center hover:bg-indigo-100 hover:text-indigo-600 transition-all`}
+                    className={`${isTouchMode ? 'w-14 h-14' : 'w-8 h-8'} rounded-lg bg-elevated dark:bg-elevated/50 text-muted dark:text-muted flex items-center justify-center hover:bg-primary/20 hover:text-primary transition-all`}
                 >
                     <Minus size={isTouchMode ? 20 : 14} />
                 </button>
-                <span className={`${isTouchMode ? 'w-14 text-xl' : 'w-8'} text-center font-black text-slate-800 dark:text-white`}>
+                <span className={`${isTouchMode ? 'w-14 text-xl' : 'w-8'} text-center font-black text-main dark:text-main`}>
                     {item.quantity}
                 </span>
                 <button
@@ -55,7 +55,7 @@ const CartItem: React.FC<CartItemProps> = React.memo(({
                         e.stopPropagation();
                         onUpdateQuantity(item.cartId, 1);
                     }}
-                    className={`${isTouchMode ? 'w-14 h-14' : 'w-8 h-8'} rounded-lg bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 flex items-center justify-center hover:bg-indigo-100 hover:text-indigo-600 transition-all`}
+                    className={`${isTouchMode ? 'w-14 h-14' : 'w-8 h-8'} rounded-lg bg-elevated dark:bg-elevated/50 text-muted dark:text-muted flex items-center justify-center hover:bg-primary/20 hover:text-primary transition-all`}
                 >
                     <Plus size={isTouchMode ? 20 : 14} />
                 </button>

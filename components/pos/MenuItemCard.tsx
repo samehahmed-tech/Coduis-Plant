@@ -20,7 +20,7 @@ const MenuItemCard: React.FC<MenuItemCardProps> = React.memo(({
     return (
         <div
             onClick={() => onAddItem(item)}
-            className="group relative flex flex-row bg-white dark:bg-slate-900 rounded-[2rem] shadow-sm border border-slate-100 dark:border-slate-800 overflow-hidden cursor-pointer hover:shadow-xl hover:border-indigo-500/40 transition-all duration-300 h-40 md:h-44 lg:h-[12.5rem] active:scale-95 active:ring-4 active:ring-indigo-500/20 active:border-indigo-500 select-none"
+            className="group relative flex flex-row bg-card dark:bg-card border border-border/50 hover:shadow-xl hover:border-primary/40 active:ring-4 active:ring-primary/20 active:border-primary"
         >
             {/* Image Section */}
             <div className="w-[38%] md:w-[40%] relative overflow-hidden shrink-0">
@@ -41,13 +41,13 @@ const MenuItemCard: React.FC<MenuItemCardProps> = React.memo(({
             {/* Content Section */}
             <div className="flex-1 p-4 md:p-5 flex flex-col justify-between min-w-0">
                 <div className="space-y-1">
-                    <span className="text-[9px] font-bold text-indigo-500/80 uppercase tracking-widest">
+                    <span className="text-[9px] font-bold text-primary/80 uppercase tracking-widest">
                         {item.categoryAr || item.category || 'Main'}
                     </span>
-                    <h3 className={`${isTouchMode ? 'text-base md:text-lg' : 'text-sm md:text-base'} font-black text-slate-800 dark:text-white leading-tight line-clamp-2`}>
+                    <h3 className={`${isTouchMode ? 'text-base md:text-lg' : 'text-sm md:text-base'} font-black text-main dark:text-main leading-tight line-clamp-2`}>
                         {item.name}
                     </h3>
-                    <p className="text-[10px] md:text-[11px] text-slate-400 dark:text-slate-500 font-medium leading-snug line-clamp-2 mt-1">
+                    <p className="text-[10px] md:text-[11px] text-muted dark:text-muted/80 font-medium leading-snug line-clamp-2 mt-1">
                         {item.description || "Freshly made with premium ingredients and our signature seasoning."}
                     </p>
                 </div>
@@ -56,14 +56,14 @@ const MenuItemCard: React.FC<MenuItemCardProps> = React.memo(({
                     <div className="flex flex-col">
                         <p className="text-[9px] font-bold text-slate-400 dark:text-slate-600 uppercase tracking-tighter mb-0.5">Price</p>
                         <div className="flex items-baseline">
-                            <span className="text-xl md:text-2xl font-black text-slate-900 dark:text-white tracking-tight">
+                            <span className="text-xl md:text-2xl font-black text-main dark:text-main tracking-tight">
                                 {item.price.toFixed(2)}
                             </span>
                         </div>
                     </div>
 
                     {/* Visual hint on hover */}
-                    <div className="w-8 h-1 bg-indigo-500/20 rounded-full opacity-0 group-hover:opacity-100 transition-opacity" />
+                    <div className="w-8 h-1 bg-primary/20 rounded-full opacity-0 group-hover:opacity-100 transition-opacity" />
                 </div>
             </div>
         </div>

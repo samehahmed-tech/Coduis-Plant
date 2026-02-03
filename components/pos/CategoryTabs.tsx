@@ -70,7 +70,7 @@ const CategoryTabs: React.FC<CategoryTabsProps> = React.memo(({
                 <div className="flex justify-end">
                     <button
                         onClick={() => setViewMode('scroll')}
-                        className="p-2 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-500 hover:bg-slate-200 dark:hover:bg-slate-700 transition-all"
+                        className="p-2 rounded-xl bg-elevated dark:bg-elevated text-muted hover:bg-card dark:hover:bg-card transition-all"
                         title={lang === 'ar' ? 'عرض أفقي' : 'Horizontal View'}
                     >
                         <LayoutList size={18} />
@@ -86,7 +86,7 @@ const CategoryTabs: React.FC<CategoryTabsProps> = React.memo(({
                             className={`
                                 group relative overflow-hidden rounded-2xl transition-all duration-300
                                 ${activeCategory === cat.name
-                                    ? 'ring-2 ring-indigo-500 ring-offset-2 dark:ring-offset-slate-900 shadow-lg shadow-indigo-500/20'
+                                    ? 'ring-2 ring-primary ring-offset-2 dark:ring-offset-app shadow-lg shadow-primary/20'
                                     : 'hover:-translate-y-1 hover:shadow-lg'
                                 }
                             `}
@@ -102,14 +102,14 @@ const CategoryTabs: React.FC<CategoryTabsProps> = React.memo(({
                                     />
                                 ) : (
                                     <div className={`w-full h-full ${cat.name === 'All'
-                                        ? 'bg-gradient-to-br from-indigo-500 to-purple-600'
-                                        : 'bg-gradient-to-br from-slate-200 to-slate-300 dark:from-slate-700 dark:to-slate-800'
+                                        ? 'bg-gradient-to-br from-primary to-primary-hover/80'
+                                        : 'bg-gradient-to-br from-elevated to-elevated/80 dark:from-elevated/30 dark:to-elevated/10'
                                         }`} />
                                 )}
 
                                 {/* Overlay */}
                                 <div className={`absolute inset-0 ${activeCategory === cat.name
-                                    ? 'bg-indigo-600/70'
+                                    ? 'bg-primary/70'
                                     : 'bg-black/30 group-hover:bg-black/40'
                                     } transition-all`} />
 
@@ -155,7 +155,7 @@ const CategoryTabs: React.FC<CategoryTabsProps> = React.memo(({
                 <div className="absolute -top-10 right-0 z-10">
                     <button
                         onClick={() => setViewMode('grid')}
-                        className="p-2 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-500 hover:bg-slate-200 dark:hover:bg-slate-700 transition-all"
+                        className="p-2 rounded-xl bg-elevated dark:bg-elevated text-muted hover:bg-card dark:hover:bg-card transition-all"
                         title={lang === 'ar' ? 'عرض شبكي' : 'Grid View'}
                     >
                         <Grid3X3 size={18} />
@@ -167,9 +167,9 @@ const CategoryTabs: React.FC<CategoryTabsProps> = React.memo(({
             {showLeftArrow && (
                 <button
                     onClick={() => scroll('left')}
-                    className="absolute left-0 top-1/2 -translate-y-1/2 z-10 p-2 rounded-full bg-white dark:bg-slate-800 shadow-lg hover:bg-slate-100 dark:hover:bg-slate-700 transition-all"
+                    className="absolute left-0 top-1/2 -translate-y-1/2 z-10 p-2 rounded-full bg-card dark:bg-elevated shadow-lg hover:bg-elevated dark:hover:bg-card transition-all"
                 >
-                    <ChevronLeft size={20} className="text-slate-600 dark:text-slate-300" />
+                    <ChevronLeft size={20} className="text-main dark:text-main" />
                 </button>
             )}
 
@@ -186,7 +186,7 @@ const CategoryTabs: React.FC<CategoryTabsProps> = React.memo(({
                             group flex-shrink-0 relative overflow-hidden rounded-2xl transition-all duration-300
                             ${isTouchMode ? 'w-28 h-28 md:w-32 md:h-32' : 'w-20 h-20 md:w-24 md:h-24'}
                             ${activeCategory === cat.name
-                                ? 'ring-2 ring-indigo-500 ring-offset-2 dark:ring-offset-slate-900 shadow-lg shadow-indigo-500/20 scale-105'
+                                ? 'ring-2 ring-primary ring-offset-2 dark:ring-offset-app shadow-lg shadow-primary/20 scale-105'
                                 : 'hover:scale-105 hover:shadow-lg'
                             }
                         `}
@@ -200,14 +200,14 @@ const CategoryTabs: React.FC<CategoryTabsProps> = React.memo(({
                             />
                         ) : (
                             <div className={`absolute inset-0 ${cat.name === 'All'
-                                ? 'bg-gradient-to-br from-indigo-500 to-purple-600'
-                                : 'bg-gradient-to-br from-slate-200 to-slate-300 dark:from-slate-700 dark:to-slate-800'
+                                ? 'bg-gradient-to-br from-primary to-primary-hover/80'
+                                : 'bg-gradient-to-br from-elevated to-elevated/80 dark:from-elevated/30 dark:to-elevated/10'
                                 }`} />
                         )}
 
                         {/* Overlay */}
                         <div className={`absolute inset-0 ${activeCategory === cat.name
-                            ? 'bg-indigo-600/60'
+                            ? 'bg-primary/60'
                             : 'bg-black/20 group-hover:bg-black/30'
                             } transition-all`} />
 
@@ -230,7 +230,7 @@ const CategoryTabs: React.FC<CategoryTabsProps> = React.memo(({
 
                         {/* Item Count Badge */}
                         {cat.items && cat.items.length > 0 && (
-                            <div className="absolute top-1.5 right-1.5 px-1.5 py-0.5 rounded-full bg-white/90 dark:bg-slate-900/90 text-[8px] font-bold text-slate-700 dark:text-slate-200">
+                            <div className="absolute top-1.5 right-1.5 px-1.5 py-0.5 rounded-full bg-card/90 dark:bg-card/90 text-main dark:text-main">
                                 {cat.items.length}
                             </div>
                         )}
@@ -247,9 +247,9 @@ const CategoryTabs: React.FC<CategoryTabsProps> = React.memo(({
             {showRightArrow && (
                 <button
                     onClick={() => scroll('right')}
-                    className="absolute right-0 top-1/2 -translate-y-1/2 z-10 p-2 rounded-full bg-white dark:bg-slate-800 shadow-lg hover:bg-slate-100 dark:hover:bg-slate-700 transition-all"
+                    className="absolute right-0 top-1/2 -translate-y-1/2 z-10 p-2 rounded-full bg-card dark:bg-elevated shadow-lg hover:bg-elevated dark:hover:bg-card transition-all"
                 >
-                    <ChevronRight size={20} className="text-slate-600 dark:text-slate-300" />
+                    <ChevronRight size={20} className="text-main dark:text-main" />
                 </button>
             )}
         </div>

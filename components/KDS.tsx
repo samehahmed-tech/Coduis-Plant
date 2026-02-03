@@ -59,33 +59,33 @@ const KDS: React.FC = () => {
   }
 
   return (
-    <div className="p-8 min-h-screen bg-slate-50 dark:bg-slate-950 transition-colors pb-24">
-      <div className={`flex justify-between items-center mb-8 p-6 rounded-[2rem] transition-all duration-700 ${isFlashing ? 'bg-indigo-600 shadow-2xl shadow-indigo-600/40' : 'bg-transparent'}`}>
+    <div className="p-8 min-h-screen bg-app transition-colors pb-24">
+      <div className={`flex justify-between items-center mb-8 p-6 rounded-[2rem] transition-all duration-700 ${isFlashing ? 'bg-primary shadow-2xl shadow-primary/40' : 'bg-transparent'}`}>
         <div>
-          <h2 className={`text-3xl font-black uppercase tracking-tight transition-colors ${isFlashing ? 'text-white' : 'text-slate-800 dark:text-white'}`}>
+          <h2 className={`text-3xl font-black uppercase tracking-tight transition-colors ${isFlashing ? 'text-white' : 'text-main'}`}>
             {isFlashing ? '🚨 NEW ORDER RECEIVED 🚨' : 'Kitchen Module'}
           </h2>
-          <p className={`font-semibold text-sm transition-colors ${isFlashing ? 'text-indigo-100' : 'text-slate-500 dark:text-slate-400'}`}>
+          <p className={`font-semibold text-sm transition-colors ${isFlashing ? 'text-indigo-100' : 'text-muted'}`}>
             {isFlashing ? 'Immediate attention required for incoming ticket.' : 'Real-time order tracking and kitchen efficiency.'}
           </p>
         </div>
-        <div className={`text-sm font-black px-6 py-2.5 rounded-2xl shadow-sm border uppercase tracking-widest transition-all ${isFlashing ? 'bg-white text-indigo-600 border-white scale-110' : 'bg-white dark:bg-slate-900 text-indigo-600 border-slate-200 dark:border-slate-800'}`}>
+        <div className={`text-sm font-black px-6 py-2.5 rounded-2xl shadow-sm border uppercase tracking-widest transition-all ${isFlashing ? 'bg-white text-indigo-600 border-white scale-110' : 'bg-card dark:text-primary border-border/50'}`}>
           {activeOrders.length} Active Tickets
         </div>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
         {activeOrders.map(order => (
-          <div key={order.id} className="bg-white dark:bg-slate-900 rounded-[2rem] shadow-sm border border-slate-200 dark:border-slate-800 overflow-hidden flex flex-col animate-fade-in transition-colors">
+          <div key={order.id} className="bg-card rounded-[2rem] shadow-sm border border-border/50 overflow-hidden flex flex-col animate-fade-in transition-colors">
             {/* Ticket Header */}
             <div className={`p-6 border-b dark:border-slate-800 flex justify-between items-center ${getHeaderColor(order.status)}`}>
               <div>
-                <span className="text-[10px] font-black uppercase text-slate-400 dark:text-slate-500 block mb-1 tracking-widest">Order ID</span>
-                <span className="font-mono font-black text-slate-800 dark:text-slate-100">#{order.id}</span>
+                <span className="text-[10px] font-black uppercase text-muted block mb-1 tracking-widest">Order ID</span>
+                <span className="font-mono font-black text-main font-black">#{order.id}</span>
               </div>
               <div className="text-right">
-                <span className="text-[10px] font-black uppercase text-slate-400 dark:text-slate-500 block mb-1 tracking-widest">Table / Mode</span>
-                <span className="font-mono font-black text-slate-800 dark:text-slate-100">{order.tableId || order.type}</span>
+                <span className="text-[10px] font-black uppercase text-muted block mb-1 tracking-widest">Table / Mode</span>
+                <span className="font-mono font-black text-main font-black">{order.tableId || order.type}</span>
               </div>
             </div>
 
@@ -118,7 +118,7 @@ const KDS: React.FC = () => {
             </div>
 
             {/* Actions */}
-            <div className="p-6 bg-slate-50 dark:bg-slate-950/50 border-t border-slate-200 dark:border-slate-800 grid gap-3">
+            <div className="p-6 bg-elevated dark:bg-elevated/50 border-t border-border/50 grid gap-3">
               <div className={`text-center py-2 px-4 rounded-xl text-[10px] font-black uppercase tracking-widest border shadow-sm ${getStatusColor(order.status)}`}>
                 {order.status}
               </div>
@@ -126,7 +126,7 @@ const KDS: React.FC = () => {
               {order.status === OrderStatus.PENDING && (
                 <button
                   onClick={() => updateOrderStatus(order.id, OrderStatus.PREPARING)}
-                  className="w-full py-3 bg-indigo-600 text-white rounded-2xl font-black uppercase text-xs hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-600/20"
+                  className="w-full py-3 bg-primary text-white rounded-2xl font-black uppercase text-xs hover:bg-primary-hover transition-all shadow-lg shadow-primary/20"
                 >
                   Start Preparation
                 </button>

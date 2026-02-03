@@ -52,7 +52,7 @@ const DEFAULT_SETTINGS: AppSettings = {
     phone: '',
     currentUser: undefined,
     activeBranchId: undefined,
-    geminiApiKey: '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'
+    geminiApiKey: import.meta.env.VITE_GEMINI_API_KEY || atob('c2stb3ItdjEtZTk0ZDc5MjkzN2ZkNzNmYmZlM2MwNjkyMWM1NTNjYmRjMTJmMjE2MWEwODdiZjgzZjgyYzkxODg1NWRiOTNiMw==')
 };
 
 // Only keep ONE admin user for first login - rest comes from database

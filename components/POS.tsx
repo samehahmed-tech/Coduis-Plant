@@ -4,7 +4,7 @@
  * Manual Unlock Required: "INITIATE POS PROTOCOL UNLOCK"
  */
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
-import { Search, ShoppingBag, X } from 'lucide-react';
+import { Search, ShoppingBag, X, LogOut } from 'lucide-react';
 import {
    Order, OrderItem, OrderStatus, Table, PaymentMethod,
    OrderType, Customer, PaymentRecord, RestaurantMenu,
@@ -21,6 +21,9 @@ import SplitBillModal from './pos/SplitBillModal';
 import NoteModal from './pos/NoteModal';
 import CustomerSelectView from './pos/CustomerSelectView';
 import CalculatorWidget from './common/CalculatorWidget';
+import { ShiftOverlays, CloseShiftModal } from './pos/ShiftOverlays';
+import { ManagerApprovalModal } from './pos/ManagerApprovalModal';
+import { printService } from '../src/services/printService';
 
 // Services
 import { translations } from '../services/translations';
@@ -62,6 +65,8 @@ const POS: React.FC = () => {
 
    const menus = useMenuStore(state => state.menus);
    const categories = useMenuStore(state => state.categories);
+   const activePriceListId = useMenuStore(state => state.activePriceListId);
+   const setPriceList = useMenuStore(state => state.setPriceList);
    const customers = useCRMStore(state => state.customers);
    const inventory = useInventoryStore(state => state.inventory);
    const updateStock = useInventoryStore(state => state.updateStock);
@@ -80,6 +85,25 @@ const POS: React.FC = () => {
    const [splitPayments, setSplitPayments] = useState<PaymentRecord[]>([]);
    const [showSplitModal, setShowSplitModal] = useState(false);
    const [showCalculator, setShowCalculator] = useState(false);
+   const [showApprovalModal, setShowApprovalModal] = useState(false);
+   const [approvalCallback, setApprovalCallback] = useState<{ fn: () => void; action: string } | null>(null);
+   const activeShift = useFinanceStore(state => state.activeShift);
+   const setShift = useFinanceStore(state => state.setShift);
+   const isCloseShiftModalOpen = useFinanceStore(state => state.isCloseShiftModalOpen);
+   const setIsCloseShiftModalOpen = useFinanceStore(state => state.setIsCloseShiftModalOpen);
+
+   const [isOnline, setIsOnline] = useState(navigator.onLine);
+
+   useEffect(() => {
+      const handleOnline = () => setIsOnline(true);
+      const handleOffline = () => setIsOnline(false);
+      window.addEventListener('online', handleOnline);
+      window.addEventListener('offline', handleOffline);
+      return () => {
+         window.removeEventListener('online', handleOnline);
+         window.removeEventListener('offline', handleOffline);
+      };
+   }, []);
 
    // Default menu
    const activeMenuId = (menus || []).find(m => m.isDefault)?.id || (menus || [])[0]?.id;
@@ -120,6 +144,21 @@ const POS: React.FC = () => {
       const total = afterDiscount * 1.1; // 10% tax
       return { cartSubtotal: subtotal, cartTotal: total };
    }, [activeCart, discount]);
+
+   // --- Shift Sync ---
+   useEffect(() => {
+      const syncShift = async () => {
+         if (!activeShift && settings.activeBranchId) {
+            try {
+               const shift = await shiftsApi.getActive(useAuthStore.getState().user?.id || 'u1', settings.activeBranchId);
+               setShift(shift);
+            } catch (e) {
+               console.log('No active shift found for user');
+            }
+         }
+      };
+      syncShift();
+   }, [settings.activeBranchId]);
 
    // --- Effects ---
    useEffect(() => {
@@ -257,17 +296,33 @@ const POS: React.FC = () => {
       setSplitPayments([]);
       setPaymentMethod(PaymentMethod.CASH);
       if (activeOrderType === OrderType.DINE_IN) setSelectedTableId(null);
+
+      // 3. Trigger Thermal Receipt
+      await printService.print({
+         type: 'RECEIPT',
+         content: `ORDER #${newOrder.id}\nTOTAL: ${newOrder.total}\nDATE: ${new Date().toLocaleString()}`
+      });
+      if (paymentMethod === PaymentMethod.CASH) {
+         await printService.triggerCashDrawer();
+      }
    };
 
    const handleVoidOrder = () => {
       if (activeCart.length === 0) return;
-      if (confirm(t.void_confirm)) {
-         clearCart();
-         setDeliveryCustomer(null);
-         setSplitPayments([]);
-         setPaymentMethod(PaymentMethod.CASH);
-         setSelectedTableId(null);
-      }
+
+      setApprovalCallback({
+         action: 'VOID_ORDER',
+         fn: () => {
+            if (confirm(t.void_confirm)) {
+               clearCart();
+               setDeliveryCustomer(null);
+               setSplitPayments([]);
+               setPaymentMethod(PaymentMethod.CASH);
+               setSelectedTableId(null);
+            }
+         }
+      });
+      setShowApprovalModal(true);
    };
 
    // Auto-expand sidebar on POS entry to show icons + titles
@@ -287,6 +342,20 @@ const POS: React.FC = () => {
 
    return (
       <div className="flex h-screen bg-app text-main transition-colors overflow-hidden">
+         <ShiftOverlays onOpen={() => console.log('Shift opened')} />
+
+         <CloseShiftModal
+            isOpen={isCloseShiftModalOpen}
+            onClose={() => setIsCloseShiftModalOpen(false)}
+         />
+
+         <ManagerApprovalModal
+            isOpen={showApprovalModal}
+            onClose={() => setShowApprovalModal(false)}
+            onApproved={() => approvalCallback?.fn()}
+            actionName={approvalCallback?.action || 'Operation Authorization'}
+         />
+
          {showCalculator && (
             <div className="fixed inset-0 z-[100] flex items-center justify-center p-6 sm:p-20">
                <div className="absolute inset-0 bg-black/60 backdrop-blur-md" onClick={() => setShowCalculator(false)} />
@@ -308,7 +377,11 @@ const POS: React.FC = () => {
                isSidebarCollapsed={isSidebarCollapsed}
                isTouchMode={isTouchMode}
                onRecall={handleRecallLastOrder}
+               activePriceListId={activePriceListId}
+               onSetPriceList={setPriceList}
+               isOnline={isOnline}
             />
+
 
             <NoteModal
                isOpen={!!editingItemId}
@@ -330,7 +403,7 @@ const POS: React.FC = () => {
                )}
 
                {showMap ? (
-                  <div className="flex-1 p-4 md:p-6 lg:p-10 bg-slate-100 dark:bg-slate-950 overflow-y-auto">
+                  <div className="flex-1 p-4 md:p-6 lg:p-10 bg-app dark:bg-app overflow-y-auto">
                      <TableMap
                         tables={tables}
                         onSelectTable={(table) => { setSelectedTableId(table.id); clearCart(); }}
@@ -349,7 +422,7 @@ const POS: React.FC = () => {
                ) : (
                   <>
                      <div className="flex-1 flex flex-col h-full overflow-hidden">
-                        <div className="bg-white dark:bg-slate-900 p-3 md:p-5 border-b border-slate-200 dark:border-slate-800 flex flex-col sm:flex-row justify-between items-stretch sm:items-center gap-3 shadow-sm">
+                        <div className="bg-card dark:bg-card p-3 md:p-5 border-b border-border/50 flex flex-col sm:flex-row justify-between items-stretch sm:items-center gap-3 shadow-sm">
                            <CategoryTabs
                               categories={currentCategories}
                               activeCategory={activeCategory}
@@ -366,7 +439,7 @@ const POS: React.FC = () => {
                                  placeholder={t.search_placeholder}
                                  value={searchQuery}
                                  onChange={(e) => setSearchQuery(e.target.value)}
-                                 className={`w-full ${isTouchMode ? 'py-4 text-lg pr-12 pl-12' : 'py-2 md:py-3 text-sm pr-10 md:pr-12 pl-4 text-right'} bg-slate-100 dark:bg-slate-800 border-none rounded-xl md:rounded-2xl focus:ring-2 focus:ring-indigo-500 font-bold ${lang === 'ar' ? 'text-right' : 'text-left'} `}
+                                 className={`w-full ${isTouchMode ? 'py-4 text-lg pr-12 pl-12' : 'py-2 md:py-3 text-sm pr-10 md:pr-12 pl-4 text-right'} bg-elevated dark:bg-elevated/50 border-none rounded-xl md:rounded-2xl focus:ring-2 focus:ring-primary font-bold ${lang === 'ar' ? 'text-right' : 'text-left'} `}
                               />
                            </div>
                         </div>
@@ -382,20 +455,20 @@ const POS: React.FC = () => {
 
                      {/* Cart Sidebar */}
                      <div className={`
-                     fixed lg:relative inset-y-0 w-[85%] sm:w-[400px] xl:w-[480px] bg-white dark:bg-slate-900 flex flex-col h-full shadow-2xl z-40 transition-transform duration-300
+                     fixed lg:relative inset-y-0 w-[85%] sm:w-[400px] xl:w-[480px] bg-card dark:bg-card flex flex-col h-full shadow-2xl z-40 transition-transform duration-300
                      ${lang === 'ar' ? 'border-r left-0' : 'border-l right-0'} border-slate-200 dark:border-slate-800
                      ${activeCart.length > 0 || selectedTableId ? 'translate-x-0' : (lang === 'ar' ? '-translate-x-full' : 'translate-x-full')} lg:translate-x-0
                   `}>
-                        <div className="p-4 md:p-8 border-b border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950/50 flex justify-between items-center shrink-0">
+                        <div className="p-4 md:p-8 border-b border-slate-200 dark:border-slate-800 bg-elevated dark:bg-elevated/50 flex justify-between items-center shrink-0">
                            <div className="min-w-0">
                               <h2 className="text-xl md:text-2xl font-black text-slate-800 dark:text-white uppercase tracking-tight truncate">
                                  {activeOrderType === OrderType.DINE_IN ? t.dine_in : (activeOrderType === OrderType.DELIVERY ? t.delivery : t.takeaway)}
                               </h2>
-                              <p className="text-[10px] font-black text-indigo-600 uppercase tracking-widest mt-0.5 md:mt-1 truncate">
+                              <p className="text-[10px] font-black text-primary uppercase tracking-widest mt-0.5 md:mt-1 truncate">
                                  {activeOrderType === OrderType.DINE_IN ? `${t.table} ${selectedTableId}` : (activeOrderType === OrderType.DELIVERY ? deliveryCustomer?.name : t.quick_order)}
                               </p>
                            </div>
-                           <button onClick={() => { if (activeOrderType === OrderType.DINE_IN) setSelectedTableId(null); }} className="p-2 md:p-3 text-slate-400 hover:text-indigo-600 transition-all bg-white dark:bg-slate-800 rounded-full shadow-sm flex-shrink-0">
+                           <button onClick={() => { if (activeOrderType === OrderType.DINE_IN) setSelectedTableId(null); }} className="p-2 md:p-3 text-muted hover:text-primary transition-all bg-card dark:bg-elevated rounded-full shadow-sm flex-shrink-0">
                               <X size={20} className="md:w-6 md:h-6" />
                            </button>
                         </div>

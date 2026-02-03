@@ -82,6 +82,56 @@ import NoteModal from './pos/NoteModal';
 // Features: Customer Registration, Real-time Order Tracking, Multi-branch View
 // ============================================================================
 
+const DriverAssignmentModal: React.FC<{
+    isOpen: boolean;
+    onClose: () => void;
+    onAssign: (orderId: string, driverId: string) => void;
+    branchId: string;
+    lang: 'en' | 'ar';
+}> = ({ isOpen, onClose, onAssign, branchId, lang }) => {
+    // Mock drivers for the foundation - in production these come from useOrderStore
+    const drivers = [
+        { id: 'D1', name: 'Ahmed Sameh', phone: '01012345678', status: 'AVAILABLE' },
+        { id: 'D2', name: 'Mahmoud Ali', phone: '01212345678', status: 'BUSY' },
+        { id: 'D3', name: 'Ziad Ibrahim', phone: '01112345678', status: 'AVAILABLE' },
+    ];
+
+    if (!isOpen) return null;
+
+    return (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-6">
+            <div className="absolute inset-0 bg-slate-950/90 backdrop-blur-md" onClick={onClose} />
+            <div className="relative w-full max-w-md bg-white dark:bg-slate-900 rounded-[2.5rem] p-8 shadow-2xl border border-white/10 animate-in zoom-in-95 duration-300">
+                <div className="text-center mb-8">
+                    <h2 className="text-xl font-black text-slate-800 dark:text-white uppercase tracking-tight">Assign Dispatcher</h2>
+                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-1">Select available driver for branch: {branchId}</p>
+                </div>
+
+                <div className="space-y-3">
+                    {drivers.map(driver => (
+                        <button
+                            key={driver.id}
+                            disabled={driver.status === 'BUSY'}
+                            onClick={() => { onAssign('temp-id', driver.id); onClose(); }}
+                            className={`w-full p-6 rounded-2xl flex items-center justify-between transition-all ${driver.status === 'AVAILABLE' ? 'bg-slate-50 dark:bg-slate-800 hover:bg-indigo-600 hover:text-white group' : 'opacity-40 cursor-not-allowed bg-slate-100 dark:bg-slate-900'}`}
+                        >
+                            <div className="text-left">
+                                <p className="font-black uppercase text-xs tracking-tight">{driver.name}</p>
+                                <p className="text-[10px] font-bold opacity-60 tracking-widest">{driver.phone}</p>
+                            </div>
+                            <div className={`px-3 py-1 rounded-lg text-[9px] font-black uppercase tracking-widest ${driver.status === 'AVAILABLE' ? 'bg-emerald-500/10 text-emerald-600 group-hover:bg-white group-hover:text-indigo-600' : 'bg-slate-200 text-slate-500'}`}>
+                                {driver.status}
+                            </div>
+                        </button>
+                    ))}
+                </div>
+
+                <button onClick={onClose} className="w-full mt-8 py-4 text-[10px] font-black uppercase text-slate-400 tracking-widest hover:text-slate-600 transition-colors">Cancel Dispatch</button>
+            </div>
+        </div>
+    );
+};
+
 // Customer Registration Modal Component
 const CustomerRegistrationModal: React.FC<{
     isOpen: boolean;
@@ -252,6 +302,8 @@ const CallCenter: React.FC = () => {
     const [trackingFilter, setTrackingFilter] = useState<'all' | OrderStatus>(OrderStatus.PENDING);
     const [trackingBranch, setTrackingBranch] = useState<string>('all');
     const [trackingView, setTrackingView] = useState<'grid' | 'list'>('grid');
+    const [showDriverModal, setShowDriverModal] = useState(false);
+    const [selectedTrackingOrder, setSelectedTrackingOrder] = useState<any>(null);
 
     // --- Timer for active call ---
     useEffect(() => {
@@ -803,6 +855,14 @@ const CallCenter: React.FC = () => {
                                             <p className="text-xs font-bold">{branches.find(b => b.id === order.branchId)?.name}</p>
                                         </div>
                                         <OrderStatusBadge status={order.status} lang={lang} />
+                                        {order.status === OrderStatus.READY && (
+                                            <button
+                                                onClick={() => { setSelectedTrackingOrder(order); setShowDriverModal(true); }}
+                                                className="px-4 py-2 bg-indigo-600 text-white rounded-xl text-[10px] font-black uppercase tracking-widest hover:scale-105 transition-all shadow-lg shadow-indigo-500/20"
+                                            >
+                                                Dispatch
+                                            </button>
+                                        )}
                                         <p className="text-lg font-black text-indigo-600 w-28 text-right">{order.total?.toFixed(2)} {currencySymbol}</p>
                                     </div>
                                 ))}
@@ -818,6 +878,17 @@ const CallCenter: React.FC = () => {
                 onClose={() => setShowRegistrationModal(false)}
                 initialPhone={phoneSearch}
                 onSave={handleSaveNewCustomer}
+                lang={lang}
+            />
+
+            <DriverAssignmentModal
+                isOpen={showDriverModal}
+                onClose={() => setShowDriverModal(false)}
+                onAssign={(orderId, driverId) => {
+                    // In production: deliveryApi.assignDriver(selectedTrackingOrder.id, driverId)
+                    console.log(`Assigned driver ${driverId} to order ${selectedTrackingOrder?.id}`);
+                }}
+                branchId={selectedTrackingOrder?.branchId || ''}
                 lang={lang}
             />
 

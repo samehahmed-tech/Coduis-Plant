@@ -2,13 +2,29 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { FinancialAccount, JournalEntry, AccountType } from '../types';
 
+interface Shift {
+    id: string;
+    branchId: string;
+    userId: string;
+    status: 'OPEN' | 'CLOSED';
+    openingBalance: number;
+    openingTime: string;
+    expectedBalance?: number;
+    actualBalance?: number;
+}
+
 interface FinanceState {
     accounts: FinancialAccount[];
     transactions: JournalEntry[];
+    activeShift: Shift | null;
+    isCloseShiftModalOpen: boolean;
     recordTransaction: (tx: Omit<JournalEntry, 'id'>) => void;
+    setShift: (shift: Shift | null) => void;
+    setIsCloseShiftModalOpen: (isOpen: boolean) => void;
 }
 
 const INITIAL_ACCOUNTS: FinancialAccount[] = [
+    // ... (rest of INITIAL_ACCOUNTS remains same)
     {
         id: '1', code: '1000', name: 'Assets', type: AccountType.ASSET, balance: 0, children: [
             {
@@ -49,6 +65,11 @@ export const useFinanceStore = create<FinanceState>()(
         (set) => ({
             accounts: INITIAL_ACCOUNTS,
             transactions: [],
+            activeShift: null,
+            isCloseShiftModalOpen: false,
+
+            setShift: (shift) => set({ activeShift: shift }),
+            setIsCloseShiftModalOpen: (isOpen) => set({ isCloseShiftModalOpen: isOpen }),
 
             recordTransaction: (tx) => set((state) => {
                 const newTx = { ...tx, id: Math.random().toString(36).substr(2, 9).toUpperCase() };

@@ -2,7 +2,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Send, Bot, User, Loader2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import { chatWithRestaurantAI } from '../services/geminiService';
+import { chatWithRestaurantAI, analyzeMenuEngineering, forecastInventory } from '../services/geminiService';
 import { ViewState } from '../types';
 
 // Stores
@@ -30,7 +30,7 @@ const AIAssistant: React.FC = () => {
   const { settings, branches } = useAuthStore();
   const { inventory, updateInventoryItem } = useInventoryStore();
   const { orders } = useOrderStore();
-  const { categories, updateMenuItem } = useMenuStore();
+  const { categories, updateMenuItem, addMenuItem } = useMenuStore();
   const { accounts } = useFinanceStore();
   const { addCustomer } = useCRMStore();
 
@@ -64,6 +64,33 @@ const AIAssistant: React.FC = () => {
         case 'UPDATE_INVENTORY':
           await updateInventoryItem(action.itemId, action.data);
           return lang === 'ar' ? `تم تحديث المخزون للصنف ${action.itemId}` : `Updated inventory for item ${action.itemId}`;
+
+        case 'UPDATE_MENU_ITEM':
+          const targetItem = menuItems.find(i => i.id === action.itemId);
+          if (targetItem) {
+            await updateMenuItem('menu-1', targetItem.categoryId, { ...targetItem, ...action.data });
+            return lang === 'ar' ? `تم تحديث بيانات ${targetItem.name}` : `Updated details for ${targetItem.name}`;
+          }
+          return `Item ${action.itemId} not found`;
+
+        case 'CREATE_MENU_ITEM':
+          const newItemId = `item-${Date.now()}`;
+          const newItem = {
+            id: newItemId,
+            name: action.data.name,
+            price: action.data.price,
+            categoryId: action.categoryId,
+            isAvailable: action.data.isAvailable !== false,
+            ...action.data
+          };
+          await addMenuItem('menu-1', action.categoryId, newItem);
+          return lang === 'ar' ? `تمت إضافة الصنف ${newItem.name}` : `Added item ${newItem.name}`;
+
+        case 'ANALYZE_MENU':
+          return await analyzeMenuEngineering(menuItems, orders);
+
+        case 'ANALYZE_INVENTORY':
+          return await forecastInventory(inventory, orders);
 
         case 'UPDATE_MENU_PRICE':
           const item = menuItems.find(i => i.id === action.itemId);
@@ -111,6 +138,7 @@ const AIAssistant: React.FC = () => {
           inventory,
           orders,
           menuItems,
+          categories,
           accounts,
           branches,
           settings

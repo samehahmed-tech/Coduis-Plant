@@ -1,6 +1,7 @@
 import React from 'react';
 import { ShoppingBag, Building2, X, RotateCcw } from 'lucide-react';
 import { OrderType, Customer } from '../../types';
+import { Tag, Cloud, CloudOff } from 'lucide-react';
 
 interface POSHeaderProps {
     activeMode: OrderType;
@@ -13,6 +14,9 @@ interface POSHeaderProps {
     isSidebarCollapsed: boolean;
     isTouchMode: boolean;
     onRecall?: () => void;
+    activePriceListId: string | null;
+    onSetPriceList: (id: string | null) => void;
+    isOnline: boolean;
 }
 
 const POSHeader: React.FC<POSHeaderProps> = React.memo(({
@@ -26,6 +30,9 @@ const POSHeader: React.FC<POSHeaderProps> = React.memo(({
     isSidebarCollapsed,
     isTouchMode,
     onRecall,
+    activePriceListId,
+    onSetPriceList,
+    isOnline,
 }) => {
     return (
         <div className={`h-14 md:h-20 bg-card border-b border-border flex justify-between items-center px-6 md:px-10 z-20 transition-all duration-300`}>
@@ -33,11 +40,11 @@ const POSHeader: React.FC<POSHeaderProps> = React.memo(({
             <div className="flex items-center gap-4">
                 {activeMode === OrderType.DINE_IN && (
                     <div className="flex items-center gap-2">
-                        <span className="text-xl font-black text-slate-800 dark:text-white uppercase tracking-tighter">
+                        <span className="text-xl font-black text-main uppercase tracking-tighter">
                             {t.dine_in}
                         </span>
                         {selectedTableId ? (
-                            <div className="px-3 py-1 bg-indigo-100 text-indigo-700 rounded-lg text-xs font-black flex items-center gap-2">
+                            <div className="px-3 py-1 bg-primary/10 text-primary rounded-lg text-xs font-black flex items-center gap-2">
                                 {t.table} {selectedTableId}
                                 <button onClick={onClearTable} className="hover:text-red-600">
                                     <X size={12} />
@@ -65,7 +72,7 @@ const POSHeader: React.FC<POSHeaderProps> = React.memo(({
                             {t.delivery}
                         </span>
                         {deliveryCustomer ? (
-                            <div className="px-3 py-1 bg-orange-100 text-orange-800 rounded-lg text-xs font-black flex items-center gap-2">
+                            <div className="px-3 py-1 bg-primary/10 text-primary rounded-lg text-xs font-black flex items-center gap-2">
                                 {deliveryCustomer.name}
                                 <button onClick={onClearCustomer} className="hover:text-red-600">
                                     <X size={12} />
@@ -78,23 +85,53 @@ const POSHeader: React.FC<POSHeaderProps> = React.memo(({
                         )}
                     </div>
                 )}
+
+                <div className="h-8 w-[1px] bg-border/50 mx-2" />
+
+                {/* Price List Selector */}
+                <div className="flex items-center gap-2 bg-app rounded-xl px-3 py-1.5 border border-border/50 group hover:border-primary/30 transition-all cursor-pointer relative">
+                    <Tag size={14} className="text-primary" />
+                    <select
+                        value={activePriceListId || 'standard'}
+                        onChange={(e) => onSetPriceList(e.target.value === 'standard' ? null : e.target.value)}
+                        className="bg-transparent text-[10px] font-black uppercase tracking-widest outline-none cursor-pointer text-main appearance-none pr-4"
+                    >
+                        <option value="standard">Standard Pricing</option>
+                        <option value="delivery">Delivery Rates</option>
+                        <option value="vip">VIP Membership</option>
+                    </select>
+                </div>
             </div>
 
             <div className="flex items-center gap-4 shrink-0">
                 {onRecall && (
                     <button
                         onClick={onRecall}
-                        className="flex items-center gap-2 px-4 py-2 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 rounded-xl transition-all text-xs font-black uppercase tracking-widest"
+                        className="flex items-center gap-2 px-4 py-2 bg-elevated dark:bg-elevated/50 hover:bg-card dark:hover:bg-card text-muted rounded-xl transition-all text-xs font-black uppercase tracking-widest"
                         title="Recall Last Order"
                     >
                         <RotateCcw size={14} />
                         <span className="hidden lg:inline">{t.recall || 'Recall'}</span>
                     </button>
                 )}
-                <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest hidden md:block">
+                <span className="text-[10px] font-black text-muted uppercase tracking-widest hidden md:block">
                     {lang === 'ar' ? 'الموظف: أدمن' : 'User: Admin'}
                 </span>
-                <div className="w-8 h-8 rounded-full bg-indigo-100 dark:bg-indigo-900/30 flex items-center justify-center text-indigo-600 font-bold text-xs">
+                <div className="flex items-center gap-2 px-3 py-1.5 bg-card border border-border rounded-xl">
+                    {isOnline ? (
+                        <div className="flex items-center gap-1.5 text-success">
+                            <Cloud size={14} />
+                            <span className="text-[8px] font-black uppercase">Live</span>
+                        </div>
+                    ) : (
+                        <div className="flex items-center gap-1.5 text-danger animate-pulse">
+                            <CloudOff size={14} />
+                            <span className="text-[8px] font-black uppercase">Local</span>
+                        </div>
+                    )}
+                </div>
+
+                <div className="w-8 h-8 rounded-full bg-primary/10 dark:bg-primary/20 flex items-center justify-center text-primary font-bold text-xs">
                     A
                 </div>
             </div>

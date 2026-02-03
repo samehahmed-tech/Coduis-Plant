@@ -1,4 +1,5 @@
 import { ERPEvent, SyncStats } from './types';
+import { ordersApi } from '../api';
 
 /**
  * SYNC ENGINE
@@ -52,13 +53,15 @@ export class ERPSyncEngine {
 
     private async pushToRemoteServer(event: ERPEvent): Promise<boolean> {
         try {
-            // This would be a real fetch call to your PostgreSQL/Node.js API
-            // const response = await fetch('/api/v1/sync/event', { ... });
-
-            // Mocking a successful server ACK
-            console.log(`[HTTP/Sync] Sending event ${event.eventId} to server...`);
+            if (event.type === 'ORDER_PLACEMENT') {
+                const orderData = event.payload;
+                await ordersApi.create(orderData);
+                return true;
+            }
+            // Add other event types here (Shift close, etc)
             return true;
         } catch (e) {
+            console.error('[SyncEngine] Remote push failed:', e);
             return false;
         }
     }
@@ -92,8 +95,15 @@ export class ERPSyncEngine {
     }
 
     public getStatus(): SyncStats {
+        let pending = 0;
+        for (let i = 0; i < localStorage.length; i++) {
+            if (localStorage.key(i)?.startsWith('erp_event_')) {
+                const event = JSON.parse(localStorage.getItem(localStorage.key(i)!) || '{}');
+                if (event.syncStatus === 'PENDING') pending++;
+            }
+        }
         return {
-            totalPending: 0, // Should be actual count
+            totalPending: pending,
             failedCount: 0,
             isOnline: this.isOnline,
             lastSyncTime: new Date()

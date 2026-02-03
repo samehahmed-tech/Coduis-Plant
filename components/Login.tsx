@@ -76,25 +76,25 @@ const Login: React.FC = () => {
 
     const t = {
         en: {
-            title: 'Coduis Xen',
-            subtitle: 'Enterprise Systems',
+            title: 'Coduis Zen',
+            subtitle: 'Unified Enterprise Suite',
             email: 'Email Address',
             password: 'Password',
             login: 'Sign In',
             forgot: 'Forgot Password?',
-            desc: 'Unified platform for restaurant operations.',
-            footer: '© 2026 Coduis Xen. Support: Sameh@coduis.com',
+            desc: 'Centralized production, supply chain, and multi-branch intelligence.',
+            footer: '© 2026 Coduis Zen. Global Operations v3.0',
             switch: 'العربية'
         },
         ar: {
             title: 'كوديوس زين',
-            subtitle: 'الأنظمة المؤسسية',
+            subtitle: 'المنظومة المؤسسية الموحدة',
             email: 'البريد الإلكتروني',
             password: 'كلمة المرور',
             login: 'تسجيل الدخول',
             forgot: 'نسيت كلمة المرور؟',
-            desc: 'منصة موحدة لعمليات المطاعم.',
-            footer: '© ٢٠٢٦ كوديوس زين. الدعم: Sameh@coduis.com',
+            desc: 'نظام مركزي متكامل لإدارة الإنتاج، سلاسل الإمداد، والعمليات متعددة الفروع.',
+            footer: '© ٢٠٢٦ كوديوس زين. العمليات العالمية v3.0',
             switch: 'English'
         }
     }[settings.language];
@@ -154,7 +154,7 @@ const Login: React.FC = () => {
                         <div className="absolute -inset-4 bg-cyan-500/20 rounded-full blur-2xl group-hover:bg-cyan-500/40 transition-all duration-500" />
                         <img
                             src="/logo.png"
-                            alt="Coduis Xen"
+                            alt="Coduis Zen"
                             className="relative h-32 w-auto drop-shadow-[0_0_30px_rgba(6,182,212,0.3)] group-hover:scale-110 transition-transform duration-500"
                         />
                     </div>

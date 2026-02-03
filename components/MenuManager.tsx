@@ -400,7 +400,7 @@ const MenuManager: React.FC = () => {
                   </div>
                 </div>
                 <div className="space-y-6">
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols-2 gap-3">
                     <div className="space-y-2">
                       <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">{lang === 'ar' ? 'السعر' : 'Price'}</label>
                       <div className="relative">
@@ -411,6 +411,21 @@ const MenuManager: React.FC = () => {
                     <div className="space-y-2">
                       <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">{lang === 'ar' ? 'الترتيب' : 'Sort Order'}</label>
                       <input type="number" value={itemModal.item.sortOrder || 0} onChange={(e) => setItemModal({ ...itemModal, item: { ...itemModal.item, sortOrder: parseInt(e.target.value) || 0 } })} className="w-full p-5 bg-slate-50 dark:bg-slate-800 rounded-2xl font-black outline-none border border-transparent focus:border-indigo-600 transition-all" />
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="space-y-2">
+                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">{lang === 'ar' ? 'كود الضريبة' : 'Fiscal Code (GS1)'}</label>
+                      <input type="text" value={itemModal.item.fiscalCode || ''} onChange={(e) => setItemModal({ ...itemModal, item: { ...itemModal.item, fiscalCode: e.target.value } })} className="w-full p-5 bg-slate-50 dark:bg-slate-800 rounded-2xl font-black outline-none border border-transparent focus:border-indigo-600 transition-all" placeholder="e.g. 10001234" />
+                    </div>
+                    <div className="flex flex-col justify-end pb-1">
+                      <button
+                        onClick={() => setItemModal({ ...itemModal, item: { ...itemModal.item, isWeighted: !itemModal.item.isWeighted } })}
+                        className={`flex items-center justify-center gap-2 p-4 rounded-2xl border-2 transition-all font-black text-[10px] uppercase tracking-widest ${itemModal.item.isWeighted ? 'bg-amber-500 border-amber-500 text-white' : 'bg-slate-50 border-slate-200 text-slate-400'}`}
+                      >
+                        <Scale size={14} />
+                        {lang === 'ar' ? 'ميزان' : 'Scale Required'}
+                      </button>
                     </div>
                   </div>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">

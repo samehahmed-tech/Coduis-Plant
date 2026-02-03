@@ -1,15 +1,15 @@
 export const translations = {
     en: {
-        dashboard: "Dashboard",
-        pos: "Point of Sale",
+        dashboard: "Zen Dashboard",
+        pos: "Zen POS",
         menu: "Menu Catalog",
-        kds: "Kitchen Display",
-        inventory: "Inventory",
-        finance: "Finance & Accounts",
-        crm: "Customers (CRM)",
-        reports: "Business Intelligence",
-        ai: "Smart Manager",
-        settings: "Settings",
+        kds: "Zen KDS",
+        inventory: "Supply Chain",
+        finance: "Financial Hub",
+        crm: "Zen CRM",
+        reports: "Business Analytics",
+        ai: "Zen AI Manager",
+        settings: "Control Engine",
         sign_out: "Sign Out",
         light_mode: "Light Mode",
         dark_mode: "Dark Mode",
@@ -36,6 +36,11 @@ export const translations = {
         forensics: "Audit Forensics",
         recipes: "Recipes & BOM",
         printers: "Printers & Hardware",
+        production: "Production & Kitchens",
+        production_order: "Production Order",
+        batch_no: "Batch #",
+        raw_materials: "Raw Materials",
+        finished_goods: "Finished Goods",
 
         // Auth & Branch Context
         welcome_back: "Welcome back,",
@@ -91,19 +96,24 @@ export const translations = {
         coa: "Chart of Accounts",
         journal: "Journal Entries",
         profit_loss: "Profit & Loss",
-        balance_sheet: "Balance Sheet"
+        balance_sheet: "Balance Sheet",
+        people: "Zen People",
+        dispatch: "Nexus Logistics",
+        marketing: "Nexus Growth",
+        fiscal: "Nexus Fiscal",
+        analytics: "Nexus Analytics"
     },
     ar: {
-        dashboard: "لوحة التحكم",
-        pos: "نقطة البيع",
+        dashboard: "Zen - لوحة التحكم",
+        pos: "نيكسوس POS",
         menu: "قائمة الأصناف",
         kds: "شاشة المطبخ",
-        inventory: "المخازن",
+        inventory: "المخازن والإمداد",
         finance: "المالية والحسابات",
         crm: "إدارة العملاء",
-        reports: "ذكاء الأعمال",
-        ai: "المدير الذكي",
-        settings: "الإعدادات",
+        reports: "التقارير والتحليل",
+        ai: "Zen AI",
+        settings: "الإعدادات المركزية",
         sign_out: "تسجيل الخروج",
         light_mode: "الوضع المضيء",
         dark_mode: "الوضع الليلي",
@@ -130,6 +140,11 @@ export const translations = {
         forensics: "التحقيق الجنائي",
         recipes: "الوصفات والتكاليف",
         printers: "الطابعات والأجهزة",
+        production: "خطوط الإنتاج",
+        production_order: "أمر إنتاج",
+        batch_no: "رقم التشغيلة",
+        raw_materials: "المواد الخام",
+        finished_goods: "المنتجات التامة",
 
         // Auth & Branch Context
         welcome_back: "مرحباً بك،",
@@ -185,6 +200,11 @@ export const translations = {
         coa: "شجرة الحسابات",
         journal: "قيود اليومية",
         profit_loss: "الأرباح والخسائر",
-        balance_sheet: "الميزانية العمومية"
+        balance_sheet: "الميزانية العمومية",
+        people: "الموارد البشرية",
+        dispatch: "اللوجستيات",
+        marketing: "حملات النمو",
+        fiscal: "الامتثال الضريبي",
+        analytics: "التحليلات الذكية"
     }
 };

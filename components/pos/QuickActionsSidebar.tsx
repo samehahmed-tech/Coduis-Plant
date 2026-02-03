@@ -8,7 +8,9 @@ import {
     History,
     Zap,
     Maximize,
-    Lock
+    Lock,
+    Ticket,
+    UserCheck
 } from 'lucide-react';
 import { OrderType } from '../../types';
 
@@ -92,6 +94,27 @@ const QuickActionsSidebar: React.FC<QuickActionsSidebarProps> = ({
                         key={i}
                         onClick={tool.onClick}
                         className={`group relative p-4 rounded-2xl transition-all duration-500 hover:scale-110 active:scale-90 ${tool.isActive ? 'bg-amber-500 text-white shadow-lg shadow-amber-500/30' : 'bg-elevated/40 text-muted ' + tool.color + ' hover:bg-app/50'}`}
+                    >
+                        <tool.icon size={22} className="group-hover:rotate-6 transition-transform" />
+                        <div className={`absolute ${lang === 'ar' ? 'right-full mr-5' : 'left-full ml-5'} top-1/2 -translate-y-1/2 px-4 py-2 bg-slate-900/90 backdrop-blur-md text-white text-[10px] font-black uppercase tracking-[0.2em] rounded-xl opacity-0 group-hover:opacity-100 transition-all duration-300 pointer-events-none whitespace-nowrap shadow-2xl border border-white/10 scale-90 group-hover:scale-100 z-[100]`}>
+                            {tool.label}
+                        </div>
+                    </button>
+                ))}
+            </div>
+
+            <div className="w-8 h-[1px] bg-gradient-to-r from-transparent via-border to-transparent my-4 opacity-50" />
+
+            {/* Strategic Center Access */}
+            <div className="flex flex-col gap-4">
+                {[
+                    { icon: Ticket, onClick: () => { }, label: lang === 'ar' ? 'كوبونات' : 'Active Coupons', color: 'hover:text-emerald-500' },
+                    { icon: UserCheck, onClick: () => { }, label: lang === 'ar' ? 'تسجيل حضور' : 'Staff Clock-In', color: 'hover:text-primary' },
+                ].map((tool, i) => (
+                    <button
+                        key={i}
+                        onClick={tool.onClick}
+                        className={`group relative p-4 rounded-2xl transition-all duration-500 hover:scale-110 active:scale-90 bg-elevated/40 text-muted ${tool.color} hover:bg-app/50`}
                     >
                         <tool.icon size={22} className="group-hover:rotate-6 transition-transform" />
                         <div className={`absolute ${lang === 'ar' ? 'right-full mr-5' : 'left-full ml-5'} top-1/2 -translate-y-1/2 px-4 py-2 bg-slate-900/90 backdrop-blur-md text-white text-[10px] font-black uppercase tracking-[0.2em] rounded-xl opacity-0 group-hover:opacity-100 transition-all duration-300 pointer-events-none whitespace-nowrap shadow-2xl border border-white/10 scale-90 group-hover:scale-100 z-[100]`}>

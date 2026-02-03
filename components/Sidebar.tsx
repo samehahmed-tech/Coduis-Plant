@@ -26,13 +26,18 @@ import {
   Calculator,
   Tablet,
   Printer as PrinterIcon,
-  Zap
+  Zap,
+  Factory,
+  Megaphone,
+  Truck,
+  ShieldCheck
 } from 'lucide-react';
 import { UserRole, AppPermission } from '../types';
 import { translations } from '../services/translations';
 import { useAuthStore } from '../stores/useAuthStore';
 import { NavLink, useNavigate, useLocation } from 'react-router-dom';
 import { useOrderStore } from '../stores/useOrderStore';
+import { useFinanceStore } from '../stores/useFinanceStore';
 import { OrderType } from '../types';
 
 interface NavItem {
@@ -69,6 +74,8 @@ const Sidebar: React.FC = () => {
   const discount = useOrderStore(state => state.discount);
   const setDiscount = useOrderStore(state => state.setDiscount);
   const clearCart = useOrderStore(state => state.clearCart);
+  const activeShift = useFinanceStore(state => state.activeShift);
+  const setIsCloseShiftModalOpen = useFinanceStore(state => state.setIsCloseShiftModalOpen);
 
   const location = useLocation();
   const isPOS = location.pathname === '/pos';
@@ -111,6 +118,7 @@ const Sidebar: React.FC = () => {
             { path: '/', label: t.dashboard, icon: LayoutDashboard, permission: AppPermission.NAV_DASHBOARD, loaderKey: 'Dashboard' },
             { path: '/ai-insights', label: t.ai_insights, icon: Sparkles, permission: AppPermission.NAV_AI_ASSISTANT, loaderKey: 'AIInsights' },
             { path: '/ai-assistant', label: t.ai_assistant, icon: Bot, permission: AppPermission.NAV_AI_ASSISTANT, loaderKey: 'AIAssistant' },
+            { path: '/marketing', label: lang === 'ar' ? 'حملات النمو' : 'Nexus Growth', icon: Megaphone, permission: AppPermission.NAV_REPORTS, loaderKey: 'CampaignHub' },
             { path: '/forensics', label: t.forensics, icon: Fingerprint, permission: AppPermission.NAV_FORENSICS, loaderKey: 'ForensicsHub' },
           ]
         },
@@ -119,7 +127,9 @@ const Sidebar: React.FC = () => {
           items: [
             { path: '/menu', label: t.menu, icon: BookOpen, permission: AppPermission.NAV_MENU_MANAGER, loaderKey: 'MenuManager' },
             { path: '/inventory', label: t.inventory, icon: Package, permission: AppPermission.NAV_INVENTORY, loaderKey: 'Inventory' },
+            { path: '/production', label: t.production, icon: Factory, permission: AppPermission.NAV_PRODUCTION, loaderKey: 'Production' },
             { path: '/crm', label: t.crm, icon: Users, permission: AppPermission.NAV_CRM, loaderKey: 'CRM' },
+            { path: '/people', label: lang === 'ar' ? 'الموارد البشرية' : 'Zen People', icon: Users, permission: AppPermission.NAV_PEOPLE, loaderKey: 'People' },
             { path: '/recipes', label: t.recipes, icon: ChefHat, permission: AppPermission.NAV_RECIPES, loaderKey: 'RecipeManager' },
           ]
         },
@@ -127,7 +137,9 @@ const Sidebar: React.FC = () => {
           title: lang === 'ar' ? 'التحليلات والمالية' : 'Finance & Reports',
           items: [
             { path: '/finance', label: t.finance, icon: Landmark, permission: AppPermission.NAV_FINANCE, loaderKey: 'Finance' },
-            { path: '/reports', label: t.reports, icon: BarChart3, permission: AppPermission.NAV_REPORTS, loaderKey: 'Reports' },
+            { path: '/fiscal', label: lang === 'ar' ? 'المكتب المالي' : 'Nexus Fiscal', icon: ShieldCheck, permission: AppPermission.NAV_FINANCE, loaderKey: 'FiscalHub' },
+            { path: '/dispatch', label: lang === 'ar' ? 'التوجيه واللوجستيات' : 'Nexus Logistics', icon: Truck, permission: AppPermission.NAV_DASHBOARD, loaderKey: 'Dispatch' },
+            { path: '/reports', label: lang === 'ar' ? 'تحليلات نكسوس' : 'Nexus Analytics', icon: BarChart3, permission: AppPermission.NAV_REPORTS, loaderKey: 'Reports' },
           ]
         },
         {
@@ -222,7 +234,7 @@ const Sidebar: React.FC = () => {
       {/* Sidebar */}
       <aside className={`
         ${isCollapsed ? 'w-20' : (isTouchMode ? 'w-72' : 'w-64')} 
-        bg-white/80 dark:bg-slate-950/80 backdrop-blur-3xl text-main flex flex-col h-screen 
+        bg-sidebar/95 backdrop-blur-3xl text-main flex flex-col h-screen 
         fixed top-0 shadow-[0_0_40px_rgba(0,0,0,0.08)] z-[80] transition-all duration-500
         ${lang === 'ar' ? 'right-0 border-l' : 'left-0 border-r'} border-border/50
         ${isMobileOpen ? 'translate-x-0' : `${lang === 'ar' ? 'translate-x-full' : '-translate-x-full'} lg:translate-x-0`}
@@ -241,10 +253,20 @@ const Sidebar: React.FC = () => {
             <img src="/logo.png" alt="Logo" className="w-full h-full object-contain drop-shadow-xl" />
           </div>
 
-          {!isCollapsed && (
+          {!isPOS && !isCollapsed && (
             <div className="text-center animate-in fade-in slide-in-from-top-1 duration-700">
               <h2 className="text-[9px] font-black text-primary tracking-[0.3em] uppercase opacity-70">Coduis Zen</h2>
               <p className="text-[7px] font-black text-muted uppercase tracking-[0.1em] opacity-40">Intelligence OS</p>
+            </div>
+          )}
+
+          {isPOS && !isCollapsed && (
+            <div className="text-center animate-in fade-in zoom-in duration-500">
+              <h2 className="text-[10px] font-black text-primary tracking-[0.4em] uppercase">ADVANCED POS</h2>
+              <div className="flex items-center justify-center gap-1 mt-1">
+                <div className="w-1 h-1 rounded-full bg-primary animate-pulse" />
+                <span className="text-[7px] font-black text-muted uppercase tracking-widest">{activeShift ? 'Live Session' : 'Locked'}</span>
+              </div>
             </div>
           )}
 
@@ -306,7 +328,7 @@ const Sidebar: React.FC = () => {
                       </span>
                     )}
                     {isCollapsed && (
-                      <div className={`absolute ${lang === 'ar' ? 'right-full mr-5' : 'left-full ml-5'} top-1/2 -translate-y-1/2 px-4 py-2 bg-slate-900/90 backdrop-blur-md text-white text-[10px] font-black uppercase tracking-[0.2em] rounded-xl opacity-0 group-hover:opacity-100 transition-all duration-300 pointer-events-none whitespace-nowrap shadow-2xl z-[100]`}>
+                      <div className={`absolute ${lang === 'ar' ? 'right-full mr-5' : 'left-full ml-5'} top-1/2 -translate-y-1/2 px-4 py-2 bg-elevated text-main shadow-2xl z-[100] border border-primary/20`}>
                         {m.label}
                       </div>
                     )}
@@ -336,21 +358,21 @@ const Sidebar: React.FC = () => {
 
                   <button
                     onClick={() => setShowCalc(!showCalc)}
-                    className="w-full flex items-center justify-between p-2.5 bg-white/50 dark:bg-slate-900/50 border border-border/50 rounded-2xl text-[8px] font-black uppercase tracking-widest hover:border-primary/50 transition-all group"
+                    className="w-full flex items-center justify-between p-2.5 bg-card/50 border border-border/50 rounded-2xl text-[8px] font-black uppercase tracking-widest hover:border-primary/50 transition-all group"
                   >
                     <span className="flex items-center gap-2.5"><Calculator size={13} className="text-primary group-hover:rotate-12 transition-transform" /> {lang === 'ar' ? 'الآلة الحاسبة' : 'Calculator'}</span>
                     <div className={`w-1.5 h-1.5 rounded-full ${showCalc ? 'bg-primary animate-pulse shadow-[0_0_8px_rgba(var(--primary-rgb),0.5)]' : 'bg-slate-300 dark:bg-slate-700'}`} />
                   </button>
 
                   {showCalc && (
-                    <div className="mt-1 p-0.5 rounded-2xl bg-white/80 dark:bg-slate-900/80 backdrop-blur-md border border-primary/20 animate-in zoom-in-95 duration-300 overflow-hidden">
+                    <div className="mt-1 p-0.5 rounded-2xl bg-card/80 backdrop-blur-md border border-primary/20 animate-in zoom-in-95 duration-300 overflow-hidden">
                       <CalculatorWidget isCompact />
                     </div>
                   )}
 
                   <button
                     onClick={handleToggleTouchMode}
-                    className={`w-full flex items-center justify-between p-2.5 border rounded-2xl text-[8px] font-black uppercase tracking-widest transition-all group ${isTouchMode ? 'bg-amber-500/10 border-amber-500/50 text-amber-600' : 'bg-white/50 dark:bg-slate-900/50 border-border/50 hover:border-amber-500/30'}`}
+                    className={`w-full flex items-center justify-between p-2.5 border rounded-2xl text-[8px] font-black uppercase tracking-widest transition-all group ${isTouchMode ? 'bg-amber-500/10 border-amber-500/50 text-amber-600' : 'bg-card/50 border-border/50 hover:border-amber-500/30'}`}
                   >
                     <span className="flex items-center gap-2.5"><Tablet size={13} className={`${isTouchMode ? 'animate-bounce' : 'group-hover:scale-110'}`} /> {lang === 'ar' ? 'وضع اللمس' : 'Touch Mode'}</span>
                     <div className={`w-1.5 h-1.5 rounded-full ${isTouchMode ? 'bg-amber-500 animate-pulse shadow-[0_0_8px_rgba(245,158,11,0.5)]' : 'bg-slate-300 dark:bg-slate-700'}`} />
@@ -364,7 +386,7 @@ const Sidebar: React.FC = () => {
                       <Zap size={13} className="group-hover:animate-pulse" />
                       <span className="text-[7px] font-black uppercase tracking-tighter">{lang === 'ar' ? 'إلغاء' : 'Void'}</span>
                     </button>
-                    <button className="p-2.5 bg-white/50 dark:bg-slate-900/50 rounded-2xl border border-border/50 hover:bg-slate-900 dark:hover:bg-white hover:text-white dark:hover:text-black transition-all flex flex-col items-center justify-center gap-1 group">
+                    <button className="p-2.5 bg-card/50 rounded-2xl border border-border/50 hover:bg-main hover:text-sidebar transition-all flex flex-col items-center justify-center gap-1 group">
                       <PrinterIcon size={13} />
                       <span className="text-[7px] font-black uppercase tracking-tighter">{lang === 'ar' ? 'الأخير' : 'Last'}</span>
                     </button>
@@ -376,19 +398,19 @@ const Sidebar: React.FC = () => {
                 <div className="flex flex-col items-center gap-4 mt-4 py-4 border-t border-primary/10">
                   <button onClick={() => setDiscount(discount === 0 ? 10 : 0)} className={`group relative p-3 rounded-2xl border transition-all ${discount > 0 ? 'bg-indigo-500 text-white shadow-lg' : 'bg-card border-border'}`}>
                     <Sparkles size={18} />
-                    <div className={`absolute ${lang === 'ar' ? 'right-full mr-5' : 'left-full ml-5'} top-1/2 -translate-y-1/2 px-4 py-2 bg-slate-900/90 backdrop-blur-md text-white text-[10px] font-black uppercase tracking-[0.2em] rounded-xl opacity-0 group-hover:opacity-100 transition-all duration-300 pointer-events-none whitespace-nowrap shadow-2xl z-[100]`}>
+                    <div className={`absolute ${lang === 'ar' ? 'right-full mr-5' : 'left-full ml-5'} top-1/2 -translate-y-1/2 px-4 py-2 bg-elevated text-main shadow-2xl z-[100] border border-primary/20`}>
                       {lang === 'ar' ? 'خصم 10%' : '10% Discount'}
                     </div>
                   </button>
                   <button onClick={() => setShowCalc(!showCalc)} className="group relative p-3 rounded-2xl bg-card border border-border hover:border-primary/50 transition-all">
                     <Calculator size={18} className={showCalc ? 'text-primary' : 'text-muted'} />
-                    <div className={`absolute ${lang === 'ar' ? 'right-full mr-5' : 'left-full ml-5'} top-1/2 -translate-y-1/2 px-4 py-2 bg-slate-900/90 backdrop-blur-md text-white text-[10px] font-black uppercase tracking-[0.2em] rounded-xl opacity-0 group-hover:opacity-100 transition-all duration-300 pointer-events-none whitespace-nowrap shadow-2xl z-[100]`}>
+                    <div className={`absolute ${lang === 'ar' ? 'right-full mr-5' : 'left-full ml-5'} top-1/2 -translate-y-1/2 px-4 py-2 bg-elevated text-main shadow-2xl z-[100] border border-primary/20`}>
                       {lang === 'ar' ? 'الآلة الحاسبة' : 'Calculator'}
                     </div>
                   </button>
                   <button onClick={handleToggleTouchMode} className={`group relative p-3 rounded-2xl border transition-all ${isTouchMode ? 'bg-amber-500 text-white shadow-lg' : 'bg-card border-border'}`}>
                     <Tablet size={18} />
-                    <div className={`absolute ${lang === 'ar' ? 'right-full mr-5' : 'left-full ml-5'} top-1/2 -translate-y-1/2 px-4 py-2 bg-slate-900/90 backdrop-blur-md text-white text-[10px] font-black uppercase tracking-[0.2em] rounded-xl opacity-0 group-hover:opacity-100 transition-all duration-300 pointer-events-none whitespace-nowrap shadow-2xl z-[100]`}>
+                    <div className={`absolute ${lang === 'ar' ? 'right-full mr-5' : 'left-full ml-5'} top-1/2 -translate-y-1/2 px-4 py-2 bg-elevated text-main shadow-2xl z-[100] border border-primary/20`}>
                       {lang === 'ar' ? 'وضع اللمس' : 'Touch Mode'}
                     </div>
                   </button>
@@ -399,7 +421,7 @@ const Sidebar: React.FC = () => {
 
           {/* 📞 CALL CENTER COMMAND CENTER */}
           {isCallCenter && (
-            <div className="mb-8 p-1.5 rounded-[2rem] bg-gradient-to-br from-indigo-50 to-violet-50 dark:from-indigo-950/30 dark:to-violet-950/30 border border-indigo-200/50 dark:border-indigo-800/30 shadow-sm relative overflow-hidden">
+            <div className="mb-8 p-1.5 rounded-[2rem] bg-elevated/50 dark:bg-elevated/20 border border-primary/20 shadow-sm relative overflow-hidden">
               <div className="absolute top-0 left-0 w-full h-[1px] bg-gradient-to-r from-transparent via-indigo-400/30 to-transparent" />
               {!isCollapsed && (
                 <div className="px-4 pt-4 pb-2 flex justify-between items-center">
@@ -416,7 +438,7 @@ const Sidebar: React.FC = () => {
               {!isCollapsed && (
                 <div className="flex flex-col gap-3 p-3">
                   {/* Discount Quick Select */}
-                  <div className="bg-white/60 dark:bg-slate-900/40 rounded-2xl p-3 border border-indigo-100 dark:border-indigo-900/30">
+                  <div className="bg-card/60 dark:bg-card/40 rounded-2xl p-3 border border-primary/20">
                     <span className="text-[8px] font-black uppercase text-indigo-500 tracking-widest block mb-2">
                       {lang === 'ar' ? 'خصم سريع' : 'Quick Discount'}
                     </span>
@@ -437,7 +459,7 @@ const Sidebar: React.FC = () => {
                   </div>
 
                   {/* Branch Selector */}
-                  <div className="bg-white/60 dark:bg-slate-900/40 rounded-2xl p-3 border border-indigo-100 dark:border-indigo-900/30">
+                  <div className="bg-card/60 dark:bg-card/40 rounded-2xl p-3 border border-primary/20">
                     <span className="text-[8px] font-black uppercase text-indigo-500 tracking-widest block mb-2">
                       {lang === 'ar' ? 'توجيه الطلب إلى' : 'Route to Branch'}
                     </span>
@@ -488,15 +510,15 @@ const Sidebar: React.FC = () => {
               {/* Collapsed State Icons */}
               {isCollapsed && (
                 <div className="flex flex-col items-center gap-3 py-4">
-                  <button onClick={() => setDiscount(discount === 0 ? 10 : 0)} className={`group relative p-3 rounded-2xl transition-all ${discount > 0 ? 'bg-indigo-600 text-white' : 'bg-white/60 dark:bg-slate-800 border border-indigo-200 dark:border-indigo-800'}`}>
+                  <button onClick={() => setDiscount(discount === 0 ? 10 : 0)} className={`group relative p-3 rounded-2xl transition-all ${discount > 0 ? 'bg-primary text-white' : 'bg-card border border-border'}`}>
                     <Sparkles size={18} />
-                    <div className={`absolute ${lang === 'ar' ? 'right-full mr-4' : 'left-full ml-4'} top-1/2 -translate-y-1/2 px-3 py-2 bg-slate-900 text-white text-[10px] font-black rounded-xl opacity-0 group-hover:opacity-100 transition-all whitespace-nowrap z-[100]`}>
+                    <div className={`absolute ${lang === 'ar' ? 'right-full mr-4' : 'left-full ml-4'} top-1/2 -translate-y-1/2 px-3 py-2 bg-elevated text-main shadow-2xl z-[100] border border-primary/20`}>
                       {lang === 'ar' ? 'خصم' : 'Discount'}
                     </div>
                   </button>
                   <button onClick={() => setShowCalc(!showCalc)} className="group relative p-3 rounded-2xl bg-white/60 dark:bg-slate-800 border border-indigo-200 dark:border-indigo-800">
                     <Calculator size={18} className={showCalc ? 'text-indigo-600' : ''} />
-                    <div className={`absolute ${lang === 'ar' ? 'right-full mr-4' : 'left-full ml-4'} top-1/2 -translate-y-1/2 px-3 py-2 bg-slate-900 text-white text-[10px] font-black rounded-xl opacity-0 group-hover:opacity-100 transition-all whitespace-nowrap z-[100]`}>
+                    <div className={`absolute ${lang === 'ar' ? 'right-full mr-4' : 'left-full ml-4'} top-1/2 -translate-y-1/2 px-3 py-2 bg-elevated text-main shadow-2xl z-[100] border border-primary/20`}>
                       {lang === 'ar' ? 'حاسبة' : 'Calculator'}
                     </div>
                   </button>
@@ -505,7 +527,7 @@ const Sidebar: React.FC = () => {
             </div>
           )}
 
-          {filteredSections.map((section, sectionIdx) => (
+          {!isPOS && filteredSections.map((section, sectionIdx) => (
             <div key={sectionIdx}>
               {!isCollapsed && (
                 <h3 className="px-4 text-[10px] font-black text-muted uppercase tracking-[0.2em] mb-4 opacity-50">
@@ -541,10 +563,26 @@ const Sidebar: React.FC = () => {
             </div>
           ))}
 
+          {isPOS && (
+            <div className="space-y-4">
+              <NavLink
+                to="/"
+                className={`
+                    flex items-center gap-4 px-4 py-3.5 rounded-[1.25rem] transition-all duration-300 group relative overflow-hidden
+                    text-primary bg-primary/5 border border-primary/20
+                    ${isCollapsed ? 'justify-center p-4' : ''}
+                  `}
+              >
+                <LayoutDashboard size={22} className="group-hover:rotate-12 transition-transform" />
+                {!isCollapsed && <span className="font-black text-[11px] uppercase tracking-widest">{lang === 'ar' ? 'العودة للرئيسية' : 'Back to Dashboard'}</span>}
+              </NavLink>
+            </div>
+          )}
+
 
 
           {/* Theme Picker */}
-          {!isCollapsed && (
+          {!isCollapsed && !isPOS && (
             <div className="px-2 pt-6 border-t border-border">
               <div className="flex justify-between items-center mb-4 px-2">
                 <span className="text-[10px] font-black text-muted uppercase tracking-[0.2em] opacity-50">Interface Skin</span>
@@ -595,6 +633,23 @@ const Sidebar: React.FC = () => {
             </div>
           )}
 
+          {/* Shift Out Button - Prominent in POS */}
+          {activeShift && (isPOS || !isCollapsed) && (
+            <button
+              onClick={() => setIsCloseShiftModalOpen(true)}
+              className={`w-full flex items-center gap-3 p-3.5 rounded-2xl bg-indigo-600 text-white hover:bg-indigo-700 transition-all duration-500 ${isCollapsed ? 'justify-center p-4' : ''} shadow-lg shadow-indigo-500/20 group relative overflow-hidden`}
+            >
+              <div className="absolute inset-0 bg-gradient-to-r from-white/0 via-white/10 to-white/0 -translate-x-full group-hover:translate-x-full transition-transform duration-1000" />
+              <LogOut size={18} className="group-hover:rotate-12 transition-transform" />
+              {!isCollapsed && <span className="text-[9px] font-black uppercase tracking-[0.2em]">{t.close_shift || 'Shift Out'}</span>}
+              {isCollapsed && (
+                <div className={`absolute ${lang === 'ar' ? 'right-full mr-5' : 'left-full ml-5'} top-1/2 -translate-y-1/2 px-4 py-2 bg-indigo-600 text-white text-[10px] font-black uppercase tracking-[0.2em] rounded-xl opacity-0 group-hover:opacity-100 transition-all duration-300 pointer-events-none whitespace-nowrap shadow-2xl z-[100]`}>
+                  {t.close_shift || 'Shift Out'}
+                </div>
+              )}
+            </button>
+          )}
+
           <button
             className={`w-full flex items-center gap-3 p-3.5 rounded-2xl bg-rose-500/5 text-rose-500 hover:bg-rose-500 hover:text-white transition-all duration-500 ${isCollapsed ? 'justify-center p-4' : ''} shadow-sm group`}
             onClick={handleLogout}
@@ -608,4 +663,4 @@ const Sidebar: React.FC = () => {
   );
 };
 
-export default Sidebar;
+export default React.memo(Sidebar);

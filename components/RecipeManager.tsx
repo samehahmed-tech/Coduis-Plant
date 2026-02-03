@@ -95,7 +95,8 @@ const RecipeManager: React.FC = () => {
         // Find category id for this item
         const category = categories.find(cat => cat.items.some(it => it.id === selectedMenuItemId));
         if (category) {
-            updateMenuItem(category.id, { ...selectedMenuItem, recipe: currentRecipe });
+            const activeMenuId = (useMenuStore.getState().menus || []).find(m => m.isDefault)?.id || 'menu-1';
+            updateMenuItem(activeMenuId, category.id, { ...selectedMenuItem, recipe: currentRecipe });
         }
     };
 

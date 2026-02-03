@@ -65,21 +65,24 @@ const App: React.FC = () => {
     }
   }, [settings.theme, settings.isDarkMode, settings.language]);
 
+  // Warm up the module cache for ALL routes after initial data load
+  useEffect(() => {
+    if (!isLoading) {
+      const preload = async () => {
+        const { loaders } = await import('./routes');
+        // Preload everything in background
+        Object.values(loaders).forEach(loader => (loader as Function)());
+      };
+      preload();
+    }
+  }, [isLoading]);
+
   // Show loading screen while initializing
   if (isLoading) {
     return <LoadingScreen isConnected={isConnected} />;
   }
 
-  // Warm up the module cache for important routes after initial data load
-  setTimeout(() => {
-    import('./routes').then(({ loaders }) => {
-      loaders.Dashboard();
-      loaders.POS();
-      loaders.MenuManager();
-    });
-  }, 2000);
-
   return <RouterProvider router={router} />;
-};
+}
 
 export default App;

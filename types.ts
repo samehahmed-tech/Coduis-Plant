@@ -138,6 +138,13 @@ export interface MenuItem {
   printerIds?: string[]; // IDs of printers for this item
   sortOrder?: number;
   layoutType?: 'standard' | 'wide' | 'image-only';
+  isWeighted?: boolean; // Support for scales
+  fiscalCode?: string; // GS1 or Internal code for ETA
+  priceLists?: {
+    name: string; // e.g., "Delivery", "Walk-in"
+    price: number;
+    branchIds?: string[]; // Specific price for specific branches
+  }[];
 }
 
 export enum WarehouseType {
@@ -238,6 +245,7 @@ export interface Order {
   payments?: PaymentRecord[];
   notes?: string;
   kitchenNotes?: string; // Notes for kitchen staff
+  driverId?: string; // Link to the assigned driver
 }
 
 export interface Supplier {
@@ -252,7 +260,7 @@ export interface Supplier {
 export interface PurchaseOrder {
   id: string;
   supplierId: string;
-  status: 'DRAFT' | 'ORDERED' | 'RECEIVED' | 'CANCELLED';
+  status: 'DRAFT' | 'ORDERED' | 'RECEIVED' | 'CANCELLED' | 'PENDING_APPROVAL';
   items: {
     itemId: string; // Link to InventoryItem
     itemName: string;
@@ -264,6 +272,23 @@ export interface PurchaseOrder {
   date: Date;
   receivedDate?: Date;
   targetWarehouseId?: string;
+  approvedById?: string;
+}
+
+export interface PurchaseRequest {
+  id: string;
+  branchId: string;
+  requesterId: string;
+  status: 'PENDING' | 'APPROVED' | 'REJECTED' | 'CONVERTED_TO_PO';
+  items: {
+    itemId: string;
+    itemName: string;
+    quantity: number;
+    unit: string;
+  }[];
+  date: Date;
+  reason?: string;
+  priority: 'LOW' | 'NORMAL' | 'URGENT';
 }
 
 export interface Customer {
@@ -383,6 +408,8 @@ export enum AppPermission {
   NAV_SETTINGS = 'NAV_SETTINGS',
   NAV_SECURITY = 'NAV_SECURITY',
   NAV_PRINTERS = 'NAV_PRINTERS',
+  NAV_PRODUCTION = 'NAV_PRODUCTION',
+  NAV_PEOPLE = 'NAV_PEOPLE',
 
   // --- Data & Financial Visibility ---
   DATA_VIEW_REVENUE = 'DATA_VIEW_REVENUE',
@@ -492,6 +519,58 @@ export interface AppSettings {
   activeBranchId?: string; // Current operating branch context
   currentUser?: User;
   geminiApiKey?: string;
+  priceListId?: string; // Currently active price list
+  syncAuthority: 'SERVER' | 'LOCAL'; // For conflict resolution
+  branchHierarchy: {
+    id: string;
+    level: 'MASTER' | 'REGIONAL' | 'BRANCH';
+    parentId?: string;
+  };
 }
 
-export type ViewState = 'DASHBOARD' | 'POS' | 'KDS' | 'INVENTORY' | 'FINANCE' | 'CRM' | 'REPORTS' | 'MENU_MANAGER' | 'AI_ASSISTANT' | 'AI_INSIGHTS' | 'SETTINGS' | 'CALL_CENTER' | 'FORENSICS' | 'SECURITY' | 'RECIPES' | 'PRINTERS';
+export enum ProductionStatus {
+  PENDING = 'PENDING',
+  IN_PROGRESS = 'IN_PROGRESS',
+  COMPLETED = 'COMPLETED',
+  CANCELLED = 'CANCELLED'
+}
+
+export interface ProductionOrder {
+  id: string;
+  targetItemId: string; // The composite item to produce
+  quantityRequested: number;
+  quantityProduced: number;
+  warehouseId: string; // The production warehouse/kitchen
+  status: ProductionStatus;
+  batchNumber: string;
+  createdAt: Date;
+  completedAt?: Date;
+  actorId: string;
+  ingredientsConsumed: {
+    itemId: string;
+    quantity: number;
+  }[];
+}
+
+export interface Employee {
+  id: string;
+  userId: string;
+  nationalId?: string;
+  joinDate: Date;
+  salary: number;
+  salaryType: 'MONTHLY' | 'HOURLY';
+  emergencyContact: string;
+  activeShiftId?: string;
+  bankAccount?: string;
+}
+
+export interface Driver {
+  id: string;
+  name: string;
+  phone: string;
+  status: 'AVAILABLE' | 'ON_DELIVERY' | 'BREAK' | 'OFFLINE';
+  vehicleType: 'BIKE' | 'CAR' | 'SCOOTER';
+  currentOrderId?: string;
+}
+
+export type ViewState = 'DASHBOARD' | 'POS' | 'KDS' | 'INVENTORY' | 'FINANCE' | 'CRM' | 'REPORTS' | 'MENU_MANAGER' | 'AI_ASSISTANT' | 'AI_INSIGHTS' | 'SETTINGS' | 'CALL_CENTER' | 'FORENSICS' | 'SECURITY' | 'RECIPES' | 'PRINTERS' | 'PRODUCTION' | 'PEOPLE' | 'DISPATCH';

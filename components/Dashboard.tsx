@@ -141,11 +141,11 @@ const Dashboard: React.FC = () => {
       {/* Header & Controls */}
       <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4">
         <div>
-          <h2 className="heading-lg text-slate-800 dark:text-white uppercase flex items-center gap-3">
+          <h2 className="heading-lg text-main uppercase flex items-center gap-3">
             {lang === 'ar' ? 'لوحة التحكم' : 'Dashboard'}
             <div className={`w-2.5 h-2.5 rounded-full ${hasData ? 'bg-emerald-500' : 'bg-amber-500'} animate-pulse`} />
           </h2>
-          <p className="text-sm text-slate-500 dark:text-slate-400 font-semibold">
+          <p className="text-sm text-muted font-semibold">
             {hasData
               ? (lang === 'ar' ? 'بيانات حقيقية من قاعدة البيانات' : 'Real data from database')
               : (lang === 'ar' ? 'لا توجد بيانات بعد - ابدأ بإضافة المنيو والطلبات' : 'No data yet - start by adding menu and orders')
@@ -156,7 +156,7 @@ const Dashboard: React.FC = () => {
         <div className="flex flex-wrap items-center gap-3 w-full lg:w-auto">
           <button
             onClick={handleGenerateInsight}
-            className="flex items-center gap-2 bg-indigo-100 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300 px-4 py-2 btn-theme font-bold text-xs uppercase tracking-wider hover:bg-indigo-200 dark:hover:bg-indigo-900/50 transition-all active:scale-95 ml-auto lg:ml-0"
+            className="flex items-center gap-2 bg-primary/10 text-primary px-4 py-2 btn-theme font-bold text-xs uppercase tracking-wider hover:bg-primary/20 transition-all active:scale-95 ml-auto lg:ml-0"
           >
             <Sparkles size={14} />
             {loadingInsight ? (lang === 'ar' ? 'جارِ...' : 'Loading...') : (lang === 'ar' ? 'ذكاء صناعي' : 'AI Intel')}
@@ -167,8 +167,8 @@ const Dashboard: React.FC = () => {
       {/* Empty State */}
       {!hasData && (
         <div className="card-primary p-12 rounded-[2.5rem] text-center">
-          <div className="w-20 h-20 mx-auto mb-6 rounded-3xl bg-indigo-100 dark:bg-indigo-900/30 flex items-center justify-center">
-            <Database size={40} className="text-indigo-600" />
+          <div className="w-20 h-20 mx-auto mb-6 rounded-3xl bg-primary/10 flex items-center justify-center">
+            <Database size={40} className="text-primary" />
           </div>
           <h3 className="text-xl font-black text-main mb-2">
             {lang === 'ar' ? 'مرحباً بك في Coduis Zen!' : 'Welcome to Coduis Zen!'}
@@ -182,13 +182,13 @@ const Dashboard: React.FC = () => {
           <div className="flex justify-center gap-4">
             <button
               onClick={() => navigate('/menu')}
-              className="px-6 py-3 bg-indigo-600 text-white rounded-2xl font-bold text-sm hover:bg-indigo-700 transition-all"
+              className="px-6 py-3 bg-primary text-white rounded-2xl font-bold text-sm hover:bg-primary-hover transition-all"
             >
               {lang === 'ar' ? 'إضافة المنيو' : 'Add Menu'}
             </button>
             <button
               onClick={() => navigate('/pos')}
-              className="px-6 py-3 bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-200 rounded-2xl font-bold text-sm hover:bg-slate-300 dark:hover:bg-slate-700 transition-all"
+              className="px-6 py-3 bg-elevated text-main rounded-2xl font-bold text-sm hover:bg-card transition-all"
             >
               {lang === 'ar' ? 'فتح نقطة البيع' : 'Open POS'}
             </button>
@@ -256,7 +256,7 @@ const Dashboard: React.FC = () => {
             {/* Left Column: Main Charts */}
             <div className="xl:col-span-2 space-y-6">
               {/* Revenue Chart */}
-              <div className="card-primary !p-8 md:!p-10 rounded-[2.5rem]">
+              <div className="bg-card dark:bg-card !p-8 md:!p-10 rounded-[2.5rem]">
                 <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-10">
                   <div>
                     <h3 className="text-xl font-black text-main flex items-center gap-3">
@@ -356,7 +356,7 @@ const Dashboard: React.FC = () => {
                   </div>
                   <div className="grid grid-cols-2 gap-2 mt-4">
                     {categoryData.map((cat, i) => (
-                      <div key={i} className="flex items-center gap-1.5 p-2 bg-slate-50 dark:bg-slate-800/50 rounded-xl border border-slate-100 dark:border-slate-800">
+                      <div key={i} className="flex items-center gap-1.5 p-2 bg-elevated/50 dark:bg-elevated/30 rounded-xl border border-border/50">
                         <div className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: COLORS[i % COLORS.length] }} />
                         <span className="text-[9px] font-bold text-slate-500 uppercase truncate">{cat.name}</span>
                       </div>
@@ -367,16 +367,16 @@ const Dashboard: React.FC = () => {
 
               {/* Top Customers */}
               {topCustomers.length > 0 && (
-                <div className="bg-white dark:bg-slate-900 p-6 rounded-3xl border border-slate-200 dark:border-slate-800">
+                <div className="bg-card dark:bg-card p-6 rounded-3xl border border-border/50">
                   <h3 className="text-sm font-black text-slate-800 dark:text-white mb-5 uppercase tracking-wider flex items-center gap-2">
-                    <Users size={16} className="text-indigo-600" />
+                    <Users size={16} className="text-primary" />
                     {lang === 'ar' ? 'أفضل العملاء' : 'Top Customers'}
                   </h3>
                   <div className="space-y-4">
                     {topCustomers.map((customer, i) => (
-                      <div key={i} className="flex justify-between items-center p-3 hover:bg-slate-50 dark:hover:bg-slate-800/50 rounded-2xl transition-all cursor-default border border-transparent hover:border-indigo-100">
+                      <div key={i} className="flex justify-between items-center p-3 hover:bg-elevated dark:hover:bg-elevated/50 rounded-2xl transition-all cursor-default border border-transparent hover:border-primary/20">
                         <div className="flex items-center gap-3">
-                          <div className="w-10 h-10 rounded-xl bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 flex items-center justify-center font-black">
+                          <div className="w-10 h-10 rounded-xl bg-indigo-50 dark:bg-indigo-900/30 text-primary flex items-center justify-center font-black">
                             {customer.name?.[0] || '?'}
                           </div>
                           <div>

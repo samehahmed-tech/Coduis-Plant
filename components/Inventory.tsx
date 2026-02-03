@@ -105,7 +105,7 @@ const Inventory: React.FC = () => {
     <div className="overflow-x-auto">
       <table className="w-full text-left">
         <thead>
-          <tr className="bg-slate-50 dark:bg-slate-950/50 text-slate-500 dark:text-slate-400 text-[10px] uppercase tracking-wider font-semibold">
+          <tr className="bg-elevated dark:bg-elevated/30 text-muted text-[10px] uppercase tracking-wider font-semibold">
             <th className="px-6 py-4">{lang === 'ar' ? 'الصنف' : 'Item Name'}</th>
             <th className="px-6 py-4">{lang === 'ar' ? 'التوزيع' : 'Warehouses'}</th>
             <th className="px-6 py-4">{lang === 'ar' ? 'الكمية الإجمالية' : 'Total Qty'}</th>
@@ -114,19 +114,19 @@ const Inventory: React.FC = () => {
             <th className="px-6 py-4">{lang === 'ar' ? 'إجراءات' : 'Actions'}</th>
           </tr>
         </thead>
-        <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+        <tbody className="divide-y border-border/50">
           {inventory.filter(i => (i.name + (i.nameAr || '')).toLowerCase().includes(searchQuery.toLowerCase())).map((item) => {
             const totalQty = item.warehouseQuantities.reduce((acc, curr) => acc + curr.quantity, 0);
             const isLow = totalQty <= item.threshold;
             return (
-              <tr key={item.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/50 group transition-colors">
+              <tr key={item.id} className="hover:bg-elevated transition-colors group">
                 <td className="px-6 py-4">
                   <div className="flex items-center gap-3">
                     <div className={`p-2 rounded-xl bg-slate-100 dark:bg-slate-800 ${item.isComposite ? 'text-violet-500' : 'text-slate-400'}`}>
                       {item.isComposite ? <Layers size={18} /> : <Package size={18} />}
                     </div>
                     <div>
-                      <div className="font-bold text-slate-800 dark:text-slate-200">{lang === 'ar' ? item.nameAr || item.name : item.name}</div>
+                      <div className="font-bold text-main">{lang === 'ar' ? item.nameAr || item.name : item.name}</div>
                       <div className="text-[10px] flex items-center gap-2">
                         <span className="uppercase font-black text-slate-400">{item.category}</span>
                         {item.sku && <span className="font-mono text-indigo-500">[{item.sku}]</span>}
@@ -139,7 +139,7 @@ const Inventory: React.FC = () => {
                     {item.warehouseQuantities.map(wq => {
                       const wh = warehouses.find(w => w.id === wq.warehouseId);
                       return (
-                        <span key={wq.warehouseId} className="px-2 py-0.5 bg-slate-100 dark:bg-slate-800 rounded-md text-[9px] font-black border border-slate-200 dark:border-slate-700">
+                        <span key={wq.warehouseId} className="px-2 py-0.5 bg-elevated border border-border/50 rounded-md text-[9px] font-black">
                           {wh?.name}: {wq.quantity}
                         </span>
                       );
@@ -183,9 +183,9 @@ const Inventory: React.FC = () => {
     <div className="p-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
       <button
         onClick={() => setWarehouseModalOpen(true)}
-        className="card-primary !p-6 flex flex-col items-center justify-center border-2 border-dashed border-slate-200 dark:border-slate-800 hover:border-indigo-500 group transition-all min-h-[160px]"
+        className="bg-card flex flex-col items-center justify-center border-2 border-dashed border-border/50 hover:border-primary group transition-all min-h-[160px]"
       >
-        <div className="w-12 h-12 rounded-2xl bg-indigo-50 dark:bg-indigo-950/20 text-indigo-400 group-hover:bg-indigo-600 group-hover:text-white transition-all flex items-center justify-center mb-3">
+        <div className="w-12 h-12 rounded-2xl bg-primary text-white flex items-center justify-center mb-3 transition-all group-hover:bg-primary-hover">
           <Plus size={24} />
         </div>
         <span className="text-sm font-black text-slate-400 group-hover:text-indigo-600 uppercase tracking-widest">{lang === 'ar' ? 'إضافة مخزن' : 'Add Warehouse'}</span>
@@ -232,14 +232,14 @@ const Inventory: React.FC = () => {
   );
 
   return (
-    <div className="p-4 md:p-6 lg:p-10 bg-slate-50 dark:bg-slate-950 min-h-screen transition-colors">
+    <div className="p-4 md:p-6 lg:p-10 bg-app min-h-screen transition-colors">
       <div className="flex flex-col xl:flex-row justify-between items-start xl:items-center gap-6 mb-10">
         <div>
           <div className="flex items-center gap-4 mb-2">
-            <div className="w-12 h-12 rounded-2xl bg-indigo-600 text-white flex items-center justify-center shadow-xl shadow-indigo-600/20">
+            <div className="w-12 h-12 rounded-2xl bg-primary text-white flex items-center justify-center shadow-xl shadow-primary/20">
               <Package size={24} />
             </div>
-            <h2 className="text-3xl xl:text-4xl font-black text-slate-800 dark:text-white uppercase tracking-tighter">
+            <h2 className="text-3xl xl:text-4xl font-black text-main uppercase tracking-tighter">
               {lang === 'ar' ? 'المخزن والتوريد' : 'Smart Inventory'}
             </h2>
           </div>
@@ -259,7 +259,7 @@ const Inventory: React.FC = () => {
           </button>
           <button
             onClick={() => setTransferModalOpen(true)}
-            className="flex-1 xl:flex-none flex items-center justify-center gap-2 bg-indigo-600 text-white px-6 py-3.5 rounded-2xl hover:bg-indigo-700 transition-all shadow-xl shadow-indigo-500/10 font-black text-xs uppercase tracking-widest"
+            className="flex-1 xl:flex-none flex items-center justify-center gap-2 bg-primary text-white px-6 py-3.5 rounded-2xl hover:bg-primary-hover transition-all shadow-xl shadow-primary/10 font-black text-xs uppercase tracking-widest"
           >
             <ArrowRightLeft size={18} /> {lang === 'ar' ? 'تحويل' : 'Transfer'}
           </button>
@@ -302,7 +302,7 @@ const Inventory: React.FC = () => {
         </div>
       </div>
 
-      <div className="bg-white dark:bg-slate-900 rounded-[2.5rem] shadow-2xl shadow-indigo-500/5 border border-slate-100 dark:border-slate-800 overflow-hidden min-h-[600px]">
+      <div className="bg-card rounded-[2.5rem] shadow-2xl shadow-primary/5 border border-border/50 overflow-hidden min-h-[600px]">
         {activeTab === 'STOCK' && renderStock()}
         {activeTab === 'WAREHOUSES' && renderWarehouses()}
         {activeTab === 'SUPPLIERS' && <div className="p-20 text-center text-slate-400 font-bold uppercase tracking-widest">Supplier Module Integration In Progress</div>}

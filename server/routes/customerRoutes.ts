@@ -1,0 +1,11 @@
+import { Router } from 'express';
+import * as customerController from '../controllers/customerController';
+
+const router = Router();
+
+router.get('/', customerController.getAllCustomers);
+router.get('/phone/:phone', customerController.getCustomerByPhone);
+router.post('/', customerController.createCustomer);
+router.put('/:id', customerController.updateCustomer);
+
+export default router;

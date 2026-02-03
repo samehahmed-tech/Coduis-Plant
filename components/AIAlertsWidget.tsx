@@ -57,33 +57,33 @@ const AIAlertsWidget: React.FC = () => {
         <div className="space-y-4 animate-in fade-in slide-in-from-right-4 duration-500">
             <div className="flex items-center gap-2 mb-2 px-1">
                 <Sparkles className="text-amber-500" size={16} />
-                <h3 className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Zen AI Insights</h3>
+                <h3 className="text-[10px] font-black uppercase text-muted tracking-widest">Zen AI Insights</h3>
             </div>
 
             {alerts.map(alert => (
                 <div
                     key={alert.id}
                     className={`relative p-5 rounded-[2rem] border-2 transition-all group overflow-hidden ${alert.type === 'HIGH_VOID_RATE'
-                            ? 'bg-rose-50 dark:bg-rose-900/10 border-rose-100 dark:border-rose-900/30'
-                            : 'bg-white dark:bg-slate-900 border-slate-100 dark:border-slate-800 shadow-sm'
+                        ? 'bg-danger/10 border-danger/30'
+                        : 'bg-card dark:bg-card border-border/50 shadow-sm'
                         }`}
                 >
                     <div className="flex gap-4">
-                        <div className={`w-10 h-10 rounded-2xl flex items-center justify-center shrink-0 ${alert.type === 'HIGH_VOID_RATE' ? 'bg-rose-500 text-white' : 'bg-amber-100 text-amber-600 dark:bg-amber-900/30'
+                        <div className={`w-10 h-10 rounded-2xl flex items-center justify-center shrink-0 ${alert.type === 'HIGH_VOID_RATE' ? 'bg-danger text-white' : 'bg-amber-100 text-amber-600 dark:bg-amber-900/30'
                             }`}>
                             {alert.type === 'HIGH_VOID_RATE' ? <AlertCircle size={20} /> : <TrendingUp size={20} />}
                         </div>
                         <div className="flex-1 pr-6">
                             <div className="flex justify-between items-start mb-1">
-                                <span className={`text-[8px] font-black uppercase tracking-widest ${alert.type === 'HIGH_VOID_RATE' ? 'text-rose-600' : 'text-amber-600'
+                                <span className={`text-[8px] font-black uppercase tracking-widest ${alert.type === 'HIGH_VOID_RATE' ? 'text-danger' : 'text-amber-600'
                                     }`}>
                                     {alert.type.replace(/_/g, ' ')}
                                 </span>
-                                <span className="text-[8px] font-bold text-slate-400 uppercase">
+                                <span className="text-[8px] font-bold text-muted uppercase">
                                     {alert.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                                 </span>
                             </div>
-                            <p className="text-xs font-bold text-slate-800 dark:text-slate-200 leading-relaxed uppercase tracking-tight">
+                            <p className="text-xs font-bold text-main leading-relaxed uppercase tracking-tight">
                                 {alert.message}
                             </p>
                         </div>
@@ -96,7 +96,7 @@ const AIAlertsWidget: React.FC = () => {
                     </button>
                     {/* Progress pulse for importance */}
                     {alert.type === 'HIGH_VOID_RATE' && (
-                        <div className="absolute bottom-0 left-0 h-1 bg-rose-500 animate-pulse w-full opacity-30" />
+                        <div className="absolute bottom-0 left-0 h-1 bg-danger animate-pulse w-full opacity-30" />
                     )}
                 </div>
             ))}

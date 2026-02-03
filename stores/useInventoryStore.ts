@@ -7,6 +7,8 @@ interface InventoryState {
     inventory: InventoryItem[];
     suppliers: Supplier[];
     purchaseOrders: PurchaseOrder[];
+    productionOrders: ProductionOrder[];
+    purchaseRequests: PurchaseRequest[];
     warehouses: Warehouse[];
     isLoading: boolean;
     error: string | null;
@@ -22,6 +24,8 @@ interface InventoryState {
     // Local Actions
     addPurchaseOrder: (po: PurchaseOrder) => void;
     receivePurchaseOrder: (poId: string, receivedAt: Date) => void;
+    addProductionOrder: (po: ProductionOrder) => void;
+    completeProductionOrder: (poId: string, actualQuantity: number) => void;
     addSupplier: (supplier: Supplier) => void;
     clearError: () => void;
 }
@@ -30,6 +34,8 @@ export const useInventoryStore = create<InventoryState>((set, get) => ({
     inventory: [],
     suppliers: [],
     purchaseOrders: [],
+    productionOrders: [],
+    purchaseRequests: [],
     warehouses: [],
     isLoading: false,
     error: null,
@@ -197,6 +203,23 @@ export const useInventoryStore = create<InventoryState>((set, get) => ({
             return { ...po, status: 'RECEIVED', receivedDate: receivedAt };
         })
     })),
+
+    addProductionOrder: (po) => set((state) => ({ productionOrders: [...state.productionOrders, po] })),
+
+    completeProductionOrder: (poId, actualQuantity) => set((state) => {
+        const order = state.productionOrders.find(o => o.id === poId);
+        if (!order) return state;
+
+        // In a real app, this would deduct ingredients from the inventory
+        // and add the finished product to the warehouse stock.
+
+        return {
+            productionOrders: state.productionOrders.map(po => {
+                if (po.id !== poId) return po;
+                return { ...po, status: 'COMPLETED' as any, quantityProduced: actualQuantity, completedAt: new Date() };
+            })
+        };
+    }),
 
     addSupplier: (supplier) => set((state) => ({ suppliers: [...state.suppliers, supplier] })),
 

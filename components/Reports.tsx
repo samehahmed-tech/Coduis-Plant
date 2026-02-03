@@ -30,7 +30,24 @@ const Reports: React.FC = () => {
    const { settings } = useAuthStore();
 
    const menuItems = useMemo(() => categories.flatMap(cat => cat.items), [categories]);
-   const [activeTab, setActiveTab] = useState<'SALES' | 'PROFIT' | 'FOOD_COST'>('SALES');
+   const [activeTab, setActiveTab] = useState<'SALES' | 'PROFIT' | 'FOOD_COST' | 'VAT'>('SALES');
+   const [vatReport, setVatReport] = useState<any>(null);
+
+   React.useEffect(() => {
+      if (activeTab === 'VAT') {
+         // In production: reportsApi.getVatReport({ startDate: ..., endDate: ... }).then(setVatReport)
+         // For now, setting a realistic mock that matches the backend reportController.ts structure
+         setVatReport({
+            summary: {
+               count: 124,
+               netTotal: 10357.50,
+               taxTotal: 1450.05,
+               serviceChargeTotal: 0,
+               grandTotal: 11807.55
+            }
+         });
+      }
+   }, [activeTab]);
 
    const foodCostData = useMemo(() => {
       return menuItems.map(item => {
@@ -61,13 +78,13 @@ const Reports: React.FC = () => {
                <p className="text-slate-500 dark:text-slate-400 font-semibold">Financial insights and operational performance tracking.</p>
             </div>
             <div className="flex bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-1.5 rounded-2xl shadow-sm">
-               {['SALES', 'PROFIT', 'FOOD_COST'].map(tab => (
+               {['SALES', 'PROFIT', 'FOOD_COST', 'VAT'].map(tab => (
                   <button
                      key={tab}
                      onClick={() => setActiveTab(tab as any)}
                      className={`px-6 py-2 rounded-xl text-xs font-black uppercase tracking-widest transition-all ${activeTab === tab ? 'bg-indigo-600 text-white shadow-lg' : 'text-slate-500 hover:text-slate-800'}`}
                   >
-                     {tab.replace('_', ' ')}
+                     {tab === 'VAT' ? 'Z-Report' : tab.replace('_', ' ')}
                   </button>
                ))}
             </div>
@@ -156,6 +173,78 @@ const Reports: React.FC = () => {
                            <Line type="monotone" dataKey="profit" name="Net Profit" stroke="#10b981" strokeWidth={5} dot={{ r: 6, fill: '#10b981', strokeWidth: 4, stroke: '#fff' }} />
                         </AreaChart>
                      </ResponsiveContainer>
+                  </div>
+               </div>
+            </div>
+         ) : activeTab === 'VAT' ? (
+            <div className="space-y-8 animate-in slide-in-from-bottom-5 duration-500">
+               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                  <div className="bg-white dark:bg-slate-900 rounded-3xl p-8 border border-slate-200 dark:border-slate-800 shadow-xl">
+                     <div className="w-12 h-12 bg-indigo-500/10 rounded-2xl flex items-center justify-center mb-6 border border-indigo-500/20">
+                        <Scale className="text-indigo-600" />
+                     </div>
+                     <p className="text-slate-400 text-[10px] font-black uppercase tracking-widest mb-1">Fiscal VAT (14%)</p>
+                     <h3 className="text-3xl font-black text-slate-800 dark:text-white">{(vatReport?.summary?.taxTotal || 0).toLocaleString()} <span className="text-xs text-slate-400">LE</span></h3>
+                  </div>
+                  <div className="bg-white dark:bg-slate-900 rounded-3xl p-8 border border-slate-200 dark:border-slate-800 shadow-xl">
+                     <div className="w-12 h-12 bg-emerald-500/10 rounded-2xl flex items-center justify-center mb-6 border border-emerald-500/20">
+                        <TrendingUp className="text-emerald-600" />
+                     </div>
+                     <p className="text-slate-400 text-[10px] font-black uppercase tracking-widest mb-1">Net Sales</p>
+                     <h3 className="text-3xl font-black text-slate-800 dark:text-white">{(vatReport?.summary?.netTotal || 0).toLocaleString()} <span className="text-xs text-slate-400">LE</span></h3>
+                  </div>
+               </div>
+
+               <div className="bg-white dark:bg-slate-900 rounded-[3rem] border border-slate-200 dark:border-slate-800 shadow-2xl overflow-hidden">
+                  <div className="p-10 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center bg-slate-50/50 dark:bg-slate-900/50">
+                     <div>
+                        <h3 className="text-2xl font-black text-slate-800 dark:text-white">Daily Z-Report</h3>
+                        <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mt-1">Reconciliation for {(vatReport?.summary?.count || 0)} Taxable Transactions</p>
+                     </div>
+                     <div className="flex gap-4">
+                        <button className="px-6 py-3 bg-indigo-600 text-white text-[10px] font-black uppercase tracking-widest rounded-2xl shadow-lg hover:shadow-indigo-500/40 transition-all active:scale-95 flex items-center gap-2">
+                           <Download size={16} /> Export Fiscal PDF
+                        </button>
+                     </div>
+                  </div>
+                  <div className="p-10">
+                     <div className="grid grid-cols-1 md:grid-cols-2 gap-12">
+                        <div className="space-y-6">
+                           <h4 className="text-xs font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
+                              <Info size={14} className="text-indigo-500" /> Revenue Breakdown
+                           </h4>
+                           <div className="space-y-4">
+                              <div className="flex justify-between items-center p-4 bg-slate-50 dark:bg-slate-950 rounded-2xl">
+                                 <span className="text-[11px] font-black uppercase text-slate-500">Gross Sales</span>
+                                 <span className="text-sm font-black text-slate-800 dark:text-white">{(vatReport?.summary?.grandTotal || 0).toLocaleString()} LE</span>
+                              </div>
+                              <div className="flex justify-between items-center p-4">
+                                 <span className="text-[11px] font-black uppercase text-slate-500 text-rose-500">Total Discounts</span>
+                                 <span className="text-sm font-black text-rose-500">- 0.00 LE</span>
+                              </div>
+                              <div className="flex justify-between items-center p-4 bg-slate-100/50 dark:bg-slate-800/50 rounded-2xl">
+                                 <span className="text-[11px] font-black uppercase text-slate-800 dark:text-white">Net Taxable Amount</span>
+                                 <span className="text-sm font-black text-indigo-600 underline underline-offset-4">{(vatReport?.summary?.netTotal || 0).toLocaleString()} LE</span>
+                              </div>
+                           </div>
+                        </div>
+
+                        <div className="space-y-6">
+                           <h4 className="text-xs font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
+                              <Scale size={14} className="text-emerald-500" /> Tax & Charges
+                           </h4>
+                           <div className="space-y-4">
+                              <div className="flex justify-between items-center p-4 bg-emerald-500/5 rounded-2xl border border-emerald-500/10">
+                                 <span className="text-[11px] font-black uppercase text-emerald-600">VAT (14%)</span>
+                                 <span className="text-sm font-black text-emerald-600">+ {(vatReport?.summary?.taxTotal || 0).toLocaleString()} LE</span>
+                              </div>
+                              <div className="flex justify-between items-center p-4">
+                                 <span className="text-[11px] font-black uppercase text-slate-500">Service Charge ({(vatReport?.summary?.serviceChargeTotal > 0 ? '12%' : '0%')})</span>
+                                 <span className="text-sm font-black text-slate-600">+ {(vatReport?.summary?.serviceChargeTotal || 0).toLocaleString()} LE</span>
+                              </div>
+                           </div>
+                        </div>
+                     </div>
                   </div>
                </div>
             </div>

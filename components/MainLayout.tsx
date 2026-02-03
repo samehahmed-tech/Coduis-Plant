@@ -30,14 +30,14 @@ const MainLayout: React.FC = () => {
             dir={direction}
             data-theme={theme}
         >
-            {/* Premium Animated Background Gradient */}
-            <div className="fixed inset-0 pointer-events-none overflow-hidden opacity-40 dark:opacity-20 z-0">
-                <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-primary/20 rounded-full blur-[120px] animate-pulse" />
-                <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-indigo-500/10 rounded-full blur-[120px] animate-pulse duration-[10s]" />
+            {/* Premium Static Background Gradient */}
+            <div className="fixed inset-0 pointer-events-none overflow-hidden opacity-30 dark:opacity-20 z-0">
+                <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-primary/20 rounded-full blur-[120px] dark:bg-primary/10" />
+                <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-secondary/10 rounded-full blur-[120px] dark:bg-secondary/5" />
             </div>
 
             <Sidebar />
-            <main className={`flex-1 overflow-hidden relative transition-all duration-500 z-10 ${layoutPadding}`}>
+            <main className={`flex-1 overflow-hidden relative transition-all duration-300 z-10 ${layoutPadding}`}>
                 <div className="h-full overflow-y-auto no-scrollbar scroll-smooth">
                     <Outlet />
                 </div>

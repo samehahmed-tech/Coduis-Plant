@@ -27,6 +27,7 @@ export const users = pgTable('users', {
     permissions: json('permissions').$type<string[]>().default([]),
     assignedBranchId: text('assigned_branch_id'),
     isActive: boolean('is_active').default(true),
+    managerPin: text('manager_pin'), // 4-digit PIN for manager overrides
     lastLoginAt: timestamp('last_login_at'),
     createdAt: timestamp('created_at').defaultNow(),
     updatedAt: timestamp('updated_at').defaultNow(),
@@ -228,6 +229,8 @@ export const orders = pgTable('orders', {
     completedAt: timestamp('completed_at'),
     cancelledAt: timestamp('cancelled_at'),
     cancelReason: text('cancel_reason'),
+    // Shift Tracking (Phase 3: Financial Ironclad)
+    shiftId: text('shift_id'),
 });
 
 export const orderItems = pgTable('order_items', {
@@ -367,6 +370,32 @@ export const suppliers = pgTable('suppliers', {
 });
 
 // ============================================================================
+// 📋 PURCHASE ORDERS
+// ============================================================================
+
+export const purchaseOrders = pgTable('purchase_orders', {
+    id: text('id').primaryKey(),
+    supplierId: text('supplier_id').references(() => suppliers.id).notNull(),
+    branchId: text('branch_id').references(() => branches.id).notNull(),
+    status: text('status').default('DRAFT'), // DRAFT, SENT, PARTIAL, RECEIVED, CANCELLED
+    expectedDate: timestamp('expected_date'),
+    subtotal: real('subtotal').default(0),
+    notes: text('notes'),
+    createdBy: text('created_by'),
+    createdAt: timestamp('created_at').defaultNow(),
+    updatedAt: timestamp('updated_at').defaultNow(),
+});
+
+export const purchaseOrderItems = pgTable('purchase_order_items', {
+    id: serial('id').primaryKey(),
+    poId: text('po_id').references(() => purchaseOrders.id).notNull(),
+    itemId: text('item_id').references(() => inventoryItems.id).notNull(),
+    orderedQty: real('ordered_qty').notNull(),
+    receivedQty: real('received_qty').default(0),
+    unitPrice: real('unit_price').notNull(),
+});
+
+// ============================================================================
 // 🖨️ PRINTERS
 // ============================================================================
 
@@ -404,14 +433,73 @@ export const auditLogs = pgTable('audit_logs', {
 });
 
 // ============================================================================
-// ⚙️ SYSTEM SETTINGS
+// 🕒 SHIFT MANAGEMENT
 // ============================================================================
 
-export const systemSettings = pgTable('system_settings', {
+export const shifts = pgTable('shifts', {
+    id: text('id').primaryKey(),
+    branchId: text('branch_id').references(() => branches.id).notNull(),
+    userId: text('user_id').references(() => users.id).notNull(),
+    openingTime: timestamp('opening_time').defaultNow().notNull(),
+    closingTime: timestamp('closing_time'),
+    openingBalance: real('opening_balance').default(0).notNull(),
+    expectedBalance: real('expected_balance').default(0), // System calculated
+    actualBalance: real('actual_balance').default(0), // Cashier counted
+    status: text('status').default('OPEN').notNull(), // OPEN, CLOSED
+    notes: text('notes'),
+    createdAt: timestamp('created_at').defaultNow(),
+    updatedAt: timestamp('updated_at').defaultNow(),
+});
+
+// ============================================================================
+// 🔐 MANAGER APPROVALS
+// ============================================================================
+
+export const managerApprovals = pgTable('manager_approvals', {
     id: serial('id').primaryKey(),
-    key: text('key').unique().notNull(),
-    value: json('value'),
-    category: text('category'), // general, pos, kitchen, delivery, etc.
+    managerId: text('manager_id').references(() => users.id).notNull(),
+    branchId: text('branch_id').references(() => branches.id).notNull(),
+    actionType: text('action_type').notNull(), // VOID, DISCOUNT, REFUND, ITEM_DELETE
+    relatedId: text('related_id'), // Order ID, Item ID, etc.
+    reason: text('reason').notNull(),
+    details: json('details'),
+    createdAt: timestamp('created_at').defaultNow(),
+});
+
+// ============================================================================
+// 🚚 DELIVERY & LOGISTICS
+// ============================================================================
+
+export const deliveryZones = pgTable('delivery_zones', {
+    id: serial('id').primaryKey(),
+    name: text('name').notNull(), // Maadi, New Cairo, etc.
+    nameAr: text('name_ar'),
+    branchId: text('branch_id').references(() => branches.id).notNull(),
+    deliveryFee: real('delivery_fee').default(0),
+    minOrderAmount: real('min_order_amount').default(0),
+    estimatedTime: integer('estimated_time').default(45), // minutes
+    isActive: boolean('is_active').default(true),
+});
+
+export const drivers = pgTable('drivers', {
+    id: text('id').primaryKey(),
+    name: text('name').notNull(),
+    phone: text('phone').notNull(),
+    branchId: text('branch_id').references(() => branches.id),
+    status: text('status').default('AVAILABLE'), // AVAILABLE, BUSY, OFFLINE
+    currentCashBalance: real('current_cash_balance').default(0),
+    isActive: boolean('is_active').default(true),
+    createdAt: timestamp('created_at').defaultNow(),
+});
+
+// ============================================================================
+// ⚙️ SETTINGS
+// ============================================================================
+
+export const settings = pgTable('settings', {
+    key: text('key').primaryKey(),
+    value: json('value').notNull(),
+    category: text('category').default('general'),
     updatedBy: text('updated_by'),
     updatedAt: timestamp('updated_at').defaultNow(),
 });
@@ -437,6 +525,11 @@ export type NewOrder = typeof orders.$inferInsert;
 
 export type OrderItem = typeof orderItems.$inferSelect;
 export type NewOrderItem = typeof orderItems.$inferInsert;
+
+export type Shift = typeof shifts.$inferSelect;
+export type NewShift = typeof shifts.$inferInsert;
+
+export type ManagerApproval = typeof managerApprovals.$inferSelect;
 
 export type InventoryItem = typeof inventoryItems.$inferSelect;
 export type StockMovement = typeof stockMovements.$inferSelect;

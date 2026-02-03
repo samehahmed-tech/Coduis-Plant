@@ -101,14 +101,14 @@ const SettingsHub: React.FC = () => {
             customRender: () => (
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                     {platforms.map(p => (
-                        <div key={p.id} className="p-4 bg-slate-50 dark:bg-slate-800 rounded-2xl flex flex-col items-center text-center gap-3 group border border-transparent hover:border-orange-400 transition-all">
-                            <div className="w-12 h-12 bg-white dark:bg-slate-700 rounded-2xl flex items-center justify-center text-orange-600 shadow-sm group-hover:scale-110 transition-transform">
+                        <div key={p.id} className="p-4 bg-elevated rounded-2xl flex flex-col items-center text-center gap-3 group border border-transparent hover:border-orange-400 transition-all">
+                            <div className="w-12 h-12 bg-card dark:bg-elevated/50 rounded-2xl flex items-center justify-center text-orange-600 shadow-sm group-hover:scale-110 transition-transform">
                                 <Globe size={24} />
                             </div>
-                            <p className="font-black text-xs text-slate-800 dark:text-white uppercase tracking-tight">{p.name}</p>
+                            <p className="font-black text-xs text-main uppercase tracking-tight">{p.name}</p>
                         </div>
                     ))}
-                    <button className="flex flex-col items-center justify-center gap-2 p-4 border-2 border-dashed border-slate-200 dark:border-slate-700 rounded-2xl text-slate-400 hover:text-orange-600 hover:border-orange-400 transition-all">
+                    <button className="flex flex-col items-center justify-center gap-2 p-4 border-border rounded-2xl text-muted hover:text-orange-600 hover:border-orange-400 transition-all">
                         <Plus size={24} />
                         <span className="text-[10px] font-black uppercase tracking-widest">{lang === 'ar' ? 'إيجاد تطبيق' : 'Add App'}</span>
                     </button>
@@ -125,18 +125,18 @@ const SettingsHub: React.FC = () => {
                     {warehouses.map(w => {
                         const branch = branches.find(b => b.id === w.branchId);
                         return (
-                            <div key={w.id} className="p-4 bg-slate-50 dark:bg-slate-800 rounded-2xl flex items-center justify-between border border-transparent hover:border-blue-400 transition-all cursor-pointer">
+                            <div key={w.id} className="p-4 bg-elevated rounded-2xl flex items-center justify-between border border-transparent hover:border-primary transition-all cursor-pointer">
                                 <div>
-                                    <p className="font-bold text-slate-800 dark:text-white leading-tight uppercase tracking-tight">{w.name}</p>
-                                    <p className="text-[9px] text-slate-500 font-black uppercase tracking-widest">{branch?.name} • {w.type}</p>
+                                    <p className="font-bold text-main leading-tight uppercase tracking-tight">{w.name}</p>
+                                    <p className="text-[9px] text-muted font-black uppercase tracking-widest">{branch?.name} • {w.type}</p>
                                 </div>
-                                <div className="w-8 h-8 rounded-lg bg-blue-100 dark:bg-blue-900/30 text-blue-600 flex items-center justify-center">
+                                <div className="w-8 h-8 rounded-lg bg-primary/10 text-primary flex items-center justify-center">
                                     <ExternalLink size={14} />
                                 </div>
                             </div>
                         );
                     })}
-                    <button className="p-4 border-2 border-dashed border-slate-200 dark:border-slate-700 rounded-2xl flex items-center justify-center gap-2 text-slate-400 font-black text-xs uppercase hover:text-blue-600 hover:border-blue-400 transition-all">
+                    <button className="p-4 border-border rounded-2xl flex items-center justify-center gap-2 text-muted font-black text-xs uppercase hover:text-primary hover:border-primary/50 transition-all">
                         <Plus size={16} /> {lang === 'ar' ? 'إضافة مخزن' : 'Add Warehouse'}
                     </button>
                 </div>
