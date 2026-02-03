@@ -13,6 +13,7 @@ import supplierRoutes from './routes/supplierRoutes';
 import purchaseOrderRoutes from './routes/purchaseOrderRoutes';
 import customerRoutes from './routes/customerRoutes';
 import settingsRoutes from './routes/settingsRoutes';
+import tableRoutes from './routes/tableRoutes';
 
 const app = express();
 
@@ -38,6 +39,7 @@ app.use('/api/suppliers', supplierRoutes);
 app.use('/api/purchase-orders', purchaseOrderRoutes);
 app.use('/api/customers', customerRoutes);
 app.use('/api/settings', settingsRoutes);
+app.use('/api/tables', tableRoutes);
 
 // Health check
 app.get('/api/health', (req, res) => {

@@ -8,7 +8,7 @@ import { Search, ShoppingBag, X, LogOut } from 'lucide-react';
 import {
    Order, OrderItem, OrderStatus, Table, PaymentMethod,
    OrderType, Customer, PaymentRecord, RestaurantMenu,
-   MenuCategory, AppPermission, RecipeIngredient, WarehouseType, JournalEntry
+   MenuCategory, AppPermission, RecipeIngredient, WarehouseType, JournalEntry, TableStatus
 } from '../types';
 
 import TableMap from './TableMap';
@@ -23,6 +23,7 @@ import CustomerSelectView from './pos/CustomerSelectView';
 import CalculatorWidget from './common/CalculatorWidget';
 import { ShiftOverlays, CloseShiftModal } from './pos/ShiftOverlays';
 import { ManagerApprovalModal } from './pos/ManagerApprovalModal';
+import TableManagementModal from './pos/TableManagementModal';
 import { printService } from '../src/services/printService';
 
 // Services
@@ -62,6 +63,13 @@ const POS: React.FC = () => {
    const recalledOrder = useOrderStore(state => state.recalledOrder);
    const clearRecalledOrder = useOrderStore(state => state.clearRecalledOrder);
    const tables = useOrderStore(state => state.tables);
+   const zones = useOrderStore(state => state.zones);
+   const transferTable = useOrderStore(state => state.transferTable);
+   const transferItems = useOrderStore(state => state.transferItems);
+   const splitTable = useOrderStore(state => state.splitTable);
+   const loadTableOrder = useOrderStore(state => state.loadTableOrder);
+   const fetchTables = useOrderStore(state => state.fetchTables);
+   const updateTableStatus = useOrderStore(state => state.updateTableStatus);
 
    const menus = useMenuStore(state => state.menus);
    const categories = useMenuStore(state => state.categories);
@@ -74,8 +82,11 @@ const POS: React.FC = () => {
    const warehouses = useInventoryStore(state => state.warehouses);
    const recordTransaction = useFinanceStore(state => state.recordTransaction);
 
+   const branchId = settings.activeBranchId || 'b1';
+
    // --- Local State ---
    const [selectedTableId, setSelectedTableId] = useState<string | null>(null);
+   const [managedTableId, setManagedTableId] = useState<string | null>(null);
    const [deliveryCustomer, setDeliveryCustomer] = useState<Customer | null>(null);
    // cart is now activeCart from store
    const [activeCategory, setActiveCategory] = useState('All');
@@ -98,7 +109,8 @@ const POS: React.FC = () => {
    // 🔄 Fetch menu data from database on POS mount
    useEffect(() => {
       fetchMenu(true);
-   }, [fetchMenu]);
+      if (branchId) fetchTables(branchId);
+   }, [fetchMenu, fetchTables, branchId]);
 
    useEffect(() => {
       const handleOnline = () => setIsOnline(true);
@@ -287,6 +299,14 @@ const POS: React.FC = () => {
       // 1. Place Order in Store (Syncs with server which now handles inventory)
       await placeOrder(newOrder);
 
+      // Update Table Status to DIRTY if Dine-In
+      if (activeOrderType === OrderType.DINE_IN && selectedTableId) {
+         updateTableStatus(selectedTableId, TableStatus.DIRTY);
+         setSelectedTableId(null);
+      } else if (activeOrderType === OrderType.DINE_IN) {
+         setSelectedTableId(null);
+      }
+
       // 2. Record Finance Transactions (Keeping for now although this belongs to an event listener too)
       recordTransaction({
          date: new Date(),
@@ -301,7 +321,6 @@ const POS: React.FC = () => {
       setDeliveryCustomer(null);
       setSplitPayments([]);
       setPaymentMethod(PaymentMethod.CASH);
-      if (activeOrderType === OrderType.DINE_IN) setSelectedTableId(null);
 
       // 3. Trigger Thermal Receipt
       await printService.print({
@@ -412,7 +431,23 @@ const POS: React.FC = () => {
                   <div className="flex-1 p-4 md:p-6 lg:p-10 bg-app dark:bg-app overflow-y-auto">
                      <TableMap
                         tables={tables}
-                        onSelectTable={(table) => { setSelectedTableId(table.id); clearCart(); }}
+                        zones={zones}
+                        orders={orders}
+                        onSelectTable={(table) => {
+                           if (table.status === TableStatus.DIRTY) {
+                              if (window.confirm("Mark table as Clean?")) {
+                                 updateTableStatus(table.id, TableStatus.AVAILABLE);
+                              }
+                              return;
+                           }
+                           if (table.status === TableStatus.OCCUPIED) {
+                              setManagedTableId(table.id);
+                           } else {
+                              setSelectedTableId(table.id);
+                              clearCart();
+                              setShowMap(false);
+                           }
+                        }}
                         lang={lang}
                         t={t}
                         isDarkMode={isDarkMode}
@@ -537,6 +572,34 @@ const POS: React.FC = () => {
                onRemovePayment={(idx) => setSplitPayments(prev => prev.filter((_, i) => i !== idx))}
                onUpdateAmount={(idx, val) => setSplitPayments(prev => prev.map((p, i) => i === idx ? { ...p, amount: val } : p))}
             />
+
+            {managedTableId && (
+               <TableManagementModal
+                  sourceTable={tables.find(t => t.id === managedTableId)!}
+                  allTables={tables}
+                  orders={orders}
+                  lang={lang}
+                  onClose={() => setManagedTableId(null)}
+                  onEditOrder={() => {
+                     loadTableOrder(managedTableId);
+                     setSelectedTableId(managedTableId);
+                     setManagedTableId(null);
+                     setShowMap(false);
+                  }}
+                  onTransferTable={(targetId) => {
+                     transferTable(managedTableId, targetId);
+                     setManagedTableId(null);
+                  }}
+                  onTransferItems={(targetId, itemIds) => {
+                     transferItems(managedTableId, targetId, itemIds);
+                     setManagedTableId(null);
+                  }}
+                  onSplitTable={(targetId, itemIds) => {
+                     splitTable(managedTableId, targetId, itemIds);
+                     setManagedTableId(null);
+                  }}
+               />
+            )}
          </div>
       </div>
    );

@@ -2,7 +2,7 @@
 @import "tailwindcss";
 
 @theme {
-  --font-sans: "Cairo", "Outfit", "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-sans: "Cairo", ui-sans-serif, system-ui, sans-serif;
 
   /* Theme-aware colors mapped from variables */
   --color-primary: rgb(var(--primary));
@@ -212,7 +212,7 @@ html {
 }
 
 body {
-  font-family: 'Cairo', 'Outfit', 'Inter', sans-serif;
+  font-family: 'Cairo', sans-serif;
   background-color: rgb(var(--bg-app));
   color: rgb(var(--text-main));
   transition: background-color 0.2s ease, color 0.2s ease;

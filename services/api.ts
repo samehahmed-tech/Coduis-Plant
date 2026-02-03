@@ -270,6 +270,19 @@ export const purchaseOrdersApi = {
 };
 
 // ============================================================================
+// 🪑 Tables API
+// ============================================================================
+
+export const tablesApi = {
+    getAll: (branchId: string) => apiRequest<any[]>(`/tables?branchId=${branchId}`),
+    getZones: (branchId: string) => apiRequest<any[]>(`/tables/zones?branchId=${branchId}`),
+    saveLayout: (data: { branchId: string; zones: any[]; tables: any[] }) =>
+        apiRequest<any>('/tables/layout', { method: 'POST', body: JSON.stringify(data) }),
+    updateStatus: (id: string, status: string, currentOrderId?: string) =>
+        apiRequest<any>(`/tables/${id}/status`, { method: 'PUT', body: JSON.stringify({ status, currentOrderId }) }),
+};
+
+// ============================================================================
 // Export all
 // ============================================================================
 
@@ -289,4 +302,5 @@ export default {
     wastage: wastageApi,
     suppliers: suppliersApi,
     purchaseOrders: purchaseOrdersApi,
+    tables: tablesApi,
 };

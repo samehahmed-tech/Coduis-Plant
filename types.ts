@@ -334,7 +334,9 @@ export interface Table {
   status: TableStatus;
   seats: number;
   currentOrderTotal?: number;
-  position?: { x: number; y: number };
+  position: { x: number; y: number };
+  width: number;
+  height: number;
   zoneId?: string;
   shape?: 'square' | 'round' | 'rectangle';
   discount?: number;
@@ -410,6 +412,7 @@ export enum AppPermission {
   NAV_PRINTERS = 'NAV_PRINTERS',
   NAV_PRODUCTION = 'NAV_PRODUCTION',
   NAV_PEOPLE = 'NAV_PEOPLE',
+  NAV_FLOOR_PLAN = 'NAV_FLOOR_PLAN',
 
   // --- Data & Financial Visibility ---
   DATA_VIEW_REVENUE = 'DATA_VIEW_REVENUE',

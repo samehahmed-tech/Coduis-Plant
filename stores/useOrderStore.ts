@@ -1,7 +1,7 @@
 // Order Store - Connected to Database API (Production Ready)
 import { create } from 'zustand';
 import { Order, OrderType, OrderItem, OrderStatus, Table, TableStatus, AuditEventType } from '../types';
-import { ordersApi } from '../services/api';
+import { ordersApi, tablesApi } from '../services/api';
 
 interface HeldOrder {
     id: string;
@@ -19,6 +19,7 @@ interface OrderState {
     heldOrders: HeldOrder[];
     activeCart: OrderItem[];
     tables: Table[];
+    zones: FloorZone[];
     isLoading: boolean;
     error: string | null;
 
@@ -31,6 +32,9 @@ interface OrderState {
     fetchOrders: (params?: { status?: string; branch_id?: string; date?: string; limit?: number }) => Promise<void>;
     placeOrder: (order: Order) => Promise<Order>;
     updateOrderStatus: (orderId: string, status: OrderStatus, changedBy?: string) => Promise<void>;
+
+    fetchTables: (branchId: string) => Promise<void>;
+    updateTableStatus: (tableId: string, status: string) => Promise<void>;
 
     // Local Actions
     setOrderMode: (mode: OrderType) => void;
@@ -45,12 +49,22 @@ interface OrderState {
     recallOrder: (index: number) => void;
     clearRecalledOrder: () => void;
     updateTables: (tables: Table[]) => void;
-    updateTableStatus: (tableId: string, status: TableStatus) => void;
+    updateTable: (id: string, updates: Partial<Table>) => void;
+    updateZones: (zones: FloorZone[]) => void;
     clearError: () => void;
+
+    // Advanced Table Management
+    transferTable: (sourceTableId: string, targetTableId: string) => Promise<void>;
+    transferItems: (sourceTableId: string, targetTableId: string, itemCartIds: string[]) => void;
+    splitTable: (originalTableId: string, targetTableId: string, itemCartIds: string[]) => void;
+    loadTableOrder: (tableId: string) => void;
 }
 
 // Empty tables - should be configured in settings
 const INITIAL_TABLES: Table[] = [];
+const INITIAL_ZONES: FloorZone[] = [
+    { id: 'MAIN', name: 'Main Hall', color: 'bg-indigo-600' }
+];
 import { persist } from 'zustand/middleware';
 import { eventBus } from '../services/eventBus';
 
@@ -62,6 +76,7 @@ export const useOrderStore = create<OrderState>()(
             heldOrders: [],
             activeCart: [],
             tables: INITIAL_TABLES,
+            zones: INITIAL_ZONES,
             discount: 0,
             activeCoupon: null,
             recalledOrder: null,
@@ -100,6 +115,20 @@ export const useOrderStore = create<OrderState>()(
                 } catch (error: any) {
                     set({ error: error.message, isLoading: false });
                     console.error('Failed to fetch orders:', error);
+                }
+            },
+
+            fetchTables: async (branchId: string) => {
+                set({ isLoading: true });
+                try {
+                    const tables = await tablesApi.getAll(branchId);
+                    const zones = await tablesApi.getZones(branchId);
+                    // Map or validate data if needed
+                    console.log('Fetched tables:', tables);
+                    set({ tables, zones, isLoading: false });
+                } catch (error: any) {
+                    console.error('Failed to fetch tables:', error);
+                    set({ error: error.message, isLoading: false });
                 }
             },
 
@@ -234,11 +263,118 @@ export const useOrderStore = create<OrderState>()(
 
             updateTables: (tables) => set({ tables }),
 
-            updateTableStatus: (tableId, status) => set((state) => ({
-                tables: state.tables.map(t => t.id === tableId ? { ...t, status } : t)
+            updateTable: (id, updates) => set((state) => ({
+                tables: state.tables.map(t => t.id === id ? { ...t, ...updates } : t)
             })),
 
+            updateTableStatus: async (tableId, status) => {
+                // Optimistic Update
+                set((state) => ({
+                    tables: state.tables.map(t => t.id === tableId ? { ...t, status } : t)
+                }));
+                try {
+                    await tablesApi.updateStatus(tableId, status);
+                } catch (error) {
+                    console.error('Failed to sync table status:', error);
+                }
+            },
+
+            updateZones: (zones) => set({ zones }),
+
             clearError: () => set({ error: null }),
+
+            transferTable: async (sourceId, targetId) => {
+                const state = get(); // Access current state
+                const sourceTable = state.tables.find(t => t.id === sourceId);
+                const targetTable = state.tables.find(t => t.id === targetId);
+
+                if (!sourceTable || !targetTable) return;
+
+                // Optimistic Update
+                set((state) => ({
+                    tables: state.tables.map(t => {
+                        if (t.id === sourceId) return { ...t, status: TableStatus.AVAILABLE, currentOrderTotal: 0 };
+                        if (t.id === targetId) return { ...t, status: TableStatus.OCCUPIED, currentOrderTotal: sourceTable.currentOrderTotal };
+                        return t;
+                    }),
+                    orders: state.orders.map(o => (o.tableId === sourceId && o.status !== OrderStatus.DELIVERED) ? { ...o, tableId: targetId } : o)
+                }));
+
+                // API Calls
+                try {
+                    await tablesApi.updateStatus(sourceId, TableStatus.AVAILABLE);
+                    await tablesApi.updateStatus(targetId, TableStatus.OCCUPIED);
+                    // Note: We should also update the order's tableId in the backend via ordersApi if we had that endpoint exposed specifically,
+                    // but for now we assume order sync handles it or we'd need a specific 'transfer' endpoint.
+                    // Ideally: await ordersApi.transferTable(sourceId, targetId);
+                } catch (error) {
+                    console.error('Failed to transfer table in backend:', error);
+                }
+            },
+
+            transferItems: (sourceId, targetId, itemIds) => set((state) => {
+                const sourceOrder = state.orders.find(o => o.tableId === sourceId && o.status !== OrderStatus.DELIVERED);
+                const targetOrder = state.orders.find(o => o.tableId === targetId && o.status !== OrderStatus.DELIVERED);
+
+                if (!sourceOrder) return state;
+
+                const itemsToMove = sourceOrder.items.filter(i => itemIds.includes(i.cartId));
+                const remainingItems = sourceOrder.items.filter(i => !itemIds.includes(i.cartId));
+
+                let newOrders = state.orders.map(o => {
+                    if (o.id === sourceOrder.id) return { ...o, items: remainingItems };
+                    return o;
+                });
+
+                if (targetOrder) {
+                    newOrders = newOrders.map(o => {
+                        if (o.id === targetOrder.id) return { ...o, items: [...o.items, ...itemsToMove] };
+                        return o;
+                    });
+                } else {
+                    const newOrder: Order = {
+                        ...sourceOrder,
+                        id: `transfer-${Date.now()}`,
+                        tableId: targetId,
+                        items: itemsToMove,
+                        createdAt: new Date(),
+                        payments: [],
+                        status: OrderStatus.PENDING
+                    };
+                    newOrders = [newOrder, ...newOrders];
+                }
+
+                return { orders: newOrders };
+            }),
+
+            splitTable: (sourceId, targetId, itemIds) => set((state) => {
+                const sourceOrder = state.orders.find(o => o.tableId === sourceId && o.status !== OrderStatus.DELIVERED);
+                if (!sourceOrder) return state;
+
+                const itemsToMove = sourceOrder.items.filter(i => itemIds.includes(i.cartId));
+                const remainingItems = sourceOrder.items.filter(i => !itemIds.includes(i.cartId));
+
+                const newOrder: Order = {
+                    ...sourceOrder,
+                    id: `split-${Date.now()}`,
+                    tableId: targetId,
+                    items: itemsToMove,
+                    createdAt: new Date(),
+                };
+
+                return {
+                    orders: [newOrder, ...state.orders.map(o => o.id === sourceOrder.id ? { ...o, items: remainingItems } : o)],
+                    tables: state.tables.map(t => t.id === targetId ? { ...t, status: TableStatus.OCCUPIED } : t)
+                };
+            }),
+
+            loadTableOrder: (tableId) => set((state) => {
+                const activeOrder = state.orders.find(o => o.tableId === tableId && o.status !== OrderStatus.DELIVERED);
+                if (activeOrder) {
+                    return { activeCart: activeOrder.items, discount: activeOrder.discount || 0 };
+                }
+                return { activeCart: [], discount: 0 };
+            }),
         }),
         { name: 'order-storage' }
     )

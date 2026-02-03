@@ -191,14 +191,6 @@ export const router = createBrowserRouter([
                 ),
             },
             {
-                path: 'floor-designer',
-                element: (
-                    <Suspense fallback={<Loading />}>
-                        <FloorDesigner />
-                    </Suspense>
-                ),
-            },
-            {
                 path: 'production',
                 element: (
                     <Suspense fallback={<Loading />}>
@@ -239,6 +231,14 @@ export const router = createBrowserRouter([
                 ),
             },
         ],
+    },
+    {
+        path: 'floor-designer',
+        element: (
+            <Suspense fallback={<Loading />}>
+                <FloorDesigner />
+            </Suspense>
+        ),
     },
     {
         path: '/login',

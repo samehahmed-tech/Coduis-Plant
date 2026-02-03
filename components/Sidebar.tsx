@@ -30,7 +30,8 @@ import {
   Factory,
   Megaphone,
   Truck,
-  ShieldCheck
+  ShieldCheck,
+  Map as MapIcon
 } from 'lucide-react';
 import { UserRole, AppPermission } from '../types';
 import { translations } from '../services/translations';
