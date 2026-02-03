@@ -42,7 +42,7 @@ const AIAssistant: React.FC = () => {
     {
       id: '1',
       sender: 'ai',
-      text: lang === 'ar' ? 'مرحباً! أنا Zen AI. يمكنني مساعدتك في إدارة المتجر، إخراج التقارير، أو حتى تعديل البيانات مباشرة. كيف أخدمك اليوم؟' : "Hello! I'm Zen AI. I can help you manage the store, generate reports, or even modify data directly. How can I serve you today?",
+      text: lang === 'ar' ? 'مرحباً! أنا المساعد الذكي. يمكنني مساعدتك في إدارة المتجر، إخراج التقارير، أو حتى تعديل البيانات مباشرة. كيف أخدمك اليوم؟' : "Hello! I'm your AI Assistant. I can help you manage the store, generate reports, or even modify data directly. How can I serve you today?",
       timestamp: new Date()
     }
   ]);

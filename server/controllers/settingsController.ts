@@ -18,7 +18,7 @@ export const getAllSettings = async (req: Request, res: Response) => {
         // If empty, return default frontend-friendly structure
         if (Object.keys(settingsMap).length === 0) {
             return res.json({
-                restaurantName: 'Coduis Zen',
+                restaurantName: 'Restaurant ERP',
                 currency: 'EGP',
                 taxRate: 14,
                 serviceCharge: 0,

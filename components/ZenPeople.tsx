@@ -41,7 +41,7 @@ const ZenPeople: React.FC = () => {
                             <Users size={32} />
                         </div>
                         <h2 className="text-4xl font-black text-main uppercase tracking-tighter">
-                            {lang === 'ar' ? 'زين بيبل' : 'Zen People'}
+                            {lang === 'ar' ? 'الموارد البشرية' : 'Human Resources'}
                         </h2>
                     </div>
                     <p className="text-muted font-bold text-sm uppercase tracking-widest opacity-60">

@@ -67,6 +67,7 @@ const POS: React.FC = () => {
    const categories = useMenuStore(state => state.categories);
    const activePriceListId = useMenuStore(state => state.activePriceListId);
    const setPriceList = useMenuStore(state => state.setPriceList);
+   const fetchMenu = useMenuStore(state => state.fetchMenu);
    const customers = useCRMStore(state => state.customers);
    const inventory = useInventoryStore(state => state.inventory);
    const updateStock = useInventoryStore(state => state.updateStock);
@@ -93,6 +94,11 @@ const POS: React.FC = () => {
    const setIsCloseShiftModalOpen = useFinanceStore(state => state.setIsCloseShiftModalOpen);
 
    const [isOnline, setIsOnline] = useState(navigator.onLine);
+
+   // 🔄 Fetch menu data from database on POS mount
+   useEffect(() => {
+      fetchMenu(true);
+   }, [fetchMenu]);
 
    useEffect(() => {
       const handleOnline = () => setIsOnline(true);

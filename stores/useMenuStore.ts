@@ -14,7 +14,7 @@ interface MenuState {
     activePriceListId: string | null;
 
     // Async Actions (API)
-    fetchMenu: () => Promise<void>;
+    fetchMenu: (availableOnly?: boolean) => Promise<void>;
 
     // Category Actions
     addCategory: (menuId: string, category: MenuCategory) => Promise<void>;
@@ -30,6 +30,7 @@ interface MenuState {
     addMenu: (menu: RestaurantMenu) => void;
     updateMenu: (menu: RestaurantMenu) => void;
     linkCategoryToMenu: (menuId: string, categoryId: string) => void;
+    linkCategory: (menuId: string, categoryId: string) => void; // Alias for linkCategoryToMenu
 
     // Helpers
     clearError: () => void;
@@ -58,34 +59,34 @@ export const useMenuStore = create<MenuState>()(
 
             // ============ API Actions ============
 
-            fetchMenu: async () => {
+            fetchMenu: async (availableOnly?: boolean) => {
                 set({ isLoading: true, error: null });
                 try {
-                    const menuData = await menuApi.getFullMenu();
+                    const menuData = await menuApi.getFullMenu(availableOnly);
 
                     // Transform API data to local format
                     const categories: MenuCategory[] = menuData.map((cat: any) => ({
                         id: cat.id,
                         name: cat.name,
-                        nameAr: cat.name_ar,
-                        image: cat.image || cat.image_url, // Handle both possible column names
+                        nameAr: cat.nameAr || cat.name_ar,
+                        image: cat.image || cat.image_url,
                         icon: cat.icon,
-                        targetOrderTypes: cat.target_order_types,
-                        menuIds: cat.menu_ids || ['menu-1'], // Use actual menu_ids if available
+                        targetOrderTypes: cat.targetOrderTypes || cat.target_order_types || [],
+                        menuIds: cat.menuIds || cat.menu_ids || ['menu-1'],
                         items: (cat.items || []).map((item: any) => ({
                             id: item.id,
                             name: item.name,
-                            nameAr: item.name_ar,
+                            nameAr: item.nameAr || item.name_ar,
                             description: item.description,
-                            descriptionAr: item.description_ar,
+                            descriptionAr: item.descriptionAr || item.description_ar,
                             price: Number(item.price),
                             image: item.image || item.image_url,
                             categoryId: cat.id,
-                            category: cat.name, // Internal identifier for filtering
-                            categoryAr: cat.name_ar, // Localized name for display
-                            isAvailable: item.is_available !== false,
-                            isPopular: item.is_popular,
-                            preparationTime: item.preparation_time,
+                            category: cat.name,
+                            categoryAr: cat.nameAr || cat.name_ar || cat.name,
+                            isAvailable: item.isAvailable !== false && item.is_available !== false,
+                            isPopular: item.isPopular || item.is_popular || false,
+                            preparationTime: item.preparationTime || item.preparation_time || 15,
                         }))
                     }));
 
@@ -101,56 +102,46 @@ export const useMenuStore = create<MenuState>()(
             addCategory: async (menuId, category) => {
                 set({ isLoading: true, error: null });
                 try {
-                    // Try to save to API
                     await menuApi.createCategory({
                         id: category.id,
                         name: category.name,
-                        name_ar: category.nameAr,
+                        nameAr: category.nameAr,
                         image: category.image,
                         icon: category.icon,
-                        menu_ids: category.menuIds,
-                        target_order_types: category.targetOrderTypes,
-                        is_active: true
+                        menuIds: category.menuIds,
+                        targetOrderTypes: category.targetOrderTypes,
+                        isActive: true
                     });
 
-                    // Update local state
                     set((state) => ({
                         categories: [...state.categories, { ...category, menuIds: [menuId], items: category.items || [] }],
                         isLoading: false
                     }));
-                    console.log('✅ Category saved to database:', category.name);
                 } catch (error: any) {
-                    console.warn('⚠️ API failed, saving locally:', error.message);
-                    // Fallback: save to local state only
-                    set((state) => ({
-                        categories: [...state.categories, { ...category, menuIds: [menuId], items: category.items || [] }],
-                        isLoading: false,
-                        error: null // Don't show error for offline mode
-                    }));
+                    set({ error: error.message, isLoading: false });
+                    throw error;
                 }
             },
 
             updateCategory: async (category) => {
+                set({ isLoading: true, error: null });
                 try {
                     await menuApi.updateCategory(category.id, {
                         name: category.name,
-                        name_ar: category.nameAr,
+                        nameAr: category.nameAr,
                         image: category.image,
                         icon: category.icon,
-                        menu_ids: category.menuIds,
-                        target_order_types: category.targetOrderTypes,
+                        menuIds: category.menuIds,
+                        targetOrderTypes: category.targetOrderTypes,
                     });
 
                     set((state) => ({
-                        categories: state.categories.map(c => c.id === category.id ? category : c)
+                        categories: state.categories.map(c => c.id === category.id ? category : c),
+                        isLoading: false
                     }));
-                    console.log('✅ Category updated:', category.name);
                 } catch (error: any) {
-                    console.warn('⚠️ API failed, updating locally:', error.message);
-                    // Fallback: update local state only
-                    set((state) => ({
-                        categories: state.categories.map(c => c.id === category.id ? category : c)
-                    }));
+                    set({ error: error.message, isLoading: false });
+                    throw error;
                 }
             },
 
@@ -174,16 +165,16 @@ export const useMenuStore = create<MenuState>()(
                 try {
                     await menuApi.createItem({
                         id: item.id,
-                        category_id: categoryId,
+                        categoryId: categoryId,
                         name: item.name,
-                        name_ar: item.nameAr,
+                        nameAr: item.nameAr,
                         description: item.description,
-                        description_ar: item.descriptionAr,
+                        descriptionAr: item.descriptionAr,
                         price: item.price,
                         image: item.image,
-                        is_available: item.isAvailable !== false,
-                        is_popular: item.isPopular,
-                        preparation_time: item.preparationTime,
+                        isAvailable: item.isAvailable !== false,
+                        isPopular: item.isPopular,
+                        preparationTime: item.preparationTime,
                     });
 
                     set((state) => {
@@ -211,14 +202,14 @@ export const useMenuStore = create<MenuState>()(
             updateMenuItem: async (menuId, categoryId, item) => {
                 try {
                     await menuApi.updateItem(item.id, {
-                        category_id: categoryId,
+                        categoryId: categoryId,
                         name: item.name,
-                        name_ar: item.nameAr,
+                        nameAr: item.nameAr,
                         description: item.description,
                         price: item.price,
                         image: item.image,
-                        is_available: item.isAvailable,
-                        is_popular: item.isPopular,
+                        isAvailable: item.isAvailable,
+                        isPopular: item.isPopular,
                     });
 
                     set((state) => {
@@ -278,12 +269,29 @@ export const useMenuStore = create<MenuState>()(
                 )
             })),
 
+            // Alias for linkCategoryToMenu (backward compatibility)
+            linkCategory: (menuId, categoryId) => set((state) => ({
+                categories: state.categories.map(c =>
+                    c.id === categoryId && !c.menuIds.includes(menuId)
+                        ? { ...c, menuIds: [...c.menuIds, menuId] }
+                        : c
+                )
+            })),
+
             // ============ Helpers ============
 
             clearError: () => set({ error: null }),
             setCategories: (categories) => set({ categories }),
             setPriceList: (id) => set({ activePriceListId: id }),
         }),
-        { name: 'menu-storage' }
+        {
+            name: 'menu-storage',
+            // Only persist menus and UI state, NOT categories/items which must come from DB
+            partialize: (state) => ({
+                menus: state.menus,
+                platforms: state.platforms,
+                activePriceListId: state.activePriceListId
+            }),
+        }
     )
 );

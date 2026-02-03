@@ -18,5 +18,5 @@ pool.on('error', (err) => {
 });
 
 app.listen(PORT, () => {
-    console.log(`🚀 Coduis Zen Backend - Production Modular Foundation - running on port ${PORT}`);
+    console.log(`🚀 Restaurant ERP Backend - Production Modular Foundation - running on port ${PORT}`);
 });

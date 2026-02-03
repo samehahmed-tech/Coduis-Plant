@@ -59,7 +59,7 @@ const FiscalHub: React.FC = () => {
                             <Landmark size={32} />
                         </div>
                         <h2 className="text-4xl font-black text-main uppercase tracking-tighter">
-                            {lang === 'ar' ? 'المكتب المالي' : 'Nexus Fiscal Hub'}
+                            {lang === 'ar' ? 'الامتثال الضريبي' : 'Fiscal Hub'}
                         </h2>
                     </div>
                     <p className="text-muted font-bold text-sm uppercase tracking-widest opacity-60 flex items-center gap-2">

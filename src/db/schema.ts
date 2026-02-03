@@ -112,6 +112,8 @@ export const menuCategories = pgTable('menu_categories', {
     color: text('color'),
     sortOrder: integer('sort_order').default(0),
     isActive: boolean('is_active').default(true),
+    targetOrderTypes: json('target_order_types').$type<string[]>().default([]),
+    menuIds: json('menu_ids').$type<string[]>().default(['menu-1']),
     createdAt: timestamp('created_at').defaultNow(),
     updatedAt: timestamp('updated_at').defaultNow(),
 });
@@ -495,6 +497,16 @@ export const drivers = pgTable('drivers', {
 // ============================================================================
 // ⚙️ SETTINGS
 // ============================================================================
+
+
+export const systemSettings = pgTable('system_settings', {
+    id: serial('id').primaryKey(),
+    key: text('key').unique().notNull(),
+    value: json('value'),
+    category: text('category'),
+    updatedBy: text('updated_by'),
+    updatedAt: timestamp('updated_at').defaultNow(),
+});
 
 export const settings = pgTable('settings', {
     key: text('key').primaryKey(),

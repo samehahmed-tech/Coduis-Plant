@@ -1,7 +1,7 @@
-// API Client for Coduis Zen
+// API Client for Restaurant ERP
 // Connects frontend to backend API
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
+const API_BASE_URL = import.meta.env.VITE_API_URL || '/api';
 
 // ============================================================================
 // Generic API Functions
@@ -11,7 +11,10 @@ async function apiRequest<T>(
     endpoint: string,
     options: RequestInit = {}
 ): Promise<T> {
-    const url = `${API_BASE_URL}${endpoint}`;
+    const url = endpoint.startsWith('http') ? endpoint : `${API_BASE_URL}${endpoint}`;
+
+    // Debug log for API calls
+    console.log(`🌐 API Request: ${options.method || 'GET'} ${url}`);
 
     const config: RequestInit = {
         ...options,
@@ -29,9 +32,14 @@ async function apiRequest<T>(
             throw new Error(error.message || error.error || `HTTP Error: ${response.status}`);
         }
 
-        return response.json();
+        const data = await response.json();
+        return data;
     } catch (error: any) {
-        console.error(`API Error [${endpoint}]:`, error.message);
+        console.error(`❌ API Error [${endpoint}]:`, error.message);
+        // If it's a syntax error with '<', it's likely we hit an HTML page instead of JSON
+        if (error.message.includes('Unexpected token')) {
+            console.error('💡 Hint: The server might be returning an HTML page. Check if the backend is running and the API URL is correct.');
+        }
         throw error;
     }
 }
@@ -104,7 +112,7 @@ export const menuApi = {
     deleteItem: (id: string) => apiRequest<any>(`/menu/items/${id}`, { method: 'DELETE' }),
 
     // Full menu with categories and items
-    getFullMenu: () => apiRequest<any[]>('/menu/full'),
+    getFullMenu: (availableOnly?: boolean) => apiRequest<any[]>(`/menu/full${availableOnly ? '?available_only=true' : ''}`),
 };
 
 // ============================================================================

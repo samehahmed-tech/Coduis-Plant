@@ -171,7 +171,7 @@ const Dashboard: React.FC = () => {
             <Database size={40} className="text-primary" />
           </div>
           <h3 className="text-xl font-black text-main mb-2">
-            {lang === 'ar' ? 'مرحباً بك في Coduis Zen!' : 'Welcome to Coduis Zen!'}
+            {lang === 'ar' ? 'مرحباً بك!' : 'Welcome!'}
           </h3>
           <p className="text-muted mb-6 max-w-md mx-auto">
             {lang === 'ar'

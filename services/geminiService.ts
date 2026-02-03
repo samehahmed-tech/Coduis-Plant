@@ -143,7 +143,7 @@ export async function chatWithRestaurantAI(
 ): Promise<{ text: string; actions?: any[]; suggestion?: any }> {
   try {
     const systemInstruction = `
-      You are Zen AI, the expert agent for Coduis Zen Restaurant ERP.
+      You are an AI Assistant, the expert agent for this Restaurant ERP System.
       Respond in ${lang === 'ar' ? 'Arabic' : 'English'}.
       
       You are an ACTIVE AGENT. You can interact with the system by returning a JSON object.

@@ -39,7 +39,7 @@ interface AuthState {
 }
 
 const DEFAULT_SETTINGS: AppSettings = {
-    restaurantName: 'Coduis Zen',
+    restaurantName: 'Restaurant ERP',
     currency: 'EGP',
     currencySymbol: 'ج.م',
     taxRate: 14,

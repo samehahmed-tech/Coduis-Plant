@@ -31,7 +31,7 @@ async function seed() {
         // 3. Seed Default Settings
         console.log('Seeding default settings...');
         const defaultSettings = [
-            { key: 'restaurantName', value: 'Coduis Zen', category: 'general' },
+            { key: 'restaurantName', value: 'Restaurant ERP', category: 'general' },
             { key: 'currency', value: 'EGP', category: 'general' },
             { key: 'taxRate', value: 14, category: 'finance' },
             { key: 'serviceCharge', value: 0, category: 'finance' },

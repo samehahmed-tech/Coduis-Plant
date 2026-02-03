@@ -1,12 +1,12 @@
 import { Order } from '../types';
 
 /**
- * NEXUS FISCAL SERVICE
+ * FISCAL SERVICE
  * Prepares data for Egyptian Tax Authority (ETA) E-Receipt Integration (v1.0)
  */
 export const fiscalService = {
     /**
-     * Transforms a Zen Nexus Order into ETA-compliant JSON
+     * Transforms an Order into ETA-compliant JSON
      * Based on public API specs for "E-Receipt" (بيانات الفاتورة الإلكترونية)
      */
     prepareETAReceipt: (order: Order) => {
@@ -20,14 +20,14 @@ export const fiscalService = {
             },
             seller: {
                 rin: "123-456-789", // Egyptian Tax Registration Number
-                companyTradeName: "Coduis Zen - Zen Nexus Enterprise",
+                companyTradeName: "Restaurant Enterprise",
                 branchCode: "0",
                 address: {
                     country: "EG",
                     governate: "Cairo",
                     city: "Cairo",
                     street: "90th St",
-                    buildingNumber: "Nexus Tower"
+                    buildingNumber: "Business Tower"
                 }
             },
             buyer: {

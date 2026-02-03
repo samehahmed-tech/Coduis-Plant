@@ -57,7 +57,7 @@ const AIAlertsWidget: React.FC = () => {
         <div className="space-y-4 animate-in fade-in slide-in-from-right-4 duration-500">
             <div className="flex items-center gap-2 mb-2 px-1">
                 <Sparkles className="text-amber-500" size={16} />
-                <h3 className="text-[10px] font-black uppercase text-muted tracking-widest">Zen AI Insights</h3>
+                <h3 className="text-[10px] font-black uppercase text-muted tracking-widest">AI Insights</h3>
             </div>
 
             {alerts.map(alert => (

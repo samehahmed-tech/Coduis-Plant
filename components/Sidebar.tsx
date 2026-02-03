@@ -109,42 +109,73 @@ const Sidebar: React.FC = () => {
       ];
     }
 
-    // 2. Super Admin (Control Hub FOCUS) - Excludes operational screens per user request
+    // 2. Super Admin (Control Hub FOCUS) - Well-organized sections for easy navigation
     if (isAdmin) {
       return [
+        // 🏠 القسم الرئيسي - Dashboard Only
         {
-          title: lang === 'ar' ? 'مركز التحكم والذكاء' : 'Control & Intelligence',
+          title: lang === 'ar' ? 'الرئيسية' : 'Home',
           items: [
             { path: '/', label: t.dashboard, icon: LayoutDashboard, permission: AppPermission.NAV_DASHBOARD, loaderKey: 'Dashboard' },
-            { path: '/ai-insights', label: t.ai_insights, icon: Sparkles, permission: AppPermission.NAV_AI_ASSISTANT, loaderKey: 'AIInsights' },
-            { path: '/ai-assistant', label: t.ai_assistant, icon: Bot, permission: AppPermission.NAV_AI_ASSISTANT, loaderKey: 'AIAssistant' },
-            { path: '/marketing', label: lang === 'ar' ? 'حملات النمو' : 'Nexus Growth', icon: Megaphone, permission: AppPermission.NAV_REPORTS, loaderKey: 'CampaignHub' },
-            { path: '/forensics', label: t.forensics, icon: Fingerprint, permission: AppPermission.NAV_FORENSICS, loaderKey: 'ForensicsHub' },
           ]
         },
+        // 🛒 العمليات التشغيلية - POS, KDS, Call Center
         {
-          title: lang === 'ar' ? 'إدارة الموارد' : 'Resource Management',
+          title: lang === 'ar' ? 'العمليات التشغيلية' : 'Operations',
           items: [
-            { path: '/menu', label: t.menu, icon: BookOpen, permission: AppPermission.NAV_MENU_MANAGER, loaderKey: 'MenuManager' },
+            { path: '/pos', label: t.pos, icon: UtensilsCrossed, permission: AppPermission.NAV_POS, loaderKey: 'POS' },
+            { path: '/kds', label: t.kds, icon: ChefHat, permission: AppPermission.NAV_KDS, loaderKey: 'KDS' },
+            { path: '/call-center', label: t.call_center, icon: Headset, permission: AppPermission.NAV_CALL_CENTER, loaderKey: 'CallCenter' },
+          ]
+        },
+        // 📦 المخازن والإمداد - Inventory, Production, Recipes
+        {
+          title: lang === 'ar' ? 'المخازن والإمداد' : 'Inventory & Supply',
+          items: [
             { path: '/inventory', label: t.inventory, icon: Package, permission: AppPermission.NAV_INVENTORY, loaderKey: 'Inventory' },
             { path: '/production', label: t.production, icon: Factory, permission: AppPermission.NAV_PRODUCTION, loaderKey: 'Production' },
-            { path: '/crm', label: t.crm, icon: Users, permission: AppPermission.NAV_CRM, loaderKey: 'CRM' },
-            { path: '/people', label: lang === 'ar' ? 'الموارد البشرية' : 'Zen People', icon: Users, permission: AppPermission.NAV_PEOPLE, loaderKey: 'People' },
             { path: '/recipes', label: t.recipes, icon: ChefHat, permission: AppPermission.NAV_RECIPES, loaderKey: 'RecipeManager' },
           ]
         },
+        // 💰 المالية والمحاسبة - Finance, Fiscal Compliance
         {
-          title: lang === 'ar' ? 'التحليلات والمالية' : 'Finance & Reports',
+          title: lang === 'ar' ? 'المالية والمحاسبة' : 'Finance & Accounting',
           items: [
             { path: '/finance', label: t.finance, icon: Landmark, permission: AppPermission.NAV_FINANCE, loaderKey: 'Finance' },
-            { path: '/fiscal', label: lang === 'ar' ? 'المكتب المالي' : 'Nexus Fiscal', icon: ShieldCheck, permission: AppPermission.NAV_FINANCE, loaderKey: 'FiscalHub' },
-            { path: '/dispatch', label: lang === 'ar' ? 'التوجيه واللوجستيات' : 'Nexus Logistics', icon: Truck, permission: AppPermission.NAV_DASHBOARD, loaderKey: 'Dispatch' },
-            { path: '/reports', label: lang === 'ar' ? 'تحليلات نكسوس' : 'Nexus Analytics', icon: BarChart3, permission: AppPermission.NAV_REPORTS, loaderKey: 'Reports' },
+            { path: '/fiscal', label: lang === 'ar' ? 'الامتثال الضريبي' : 'Fiscal Compliance', icon: ShieldCheck, permission: AppPermission.NAV_FINANCE, loaderKey: 'FiscalHub' },
           ]
         },
+        // 📊 التقارير والذكاء - Reports, AI Insights, Analytics
         {
-          title: lang === 'ar' ? 'إدارة النظام' : 'System Setup',
+          title: lang === 'ar' ? 'التقارير والتحليلات' : 'Reports & Analytics',
           items: [
+            { path: '/reports', label: lang === 'ar' ? 'التقارير' : 'Reports', icon: BarChart3, permission: AppPermission.NAV_REPORTS, loaderKey: 'Reports' },
+            { path: '/ai-insights', label: t.ai_insights, icon: Sparkles, permission: AppPermission.NAV_AI_ASSISTANT, loaderKey: 'AIInsights' },
+            { path: '/ai-assistant', label: t.ai_assistant, icon: Bot, permission: AppPermission.NAV_AI_ASSISTANT, loaderKey: 'AIAssistant' },
+            { path: '/forensics', label: t.forensics, icon: Fingerprint, permission: AppPermission.NAV_FORENSICS, loaderKey: 'ForensicsHub' },
+          ]
+        },
+        // 👥 الموارد البشرية والعملاء - HR, CRM
+        {
+          title: lang === 'ar' ? 'الموارد والعملاء' : 'People & Customers',
+          items: [
+            { path: '/people', label: lang === 'ar' ? 'الموارد البشرية' : 'HR & Staff', icon: Users, permission: AppPermission.NAV_PEOPLE, loaderKey: 'People' },
+            { path: '/crm', label: t.crm, icon: Users, permission: AppPermission.NAV_CRM, loaderKey: 'CRM' },
+          ]
+        },
+        // 🚚 التوصيل والتسويق - Dispatch, Marketing
+        {
+          title: lang === 'ar' ? 'التوصيل والتسويق' : 'Delivery & Marketing',
+          items: [
+            { path: '/dispatch', label: lang === 'ar' ? 'اللوجستيات' : 'Logistics', icon: Truck, permission: AppPermission.NAV_DASHBOARD, loaderKey: 'Dispatch' },
+            { path: '/marketing', label: lang === 'ar' ? 'حملات النمو' : 'Marketing', icon: Megaphone, permission: AppPermission.NAV_REPORTS, loaderKey: 'CampaignHub' },
+          ]
+        },
+        // ⚙️ إدارة النظام - Settings, Security, Printers, Menu Manager
+        {
+          title: lang === 'ar' ? 'إدارة النظام' : 'System Settings',
+          items: [
+            { path: '/menu', label: t.menu, icon: BookOpen, permission: AppPermission.NAV_MENU_MANAGER, loaderKey: 'MenuManager' },
             { path: '/settings', label: t.settings, icon: Settings, permission: AppPermission.NAV_SETTINGS, loaderKey: 'SettingsHub' },
             { path: '/security', label: t.security, icon: Shield, permission: AppPermission.NAV_SECURITY, loaderKey: 'SecurityHub' },
             { path: '/printers', label: t.printers, icon: PrinterIcon, permission: AppPermission.NAV_PRINTERS, loaderKey: 'PrinterManager' },
@@ -153,23 +184,37 @@ const Sidebar: React.FC = () => {
       ];
     }
 
-    // 3. Default Operational UI (Cashier, Branch Manager, etc.)
+    // 3. Default Operational UI (Cashier, Branch Manager, etc.) - Organized by function
     return [
+      // 🏠 الرئيسية
       {
-        title: lang === 'ar' ? 'العمليات الميدانية' : 'Operations',
+        title: lang === 'ar' ? 'الرئيسية' : 'Home',
         items: [
           { path: '/', label: t.dashboard, icon: LayoutDashboard, permission: AppPermission.NAV_DASHBOARD, loaderKey: 'Dashboard' },
+        ]
+      },
+      // 🛒 العمليات التشغيلية
+      {
+        title: lang === 'ar' ? 'العمليات' : 'Operations',
+        items: [
           { path: '/pos', label: t.pos, icon: UtensilsCrossed, permission: AppPermission.NAV_POS, loaderKey: 'POS' },
           { path: '/kds', label: t.kds, icon: ChefHat, permission: AppPermission.NAV_KDS, loaderKey: 'KDS' },
           { path: '/call-center', label: t.call_center, icon: Headset, permission: AppPermission.NAV_CALL_CENTER, loaderKey: 'CallCenter' },
-          { path: '/ai-assistant', label: t.ai_assistant, icon: Sparkles, permission: AppPermission.NAV_AI_ASSISTANT, loaderKey: 'AIAssistant' },
         ]
       },
+      // 📦 المخازن
       {
-        title: lang === 'ar' ? 'الموارد' : 'Resources',
+        title: lang === 'ar' ? 'المخازن' : 'Inventory',
         items: [
           { path: '/inventory', label: t.inventory, icon: Package, permission: AppPermission.NAV_INVENTORY, loaderKey: 'Inventory' },
+        ]
+      },
+      // 👥 العملاء والذكاء
+      {
+        title: lang === 'ar' ? 'العملاء والمساعد' : 'Customers & AI',
+        items: [
           { path: '/crm', label: t.crm, icon: Users, permission: AppPermission.NAV_CRM, loaderKey: 'CRM' },
+          { path: '/ai-assistant', label: t.ai_assistant, icon: Sparkles, permission: AppPermission.NAV_AI_ASSISTANT, loaderKey: 'AIAssistant' },
         ]
       }
     ];
@@ -247,7 +292,7 @@ const Sidebar: React.FC = () => {
           <X size={20} />
         </button>
 
-        {/* Header Branding & Zen Toggle */}
+        {/* Header Branding */}
         <div className={`relative flex flex-col items-center transition-all duration-500 ${isCollapsed ? 'py-6 px-2' : 'p-6'}`}>
           <div className={`p-2.5 rounded-2xl bg-primary/5 border border-primary/10 flex items-center justify-center transition-all duration-500 ${isCollapsed ? 'w-11 h-11' : 'w-14 h-14 mb-3'}`}>
             <img src="/logo.png" alt="Logo" className="w-full h-full object-contain drop-shadow-xl" />
@@ -255,17 +300,17 @@ const Sidebar: React.FC = () => {
 
           {!isPOS && !isCollapsed && (
             <div className="text-center animate-in fade-in slide-in-from-top-1 duration-700">
-              <h2 className="text-[9px] font-black text-primary tracking-[0.3em] uppercase opacity-70">Coduis Zen</h2>
-              <p className="text-[7px] font-black text-muted uppercase tracking-[0.1em] opacity-40">Intelligence OS</p>
+              <h2 className="text-[9px] font-black text-primary tracking-[0.3em] uppercase opacity-70">{lang === 'ar' ? 'نظام الإدارة' : 'Management System'}</h2>
+              <p className="text-[7px] font-black text-muted uppercase tracking-[0.1em] opacity-40">{lang === 'ar' ? 'المتكامل' : 'Enterprise'}</p>
             </div>
           )}
 
           {isPOS && !isCollapsed && (
             <div className="text-center animate-in fade-in zoom-in duration-500">
-              <h2 className="text-[10px] font-black text-primary tracking-[0.4em] uppercase">ADVANCED POS</h2>
+              <h2 className="text-[10px] font-black text-primary tracking-[0.4em] uppercase">{lang === 'ar' ? 'نقطة البيع' : 'POINT OF SALE'}</h2>
               <div className="flex items-center justify-center gap-1 mt-1">
                 <div className="w-1 h-1 rounded-full bg-primary animate-pulse" />
-                <span className="text-[7px] font-black text-muted uppercase tracking-widest">{activeShift ? 'Live Session' : 'Locked'}</span>
+                <span className="text-[7px] font-black text-muted uppercase tracking-widest">{activeShift ? (lang === 'ar' ? 'شفت مفتوح' : 'Active Shift') : (lang === 'ar' ? 'مغلق' : 'Closed')}</span>
               </div>
             </div>
           )}

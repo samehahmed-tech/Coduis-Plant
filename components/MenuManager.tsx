@@ -1,5 +1,5 @@
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import {
   Plus, Search, Edit3, Trash2, Tag,
   Layers, Clock, CheckCircle2, AlertCircle,
@@ -7,7 +7,7 @@ import {
   DollarSign, Percent, Gift, Eye, EyeOff, Scale,
   Save, X, Info, LayoutGrid, List, Sparkles, Link, ShoppingBag,
   ArrowRight, Filter, ChevronDown, UtensilsCrossed,
-  Settings, Building2, Globe, Truck, Map, Printer as PrinterIcon
+  Settings, Building2, Globe, Truck, Map, Printer as PrinterIcon, Loader2
 } from 'lucide-react';
 import { RestaurantMenu, MenuItem, Offer, MenuCategory, InventoryItem, RecipeIngredient, Branch, DeliveryPlatform, Printer, AppSettings } from '../types';
 
@@ -25,15 +25,20 @@ import ImageUploader from './common/ImageUploader';
 const MenuManager: React.FC = () => {
   // Global State
   const {
-    menus, categories, platforms,
+    menus, categories, platforms, isLoading, error,
     updateMenuItem, addMenuItem, deleteMenuItem,
     addCategory, updateCategory, deleteCategory,
-    addMenu, updateMenu, linkCategory
+    addMenu, updateMenu, linkCategory, fetchMenu
   } = useMenuStore();
   const { inventory } = useInventoryStore();
   const { branches, printers, settings } = useAuthStore();
   const lang = settings.language;
   // const t = translations[lang]; // Not heavily used here yet, using ternary for labels
+
+  // 🔄 Fetch menu data from database on component mount
+  useEffect(() => {
+    fetchMenu();
+  }, [fetchMenu]);
 
   const [activeTab, setActiveTab] = useState<'MENUS' | 'OFFERS'>('MENUS');
   const [selectedMenuId, setSelectedMenuId] = useState<string>(menus[0]?.id || '');
@@ -137,14 +142,35 @@ const MenuManager: React.FC = () => {
     setItemModal({ ...itemModal, item: { ...itemModal.item, printerIds: nextPrinters } });
   };
 
+  // 🔄 Loading State
+  if (isLoading && categories.length === 0) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-screen bg-slate-50 dark:bg-slate-950">
+        <Loader2 className="w-12 h-12 text-indigo-600 animate-spin mb-4" />
+        <p className="text-slate-500 font-bold uppercase tracking-widest text-sm">
+          {lang === 'ar' ? 'جاري تحميل القوائم...' : 'Loading menu data...'}
+        </p>
+      </div>
+    );
+  }
+
   return (
     <div className="p-4 md:p-6 lg:p-8 bg-slate-50 dark:bg-slate-950 min-h-screen transition-colors animate-fade-in pb-24">
+      {/* Error Banner */}
+      {error && (
+        <div className="mb-6 p-4 bg-rose-50 dark:bg-rose-900/20 border border-rose-200 dark:border-rose-800 rounded-2xl text-rose-600 dark:text-rose-400 text-sm font-bold flex items-center gap-3">
+          <AlertCircle size={20} />
+          {lang === 'ar' ? 'خطأ في تحميل البيانات: ' : 'Error loading data: '}{error}
+        </div>
+      )}
+
       {/* Header */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8">
         <div>
           <h2 className="text-xl md:text-3xl font-black text-slate-800 dark:text-white uppercase tracking-tight flex items-center gap-3">
             <UtensilsCrossed className="text-indigo-600" size={32} />
             {lang === 'ar' ? 'كتالوج المنيو' : 'Menu Catalog'}
+            {isLoading && <Loader2 className="w-5 h-5 text-indigo-400 animate-spin" />}
           </h2>
           <p className="text-xs md:text-sm text-slate-500 dark:text-slate-400 font-bold uppercase tracking-widest mt-1 opacity-70">
             {lang === 'ar' ? 'أطلق العنان للهندسة الذكية لقائمة طعامك' : 'Engineer your recipes for maximum profit'}
