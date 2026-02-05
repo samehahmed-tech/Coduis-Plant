@@ -33,10 +33,16 @@ async function migrate() {
             ALTER TABLE menu_items ADD COLUMN IF NOT EXISTS cost DECIMAL(10,2) DEFAULT 0;
             ALTER TABLE menu_items ADD COLUMN IF NOT EXISTS image TEXT;
             ALTER TABLE menu_items ADD COLUMN IF NOT EXISTS is_available BOOLEAN DEFAULT true;
+            ALTER TABLE menu_items ADD COLUMN IF NOT EXISTS available_from TEXT;
+            ALTER TABLE menu_items ADD COLUMN IF NOT EXISTS available_to TEXT;
+            ALTER TABLE menu_items ADD COLUMN IF NOT EXISTS available_days JSONB DEFAULT '[]';
             ALTER TABLE menu_items ADD COLUMN IF NOT EXISTS preparation_time INTEGER DEFAULT 15;
+            ALTER TABLE menu_items ADD COLUMN IF NOT EXISTS printer_ids JSONB DEFAULT '[]';
             ALTER TABLE menu_items ADD COLUMN IF NOT EXISTS is_popular BOOLEAN DEFAULT false;
             ALTER TABLE menu_items ADD COLUMN IF NOT EXISTS is_featured BOOLEAN DEFAULT false;
             ALTER TABLE menu_items ADD COLUMN IF NOT EXISTS sort_order INTEGER DEFAULT 0;
+            ALTER TABLE menu_items ADD COLUMN IF NOT EXISTS layout_type TEXT DEFAULT 'standard';
+            ALTER TABLE menu_items ADD COLUMN IF NOT EXISTS modifier_groups JSONB DEFAULT '[]';
         `);
 
         // Inventory master tables
@@ -120,6 +126,37 @@ async function migrate() {
             
             ALTER TABLE warehouses ADD COLUMN IF NOT EXISTS name_ar TEXT;
             ALTER TABLE warehouses ADD COLUMN IF NOT EXISTS parent_id TEXT;
+        `);
+
+        // Floor zones & tables
+        await pool.query(`
+            CREATE TABLE IF NOT EXISTS floor_zones(
+                id TEXT PRIMARY KEY,
+                name TEXT NOT NULL,
+                branch_id TEXT NOT NULL,
+                width INTEGER DEFAULT 800,
+                height INTEGER DEFAULT 600,
+                created_at TIMESTAMPTZ DEFAULT NOW(),
+                updated_at TIMESTAMPTZ DEFAULT NOW()
+            );
+
+            CREATE TABLE IF NOT EXISTS tables(
+                id TEXT PRIMARY KEY,
+                name TEXT NOT NULL,
+                zone_id TEXT,
+                branch_id TEXT NOT NULL,
+                x INTEGER DEFAULT 0,
+                y INTEGER DEFAULT 0,
+                width INTEGER DEFAULT 100,
+                height INTEGER DEFAULT 100,
+                shape TEXT DEFAULT 'rectangle',
+                seats INTEGER DEFAULT 4,
+                status TEXT DEFAULT 'AVAILABLE',
+                current_order_id TEXT,
+                locked_by_user_id TEXT,
+                created_at TIMESTAMPTZ DEFAULT NOW(),
+                updated_at TIMESTAMPTZ DEFAULT NOW()
+            );
         `);
 
         console.log('✅ Deep migration completed successfully');

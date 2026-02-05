@@ -38,6 +38,7 @@ import { translations } from '../services/translations';
 import { useAuthStore } from '../stores/useAuthStore';
 import { NavLink, useNavigate, useLocation } from 'react-router-dom';
 import { useOrderStore } from '../stores/useOrderStore';
+import { useModal } from './Modal';
 import { useFinanceStore } from '../stores/useFinanceStore';
 import { OrderType } from '../types';
 
@@ -75,6 +76,7 @@ const Sidebar: React.FC = () => {
   const discount = useOrderStore(state => state.discount);
   const setDiscount = useOrderStore(state => state.setDiscount);
   const clearCart = useOrderStore(state => state.clearCart);
+  const { showModal } = useModal();
   const activeShift = useFinanceStore(state => state.activeShift);
   const setIsCloseShiftModalOpen = useFinanceStore(state => state.setIsCloseShiftModalOpen);
 
@@ -280,7 +282,7 @@ const Sidebar: React.FC = () => {
       {/* Sidebar */}
       <aside className={`
         ${isCollapsed ? 'w-20' : (isTouchMode ? 'w-72' : 'w-64')} 
-        bg-sidebar/95 backdrop-blur-3xl text-main flex flex-col app-viewport 
+        bg-sidebar/95 backdrop-blur-3xl text-main flex flex-col app-viewport h-screen 
         fixed top-0 shadow-[0_0_40px_rgba(0,0,0,0.08)] z-[80] transition-all duration-500
         ${lang === 'ar' ? 'right-0 border-l' : 'left-0 border-r'} border-border/50
         ${isMobileOpen ? 'translate-x-0' : `${lang === 'ar' ? 'translate-x-full' : '-translate-x-full'} lg:translate-x-0`}
@@ -338,11 +340,11 @@ const Sidebar: React.FC = () => {
              cashier consistency. DO NOT MODIFY without Protocol Unlock.
           */}
           {isPOS && (
-            <div className="mb-8 p-1.5 rounded-[2rem] bg-slate-50 dark:bg-white/5 border border-border/50 shadow-sm relative overflow-hidden group/pos">
+            <div className="mb-8 p-2 rounded-[2rem] bg-card/90 border border-border/50 shadow-sm relative overflow-hidden group/pos">
               <div className="absolute top-0 left-0 w-full h-[1px] bg-gradient-to-r from-transparent via-primary/20 to-transparent" />
               {!isCollapsed && (
-                <div className="px-4 pt-4 pb-2 flex justify-between items-center">
-                  <h3 className="text-[10px] font-black text-primary/60 uppercase tracking-[0.2em]">
+                <div className="px-4 pt-4 pb-3 flex justify-between items-center">
+                  <h3 className="text-[11px] font-black text-primary/70 uppercase tracking-[0.22em]">
                     {lang === 'ar' ? 'التحكم السريع' : 'Command Center'}
                   </h3>
                   <div className="flex gap-1">
@@ -352,11 +354,12 @@ const Sidebar: React.FC = () => {
                 </div>
               )}
 
-              <div className={`flex ${isCollapsed ? 'flex-col items-center mt-4' : 'justify-between px-2 pt-2'} gap-2`}>
+              <div className={`flex ${isCollapsed ? 'flex-col items-center mt-4' : 'justify-between px-2 pt-2'} gap-2.5`}>
                 {[
-                  { mode: OrderType.DINE_IN, icon: UtensilsCrossed, activeClass: 'bg-primary text-white shadow-lg shadow-primary/20 ring-1 ring-white/10', inactiveClass: 'bg-white/50 dark:bg-slate-900/50 text-muted hover:text-primary hover:bg-primary/5', label: t.dine_in },
-                  { mode: OrderType.TAKEAWAY, icon: ShoppingBag, activeClass: 'bg-emerald-500 text-white shadow-lg shadow-emerald-500/20 ring-1 ring-white/10', inactiveClass: 'bg-white/50 dark:bg-slate-900/50 text-muted hover:text-emerald-500 hover:bg-emerald-500/5', label: t.takeaway },
-                  { mode: OrderType.DELIVERY, icon: Building2, activeClass: 'bg-orange-500 text-white shadow-lg shadow-orange-500/20 ring-1 ring-white/10', inactiveClass: 'bg-white/50 dark:bg-slate-900/50 text-muted hover:text-orange-500 hover:bg-orange-500/5', label: t.delivery },
+                  { mode: OrderType.DINE_IN, icon: UtensilsCrossed, activeClass: 'bg-primary text-white shadow-lg shadow-primary/20 ring-1 ring-white/10', inactiveClass: 'bg-card/70 text-muted hover:text-primary hover:bg-primary/5', label: t.dine_in },
+                  { mode: OrderType.TAKEAWAY, icon: ShoppingBag, activeClass: 'bg-emerald-500 text-white shadow-lg shadow-emerald-500/20 ring-1 ring-white/10', inactiveClass: 'bg-card/70 text-muted hover:text-emerald-500 hover:bg-emerald-500/5', label: t.takeaway },
+                  { mode: OrderType.PICKUP, icon: MapIcon, activeClass: 'bg-teal-500 text-white shadow-lg shadow-teal-500/20 ring-1 ring-white/10', inactiveClass: 'bg-card/70 text-muted hover:text-teal-500 hover:bg-teal-500/5', label: t.pickup || 'Pickup' },
+                  { mode: OrderType.DELIVERY, icon: Building2, activeClass: 'bg-orange-500 text-white shadow-lg shadow-orange-500/20 ring-1 ring-white/10', inactiveClass: 'bg-card/70 text-muted hover:text-orange-500 hover:bg-orange-500/5', label: t.delivery },
                 ].map((m) => (
                   <button
                     key={m.mode}
@@ -364,12 +367,12 @@ const Sidebar: React.FC = () => {
                     className={`
                       group relative rounded-2xl transition-all duration-500 hover:scale-105 active:scale-95
                       ${activeOrderType === m.mode ? m.activeClass : m.inactiveClass}
-                      ${!isCollapsed ? 'flex-1 flex flex-col items-center gap-1.5 py-3.5' : 'p-3'}
+                      ${!isCollapsed ? 'flex-1 flex flex-col items-center gap-2 py-4' : 'p-3.5'}
                     `}
                   >
-                    <m.icon size={isCollapsed ? 18 : 16} className={`transition-transform duration-500 ${activeOrderType === m.mode ? 'scale-110' : ''}`} />
+                    <m.icon size={isCollapsed ? 18 : 18} className={`transition-transform duration-500 ${activeOrderType === m.mode ? 'scale-110' : ''}`} />
                     {!isCollapsed && (
-                      <span className={`text-[8px] font-black uppercase tracking-widest text-center transition-colors ${activeOrderType === m.mode ? 'text-white' : 'text-muted'}`}>
+                      <span className={`text-[9px] font-black uppercase tracking-wider text-center transition-colors ${activeOrderType === m.mode ? 'text-white' : 'text-muted'}`}>
                         {m.label}
                       </span>
                     )}
@@ -383,58 +386,67 @@ const Sidebar: React.FC = () => {
               </div>
 
               {!isCollapsed && (
-                <div className="flex flex-col gap-2 p-2 mt-2">
+                <div className="flex flex-col gap-3 p-3 mt-2">
                   {/* Quick Stats/Discount */}
                   <div className="flex gap-2">
                     <button
                       onClick={() => setDiscount(discount === 0 ? 10 : 0)}
-                      className={`flex-1 flex flex-col items-center justify-center py-3 rounded-2xl border transition-all group ${discount > 0 ? 'bg-indigo-500/10 border-indigo-500/30 text-indigo-600' : 'bg-white/50 dark:bg-slate-900/50 border-border/50 hover:border-indigo-500/30'}`}
+                      className={`flex-1 flex flex-col items-center justify-center py-3 rounded-2xl border transition-all group ${discount > 0 ? 'bg-indigo-500/10 border-indigo-500/30 text-indigo-600' : 'bg-card/70 border-border/50 hover:border-indigo-500/30'}`}
                     >
-                      <span className="text-[8px] font-black uppercase opacity-60 mb-0.5">{lang === 'ar' ? 'خصم' : 'Discount'}</span>
-                      <span className="text-sm font-black tracking-tighter">{discount}%</span>
+                      <span className="text-[9px] font-black uppercase opacity-70 mb-0.5">{lang === 'ar' ? 'خصم' : 'Discount'}</span>
+                      <span className="text-base font-black tracking-tighter">{discount}%</span>
                     </button>
                     <button
                       disabled
-                      className="flex-1 flex flex-col items-center justify-center py-3 rounded-2xl border border-border/50 bg-white/30 dark:bg-slate-900/30 opacity-40 cursor-not-allowed"
+                      className="flex-1 flex flex-col items-center justify-center py-3 rounded-2xl border border-border/50 bg-card/40 opacity-40 cursor-not-allowed"
                     >
-                      <span className="text-[8px] font-black uppercase opacity-60 mb-0.5">{lang === 'ar' ? 'نقاط' : 'Points'}</span>
-                      <span className="text-sm font-black tracking-tighter">0</span>
+                      <span className="text-[9px] font-black uppercase opacity-70 mb-0.5">{lang === 'ar' ? 'نقاط' : 'Points'}</span>
+                      <span className="text-base font-black tracking-tighter">0</span>
                     </button>
                   </div>
 
                   <button
                     onClick={() => setShowCalc(!showCalc)}
-                    className="w-full flex items-center justify-between p-2.5 bg-card/50 border border-border/50 rounded-2xl text-[8px] font-black uppercase tracking-widest hover:border-primary/50 transition-all group"
+                    className="w-full flex items-center justify-between p-3 bg-elevated/70 border border-border/50 rounded-2xl text-[9px] font-black uppercase tracking-wider hover:border-primary/50 transition-all group"
                   >
-                    <span className="flex items-center gap-2.5"><Calculator size={13} className="text-primary group-hover:rotate-12 transition-transform" /> {lang === 'ar' ? 'الآلة الحاسبة' : 'Calculator'}</span>
+                    <span className="flex items-center gap-2.5"><Calculator size={14} className="text-primary group-hover:rotate-12 transition-transform" /> {lang === 'ar' ? 'الآلة الحاسبة' : 'Calculator'}</span>
                     <div className={`w-1.5 h-1.5 rounded-full ${showCalc ? 'bg-primary animate-pulse shadow-[0_0_8px_rgba(var(--primary-rgb),0.5)]' : 'bg-slate-300 dark:bg-slate-700'}`} />
                   </button>
 
                   {showCalc && (
-                    <div className="mt-1 p-0.5 rounded-2xl bg-card/80 backdrop-blur-md border border-primary/20 animate-in zoom-in-95 duration-300 overflow-hidden">
+                    <div className="mt-1 p-0.5 rounded-2xl bg-elevated/70 backdrop-blur-md border border-primary/20 animate-in zoom-in-95 duration-300 overflow-hidden">
                       <CalculatorWidget isCompact />
                     </div>
                   )}
 
                   <button
                     onClick={handleToggleTouchMode}
-                    className={`w-full flex items-center justify-between p-2.5 border rounded-2xl text-[8px] font-black uppercase tracking-widest transition-all group ${isTouchMode ? 'bg-amber-500/10 border-amber-500/50 text-amber-600' : 'bg-card/50 border-border/50 hover:border-amber-500/30'}`}
+                    className={`w-full flex items-center justify-between p-3 border rounded-2xl text-[9px] font-black uppercase tracking-wider transition-all group ${isTouchMode ? 'bg-amber-500/10 border-amber-500/50 text-amber-600' : 'bg-elevated/60 border-border/50 hover:border-amber-500/30'}`}
                   >
-                    <span className="flex items-center gap-2.5"><Tablet size={13} className={`${isTouchMode ? 'animate-bounce' : 'group-hover:scale-110'}`} /> {lang === 'ar' ? 'وضع اللمس' : 'Touch Mode'}</span>
+                    <span className="flex items-center gap-2.5"><Tablet size={14} className={`${isTouchMode ? 'animate-bounce' : 'group-hover:scale-110'}`} /> {lang === 'ar' ? 'وضع اللمس' : 'Touch Mode'}</span>
                     <div className={`w-1.5 h-1.5 rounded-full ${isTouchMode ? 'bg-amber-500 animate-pulse shadow-[0_0_8px_rgba(245,158,11,0.5)]' : 'bg-slate-300 dark:bg-slate-700'}`} />
                   </button>
 
-                  <div className="grid grid-cols-2 gap-1.5 mt-0.5">
+                  <div className="grid grid-cols-2 gap-2 mt-1">
                     <button
-                      onClick={() => { if (confirm(t.void_confirm)) clearCart() }}
-                      className="p-2.5 bg-rose-500/10 text-rose-500 rounded-2xl border border-rose-500/20 hover:bg-rose-500 hover:text-white transition-all flex flex-col items-center justify-center gap-1 group"
+                      onClick={() => {
+                        showModal({
+                          title: t.confirm,
+                          message: t.void_confirm,
+                          type: 'danger',
+                          confirmText: t.confirm,
+                          cancelText: t.cancel,
+                          onConfirm: () => clearCart()
+                        });
+                      }}
+                      className="p-3 bg-rose-500/10 text-rose-500 rounded-2xl border border-rose-500/20 hover:bg-rose-500 hover:text-white transition-all flex flex-col items-center justify-center gap-1 group"
                     >
-                      <Zap size={13} className="group-hover:animate-pulse" />
-                      <span className="text-[7px] font-black uppercase tracking-tighter">{lang === 'ar' ? 'إلغاء' : 'Void'}</span>
+                      <Zap size={14} className="group-hover:animate-pulse" />
+                      <span className="text-[8px] font-black uppercase tracking-wider">{lang === 'ar' ? 'إلغاء' : 'Void'}</span>
                     </button>
-                    <button className="p-2.5 bg-card/50 rounded-2xl border border-border/50 hover:bg-main hover:text-sidebar transition-all flex flex-col items-center justify-center gap-1 group">
-                      <PrinterIcon size={13} />
-                      <span className="text-[7px] font-black uppercase tracking-tighter">{lang === 'ar' ? 'الأخير' : 'Last'}</span>
+                    <button className="p-3 bg-elevated/70 rounded-2xl border border-border/50 hover:bg-main hover:text-sidebar transition-all flex flex-col items-center justify-center gap-1 group">
+                      <PrinterIcon size={14} />
+                      <span className="text-[8px] font-black uppercase tracking-wider">{lang === 'ar' ? 'الأخير' : 'Last'}</span>
                     </button>
                   </div>
                 </div>
@@ -442,19 +454,19 @@ const Sidebar: React.FC = () => {
 
               {isCollapsed && (
                 <div className="flex flex-col items-center gap-4 mt-4 py-4 border-t border-primary/10">
-                  <button onClick={() => setDiscount(discount === 0 ? 10 : 0)} className={`group relative p-3 rounded-2xl border transition-all ${discount > 0 ? 'bg-indigo-500 text-white shadow-lg' : 'bg-card border-border'}`}>
+                  <button onClick={() => setDiscount(discount === 0 ? 10 : 0)} className={`group relative p-3.5 rounded-2xl border transition-all ${discount > 0 ? 'bg-indigo-500 text-white shadow-lg' : 'bg-card border-border'}`}>
                     <Sparkles size={18} />
                     <div className={`absolute ${lang === 'ar' ? 'right-full mr-5' : 'left-full ml-5'} top-1/2 -translate-y-1/2 px-4 py-2 bg-elevated text-main shadow-2xl z-[100] border border-primary/20`}>
                       {lang === 'ar' ? 'خصم 10%' : '10% Discount'}
                     </div>
                   </button>
-                  <button onClick={() => setShowCalc(!showCalc)} className="group relative p-3 rounded-2xl bg-card border border-border hover:border-primary/50 transition-all">
+                  <button onClick={() => setShowCalc(!showCalc)} className="group relative p-3.5 rounded-2xl bg-card border border-border hover:border-primary/50 transition-all">
                     <Calculator size={18} className={showCalc ? 'text-primary' : 'text-muted'} />
                     <div className={`absolute ${lang === 'ar' ? 'right-full mr-5' : 'left-full ml-5'} top-1/2 -translate-y-1/2 px-4 py-2 bg-elevated text-main shadow-2xl z-[100] border border-primary/20`}>
                       {lang === 'ar' ? 'الآلة الحاسبة' : 'Calculator'}
                     </div>
                   </button>
-                  <button onClick={handleToggleTouchMode} className={`group relative p-3 rounded-2xl border transition-all ${isTouchMode ? 'bg-amber-500 text-white shadow-lg' : 'bg-card border-border'}`}>
+                  <button onClick={handleToggleTouchMode} className={`group relative p-3.5 rounded-2xl border transition-all ${isTouchMode ? 'bg-amber-500 text-white shadow-lg' : 'bg-card border-border'}`}>
                     <Tablet size={18} />
                     <div className={`absolute ${lang === 'ar' ? 'right-full mr-5' : 'left-full ml-5'} top-1/2 -translate-y-1/2 px-4 py-2 bg-elevated text-main shadow-2xl z-[100] border border-primary/20`}>
                       {lang === 'ar' ? 'وضع اللمس' : 'Touch Mode'}
@@ -467,10 +479,10 @@ const Sidebar: React.FC = () => {
 
           {/* 📞 CALL CENTER COMMAND CENTER */}
           {isCallCenter && (
-            <div className="mb-8 p-1.5 rounded-[2rem] bg-elevated/50 dark:bg-elevated/20 border border-primary/20 shadow-sm relative overflow-hidden">
+            <div className="mb-8 p-2 rounded-[2rem] bg-elevated/50 dark:bg-elevated/20 border border-primary/20 shadow-sm relative overflow-hidden">
               <div className="absolute top-0 left-0 w-full h-[1px] bg-gradient-to-r from-transparent via-indigo-400/30 to-transparent" />
               {!isCollapsed && (
-                <div className="px-4 pt-4 pb-2 flex justify-between items-center">
+                <div className="px-4 pt-4 pb-3 flex justify-between items-center">
                   <h3 className="text-[10px] font-black text-indigo-600 dark:text-indigo-400 uppercase tracking-[0.2em]">
                     {lang === 'ar' ? 'أدوات الاتصال' : 'Operator Tools'}
                   </h3>
@@ -484,7 +496,7 @@ const Sidebar: React.FC = () => {
               {!isCollapsed && (
                 <div className="flex flex-col gap-3 p-3">
                   {/* Discount Quick Select */}
-                  <div className="bg-card/60 dark:bg-card/40 rounded-2xl p-3 border border-primary/20">
+                  <div className="bg-elevated/70 dark:bg-card/40 rounded-2xl p-3 border border-primary/20">
                     <span className="text-[8px] font-black uppercase text-indigo-500 tracking-widest block mb-2">
                       {lang === 'ar' ? 'خصم سريع' : 'Quick Discount'}
                     </span>
@@ -505,7 +517,7 @@ const Sidebar: React.FC = () => {
                   </div>
 
                   {/* Branch Selector */}
-                  <div className="bg-card/60 dark:bg-card/40 rounded-2xl p-3 border border-primary/20">
+                  <div className="bg-elevated/70 dark:bg-card/40 rounded-2xl p-3 border border-primary/20">
                     <span className="text-[8px] font-black uppercase text-indigo-500 tracking-widest block mb-2">
                       {lang === 'ar' ? 'توجيه الطلب إلى' : 'Route to Branch'}
                     </span>
@@ -524,7 +536,7 @@ const Sidebar: React.FC = () => {
                   <div className="grid grid-cols-2 gap-2">
                     <button
                       onClick={() => setShowCalc(!showCalc)}
-                      className={`flex flex-col items-center gap-1 p-3 rounded-2xl border transition-all ${showCalc
+                      className={`flex flex-col items-center gap-1 p-3.5 rounded-2xl border transition-all ${showCalc
                         ? 'bg-indigo-600 text-white border-indigo-600'
                         : 'bg-white/60 dark:bg-slate-900/40 border-indigo-100 dark:border-indigo-900/30 hover:border-indigo-300'
                         }`}
@@ -534,7 +546,7 @@ const Sidebar: React.FC = () => {
                     </button>
                     <button
                       onClick={handleToggleTouchMode}
-                      className={`flex flex-col items-center gap-1 p-3 rounded-2xl border transition-all ${isTouchMode
+                      className={`flex flex-col items-center gap-1 p-3.5 rounded-2xl border transition-all ${isTouchMode
                         ? 'bg-amber-500 text-white border-amber-500'
                         : 'bg-white/60 dark:bg-slate-900/40 border-indigo-100 dark:border-indigo-900/30 hover:border-amber-300'
                         }`}
@@ -556,13 +568,13 @@ const Sidebar: React.FC = () => {
               {/* Collapsed State Icons */}
               {isCollapsed && (
                 <div className="flex flex-col items-center gap-3 py-4">
-                  <button onClick={() => setDiscount(discount === 0 ? 10 : 0)} className={`group relative p-3 rounded-2xl transition-all ${discount > 0 ? 'bg-primary text-white' : 'bg-card border border-border'}`}>
+                  <button onClick={() => setDiscount(discount === 0 ? 10 : 0)} className={`group relative p-3.5 rounded-2xl transition-all ${discount > 0 ? 'bg-primary text-white' : 'bg-card border border-border'}`}>
                     <Sparkles size={18} />
                     <div className={`absolute ${lang === 'ar' ? 'right-full mr-4' : 'left-full ml-4'} top-1/2 -translate-y-1/2 px-3 py-2 bg-elevated text-main shadow-2xl z-[100] border border-primary/20`}>
                       {lang === 'ar' ? 'خصم' : 'Discount'}
                     </div>
                   </button>
-                  <button onClick={() => setShowCalc(!showCalc)} className="group relative p-3 rounded-2xl bg-white/60 dark:bg-slate-800 border border-indigo-200 dark:border-indigo-800">
+                  <button onClick={() => setShowCalc(!showCalc)} className="group relative p-3.5 rounded-2xl bg-white/60 dark:bg-slate-800 border border-indigo-200 dark:border-indigo-800">
                     <Calculator size={18} className={showCalc ? 'text-indigo-600' : ''} />
                     <div className={`absolute ${lang === 'ar' ? 'right-full mr-4' : 'left-full ml-4'} top-1/2 -translate-y-1/2 px-3 py-2 bg-elevated text-main shadow-2xl z-[100] border border-primary/20`}>
                       {lang === 'ar' ? 'حاسبة' : 'Calculator'}

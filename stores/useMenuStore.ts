@@ -91,6 +91,12 @@ export const useMenuStore = create<MenuState>()(
                                 isAvailable: item.isAvailable !== false && item.is_available !== false,
                                 isPopular: item.isPopular || item.is_popular || false,
                                 preparationTime: item.preparationTime || item.preparation_time || 15,
+                                availableFrom: item.availableFrom || item.available_from,
+                                availableTo: item.availableTo || item.available_to,
+                                availableDays: item.availableDays || item.available_days || [],
+                                modifierGroups: item.modifierGroups || item.modifier_groups || [],
+                                priceLists: item.priceLists || item.price_lists || [],
+                                printerIds: item.printerIds || item.printer_ids || [],
                             }))
                         }));
 
@@ -216,6 +222,12 @@ export const useMenuStore = create<MenuState>()(
                         isAvailable: item.isAvailable !== false,
                         isPopular: item.isPopular,
                         preparationTime: item.preparationTime,
+                        availableFrom: item.availableFrom,
+                        availableTo: item.availableTo,
+                        availableDays: item.availableDays,
+                        modifierGroups: item.modifierGroups,
+                        priceLists: item.priceLists,
+                        printerIds: item.printerIds,
                     };
 
                     if (navigator.onLine) {
@@ -258,6 +270,13 @@ export const useMenuStore = create<MenuState>()(
                         image: item.image,
                         isAvailable: item.isAvailable,
                         isPopular: item.isPopular,
+                        preparationTime: item.preparationTime,
+                        availableFrom: item.availableFrom,
+                        availableTo: item.availableTo,
+                        availableDays: item.availableDays,
+                        modifierGroups: item.modifierGroups,
+                        priceLists: item.priceLists,
+                        printerIds: item.printerIds,
                     };
 
                     if (navigator.onLine) {

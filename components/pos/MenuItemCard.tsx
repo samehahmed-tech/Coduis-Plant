@@ -1,4 +1,5 @@
 import React from 'react';
+import { Plus } from 'lucide-react';
 import { MenuItem } from '../../types';
 
 interface MenuItemCardProps {
@@ -20,7 +21,7 @@ const MenuItemCard: React.FC<MenuItemCardProps> = React.memo(({
     return (
         <div
             onClick={() => onAddItem(item)}
-            className="group relative flex flex-row bg-card dark:bg-card border border-border/50 hover:shadow-xl hover:border-primary/40 active:ring-4 active:ring-primary/20 active:border-primary"
+            className="group relative flex flex-row bg-card dark:bg-card border border-border/50 rounded-2xl overflow-hidden hover:shadow-xl hover:border-primary/40 active:ring-4 active:ring-primary/20 active:border-primary transition-all"
         >
             {/* Image Section */}
             <div className="w-[38%] md:w-[40%] relative overflow-hidden shrink-0">
@@ -52,18 +53,24 @@ const MenuItemCard: React.FC<MenuItemCardProps> = React.memo(({
                     </p>
                 </div>
 
-                <div className="flex items-end justify-between">
+                <div className="flex items-end justify-between pt-2">
                     <div className="flex flex-col">
                         <p className="text-[9px] font-bold text-slate-400 dark:text-slate-600 uppercase tracking-tighter mb-0.5">Price</p>
-                        <div className="flex items-baseline">
+                        <div className="flex items-baseline gap-1.5">
+                            <span className="text-[10px] font-black text-muted">{currencySymbol}</span>
                             <span className="text-xl md:text-2xl font-black text-main dark:text-main tracking-tight">
                                 {item.price.toFixed(2)}
                             </span>
                         </div>
                     </div>
 
-                    {/* Visual hint on hover */}
-                    <div className="w-8 h-1 bg-primary/20 rounded-full opacity-0 group-hover:opacity-100 transition-opacity" />
+                    <button
+                        className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-primary text-white text-[10px] font-black uppercase tracking-widest shadow-lg shadow-primary/20 group-hover:translate-y-[-1px] transition-all"
+                        aria-label="Add Item"
+                    >
+                        <Plus size={14} />
+                        Add
+                    </button>
                 </div>
             </div>
         </div>

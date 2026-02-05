@@ -40,10 +40,10 @@
    1. XEN (Default) - Inspired by Logo: Steel Grey + Cyan
    ═══════════════════════════════════════════════════════════════════════════ */
 [data-theme='xen'] {
-  --primary: 0 180 216;
-  --primary-hover: 0 150 199;
-  --secondary: 107 114 128;
-  --accent: 56 189 248;
+  --primary: 0 168 204;
+  --primary-hover: 0 139 184;
+  --secondary: 71 85 105;
+  --accent: 34 211 238;
   --success: 34 197 94;
   --warning: 251 146 60;
   --danger: 239 68 68;
@@ -52,20 +52,22 @@
   --bg-card: 255 255 255;
   --bg-sidebar: 255 255 255;
   --bg-elevated: 241 245 249;
-  --text-main: 30 41 59;
-  --text-muted: 100 116 139;
-  --border-color: 226 232 240;
+  --text-main: 15 23 42;
+  --text-muted: 71 85 105;
+  --border-color: 224 231 239;
 }
 
 [data-theme='xen'].dark,
 .dark [data-theme='xen'] {
   --bg-app: 7 10 18;
-  --bg-card: 13 18 32;
-  --bg-sidebar: 9 14 26;
-  --bg-elevated: 18 25 45;
+  --bg-card: 15 23 42;
+  --bg-sidebar: 12 19 36;
+  --bg-elevated: 21 32 58;
   --text-main: 241 245 249;
-  --text-muted: 100 116 139;
-  --border-color: 25 35 60;
+  --text-muted: 173 189 210;
+  --border-color: 34 49 78;
+  --secondary: 148 163 184;
+  --accent: 56 189 248;
   --shadow-lg: 0 0 40px rgba(0, 0, 0, 0.4);
 }
 
@@ -73,9 +75,9 @@
    2. EMBER - Grey + Orange (Professional Warmth)
    ═══════════════════════════════════════════════════════════════════════════ */
 [data-theme='ember'] {
-  --primary: 249 115 22;
-  --primary-hover: 234 88 12;
-  --secondary: 115 115 115;
+  --primary: 245 124 43;
+  --primary-hover: 226 96 30;
+  --secondary: 100 98 96;
   --accent: 251 146 60;
   --success: 34 197 94;
   --warning: 251 191 36;
@@ -85,20 +87,22 @@
   --bg-card: 255 255 255;
   --bg-sidebar: 255 255 255;
   --bg-elevated: 245 245 245;
-  --text-main: 38 38 38;
-  --text-muted: 115 115 115;
-  --border-color: 229 229 229;
+  --text-main: 24 24 24;
+  --text-muted: 99 99 99;
+  --border-color: 230 230 230;
 }
 
 [data-theme='ember'].dark,
 .dark [data-theme='ember'] {
   --bg-app: 15 12 10;
-  --bg-card: 28 20 16;
-  --bg-sidebar: 20 15 12;
-  --bg-elevated: 40 30 25;
+  --bg-card: 32 24 18;
+  --bg-sidebar: 22 16 12;
+  --bg-elevated: 46 34 26;
   --text-main: 250 250 250;
-  --text-muted: 140 120 110;
-  --border-color: 45 35 30;
+  --text-muted: 190 160 140;
+  --border-color: 72 52 40;
+  --secondary: 168 142 130;
+  --accent: 251 146 60;
   --shadow-lg: 0 0 30px rgba(0, 0, 0, 0.5);
 }
 
@@ -106,10 +110,10 @@
    3. GRAPHITE - Minimal & Premium
    ═══════════════════════════════════════════════════════════════════════════ */
 [data-theme='graphite'] {
-  --primary: 82 82 91;
-  --primary-hover: 63 63 70;
+  --primary: 76 84 99;
+  --primary-hover: 58 64 76;
   --secondary: 113 113 122;
-  --accent: 161 161 170;
+  --accent: 148 163 184;
   --success: 34 197 94;
   --warning: 234 179 8;
   --danger: 220 38 38;
@@ -118,28 +122,30 @@
   --bg-card: 250 250 250;
   --bg-sidebar: 255 255 255;
   --bg-elevated: 244 244 245;
-  --text-main: 24 24 27;
-  --text-muted: 113 113 122;
-  --border-color: 228 228 231;
+  --text-main: 17 24 39;
+  --text-muted: 100 116 139;
+  --border-color: 226 232 240;
 }
 
 [data-theme='graphite'].dark,
 .dark [data-theme='graphite'] {
   --bg-app: 18 18 18;
-  --bg-card: 28 28 28;
-  --bg-sidebar: 22 22 22;
-  --bg-elevated: 40 40 40;
-  --text-main: 250 250 250;
-  --text-muted: 120 120 120;
-  --border-color: 45 45 45;
+  --bg-card: 32 32 32;
+  --bg-sidebar: 24 24 24;
+  --bg-elevated: 46 46 46;
+  --text-main: 248 250 252;
+  --text-muted: 170 175 183;
+  --border-color: 70 76 86;
+  --secondary: 148 163 184;
+  --accent: 148 163 184;
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════
    4. OCEAN - Fresh & Modern (Deep Blue)
    ═══════════════════════════════════════════════════════════════════════════ */
 [data-theme='ocean'] {
-  --primary: 59 130 246;
-  --primary-hover: 37 99 235;
+  --primary: 43 124 242;
+  --primary-hover: 30 94 220;
   --secondary: 99 102 241;
   --accent: 14 165 233;
   --success: 16 185 129;
@@ -150,20 +156,22 @@
   --bg-card: 255 255 255;
   --bg-sidebar: 255 255 255;
   --bg-elevated: 224 242 254;
-  --text-main: 30 58 138;
-  --text-muted: 96 165 250;
-  --border-color: 191 219 254;
+  --text-main: 30 64 175;
+  --text-muted: 82 127 222;
+  --border-color: 186 209 248;
 }
 
 [data-theme='ocean'].dark,
 .dark [data-theme='ocean'] {
   --bg-app: 8 15 30;
-  --bg-card: 15 25 45;
-  --bg-sidebar: 10 18 35;
-  --bg-elevated: 25 40 70;
+  --bg-card: 18 30 54;
+  --bg-sidebar: 12 22 42;
+  --bg-elevated: 30 48 84;
   --text-main: 240 249 255;
-  --text-muted: 100 130 180;
-  --border-color: 30 50 85;
+  --text-muted: 160 185 225;
+  --border-color: 60 85 125;
+  --secondary: 147 173 220;
+  --accent: 56 189 248;
   --shadow-lg: 0 0 40px rgba(0, 0, 0, 0.4);
 }
 
@@ -171,8 +179,8 @@
    5. CARBON - High Contrast Enterprise
    ═══════════════════════════════════════════════════════════════════════════ */
 [data-theme='carbon'] {
-  --primary: 24 24 27;
-  --primary-hover: 39 39 42;
+  --primary: 17 24 39;
+  --primary-hover: 30 41 59;
   --secondary: 82 82 91;
   --accent: 34 197 94;
   --success: 34 197 94;
@@ -184,21 +192,151 @@
   --bg-sidebar: 250 250 250;
   --bg-elevated: 244 244 245;
   --text-main: 9 9 11;
-  --text-muted: 82 82 91;
-  --border-color: 212 212 216;
+  --text-muted: 71 85 105;
+  --border-color: 203 213 225;
 }
 
 [data-theme='carbon'].dark,
 .dark [data-theme='carbon'] {
   --primary: 250 250 250;
   --primary-hover: 228 228 231;
-  --bg-app: 0 0 0;
-  --bg-card: 15 15 15;
-  --bg-sidebar: 10 10 10;
-  --bg-elevated: 25 25 25;
-  --text-main: 255 255 255;
-  --text-muted: 120 120 120;
-  --border-color: 30 30 30;
+  --bg-app: 6 6 6;
+  --bg-card: 18 18 18;
+  --bg-sidebar: 12 12 12;
+  --bg-elevated: 28 28 28;
+  --text-main: 248 250 252;
+  --text-muted: 178 185 196;
+  --border-color: 60 66 76;
+  --secondary: 148 163 184;
+  --accent: 34 197 94;
+}
+
+/* 6. ROYAL - Executive Blue */
+[data-theme='royal'] {
+  --primary: 46 77 158;
+  --primary-hover: 33 59 130;
+  --secondary: 88 110 180;
+  --accent: 96 165 250;
+  --success: 34 197 94;
+  --warning: 245 158 11;
+  --danger: 239 68 68;
+
+  --bg-app: 245 247 252;
+  --bg-card: 255 255 255;
+  --bg-sidebar: 250 251 255;
+  --bg-elevated: 235 240 249;
+  --text-main: 17 28 52;
+  --text-muted: 76 92 126;
+  --border-color: 219 226 241;
+}
+
+[data-theme='royal'].dark,
+.dark [data-theme='royal'] {
+  --bg-app: 9 13 26;
+  --bg-card: 16 23 44;
+  --bg-sidebar: 12 18 36;
+  --bg-elevated: 24 34 62;
+  --text-main: 241 245 249;
+  --text-muted: 176 193 224;
+  --border-color: 38 52 86;
+  --secondary: 140 160 205;
+  --accent: 96 165 250;
+}
+
+/* 7. EMERALD LUXE - Premium Green */
+[data-theme='emerald_luxe'] {
+  --primary: 14 159 110;
+  --primary-hover: 8 124 89;
+  --secondary: 16 122 88;
+  --accent: 52 211 153;
+  --success: 34 197 94;
+  --warning: 245 158 11;
+  --danger: 239 68 68;
+
+  --bg-app: 243 249 247;
+  --bg-card: 255 255 255;
+  --bg-sidebar: 248 252 250;
+  --bg-elevated: 232 245 240;
+  --text-main: 7 46 34;
+  --text-muted: 61 91 80;
+  --border-color: 216 230 224;
+}
+
+[data-theme='emerald_luxe'].dark,
+.dark [data-theme='emerald_luxe'] {
+  --bg-app: 7 12 10;
+  --bg-card: 14 24 20;
+  --bg-sidebar: 10 18 15;
+  --bg-elevated: 20 34 28;
+  --text-main: 236 253 245;
+  --text-muted: 167 196 185;
+  --border-color: 34 54 46;
+  --secondary: 110 170 148;
+  --accent: 52 211 153;
+}
+
+/* 8. NOIR - High Contrast Luxury */
+[data-theme='noir'] {
+  --primary: 15 23 42;
+  --primary-hover: 30 41 59;
+  --secondary: 71 85 105;
+  --accent: 148 163 184;
+  --success: 34 197 94;
+  --warning: 234 179 8;
+  --danger: 239 68 68;
+
+  --bg-app: 250 250 252;
+  --bg-card: 255 255 255;
+  --bg-sidebar: 248 249 252;
+  --bg-elevated: 240 244 250;
+  --text-main: 17 24 39;
+  --text-muted: 71 85 105;
+  --border-color: 226 232 240;
+}
+
+[data-theme='noir'].dark,
+.dark [data-theme='noir'] {
+  --bg-app: 7 7 10;
+  --bg-card: 14 16 24;
+  --bg-sidebar: 10 12 18;
+  --bg-elevated: 22 26 38;
+  --text-main: 248 250 252;
+  --text-muted: 186 192 205;
+  --border-color: 40 46 60;
+  --secondary: 148 163 184;
+  --accent: 148 163 184;
+}
+
+/* 9. BEIGE LUXE - Warm Hospitality */
+[data-theme='beige_luxe'] {
+  --primary: 200 169 126;
+  --primary-hover: 176 144 100;
+  --secondary: 120 96 80;
+  --accent: 234 179 8;
+  --success: 34 197 94;
+  --warning: 245 158 11;
+  --danger: 239 68 68;
+
+  --bg-app: 252 249 245;
+  --bg-card: 255 255 255;
+  --bg-sidebar: 250 247 241;
+  --bg-elevated: 241 234 225;
+  --text-main: 58 47 42;
+  --text-muted: 112 95 84;
+  --border-color: 228 214 200;
+}
+
+[data-theme='beige_luxe'].dark,
+.dark [data-theme='beige_luxe'] {
+  --bg-app: 16 13 10;
+  --bg-card: 26 21 17;
+  --bg-sidebar: 20 16 13;
+  --bg-elevated: 34 27 22;
+  --text-main: 248 241 232;
+  --text-muted: 196 180 165;
+  --border-color: 58 46 38;
+  --secondary: 160 140 120;
+  --accent: 234 179 8;
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════
@@ -368,6 +506,33 @@ textarea:focus {
 
 .bg-elevated {
   background-color: rgb(var(--bg-elevated));
+}
+
+/* Dark theme safety overrides for legacy hardcoded classes */
+.dark .bg-white {
+  background-color: rgb(var(--bg-card)) !important;
+}
+.dark .bg-slate-50,
+.dark .bg-slate-100,
+.dark .bg-slate-200 {
+  background-color: rgb(var(--bg-elevated)) !important;
+}
+.dark .text-slate-900,
+.dark .text-slate-800,
+.dark .text-slate-700 {
+  color: rgb(var(--text-main)) !important;
+}
+.dark .text-slate-600,
+.dark .text-slate-500,
+.dark .text-slate-400 {
+  color: rgb(var(--text-muted)) !important;
+}
+.dark .border-slate-100,
+.dark .border-slate-200,
+.dark .border-slate-300,
+.dark .border-slate-700,
+.dark .border-slate-800 {
+  border-color: rgb(var(--border-color)) !important;
 }
 
 .border-theme {

@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { Clock, CheckCircle } from 'lucide-react';
+import { Clock, CheckCircle, Flame, Filter, Timer, RefreshCw, MonitorPlay, Volume2, VolumeX, Layers, Settings2 } from 'lucide-react';
 import { OrderStatus, AuditEventType } from '../types';
 import { useOrderStore } from '../stores/useOrderStore';
 import { eventBus } from '../services/eventBus';
@@ -14,6 +14,23 @@ const KDS: React.FC = () => {
 
   const [lastOrderTime, setLastOrderTime] = React.useState<number>(Date.now());
   const [isFlashing, setIsFlashing] = React.useState(false);
+  const [nowTick, setNowTick] = React.useState(Date.now());
+  const [activeStatus, setActiveStatus] = React.useState<'ALL' | OrderStatus>('ALL');
+  const [sortMode, setSortMode] = React.useState<'OLDEST' | 'NEWEST' | 'PRIORITY'>('PRIORITY');
+  const [activeStation, setActiveStation] = React.useState<'ALL' | 'GRILL' | 'BAR' | 'DESSERT' | 'FRYER' | 'SALAD' | 'BAKERY'>('ALL');
+  const [soundMode, setSoundMode] = React.useState<'ALL' | 'URGENT' | 'OFF'>('ALL');
+  const [isFullscreen, setIsFullscreen] = React.useState(false);
+  const overdueNotifiedRef = React.useRef<Set<string>>(new Set());
+  const [isStationSettingsOpen, setIsStationSettingsOpen] = React.useState(false);
+  const [stationKeywords, setStationKeywords] = React.useState<Record<string, string>>({
+    GRILL: 'grill,bbq,kebab,steak,skewer,chicken,meat',
+    BAR: 'coffee,espresso,latte,mocha,tea,juice,soda,drink,bar',
+    DESSERT: 'dessert,cake,sweet,icecream,ice,chocolate,pudding',
+    FRYER: 'fries,fry,fried,crispy,nugget',
+    SALAD: 'salad,green,vegan,bowl',
+    BAKERY: 'bread,bakery,pastry,croissant,bun'
+  });
+  const [stationLock, setStationLock] = React.useState<'ALL' | 'GRILL' | 'BAR' | 'DESSERT' | 'FRYER' | 'SALAD' | 'BAKERY' | null>(null);
 
   React.useEffect(() => {
     fetchOrders(); // Initial fetch
@@ -27,18 +44,154 @@ const KDS: React.FC = () => {
 
       // Play a subtle notification sound if possible
       try {
-        const audio = new Audio('/sounds/notification.mp3');
-        audio.play();
+        if (soundMode === 'ALL') {
+          const audio = new Audio('/sounds/notification.mp3');
+          audio.play();
+        }
       } catch (e) {
         // Ignore if sound fails
       }
     });
 
-    return () => unsubscribe();
+    const unsubscribeStatus = eventBus.on(AuditEventType.ORDER_STATUS_CHANGE, () => {
+      fetchOrders();
+    });
+
+    return () => {
+      unsubscribe();
+      unsubscribeStatus();
+    };
+  }, [fetchOrders, soundMode]);
+
+  React.useEffect(() => {
+    const timer = setInterval(() => setNowTick(Date.now()), 10000);
+    return () => clearInterval(timer);
+  }, []);
+
+  React.useEffect(() => {
+    const poll = setInterval(() => fetchOrders(), 30000);
+    return () => clearInterval(poll);
   }, [fetchOrders]);
 
-  const activeOrders = orders.filter(o => o.status !== OrderStatus.DELIVERED && o.status !== OrderStatus.CANCELLED)
-    .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
+  React.useEffect(() => {
+    const handler = () => setIsFullscreen(Boolean(document.fullscreenElement));
+    document.addEventListener('fullscreenchange', handler);
+    return () => document.removeEventListener('fullscreenchange', handler);
+  }, []);
+
+  const normalizeToken = (value: string) => value.toLowerCase().replace(/[^a-z0-9]+/g, '');
+  const getStationForItem = (item: any) => {
+    const name = normalizeToken(item?.name || '');
+    const category = normalizeToken(item?.category || '');
+    const source = `${name} ${category}`;
+    const entries = Object.entries(stationKeywords);
+    for (const [station, list] of entries) {
+      const tokens = list.split(',').map(s => s.trim()).filter(Boolean);
+      if (tokens.some(token => source.includes(normalizeToken(token)))) {
+        return station as any;
+      }
+    }
+    return 'GRILL';
+  };
+
+  const activeOrders = React.useMemo(() => {
+    const base = orders.filter(o => o.status !== OrderStatus.DELIVERED && o.status !== OrderStatus.CANCELLED);
+    const filteredByStatus = activeStatus === 'ALL' ? base : base.filter(o => o.status === activeStatus);
+    const stationToUse = stationLock && stationLock !== 'ALL' ? stationLock : activeStation;
+    const filtered = stationToUse === 'ALL'
+      ? filteredByStatus
+      : filteredByStatus.filter(o => (o.items || []).some((item: any) => getStationForItem(item) === stationToUse));
+
+    const priorityWeight = (status: OrderStatus) => {
+      if (status === OrderStatus.PENDING) return 3;
+      if (status === OrderStatus.PREPARING) return 2;
+      if (status === OrderStatus.READY) return 1;
+      return 0;
+    };
+
+    const sorted = [...filtered].sort((a, b) => {
+      const aTime = new Date(a.createdAt).getTime();
+      const bTime = new Date(b.createdAt).getTime();
+      if (sortMode === 'NEWEST') return bTime - aTime;
+      if (sortMode === 'OLDEST') return aTime - bTime;
+      const byPriority = priorityWeight(b.status as OrderStatus) - priorityWeight(a.status as OrderStatus);
+      if (byPriority !== 0) return byPriority;
+      return aTime - bTime;
+    });
+
+    return sorted;
+  }, [orders, activeStatus, sortMode, activeStation, stationLock, stationKeywords]);
+
+  const getElapsedMins = (createdAt: any) => Math.floor((nowTick - new Date(createdAt).getTime()) / 60000);
+
+  const getTimerStyle = (elapsedMins: number) => {
+    if (elapsedMins >= 20) return 'bg-rose-600 text-white';
+    if (elapsedMins >= 12) return 'bg-amber-500 text-white';
+    if (elapsedMins >= 7) return 'bg-yellow-500 text-white';
+    return 'bg-slate-900 text-white';
+  };
+
+  React.useEffect(() => {
+    if (soundMode === 'OFF') return;
+    const overdue = activeOrders.filter(o => getElapsedMins(o.createdAt) >= 20);
+    overdue.forEach(o => {
+      if (overdueNotifiedRef.current.has(o.id)) return;
+      overdueNotifiedRef.current.add(o.id);
+      if (soundMode === 'ALL' || soundMode === 'URGENT') {
+        try {
+          const audio = new Audio('/sounds/alert.mp3');
+          audio.play();
+        } catch {
+          // ignore
+        }
+      }
+    });
+  }, [activeOrders, soundMode, nowTick]);
+
+  const toggleFullscreen = async () => {
+    try {
+      if (!document.fullscreenElement) {
+        await document.documentElement.requestFullscreen();
+      } else {
+        await document.exitFullscreen();
+      }
+    } catch {
+      // ignore
+    }
+  };
+
+  const groupByStatus = (status: OrderStatus) =>
+    activeOrders.filter(o => o.status === status);
+
+  const completeReadyBatch = async () => {
+    const readyOrders = groupByStatus(OrderStatus.READY);
+    for (const order of readyOrders) {
+      await updateOrderStatus(order.id, OrderStatus.DELIVERED);
+    }
+  };
+
+  React.useEffect(() => {
+    const saved = localStorage.getItem('kds_station_keywords');
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        if (parsed && typeof parsed === 'object') {
+          setStationKeywords(prev => ({ ...prev, ...parsed }));
+        }
+      } catch {
+        // ignore
+      }
+    }
+    const params = new URLSearchParams(window.location.search);
+    const stationParam = params.get('station');
+    if (stationParam) {
+      const normalized = stationParam.toUpperCase();
+      if (['GRILL', 'BAR', 'DESSERT', 'FRYER', 'SALAD', 'BAKERY', 'ALL'].includes(normalized)) {
+        setStationLock(normalized as any);
+        setActiveStation(normalized as any);
+      }
+    }
+  }, []);
 
   const getStatusColor = (status: OrderStatus) => {
     switch (status) {
@@ -60,7 +213,7 @@ const KDS: React.FC = () => {
 
   return (
     <div className="p-8 min-h-screen bg-app transition-colors pb-24">
-      <div className={`flex justify-between items-center mb-8 p-6 rounded-[2rem] transition-all duration-700 ${isFlashing ? 'bg-primary shadow-2xl shadow-primary/40' : 'bg-transparent'}`}>
+      <div className={`flex justify-between items-center mb-6 p-6 rounded-[2rem] transition-all duration-700 ${isFlashing ? 'bg-primary shadow-2xl shadow-primary/40' : 'bg-transparent'}`}>
         <div>
           <h2 className={`text-3xl font-black uppercase tracking-tight transition-colors ${isFlashing ? 'text-white' : 'text-main'}`}>
             {isFlashing ? '🚨 NEW ORDER RECEIVED 🚨' : 'Kitchen Module'}
@@ -69,13 +222,120 @@ const KDS: React.FC = () => {
             {isFlashing ? 'Immediate attention required for incoming ticket.' : 'Real-time order tracking and kitchen efficiency.'}
           </p>
         </div>
-        <div className={`text-sm font-black px-6 py-2.5 rounded-2xl shadow-sm border uppercase tracking-widest transition-all ${isFlashing ? 'bg-white text-indigo-600 border-white scale-110' : 'bg-card dark:text-primary border-border/50'}`}>
-          {activeOrders.length} Active Tickets
+        <div className="flex items-center gap-3">
+          <button
+            onClick={toggleFullscreen}
+            className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest border transition-all ${isFullscreen ? 'bg-indigo-600 text-white border-indigo-600' : 'bg-card border-border/50 text-muted hover:text-primary'}`}
+          >
+            <MonitorPlay size={14} className="inline mr-2" />
+            {isFullscreen ? 'Exit Fullscreen' : 'Fullscreen'}
+          </button>
+          <button
+            onClick={() => setIsStationSettingsOpen(true)}
+            className="px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest border transition-all bg-card border-border/50 text-muted hover:text-primary"
+          >
+            <Settings2 size={14} className="inline mr-2" />
+            Stations
+          </button>
+          <button
+            onClick={() => setSoundMode(soundMode === 'OFF' ? 'ALL' : 'OFF')}
+            className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest border transition-all ${soundMode === 'OFF' ? 'bg-slate-200 text-slate-500 border-slate-200' : 'bg-card border-border/50 text-muted hover:text-primary'}`}
+          >
+            {soundMode === 'OFF' ? <VolumeX size={14} className="inline mr-2" /> : <Volume2 size={14} className="inline mr-2" />}
+            {soundMode === 'OFF' ? 'Muted' : 'Sound'}
+          </button>
+          <div className={`text-sm font-black px-6 py-2.5 rounded-2xl shadow-sm border uppercase tracking-widest transition-all ${isFlashing ? 'bg-white text-indigo-600 border-white scale-110' : 'bg-card dark:text-primary border-border/50'}`}>
+            {activeOrders.length} Active Tickets
+          </div>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-        {activeOrders.map(order => (
+      <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
+        <div className="flex flex-wrap items-center gap-2">
+          {['ALL', OrderStatus.PENDING, OrderStatus.PREPARING, OrderStatus.READY].map(status => (
+            <button
+              key={status}
+              onClick={() => setActiveStatus(status as any)}
+              className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest border transition-all ${
+                activeStatus === status ? 'bg-primary text-white border-primary shadow-lg shadow-primary/20' : 'bg-card border-border/50 text-muted hover:text-primary'
+              }`}
+            >
+              {status === 'ALL' ? 'All Tickets' : status}
+            </button>
+          ))}
+        </div>
+        <div className="flex items-center gap-2 flex-wrap">
+          <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-card border border-border/50 text-[10px] font-black uppercase tracking-widest text-muted">
+            <Layers size={14} />
+            <span>{stationLock ? 'Station Locked' : 'Station'}</span>
+          </div>
+          {[
+            { id: 'ALL', label: 'All' },
+            { id: 'GRILL', label: 'Grill' },
+            { id: 'BAR', label: 'Bar' },
+            { id: 'DESSERT', label: 'Dessert' },
+            { id: 'FRYER', label: 'Fryer' },
+            { id: 'SALAD', label: 'Salad' },
+            { id: 'BAKERY', label: 'Bakery' }
+          ].map(opt => (
+            <button
+              key={opt.id}
+              onClick={() => setActiveStation(opt.id as any)}
+              disabled={Boolean(stationLock) && stationLock !== opt.id}
+              className={`px-3 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest border transition-all ${
+                activeStation === opt.id ? 'bg-emerald-600 text-white border-emerald-600' : 'bg-card border-border/50 text-muted hover:text-primary'
+              } ${stationLock && stationLock !== opt.id ? 'opacity-40 cursor-not-allowed' : ''}`}
+            >
+              {opt.label}
+            </button>
+          ))}
+        </div>
+        <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-card border border-border/50 text-[10px] font-black uppercase tracking-widest text-muted">
+            <Filter size={14} />
+            <span>Sort</span>
+          </div>
+          {[
+            { id: 'PRIORITY', label: 'Priority', icon: Flame },
+            { id: 'OLDEST', label: 'Oldest', icon: Timer },
+            { id: 'NEWEST', label: 'Newest', icon: RefreshCw }
+          ].map(opt => (
+            <button
+              key={opt.id}
+              onClick={() => setSortMode(opt.id as any)}
+              className={`px-3 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest border transition-all flex items-center gap-2 ${
+                sortMode === opt.id ? 'bg-slate-900 text-white border-slate-900' : 'bg-card border-border/50 text-muted hover:text-primary'
+              }`}
+            >
+              <opt.icon size={12} />
+              {opt.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
+        {[OrderStatus.PENDING, OrderStatus.PREPARING, OrderStatus.READY].map(status => (
+          <div key={status} className="bg-white/40 dark:bg-slate-950/30 border border-border/50 rounded-[2rem] p-4 md:p-5">
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-2">
+                <div className={`w-2.5 h-2.5 rounded-full ${status === OrderStatus.PENDING ? 'bg-yellow-400' : status === OrderStatus.PREPARING ? 'bg-blue-500' : 'bg-emerald-500'}`} />
+                <h3 className="text-xs font-black uppercase tracking-widest text-slate-500">{status}</h3>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="text-[10px] font-black text-slate-400">{groupByStatus(status).length} Tickets</span>
+                {status === OrderStatus.READY && groupByStatus(status).length > 0 && (
+                  <button
+                    onClick={completeReadyBatch}
+                    className="px-3 py-1.5 rounded-xl text-[9px] font-black uppercase tracking-widest bg-emerald-600 text-white shadow-lg shadow-emerald-600/20"
+                  >
+                    Complete All
+                  </button>
+                )}
+              </div>
+            </div>
+            <div className="space-y-4">
+              {groupByStatus(status).map(order => (
           <div key={order.id} className="bg-card rounded-[2rem] shadow-sm border border-border/50 overflow-hidden flex flex-col animate-fade-in transition-colors">
             {/* Ticket Header */}
             <div className={`p-6 border-b dark:border-slate-800 flex justify-between items-center ${getHeaderColor(order.status)}`}>
@@ -90,13 +350,13 @@ const KDS: React.FC = () => {
             </div>
 
             {/* Timer Strip */}
-            <div className="bg-slate-900 dark:bg-slate-950 text-white text-[10px] font-black py-2 px-6 flex items-center justify-between uppercase tracking-widest">
+            <div className={`${getTimerStyle(getElapsedMins(order.createdAt))} text-[10px] font-black py-2 px-6 flex items-center justify-between uppercase tracking-widest`}>
               <span className="flex items-center gap-1 opacity-80">
                 <Clock size={12} />
                 {new Date(order.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
               </span>
               <span className="font-bold">
-                {Math.floor((new Date().getTime() - new Date(order.createdAt).getTime()) / 60000)} MINS ELAPSED
+                {getElapsedMins(order.createdAt)} MINS ELAPSED
               </span>
             </div>
 
@@ -110,6 +370,11 @@ const KDS: React.FC = () => {
                     </span>
                     <div className="flex-1">
                       <span className="font-bold text-sm uppercase leading-snug">{item.name}</span>
+                      <div className="mt-1 flex flex-wrap gap-2">
+                        <span className="text-[8px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-500">
+                          {getStationForItem(item)}
+                        </span>
+                      </div>
                       {item.notes && <p className="text-[10px] text-rose-500 font-bold mt-1 italic">Note: {item.notes}</p>}
                     </div>
                   </li>
@@ -152,6 +417,14 @@ const KDS: React.FC = () => {
               )}
             </div>
           </div>
+              ))}
+              {groupByStatus(status).length === 0 && (
+                <div className="p-6 rounded-2xl border-2 border-dashed border-slate-200 dark:border-slate-800 text-center text-slate-400 text-xs font-black uppercase tracking-widest">
+                  No tickets
+                </div>
+              )}
+            </div>
+          </div>
         ))}
 
         {activeOrders.length === 0 && (
@@ -164,6 +437,59 @@ const KDS: React.FC = () => {
           </div>
         )}
       </div>
+
+      {isStationSettingsOpen && (
+        <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-md z-[300] flex items-center justify-center p-6 animate-in fade-in duration-300">
+          <div className="bg-white dark:bg-slate-900 w-full max-w-2xl rounded-[2.5rem] p-8 shadow-2xl space-y-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <h3 className="text-xl font-black text-slate-800 dark:text-white uppercase tracking-tight">Stations Setup</h3>
+                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Comma-separated keywords per station</p>
+              </div>
+              <button onClick={() => setIsStationSettingsOpen(false)} className="p-3 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-2xl transition-all">
+                ✕
+              </button>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {Object.entries(stationKeywords).map(([station, value]) => (
+                <div key={station} className="space-y-2">
+                  <label className="text-[9px] font-black uppercase tracking-widest text-slate-400">{station}</label>
+                  <textarea
+                    rows={3}
+                    value={value}
+                    onChange={(e) => setStationKeywords(prev => ({ ...prev, [station]: e.target.value }))}
+                    className="w-full p-3 rounded-xl bg-slate-50 dark:bg-slate-800 text-xs font-black border border-slate-200 dark:border-slate-700"
+                  />
+                </div>
+              ))}
+            </div>
+
+            <div className="flex items-center justify-between pt-4 border-t border-slate-200 dark:border-slate-800">
+              <div className="text-[10px] font-black uppercase tracking-widest text-slate-400">
+                Tip: add category names to route items correctly.
+              </div>
+              <div className="flex gap-3">
+                <button
+                  onClick={() => setIsStationSettingsOpen(false)}
+                  className="px-4 py-3 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-600 font-black text-[10px] uppercase tracking-widest"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={() => {
+                    localStorage.setItem('kds_station_keywords', JSON.stringify(stationKeywords));
+                    setIsStationSettingsOpen(false);
+                  }}
+                  className="px-4 py-3 rounded-xl bg-indigo-600 text-white font-black text-[10px] uppercase tracking-widest shadow-lg shadow-indigo-600/20"
+                >
+                  Save Stations
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

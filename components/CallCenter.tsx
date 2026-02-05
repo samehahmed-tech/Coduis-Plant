@@ -69,6 +69,8 @@ import { useOrderStore } from '../stores/useOrderStore';
 
 // Services
 import { translations } from '../services/translations';
+import { printService } from '../src/services/printService';
+import { formatReceipt } from '../services/receiptFormatter';
 
 // POS Components
 import ItemGrid from './pos/ItemGrid';
@@ -422,7 +424,7 @@ const CallCenter: React.FC = () => {
     };
 
     // --- Submit Order ---
-    const handleSubmitOrder = () => {
+    const handleSubmitOrder = async () => {
         if (!selectedBranchId || cart.length === 0 || !selectedCustomer) return;
 
         const newOrder: Order = {
@@ -446,7 +448,32 @@ const CallCenter: React.FC = () => {
             discount: discount
         };
 
-        placeOrder(newOrder);
+        const savedOrder = await placeOrder(newOrder);
+        const activeBranch = branches.find(b => b.id === selectedBranchId);
+        await printService.print({
+            type: 'KITCHEN',
+            content: formatReceipt({
+                order: savedOrder,
+                title: t.kitchen_ticket || (lang === 'ar' ? 'شيك المطبخ' : 'Kitchen Ticket'),
+                settings,
+                currencySymbol: settings.currencySymbol,
+                lang,
+                t,
+                branch: activeBranch
+            })
+        });
+        await printService.print({
+            type: 'RECEIPT',
+            content: formatReceipt({
+                order: savedOrder,
+                title: t.order_receipt || (lang === 'ar' ? 'إيصال الطلب' : 'Order Receipt'),
+                settings,
+                currencySymbol: settings.currencySymbol,
+                lang,
+                t,
+                branch: activeBranch
+            })
+        });
         resetOrder();
     };
 

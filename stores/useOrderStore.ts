@@ -20,6 +20,7 @@ interface OrderState {
     activeOrderType: OrderType;
     heldOrders: HeldOrder[];
     activeCart: OrderItem[];
+    tableDrafts: Record<string, { cart: OrderItem[]; discount: number; updatedAt: number }>;
     tables: Table[];
     zones: FloorZone[];
     isLoading: boolean;
@@ -45,6 +46,9 @@ interface OrderState {
     updateCartItemQuantity: (itemId: string, delta: number) => void;
     updateCartItemNotes: (itemId: string, notes: string) => void;
     clearCart: () => void;
+    saveTableDraft: (tableId: string, cart: OrderItem[], discount: number) => void;
+    loadTableDraft: (tableId: string) => void;
+    clearTableDraft: (tableId: string) => void;
     setDiscount: (amount: number) => void;
     applyCoupon: (code: string) => void;
     holdOrder: (order: HeldOrder) => void;
@@ -65,7 +69,7 @@ interface OrderState {
 // Empty tables - should be configured in settings
 const INITIAL_TABLES: Table[] = [];
 const INITIAL_ZONES: FloorZone[] = [
-    { id: 'MAIN', name: 'Main Hall', color: 'bg-indigo-600' }
+    { id: 'MAIN', name: 'Main Hall', color: 'bg-indigo-600', width: 1600, height: 1200 }
 ];
 import { persist } from 'zustand/middleware';
 import { eventBus } from '../services/eventBus';
@@ -77,6 +81,7 @@ export const useOrderStore = create<OrderState>()(
             activeOrderType: OrderType.DINE_IN,
             heldOrders: [],
             activeCart: [],
+            tableDrafts: {},
             tables: INITIAL_TABLES,
             zones: INITIAL_ZONES,
             discount: 0,
@@ -131,16 +136,40 @@ export const useOrderStore = create<OrderState>()(
                 set({ isLoading: true });
                 try {
                     if (navigator.onLine) {
-                        const tables = await tablesApi.getAll(branchId);
-                        const zones = await tablesApi.getZones(branchId);
+                        const rawTables = await tablesApi.getAll(branchId);
+                        const rawZones = await tablesApi.getZones(branchId);
+                        const tables = rawTables.map((t: any) => ({
+                            ...t,
+                            position: {
+                                x: t.position?.x ?? t.x ?? 0,
+                                y: t.position?.y ?? t.y ?? 0
+                            },
+                            width: t.width ?? 100,
+                            height: t.height ?? 100,
+                            zoneId: t.zoneId ?? t.zone_id
+                        }));
+                        const zones = rawZones.map((z: any) => ({
+                            ...z,
+                            width: z.width ?? 1600,
+                            height: z.height ?? 1200
+                        }));
                         // Map or validate data if needed
                         console.log('Fetched tables:', tables);
                         set({ tables, zones, isLoading: false });
-                        await localDb.tables.bulkPut(tables.map((t: any) => ({ ...t, branchId })));
-                        await localDb.zones.bulkPut(zones.map((z: any) => ({ ...z, branchId })));
+                        await localDb.floorTables.bulkPut(tables.map((t: any) => ({ ...t, branchId, x: t.position?.x ?? t.x ?? 0, y: t.position?.y ?? t.y ?? 0 })));
+                        await localDb.floorZones.bulkPut(zones.map((z: any) => ({ ...z, branchId })));
                     } else {
-                        const tables = await localDb.tables.where('branchId').equals(branchId).toArray();
-                        const zones = await localDb.zones.where('branchId').equals(branchId).toArray();
+                        const tables = (await localDb.floorTables.where('branchId').equals(branchId).toArray())
+                            .map((t: any) => ({
+                                ...t,
+                                position: {
+                                    x: t.position?.x ?? t.x ?? 0,
+                                    y: t.position?.y ?? t.y ?? 0
+                                },
+                                width: t.width ?? 100,
+                                height: t.height ?? 100
+                            }));
+                        const zones = await localDb.floorZones.where('branchId').equals(branchId).toArray();
                         set({ tables, zones, isLoading: false });
                     }
                 } catch (error: any) {
@@ -193,23 +222,48 @@ export const useOrderStore = create<OrderState>()(
                         savedOrder = { ...order, syncStatus: 'PENDING' };
                     }
 
+                    const normalizedOrder: Order = {
+                        id: savedOrder.id,
+                        type: savedOrder.type || order.type,
+                        branchId: savedOrder.branch_id || savedOrder.branchId || order.branchId,
+                        tableId: savedOrder.table_id || savedOrder.tableId || order.tableId,
+                        customerId: savedOrder.customer_id || savedOrder.customerId || order.customerId,
+                        customerName: savedOrder.customer_name || savedOrder.customerName || order.customerName,
+                        customerPhone: savedOrder.customer_phone || savedOrder.customerPhone || order.customerPhone,
+                        deliveryAddress: savedOrder.delivery_address || savedOrder.deliveryAddress || order.deliveryAddress,
+                        isCallCenterOrder: savedOrder.is_call_center_order || savedOrder.isCallCenterOrder || order.isCallCenterOrder,
+                        items: savedOrder.items || order.items || [],
+                        status: savedOrder.status || order.status,
+                        subtotal: savedOrder.subtotal ?? order.subtotal,
+                        tax: savedOrder.tax ?? order.tax,
+                        total: savedOrder.total ?? order.total,
+                        discount: savedOrder.discount ?? order.discount,
+                        freeDelivery: savedOrder.free_delivery ?? order.freeDelivery,
+                        isUrgent: savedOrder.is_urgent ?? order.isUrgent,
+                        paymentMethod: savedOrder.payment_method ?? order.paymentMethod,
+                        payments: savedOrder.payments ?? order.payments,
+                        notes: savedOrder.notes ?? order.notes,
+                        createdAt: new Date(savedOrder.created_at || savedOrder.createdAt || new Date()),
+                        syncStatus: savedOrder.sync_status || savedOrder.syncStatus || 'SYNCED'
+                    };
+
                     // Emit event for other systems (Inventory, Audit, etc.)
                     eventBus.emit(AuditEventType.POS_ORDER_PLACEMENT, {
-                        order: savedOrder,
+                        order: normalizedOrder,
                         timestamp: new Date()
                     });
 
                     // Update local state
                     set((state) => ({
-                        orders: [savedOrder, ...state.orders],
+                        orders: [normalizedOrder, ...state.orders],
                         activeCart: [],
                         discount: 0,
                         isLoading: false
                     }));
 
-                    await localDb.orders.put(savedOrder as any);
+                    await localDb.orders.put(normalizedOrder as any);
 
-                    return savedOrder;
+                    return normalizedOrder;
                 } catch (error: any) {
                     set({ error: error.message, isLoading: false });
                     console.error('Failed to save order:', error);
@@ -224,6 +278,12 @@ export const useOrderStore = create<OrderState>()(
                     } else {
                         await syncService.queue('orderStatus', 'UPDATE', { id: orderId, data: { status, changed_by: changedBy } });
                     }
+                    eventBus.emit(AuditEventType.ORDER_STATUS_CHANGE, {
+                        orderId,
+                        status,
+                        changedBy,
+                        timestamp: new Date()
+                    });
                     set((state) => ({
                         orders: state.orders.map(o => o.id === orderId ? { ...o, status } : o)
                     }));
@@ -265,6 +325,25 @@ export const useOrderStore = create<OrderState>()(
             })),
 
             clearCart: () => set({ activeCart: [], discount: 0, activeCoupon: null }),
+
+            saveTableDraft: (tableId, cart, discount) => set((state) => ({
+                tableDrafts: {
+                    ...state.tableDrafts,
+                    [tableId]: { cart: [...cart], discount, updatedAt: Date.now() }
+                }
+            })),
+
+            loadTableDraft: (tableId) => set((state) => {
+                const draft = state.tableDrafts[tableId];
+                if (!draft) return state;
+                return { activeCart: [...draft.cart], discount: draft.discount };
+            }),
+
+            clearTableDraft: (tableId) => set((state) => {
+                const next = { ...state.tableDrafts };
+                delete next[tableId];
+                return { tableDrafts: next };
+            }),
 
             setDiscount: (d) => set({ discount: d }),
 
@@ -313,9 +392,9 @@ export const useOrderStore = create<OrderState>()(
                     } else {
                         await syncService.queue('tableStatus', 'UPDATE', { id: tableId, status });
                     }
-                    const existing = await localDb.tables.get(tableId);
+                    const existing = await localDb.floorTables.get(tableId);
                     if (existing) {
-                        await localDb.tables.put({ ...existing, status });
+                        await localDb.floorTables.put({ ...existing, status });
                     }
                 } catch (error) {
                     console.error('Failed to sync table status:', error);
@@ -414,7 +493,7 @@ export const useOrderStore = create<OrderState>()(
             loadTableOrder: (tableId) => set((state) => {
                 const activeOrder = state.orders.find(o => o.tableId === tableId && o.status !== OrderStatus.DELIVERED);
                 if (activeOrder) {
-                    return { activeCart: activeOrder.items, discount: activeOrder.discount || 0 };
+                    return { activeCart: activeOrder.items || [], discount: activeOrder.discount || 0 };
                 }
                 return { activeCart: [], discount: 0 };
             }),

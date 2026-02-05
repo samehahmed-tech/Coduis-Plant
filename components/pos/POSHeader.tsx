@@ -35,9 +35,9 @@ const POSHeader: React.FC<POSHeaderProps> = React.memo(({
     isOnline,
 }) => {
     return (
-        <div className={`h-14 md:h-20 bg-card border-b border-border flex justify-between items-center px-6 md:px-10 z-20 transition-all duration-300`}>
+        <div className={`min-h-14 md:min-h-20 bg-card border-b border-border flex justify-between items-center px-4 md:px-8 py-2 md:py-0 z-20 transition-all duration-300 flex-wrap gap-3`}>
 
-            <div className="flex items-center gap-4">
+            <div className="flex flex-wrap items-center gap-4 min-w-0">
                 {activeMode === OrderType.DINE_IN && (
                     <div className="flex items-center gap-2">
                         <span className="text-xl font-black text-main uppercase tracking-tighter">
@@ -65,6 +65,13 @@ const POSHeader: React.FC<POSHeaderProps> = React.memo(({
                     </span>
                 )}
 
+                {activeMode === OrderType.PICKUP && (
+                    <span className="text-xl font-black text-teal-600 uppercase tracking-tighter flex items-center gap-2">
+                        <ShoppingBag size={24} />
+                        {t.pickup || (lang === 'ar' ? 'استلام' : 'Pickup')}
+                    </span>
+                )}
+
                 {activeMode === OrderType.DELIVERY && (
                     <div className="flex items-center gap-3">
                         <span className="text-xl font-black text-orange-600 uppercase tracking-tighter flex items-center gap-2">
@@ -86,7 +93,7 @@ const POSHeader: React.FC<POSHeaderProps> = React.memo(({
                     </div>
                 )}
 
-                <div className="h-8 w-[1px] bg-border/50 mx-2" />
+                <div className="h-8 w-[1px] bg-border/50 mx-2 hidden sm:block" />
 
                 {/* Price List Selector */}
                 <div className="flex items-center gap-2 bg-app rounded-xl px-3 py-1.5 border border-border/50 group hover:border-primary/30 transition-all cursor-pointer relative">
@@ -103,7 +110,7 @@ const POSHeader: React.FC<POSHeaderProps> = React.memo(({
                 </div>
             </div>
 
-            <div className="flex items-center gap-4 shrink-0">
+            <div className="flex items-center gap-3 shrink-0">
                 {onRecall && (
                     <button
                         onClick={onRecall}

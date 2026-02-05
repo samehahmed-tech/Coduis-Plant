@@ -22,6 +22,7 @@ import {
     ChevronRight,
 } from 'lucide-react';
 import { AppSettings } from '../types';
+import { useToast } from './Toast';
 
 // Stores
 import { useAuthStore } from '../stores/useAuthStore';
@@ -34,6 +35,7 @@ const SettingsHub: React.FC = () => {
     const { platforms } = useMenuStore();
     const { warehouses } = useInventoryStore();
     const lang = settings.language;
+    const { showToast } = useToast();
 
     const handleChange = (key: keyof AppSettings, value: any) => {
         updateSettings({ [key]: value });
@@ -53,6 +55,8 @@ const SettingsHub: React.FC = () => {
                 { key: 'restaurantName', label: lang === 'ar' ? 'اسم المطعم' : 'Restaurant Name', type: 'text' },
                 { key: 'phone', label: lang === 'ar' ? 'رقم الهاتف' : 'Phone Number', type: 'text' },
                 { key: 'branchAddress', label: lang === 'ar' ? 'عنوان الفرع' : 'Branch Address', type: 'text' },
+                { key: 'receiptLogoUrl', label: lang === 'ar' ? 'رابط شعار الشيك' : 'Receipt Logo URL', type: 'text' },
+                { key: 'receiptQrUrl', label: lang === 'ar' ? 'رابط كود QR في الشيك' : 'Receipt QR URL', type: 'text' },
             ]
         },
         {
@@ -150,11 +154,15 @@ const SettingsHub: React.FC = () => {
             customRender: () => (
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
                     {[
-                        { id: 'xen', name: lang === 'ar' ? 'زين الأساسي' : 'Xen Default', colors: ['#00B4D8', '#1E293B'] },
-                        { id: 'ember', name: lang === 'ar' ? 'رمادي وبرتقالي' : 'Grey & Orange', colors: ['#F97316', '#262626'] },
-                        { id: 'graphite', name: lang === 'ar' ? 'جرافيت أنيق' : 'Graphite Minimal', colors: ['#52525B', '#18181B'] },
-                        { id: 'ocean', name: lang === 'ar' ? 'أوشن أزرق' : 'Ocean Blue', colors: ['#3B82F6', '#0F172A'] },
-                        { id: 'carbon', name: lang === 'ar' ? 'كاربون داكن' : 'Carbon Dark', colors: ['#171717', '#22C55E'] },
+                        { id: 'xen', name: lang === 'ar' ? 'زين برو' : 'Xen Pro', colors: ['#00A8CC', '#0F172A'] },
+                        { id: 'ember', name: lang === 'ar' ? 'إمبر بيزنيس' : 'Ember Business', colors: ['#F57C2B', '#1F130C'] },
+                        { id: 'graphite', name: lang === 'ar' ? 'جرافيت تنفيذي' : 'Graphite Executive', colors: ['#4C5463', '#111827'] },
+                        { id: 'ocean', name: lang === 'ar' ? 'أوشن بريميوم' : 'Ocean Premium', colors: ['#2B7CF2', '#0B1B33'] },
+                        { id: 'carbon', name: lang === 'ar' ? 'كاربون لوكس' : 'Carbon Luxe', colors: ['#111827', '#22C55E'] },
+                        { id: 'royal', name: lang === 'ar' ? 'رويال كلاسيك' : 'Royal Classic', colors: ['#2E4D9E', '#0E1B3D'] },
+                        { id: 'emerald_luxe', name: lang === 'ar' ? 'زمرد لوكس' : 'Emerald Luxe', colors: ['#0E9F6E', '#06281C'] },
+                        { id: 'noir', name: lang === 'ar' ? 'نوار برو' : 'Noir Pro', colors: ['#0F172A', '#0A0A0A'] },
+                        { id: 'beige_luxe', name: lang === 'ar' ? 'بيج فاخر' : 'Beige Luxe', colors: ['#C8A97E', '#3A2F2A'] },
                     ].map(theme => (
                         <button
                             key={theme.id}
@@ -165,6 +173,25 @@ const SettingsHub: React.FC = () => {
                                 {theme.colors.map((c, i) => (
                                     <div key={i} className="w-5 h-5 rounded-full border border-white/20 shadow-sm" style={{ backgroundColor: c }} />
                                 ))}
+                            </div>
+                            <div className="rounded-2xl overflow-hidden border border-slate-200 dark:border-slate-800 bg-white/60 dark:bg-slate-900/40">
+                                <div className="h-10 px-3 flex items-center gap-2" style={{ background: `linear-gradient(120deg, ${theme.colors[0]}20, ${theme.colors[1]}30)` }}>
+                                    <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: theme.colors[0] }} />
+                                    <div className="text-[9px] font-black uppercase tracking-widest text-slate-700 dark:text-slate-200">
+                                        {lang === 'ar' ? 'معاينة' : 'Preview'}
+                                    </div>
+                                </div>
+                                <div className="p-3 space-y-2">
+                                    <div className="h-10 rounded-xl border border-slate-200/60 dark:border-slate-800/60 bg-white/80 dark:bg-slate-900/60 flex items-center justify-between px-3">
+                                        <span className="text-[9px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-400">
+                                            {lang === 'ar' ? 'نص رئيسي' : 'Primary Text'}
+                                        </span>
+                                        <span className="text-[10px] font-black" style={{ color: theme.colors[0] }}>
+                                            {lang === 'ar' ? 'زر' : 'Action'}
+                                        </span>
+                                    </div>
+                                    <div className="h-8 rounded-lg bg-slate-100 dark:bg-slate-800/70" />
+                                </div>
                             </div>
                             <p className="text-[10px] font-black uppercase tracking-tight text-slate-800 dark:text-white relative z-10">{theme.name}</p>
                             {settings.theme === theme.id && (
@@ -209,11 +236,11 @@ const SettingsHub: React.FC = () => {
                     <button
                         onClick={() => {
                             updateSettings(settings);
-                            alert(lang === 'ar' ? 'تم حفظ الإعدادات بنجاح!' : 'Settings deployed successfully!');
+                            showToast(lang === 'ar' ? 'تم حفظ الإعدادات بنجاح' : 'Settings saved successfully', 'success');
                         }}
                         className="flex items-center gap-3 px-8 py-4 bg-primary text-white rounded-[1.5rem] font-black text-[10px] uppercase tracking-[0.2em] hover:bg-opacity-90 transition-all shadow-2xl shadow-primary/30"
                     >
-                        <Save size={18} /> Deploy Configurations
+                        <Save size={18} /> {lang === 'ar' ? 'حفظ الإعدادات' : 'Save Settings'}
                     </button>
                 </div>
             </div>

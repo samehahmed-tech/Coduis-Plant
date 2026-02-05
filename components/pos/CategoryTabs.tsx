@@ -176,7 +176,7 @@ const CategoryTabs: React.FC<CategoryTabsProps> = React.memo(({
             {/* Categories Scroll Container */}
             <div
                 ref={scrollRef}
-                className="flex gap-3 overflow-x-auto no-scrollbar px-8 py-2"
+                className="flex gap-2 overflow-x-auto no-scrollbar px-8 py-2"
             >
                 {allCategories.map(cat => (
                     <button
@@ -184,66 +184,56 @@ const CategoryTabs: React.FC<CategoryTabsProps> = React.memo(({
                         onClick={() => onSetCategory(cat.name)}
                         className={`
                             group flex-shrink-0 relative overflow-hidden rounded-2xl transition-all duration-300
-                            ${isTouchMode ? 'w-28 h-28 md:w-32 md:h-32' : 'w-20 h-20 md:w-24 md:h-24'}
+                            ${isTouchMode ? 'min-h-[56px] md:min-h-[64px] px-4' : 'min-h-[44px] px-3'}
+                            flex items-center gap-3 border
                             ${activeCategory === cat.name
-                                ? 'ring-2 ring-primary ring-offset-2 dark:ring-offset-app shadow-lg shadow-primary/20 scale-105'
-                                : 'hover:scale-105 hover:shadow-lg'
+                                ? 'bg-primary text-white border-primary shadow-lg shadow-primary/20'
+                                : 'bg-card dark:bg-card border-border/60 text-main hover:border-primary/30 hover:-translate-y-0.5'
                             }
                         `}
                     >
-                        {/* Background Image or Gradient */}
-                        {cat.image ? (
-                            <img
-                                src={cat.image}
-                                alt={cat.name}
-                                className="absolute inset-0 w-full h-full object-cover"
-                            />
-                        ) : (
-                            <div className={`absolute inset-0 ${cat.name === 'All'
-                                ? 'bg-gradient-to-br from-primary to-primary-hover/80'
-                                : 'bg-gradient-to-br from-elevated to-elevated/80 dark:from-elevated/30 dark:to-elevated/10'
-                                }`} />
-                        )}
+                        <div className={`relative rounded-xl overflow-hidden ${isTouchMode ? 'w-9 h-9' : 'w-8 h-8'} flex items-center justify-center shrink-0 ${activeCategory === cat.name ? 'bg-white/15' : 'bg-elevated dark:bg-elevated/60 border border-border/70'}`}>
+                            {cat.image ? (
+                                <img
+                                    src={cat.image}
+                                    alt={cat.name}
+                                    className="w-full h-full object-cover"
+                                />
+                            ) : (
+                                <div className={`w-full h-full flex items-center justify-center ${cat.name === 'All'
+                                    ? 'bg-gradient-to-br from-primary to-primary-hover/80'
+                                    : 'bg-gradient-to-br from-elevated to-elevated/80 dark:from-elevated/30 dark:to-elevated/10'
+                                    }`}>
+                                    {cat.name === 'All' && (
+                                        <Grid3X3 size={isTouchMode ? 18 : 16} className={`${activeCategory === cat.name ? 'text-white/90' : 'text-muted'}`} />
+                                    )}
+                                </div>
+                            )}
+                        </div>
 
-                        {/* Overlay */}
-                        <div className={`absolute inset-0 ${activeCategory === cat.name
-                            ? 'bg-primary/60'
-                            : 'bg-black/20 group-hover:bg-black/30'
-                            } transition-all`} />
-
-                        {/* Icon for All */}
-                        {cat.name === 'All' && (
-                            <div className="absolute inset-0 flex items-center justify-center">
-                                <Grid3X3 size={isTouchMode ? 28 : 24} className="text-white/80" />
-                            </div>
-                        )}
-
-                        {/* Label */}
-                        <div className="absolute bottom-0 inset-x-0 p-2 bg-gradient-to-t from-black/80 to-transparent">
-                            <p className={`font-bold text-white text-center truncate ${isTouchMode ? 'text-xs' : 'text-[10px]'}`}>
+                        <div className="min-w-0 flex-1">
+                            <p className={`font-black truncate ${isTouchMode ? 'text-sm' : 'text-xs'} ${activeCategory === cat.name ? 'text-white' : 'text-main'}`}>
                                 {cat.name === 'All'
                                     ? (lang === 'ar' ? 'Ø§Ù„ÙƒÙ„' : 'All')
                                     : (lang === 'ar' ? cat.nameAr || cat.name : cat.name)
                                 }
                             </p>
+                            {cat.items && cat.items.length > 0 && (
+                                <p className={`text-[10px] font-bold ${activeCategory === cat.name ? 'text-white/80' : 'text-muted'}`}>
+                                    {cat.items.length} {lang === 'ar' ? 'ÕäÝ' : 'items'}
+                                </p>
+                            )}
                         </div>
 
-                        {/* Item Count Badge */}
-                        {cat.items && cat.items.length > 0 && (
-                            <div className="absolute top-1.5 right-1.5 px-1.5 py-0.5 rounded-full bg-card/90 dark:bg-card/90 text-main dark:text-main">
-                                {cat.items.length}
-                            </div>
-                        )}
-
-                        {/* Active Check */}
                         {activeCategory === cat.name && (
-                            <div className="absolute top-1.5 left-1.5 w-2 h-2 rounded-full bg-white shadow animate-pulse" />
+                            <div className="w-2 h-2 rounded-full bg-white shadow shrink-0" />
                         )}
                     </button>
                 ))}
             </div>
 
             {/* Right Arrow */}
+
             {showRightArrow && (
                 <button
                     onClick={() => scroll('right')}
@@ -257,3 +247,8 @@ const CategoryTabs: React.FC<CategoryTabsProps> = React.memo(({
 });
 
 export default CategoryTabs;
+
+
+
+
+

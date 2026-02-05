@@ -16,7 +16,7 @@ const ItemGrid: React.FC<ItemGridProps> = React.memo(({
     isTouchMode,
 }) => {
     return (
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 md:gap-5">
+        <div className="grid gap-4 md:gap-6 [grid-template-columns:repeat(auto-fit,minmax(240px,1fr))]">
             {items.map(item => (
                 <MenuItemCard
                     key={item.id}

@@ -1,6 +1,7 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { X, Calculator, Banknote, CreditCard, Smartphone, Landmark, Trash2 } from 'lucide-react';
 import { PaymentMethod, PaymentRecord } from '../../types';
+import { useToast } from '../Toast';
 
 interface SplitBillModalProps {
     isOpen: boolean;
@@ -13,6 +14,7 @@ interface SplitBillModalProps {
     onAddPayment: (method: PaymentMethod) => void;
     onRemovePayment: (index: number) => void;
     onUpdateAmount: (index: number, amount: number) => void;
+    onSetPayments: (payments: PaymentRecord[]) => void;
 }
 
 const SplitBillModal: React.FC<SplitBillModalProps> = ({
@@ -26,11 +28,14 @@ const SplitBillModal: React.FC<SplitBillModalProps> = ({
     onAddPayment,
     onRemovePayment,
     onUpdateAmount,
+    onSetPayments,
 }) => {
-    if (!isOpen) return null;
-
+    const [peopleCount, setPeopleCount] = useState(2);
+    const { showToast } = useToast();
     const currentSum = splitPayments.reduce((sum, p) => sum + p.amount, 0);
     const remaining = total - currentSum;
+
+    if (!isOpen) return null;
 
     return (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[100] p-4 animate-in fade-in duration-300">
@@ -58,6 +63,36 @@ const SplitBillModal: React.FC<SplitBillModalProps> = ({
                             {currencySymbol}{total.toFixed(2)}
                         </span>
                     </div>
+
+                    <div className="bg-card border border-border rounded-3xl p-4 flex flex-col md:flex-row items-center gap-3">
+                        <div className="flex items-center gap-2">
+                            <span className="text-[10px] font-black uppercase tracking-widest text-muted">
+                                {lang === 'ar' ? 'تقسيم حسب الأشخاص' : 'Split by People'}
+                            </span>
+                            <input
+                                type="number"
+                                min={2}
+                                value={peopleCount}
+                                onChange={(e) => setPeopleCount(Math.max(2, Number(e.target.value) || 2))}
+                                className="w-20 py-2 px-3 rounded-xl bg-app border border-border text-center font-black text-sm"
+                            />
+                        </div>
+                        <button
+                            onClick={() => {
+                                const n = Math.max(2, peopleCount || 2);
+                                const base = Math.floor((total / n) * 100) / 100;
+                                const payments: PaymentRecord[] = Array.from({ length: n }).map((_, i) => ({
+                                    method: PaymentMethod.CASH,
+                                    amount: i === n - 1 ? Number((total - base * (n - 1)).toFixed(2)) : base
+                                }));
+                                onSetPayments(payments);
+                            }}
+                            className="px-4 py-2.5 rounded-xl bg-primary text-white font-black text-[10px] uppercase tracking-widest shadow-sm hover:bg-primary-hover transition-all"
+                        >
+                            {lang === 'ar' ? 'تقسيم بالتساوي' : 'Split Evenly'}
+                        </button>
+                    </div>
+
 
                     <div className="space-y-4">
                         <h4 className="text-[10px] font-black uppercase text-muted tracking-widest px-1">
@@ -121,7 +156,7 @@ const SplitBillModal: React.FC<SplitBillModalProps> = ({
                     <button
                         onClick={() => {
                             if (Math.abs(remaining) < 0.01) onClose();
-                            else alert(lang === 'ar' ? 'المجموع غير مطابق!' : "Payment sum doesn't match total!");
+                            else showToast(lang === 'ar' ? 'المجموع غير مطابق!' : "Payment sum doesn't match total!", 'error');
                         }}
                         className="w-full py-5 bg-primary text-white rounded-2xl font-black text-sm uppercase tracking-widest hover:bg-primary-hover shadow-2xl shadow-primary/20 transition-all"
                     >

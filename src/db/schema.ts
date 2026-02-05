@@ -133,6 +133,7 @@ export const menuItems = pgTable('menu_items', {
     availableFrom: text('available_from'), // Time: "09:00"
     availableTo: text('available_to'), // Time: "22:00"
     availableDays: json('available_days').$type<string[]>(), // ["mon", "tue", ...]
+    modifierGroups: json('modifier_groups').$type<any[]>(), // Inline modifiers (UI-friendly)
     // Kitchen
     preparationTime: integer('preparation_time').default(15), // minutes
     printerIds: json('printer_ids').$type<string[]>(), // Which printers to send

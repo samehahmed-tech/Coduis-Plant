@@ -7,17 +7,16 @@ export const openShift = async (req: Request, res: Response) => {
     try {
         const { id, branchId, userId, openingBalance, notes } = req.body;
 
-        // Check if user already has an open shift in this branch
+        // Check if branch already has an open shift
         const existingOpenShift = await db.select().from(shifts).where(
             and(
-                eq(shifts.userId, userId),
                 eq(shifts.branchId, branchId),
                 eq(shifts.status, 'OPEN')
             )
         );
 
         if (existingOpenShift.length > 0) {
-            return res.status(400).json({ error: 'User already has an open shift' });
+            return res.status(200).json(existingOpenShift[0]);
         }
 
         const [newShift] = await db.insert(shifts).values({
@@ -82,10 +81,9 @@ export const closeShift = async (req: Request, res: Response) => {
 
 export const getActiveShift = async (req: Request, res: Response) => {
     try {
-        const { userId, branchId } = req.query;
+        const { branchId } = req.query;
         const activeShift = await db.select().from(shifts).where(
             and(
-                eq(shifts.userId, userId as string),
                 eq(shifts.branchId, branchId as string),
                 eq(shifts.status, 'OPEN')
             )

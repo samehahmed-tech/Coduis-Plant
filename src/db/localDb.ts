@@ -29,8 +29,8 @@ export class RestoFlowLocalDb extends Dexie {
     users!: Table<any>;
     branches!: Table<any>;
     auditLogs!: Table<any>;
-    tables!: Table<any>;
-    zones!: Table<any>;
+    floorTables!: Table<any>;
+    floorZones!: Table<any>;
     syncQueue!: Table<SyncQueueItem>;
 
     constructor() {
@@ -53,8 +53,25 @@ export class RestoFlowLocalDb extends Dexie {
             users: 'id, email',
             branches: 'id',
             auditLogs: 'id, createdAt',
-            tables: 'id, branchId',
-            zones: 'id, branchId',
+            floorTables: 'id, branchId',
+            floorZones: 'id, branchId',
+            syncQueue: 'id, status, createdAt, entity'
+        });
+
+        // Bump version to ensure IndexedDB picks up renamed stores
+        this.version(3).stores({
+            orders: 'id, status, syncStatus, createdAt',
+            menuCategories: 'id, updatedAt',
+            menuItems: 'id, categoryId, updatedAt',
+            customers: 'id, phone, updatedAt',
+            inventoryItems: 'id, updatedAt',
+            warehouses: 'id, branchId, updatedAt',
+            settings: 'key, updatedAt',
+            users: 'id, email',
+            branches: 'id',
+            auditLogs: 'id, createdAt',
+            floorTables: 'id, branchId',
+            floorZones: 'id, branchId',
             syncQueue: 'id, status, createdAt, entity'
         });
     }

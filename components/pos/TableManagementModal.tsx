@@ -10,6 +10,8 @@ interface TableManagementModalProps {
     allTables: Table[];
     orders: Order[];
     onClose: () => void;
+    onCloseTable: (tableId: string) => void;
+    onMergeTables: (targetTableId: string, itemIds: string[]) => void;
     onTransferTable: (targetTableId: string) => void;
     onTransferItems: (targetTableId: string, itemIds: string[]) => void;
     onSplitTable: (targetTableId: string, itemIds: string[]) => void;
@@ -22,13 +24,15 @@ const TableManagementModal: React.FC<TableManagementModalProps> = ({
     allTables,
     orders,
     onClose,
+    onCloseTable,
+    onMergeTables,
     onTransferTable,
     onTransferItems,
     onSplitTable,
     onEditOrder,
     lang
 }) => {
-    const [mode, setMode] = useState<'ACTIONS' | 'TRANSFER_ALL' | 'TRANSFER_ITEMS' | 'SPLIT'>('ACTIONS');
+    const [mode, setMode] = useState<'ACTIONS' | 'TRANSFER_ALL' | 'TRANSFER_ITEMS' | 'SPLIT' | 'MERGE'>('ACTIONS');
     const [targetTableId, setTargetTableId] = useState<string | null>(null);
     const [selectedItems, setSelectedItems] = useState<string[]>([]);
 
@@ -56,6 +60,7 @@ const TableManagementModal: React.FC<TableManagementModalProps> = ({
         transfer_all: 'نقل الطلب بالكامل',
         transfer_items: 'نقل أصناف محددة',
         split: 'تقسيم الطاولة (فتح طاولة جديدة)',
+        merge: 'دمج الطلب مع طاولة مشغولة',
         select_target: 'اختر الطاولة المستهدفة',
         select_items: 'اختر الأصناف المراد نقلها',
         confirm: 'تأكيد العملية',
@@ -70,6 +75,7 @@ const TableManagementModal: React.FC<TableManagementModalProps> = ({
         transfer_all: 'Transfer Entire Order',
         transfer_items: 'Transfer Specific Items',
         split: 'Split Table (New Order)',
+        merge: 'Merge With Occupied Table',
         select_target: 'Select Target Table',
         select_items: 'Select Items to Move',
         confirm: 'Confirm Action',
@@ -89,7 +95,9 @@ const TableManagementModal: React.FC<TableManagementModalProps> = ({
                 <div>
                     <h2 className="text-xl font-black text-slate-800 dark:text-white uppercase tracking-tight">{t.title}</h2>
                     <p className="text-[10px] font-black text-indigo-500 uppercase tracking-widest">
-                        {activeOrder ? `${activeOrder.items.length} ${t.items} • $${activeOrder.total.toFixed(2)}` : t.no_order}
+                        {activeOrder
+                            ? `${(activeOrder.items?.length ?? 0)} ${t.items} • ج.م ${(activeOrder.total ?? 0).toFixed(2)}`
+                            : t.no_order}
                     </p>
                 </div>
             </div>
@@ -108,6 +116,20 @@ const TableManagementModal: React.FC<TableManagementModalProps> = ({
                 <div className="flex items-center gap-4">
                     <div className="w-12 h-12 bg-white/20 rounded-2xl flex items-center justify-center"><CheckCircle2 size={24} /></div>
                     <span className="font-black text-sm uppercase tracking-widest">{t.edit}</span>
+                </div>
+                <ChevronRight size={20} />
+            </button>
+
+            <button
+                onClick={() => onCloseTable(sourceTable.id)}
+                disabled={!activeOrder}
+                className="w-full p-6 bg-slate-900 text-white rounded-3xl flex items-center justify-between group hover:scale-[1.02] transition-all shadow-xl shadow-slate-900/20 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+                <div className="flex items-center gap-4">
+                    <div className="w-12 h-12 bg-white/20 rounded-2xl flex items-center justify-center"><CheckCircle2 size={24} /></div>
+                    <span className="font-black text-sm uppercase tracking-widest">
+                        {lang === 'ar' ? 'إغلاق الترابيزة وطباعة الحساب' : 'Close Table & Print Bill'}
+                    </span>
                 </div>
                 <ChevronRight size={20} />
             </button>
@@ -135,6 +157,16 @@ const TableManagementModal: React.FC<TableManagementModalProps> = ({
                     <span className="text-[10px] font-black uppercase tracking-widest text-center">{t.split}</span>
                 </button>
             </div>
+            <button
+                onClick={() => setMode('MERGE')}
+                className="w-full p-5 bg-slate-100 dark:bg-slate-800/50 hover:bg-slate-900 hover:text-white rounded-3xl flex items-center justify-between transition-all group"
+            >
+                <div className="flex items-center gap-4">
+                    <div className="w-10 h-10 bg-white/40 rounded-2xl flex items-center justify-center"><ArrowLeftRight size={22} /></div>
+                    <span className="font-black text-[10px] uppercase tracking-widest">{t.merge}</span>
+                </div>
+                <ChevronRight size={20} />
+            </button>
         </div>
     );
 
@@ -175,6 +207,7 @@ const TableManagementModal: React.FC<TableManagementModalProps> = ({
                             if (mode === 'TRANSFER_ALL') onTransferTable(targetTableId);
                             else if (mode === 'TRANSFER_ITEMS') onTransferItems(targetTableId, selectedItems);
                             else if (mode === 'SPLIT') onSplitTable(targetTableId, selectedItems);
+                            else if (mode === 'MERGE') onMergeTables(targetTableId, selectedItems);
                         }
                     }}
                     className="flex-[2] py-4 bg-primary text-white rounded-2xl font-black text-[10px] uppercase tracking-widest shadow-lg shadow-primary/30 disabled:opacity-50"
@@ -191,7 +224,7 @@ const TableManagementModal: React.FC<TableManagementModalProps> = ({
                 <ShoppingCart size={14} /> {t.select_items}
             </h3>
             <div className="space-y-2 max-h-[300px] overflow-y-auto pr-2 no-scrollbar">
-                {activeOrder?.items.map(item => (
+                {(activeOrder?.items ?? []).map(item => (
                     <div
                         key={item.cartId}
                         onClick={() => toggleItem(item.cartId)}
@@ -206,7 +239,7 @@ const TableManagementModal: React.FC<TableManagementModalProps> = ({
                             </div>
                             <span className="font-bold text-sm text-slate-700 dark:text-slate-200">{item.name}</span>
                         </div>
-                        <span className="font-black text-sm text-slate-500">${(item.price * item.quantity).toFixed(2)}</span>
+                        <span className="font-black text-sm text-slate-500">ج.م {(item.price * item.quantity).toFixed(2)}</span>
                     </div>
                 ))}
             </div>
@@ -235,8 +268,12 @@ const TableManagementModal: React.FC<TableManagementModalProps> = ({
                 {renderHeader()}
 
                 {mode === 'ACTIONS' && renderActions()}
-                {(mode === 'TRANSFER_ALL' || ((mode === 'TRANSFER_ITEMS' || mode === 'SPLIT') && selectedItems.length > 0 && mode !== 'SPLIT_ITEMS' && !targetTableId)) && (
-                    mode === 'TRANSFER_ITEMS' || mode === 'SPLIT' ? renderTableSelector(mode === 'SPLIT' ? TableStatus.AVAILABLE : TableStatus.OCCUPIED) : renderTableSelector(TableStatus.AVAILABLE)
+                {(mode === 'TRANSFER_ALL' || mode === 'MERGE' || ((mode === 'TRANSFER_ITEMS' || mode === 'SPLIT') && selectedItems.length > 0 && mode !== 'SPLIT_ITEMS' && !targetTableId)) && (
+                    mode === 'MERGE'
+                        ? renderTableSelector(TableStatus.OCCUPIED)
+                        : mode === 'TRANSFER_ITEMS' || mode === 'SPLIT'
+                            ? renderTableSelector(mode === 'SPLIT' ? TableStatus.AVAILABLE : TableStatus.OCCUPIED)
+                            : renderTableSelector(TableStatus.AVAILABLE)
                 )}
                 {(mode === 'TRANSFER_ITEMS' || mode === 'SPLIT') && !targetTableId && renderItemSelector()}
                 {/* Refined the flow: Mode chooses what to do, then if needed choose items, then choose target table */}

@@ -1,5 +1,5 @@
 import React from 'react';
-import { Minus, Plus, Trash2 } from 'lucide-react';
+import { Minus, Plus, Trash2, Pencil } from 'lucide-react';
 import { OrderItem } from '../../types';
 
 interface CartItemProps {
@@ -24,9 +24,9 @@ const CartItem: React.FC<CartItemProps> = React.memo(({
             <div className="flex-1 min-w-0">
                 <h4 className="font-bold text-main dark:text-main leading-tight mb-0.5">{item.name}</h4>
                 <p className="text-sm font-bold text-primary">
-                    {(item.price * item.quantity).toFixed(2)}
+                    {currencySymbol}{(item.price * item.quantity).toFixed(2)}
                 </p>
-                {item.notes && <p className="text-[10px] text-amber-600 font-bold mt-1">📝 {item.notes}</p>}
+                {item.notes && <p className="text-[10px] text-amber-600 font-bold mt-1">Note: {item.notes}</p>}
             </div>
             <div className="flex items-center gap-2">
                 <button
@@ -36,7 +36,7 @@ const CartItem: React.FC<CartItemProps> = React.memo(({
                     }}
                     className="w-8 h-8 rounded-lg text-slate-400 hover:bg-amber-50 hover:text-amber-500 transition-colors flex items-center justify-center mr-1"
                 >
-                    <span className="text-xs">✏️</span>
+                    <Pencil size={14} />
                 </button>
                 <button
                     onClick={(e) => {
@@ -71,3 +71,4 @@ const CartItem: React.FC<CartItemProps> = React.memo(({
 });
 
 export default CartItem;
+

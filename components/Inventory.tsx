@@ -153,8 +153,8 @@ const Inventory: React.FC = () => {
                   </span>
                   {isLow && <div className="text-[8px] uppercase font-black text-rose-500 tracking-tighter">Low Stock</div>}
                 </td>
-                <td className="px-6 py-4 font-mono text-sm">${(item.purchasePrice || 0).toFixed(2)}</td>
-                <td className="px-6 py-4 font-mono text-sm text-slate-500">${item.costPrice.toFixed(2)}</td>
+                <td className="px-6 py-4 font-mono text-sm">ج.م {(item.purchasePrice || 0).toFixed(2)}</td>
+                <td className="px-6 py-4 font-mono text-sm text-slate-500">ج.م {item.costPrice.toFixed(2)}</td>
                 <td className="px-6 py-4">
                   <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
                     <button

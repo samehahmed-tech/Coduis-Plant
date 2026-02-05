@@ -1,5 +1,5 @@
 
-import React from 'react';
+import React, { useEffect } from 'react';
 import { Outlet, Navigate, useLocation } from 'react-router-dom';
 import Sidebar from './Sidebar';
 import Login from './Login';
@@ -23,6 +23,20 @@ const MainLayout: React.FC = () => {
     const fontClass = settings.language === 'ar' ? 'font-cairo' : 'font-outfit';
     const direction = settings.language === 'ar' ? 'rtl' : 'ltr';
     const layoutPadding = settings.language === 'ar' ? sidebarWidthRtl : sidebarWidth;
+
+    useEffect(() => {
+        const root = document.documentElement;
+        const body = document.body;
+        root.setAttribute('data-theme', theme);
+        body.setAttribute('data-theme', theme);
+        if (isDark) {
+            root.classList.add('dark');
+            body.classList.add('dark');
+        } else {
+            root.classList.remove('dark');
+            body.classList.remove('dark');
+        }
+    }, [theme, isDark]);
 
     return (
         <div

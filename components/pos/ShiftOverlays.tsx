@@ -4,6 +4,7 @@ import { useFinanceStore } from '../../stores/useFinanceStore';
 import { shiftsApi } from '../../services/api';
 import { useAuthStore } from '../../stores/useAuthStore';
 import { translations } from '../../services/translations';
+import { useToast } from '../Toast';
 
 interface ShiftOverlaysProps {
     onOpen: () => void;
@@ -13,14 +14,30 @@ export const ShiftOverlays: React.FC<ShiftOverlaysProps> = ({ onOpen }) => {
     const activeShift = useFinanceStore(state => state.activeShift);
     const setShift = useFinanceStore(state => state.setShift);
     const settings = useAuthStore(state => state.settings);
+    const user = useAuthStore(state => state.user);
     const t = translations[settings.language];
     const lang = settings.language;
+    const { showToast } = useToast();
 
     const [openingBalance, setOpeningBalance] = useState('0');
     const [loading, setLoading] = useState(false);
     const [actualBalance, setActualBalance] = useState('0');
     const [showCloseModal, setShowCloseModal] = useState(false);
     const [shiftReport, setShiftReport] = useState<any>(null);
+
+    useEffect(() => {
+        const hydrateShift = async () => {
+            if (activeShift) return;
+            if (!settings.activeBranchId) return;
+            try {
+                const res = await shiftsApi.getActive(settings.activeBranchId);
+                if (res) setShift(res);
+            } catch {
+                // ignore if no active shift
+            }
+        };
+        hydrateShift();
+    }, [activeShift, settings.activeBranchId, setShift, user?.id]);
 
     // If there's no active shift, show the Open Shift Lock Screen
     if (!activeShift) {
@@ -31,14 +48,14 @@ export const ShiftOverlays: React.FC<ShiftOverlaysProps> = ({ onOpen }) => {
                 const data = {
                     id,
                     branchId: settings.activeBranchId || 'b1',
-                    userId: 'u1', // Default to current user
+                    userId: user?.id || 'u1',
                     openingBalance: parseFloat(openingBalance),
                 };
                 const res = await shiftsApi.open(data);
                 setShift(res);
                 onOpen();
             } catch (err) {
-                alert('Failed to open shift');
+                showToast(t.shift_open_failed || 'Failed to open shift', 'error');
             } finally {
                 setLoading(false);
             }
@@ -110,6 +127,7 @@ export const CloseShiftModal: React.FC<{ isOpen: boolean; onClose: () => void }>
     const setShift = useFinanceStore(state => state.setShift);
     const settings = useAuthStore(state => state.settings);
     const t = translations[settings.language];
+    const { showToast } = useToast();
 
     const [actualBalance, setActualBalance] = useState('0');
     const [loading, setLoading] = useState(false);
@@ -131,7 +149,7 @@ export const CloseShiftModal: React.FC<{ isOpen: boolean; onClose: () => void }>
                 onClose();
             }, 3000);
         } catch (err) {
-            alert('Failed to close shift');
+            showToast(t.shift_close_failed || 'Failed to close shift', 'error');
         } finally {
             setLoading(false);
         }

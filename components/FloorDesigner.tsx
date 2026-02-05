@@ -35,6 +35,9 @@ import { Table, TableStatus, FloorZone } from '../types';
 import { useOrderStore } from '../stores/useOrderStore';
 import { useAuthStore } from '../stores/useAuthStore';
 import { useNavigate } from 'react-router-dom';
+import { tablesApi } from '../services/api';
+import { localDb } from '../db/localDb';
+import { syncService } from '../services/syncService';
 
 // Services
 import { translations } from '../services/translations';
@@ -60,6 +63,7 @@ const FloorDesigner: React.FC<{ onClose?: () => void }> = ({ onClose }) => {
     const [localZones, setLocalZones] = useState<FloorZone[]>(zones);
     const [activeZone, setActiveZone] = useState<string>(zones[0]?.id || 'MAIN');
     const [isZoneManagerOpen, setIsZoneManagerOpen] = useState(false);
+    const DEFAULT_ZONE_SIZE = { width: 1600, height: 1200 };
 
     // Layout Templates
     const LAYOUT_TEMPLATES = [
@@ -71,6 +75,25 @@ const FloorDesigner: React.FC<{ onClose?: () => void }> = ({ onClose }) => {
     ];
 
     const designerRef = useRef<HTMLDivElement>(null);
+
+    useEffect(() => {
+        const zone = localZones.find(z => z.id === activeZone);
+        if (!zone) return;
+        if (!zone.width || !zone.height) {
+            setLocalZones(localZones.map(z => z.id === activeZone ? { ...z, width: zone.width || DEFAULT_ZONE_SIZE.width, height: zone.height || DEFAULT_ZONE_SIZE.height } : z));
+        }
+    }, [activeZone, localZones]);
+
+    const getZoneBounds = () => {
+        const zone = localZones.find(z => z.id === activeZone);
+        const width = zone?.width || DEFAULT_ZONE_SIZE.width;
+        const height = zone?.height || DEFAULT_ZONE_SIZE.height;
+        return { width, height };
+    };
+
+    const updateZoneSize = (zoneId: string, updates: Partial<FloorZone>) => {
+        setLocalZones(localZones.map(z => z.id === zoneId ? { ...z, ...updates } : z));
+    };
 
     // Overlap Prevention Logic
     const isOverlapping = (id: string, x: number, y: number, width: number, height: number) => {
@@ -86,19 +109,76 @@ const FloorDesigner: React.FC<{ onClose?: () => void }> = ({ onClose }) => {
         });
     };
 
+    const findFreePosition = (tempId: string, width: number, height: number) => {
+        const { width: zoneWidth, height: zoneHeight } = getZoneBounds();
+        const padding = 40;
+        const gap = 24;
+        const maxX = Math.max(padding, zoneWidth - width - padding);
+        const maxY = Math.max(padding, zoneHeight - height - padding);
+
+        const cols = Math.max(1, Math.floor((zoneWidth - padding * 2) / (width + gap)));
+        const rows = Math.max(1, Math.floor((zoneHeight - padding * 2) / (height + gap)));
+
+        let index = 0;
+        for (let r = 0; r < rows; r++) {
+            for (let c = 0; c < cols; c++) {
+                const x = padding + c * (width + gap);
+                const y = padding + r * (height + gap);
+                if (!isOverlapping(tempId, x, y, width, height)) {
+                    return { x, y };
+                }
+                index++;
+            }
+        }
+
+        // Spiral search fallback (keeps adding without stacking)
+        const centerX = Math.max(padding, Math.min(maxX, zoneWidth / 2 - width / 2));
+        const centerY = Math.max(padding, Math.min(maxY, zoneHeight / 2 - height / 2));
+        const step = Math.max(20, Math.floor(Math.min(width, height) / 2));
+        let radius = step;
+        let angle = 0;
+        let attempts = 0;
+        while (attempts < 300) {
+            const x = Math.max(padding, Math.min(maxX, centerX + Math.cos(angle) * radius));
+            const y = Math.max(padding, Math.min(maxY, centerY + Math.sin(angle) * radius));
+            if (!isOverlapping(tempId, x, y, width, height)) {
+                return { x, y };
+            }
+            angle += Math.PI / 6;
+            if (angle >= Math.PI * 2) {
+                angle = 0;
+                radius += step;
+            }
+            attempts++;
+        }
+
+        const zoneTables = localTables.filter(t => t.zoneId === activeZone);
+        const maxBottom = zoneTables.reduce((max, t) => Math.max(max, t.position.y + t.height), padding);
+        const nextY = maxBottom + gap;
+        const minHeight = nextY + height + padding;
+        if (minHeight > zoneHeight) {
+            updateZoneSize(activeZone, { height: minHeight + 200 });
+        }
+        return { x: padding, y: nextY };
+    };
+
     const handleAddTable = (shape: 'square' | 'round' | 'rectangle') => {
         const width = shape === 'rectangle' ? 140 : 100;
         const height = 100;
-
-        // Find non-overlapping position
-        let x = 100;
-        let y = 100;
-        let attempts = 0;
-        while (isOverlapping(`new-${Date.now()}`, x, y, width, height) && attempts < 20) {
-            x += 40;
-            if (x > 800) { x = 100; y += 40; }
-            attempts++;
+        const { width: zoneWidth, height: zoneHeight } = getZoneBounds();
+        const padding = 40;
+        const gap = 24;
+        const cols = Math.max(1, Math.floor((zoneWidth - padding * 2) / (width + gap)));
+        const rows = Math.max(1, Math.floor((zoneHeight - padding * 2) / (height + gap)));
+        const capacity = cols * rows;
+        if (tablesInZone.length + 1 > capacity) {
+            const extraRows = Math.ceil((tablesInZone.length + 1 - capacity) / cols);
+            const newHeight = zoneHeight + extraRows * (height + gap) + padding;
+            updateZoneSize(activeZone, { height: newHeight });
         }
+
+        const tempId = `new-${Date.now()}`;
+        const { x, y } = findFreePosition(tempId, width, height);
 
         const newTable: Table = {
             id: `tbl-${Date.now()}`,
@@ -127,11 +207,13 @@ const FloorDesigner: React.FC<{ onClose?: () => void }> = ({ onClose }) => {
     };
 
     const handleDuplicateTable = (table: Table) => {
+        const tempId = `dup-${Date.now()}`;
+        const { x, y } = findFreePosition(tempId, table.width, table.height);
         const newTable: Table = {
             ...table,
             id: `tbl-${Date.now()}`,
             name: `${table.name} (Copy)`,
-            position: { x: table.position.x + 20, y: table.position.y + 20 }
+            position: { x, y }
         };
         setLocalTables([...localTables, newTable]);
         setSelectedId(newTable.id);
@@ -217,11 +299,57 @@ const FloorDesigner: React.FC<{ onClose?: () => void }> = ({ onClose }) => {
     const handleSave = () => {
         updateTables(localTables);
         updateZones(localZones);
+
+        const branchId = settings.activeBranchId || 'b1';
+        const payload = {
+            branchId,
+            zones: localZones.map(z => ({
+                id: z.id,
+                name: z.name,
+                width: z.width || DEFAULT_ZONE_SIZE.width,
+                height: z.height || DEFAULT_ZONE_SIZE.height
+            })),
+            tables: localTables.map(t => ({
+                id: t.id,
+                name: t.name,
+                seats: t.seats,
+                status: t.status || TableStatus.AVAILABLE,
+                x: t.position.x,
+                y: t.position.y,
+                width: t.width,
+                height: t.height,
+                shape: t.shape || 'square',
+                zoneId: t.zoneId || activeZone
+            }))
+        };
+
+        if (navigator.onLine) {
+            tablesApi.saveLayout(payload).catch(() => {
+                // silent: layout is already kept locally
+            });
+        } else {
+            syncService.queue('tableLayout', 'SAVE', payload);
+        }
+
+        localDb.floorTables.bulkPut(localTables.map(t => ({
+            ...t,
+            branchId,
+            x: t.position.x,
+            y: t.position.y
+        })) as any).catch(() => null);
+        localDb.floorZones.bulkPut(localZones.map(z => ({
+            ...z,
+            branchId,
+            width: z.width || DEFAULT_ZONE_SIZE.width,
+            height: z.height || DEFAULT_ZONE_SIZE.height
+        })) as any).catch(() => null);
+
         handleExit();
     };
 
     const selectedTable = localTables.find(t => t.id === selectedId);
     const tablesInZone = localTables.filter(t => t.zoneId === activeZone);
+    const zoneBounds = getZoneBounds();
 
     return (
         <div className={`fixed inset-0 bg-slate-100 dark:bg-slate-950 z-[200] flex flex-col animate-in fade-in duration-300 ${settings.language === 'ar' ? 'font-cairo' : 'font-outfit'}`} dir={settings.language === 'ar' ? 'rtl' : 'ltr'}>
@@ -433,7 +561,7 @@ const FloorDesigner: React.FC<{ onClose?: () => void }> = ({ onClose }) => {
                     <div
                         ref={designerRef}
                         className="relative bg-white dark:bg-slate-950 shadow-[0_32px_64px_-16px_rgba(0,0,0,0.2)] border border-slate-200 dark:border-slate-800 rounded-sm"
-                        style={{ width: '1600px', height: '1200px' }}
+                        style={{ width: `${zoneBounds.width}px`, height: `${zoneBounds.height}px` }}
                         onClick={() => setSelectedId(null)}
                     >
                         {/* Visual Grid Background */}
@@ -561,32 +689,55 @@ const FloorDesigner: React.FC<{ onClose?: () => void }> = ({ onClose }) => {
 
                         <div className="space-y-4">
                             {localZones.map(zone => (
-                                <div key={zone.id} className="p-5 bg-slate-50 dark:bg-slate-800/50 rounded-2xl flex items-center justify-between border border-transparent hover:border-indigo-600/30 transition-all">
-                                    <div className="flex items-center gap-4">
-                                        <div className={`p-3 rounded-xl ${zone.color} text-white`}>
-                                            <Layers size={18} />
+                                <div key={zone.id} className="p-5 bg-slate-50 dark:bg-slate-800/50 rounded-2xl flex flex-col gap-4 border border-transparent hover:border-indigo-600/30 transition-all">
+                                    <div className="flex items-center justify-between gap-4">
+                                        <div className="flex items-center gap-4">
+                                            <div className={`p-3 rounded-xl ${zone.color} text-white`}>
+                                                <Layers size={18} />
+                                            </div>
+                                            <div>
+                                                <input
+                                                    value={zone.name}
+                                                    onChange={(e) => setLocalZones(localZones.map(z => z.id === zone.id ? { ...z, name: e.target.value } : z))}
+                                                    className="bg-transparent font-black text-sm uppercase tracking-widest outline-none text-slate-800 dark:text-white"
+                                                />
+                                            </div>
                                         </div>
-                                        <div>
-                                            <input
-                                                value={zone.name}
-                                                onChange={(e) => setLocalZones(localZones.map(z => z.id === zone.id ? { ...z, name: e.target.value } : z))}
-                                                className="bg-transparent font-black text-sm uppercase tracking-widest outline-none text-slate-800 dark:text-white"
-                                            />
+                                        <div className="flex items-center gap-2">
+                                            <button
+                                                onClick={() => {
+                                                    if (localZones.length > 1) {
+                                                        setLocalTables(localTables.filter(t => t.zoneId !== zone.id));
+                                                        setLocalZones(localZones.filter(z => z.id !== zone.id));
+                                                        if (activeZone === zone.id) setActiveZone(localZones[0].id);
+                                                    }
+                                                }}
+                                                className="p-2 text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-900/20 rounded-lg transition-all"
+                                            >
+                                                <Trash2 size={16} />
+                                            </button>
                                         </div>
                                     </div>
-                                    <div className="flex items-center gap-2">
-                                        <button
-                                            onClick={() => {
-                                                if (localZones.length > 1) {
-                                                    setLocalTables(localTables.filter(t => t.zoneId !== zone.id));
-                                                    setLocalZones(localZones.filter(z => z.id !== zone.id));
-                                                    if (activeZone === zone.id) setActiveZone(localZones[0].id);
-                                                }
-                                            }}
-                                            className="p-2 text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-900/20 rounded-lg transition-all"
-                                        >
-                                            <Trash2 size={16} />
-                                        </button>
+
+                                    <div className="grid grid-cols-2 gap-3">
+                                        <div className="space-y-2">
+                                            <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Width</label>
+                                            <input
+                                                type="number"
+                                                value={zone.width || DEFAULT_ZONE_SIZE.width}
+                                                onChange={(e) => updateZoneSize(zone.id, { width: parseInt(e.target.value) || DEFAULT_ZONE_SIZE.width })}
+                                                className="w-full p-3 rounded-xl bg-white dark:bg-slate-900 text-xs font-black border border-slate-200 dark:border-slate-800"
+                                            />
+                                        </div>
+                                        <div className="space-y-2">
+                                            <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Height</label>
+                                            <input
+                                                type="number"
+                                                value={zone.height || DEFAULT_ZONE_SIZE.height}
+                                                onChange={(e) => updateZoneSize(zone.id, { height: parseInt(e.target.value) || DEFAULT_ZONE_SIZE.height })}
+                                                className="w-full p-3 rounded-xl bg-white dark:bg-slate-900 text-xs font-black border border-slate-200 dark:border-slate-800"
+                                            />
+                                        </div>
                                     </div>
                                 </div>
                             ))}
@@ -595,7 +746,7 @@ const FloorDesigner: React.FC<{ onClose?: () => void }> = ({ onClose }) => {
                         <button
                             onClick={() => {
                                 const newId = `zone-${Date.now()}`;
-                                setLocalZones([...localZones, { id: newId, name: 'New Area', color: 'bg-emerald-600' }]);
+                                setLocalZones([...localZones, { id: newId, name: 'New Area', color: 'bg-emerald-600', width: DEFAULT_ZONE_SIZE.width, height: DEFAULT_ZONE_SIZE.height }]);
                             }}
                             className="w-full py-5 border-2 border-dashed border-slate-200 dark:border-slate-700 rounded-2xl flex items-center justify-center gap-3 text-slate-400 hove:text-indigo-600 hover:border-indigo-600 transition-all group"
                         >

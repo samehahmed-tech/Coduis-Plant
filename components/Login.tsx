@@ -36,7 +36,7 @@ const Login: React.FC = () => {
             else if (user.role === 'KITCHEN_STAFF') navigate('/kitchen');
             else navigate('/');
         } catch (err: any) {
-            setError(settings.language === 'ar' ? 'ÈíÇäÇÊ ÇáÏÎæá ÛíÑ ÕÍíÍÉ' : 'Invalid credentials');
+            setError(settings.language === 'ar' ? 'Ø±Ø§Ø¬Ø¹ ØªÙØ§ØµÙŠÙ„ Ø§Ù„Ø­Ø³Ø§Ø¨ ( Ø§Ø³Ù… Ø§Ùˆ Ø¨Ø§Ø³ÙˆØ±Ø¯ ØºÙ„Ø· ) ' : 'Invalid credentials');
         }
     };
 

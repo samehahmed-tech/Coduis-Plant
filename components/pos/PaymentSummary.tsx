@@ -1,5 +1,5 @@
 import React from 'react';
-import { Banknote, CreditCard, Smartphone, Landmark, Calculator, Trash, Wallet, Zap } from 'lucide-react';
+import { Banknote, CreditCard, Smartphone, Landmark, Calculator, Trash, Wallet, Zap, ChefHat } from 'lucide-react';
 import { PaymentMethod } from '../../types';
 
 interface PaymentSummaryProps {
@@ -17,6 +17,7 @@ interface PaymentSummaryProps {
     onVoid: () => void;
     onSubmit: () => void;
     onQuickPay: () => void;
+    onSendKitchen: () => void;
     canSubmit: boolean;
 }
 
@@ -35,6 +36,7 @@ const PaymentSummary: React.FC<PaymentSummaryProps> = ({
     onVoid,
     onSubmit,
     onQuickPay,
+    onSendKitchen,
     canSubmit,
 }) => {
     const paymentMethods = [
@@ -46,12 +48,12 @@ const PaymentSummary: React.FC<PaymentSummaryProps> = ({
     ];
 
     return (
-        <div className="p-4 md:p-6 xl:p-8 bg-elevated dark:bg-elevated/30 border-t border-border/50 space-y-4 md:space-y-6 lg:space-y-8 shrink-0">
+        <div className="p-5 md:p-7 xl:p-8 bg-elevated dark:bg-elevated/30 border-t border-border/50 space-y-5 md:space-y-6 lg:space-y-7 shrink-0">
             <div className="space-y-3 md:space-y-4">
                 <h4 className="text-[9px] md:text-[10px] font-black uppercase text-slate-400 tracking-widest px-1">
                     {t.payment_method}
                 </h4>
-                <div className="grid grid-cols-5 gap-2 md:gap-3">
+                <div className="grid grid-cols-3 md:grid-cols-5 gap-2 md:gap-3">
                     {paymentMethods.map(btn => (
                         <button
                             key={btn.id}
@@ -59,10 +61,10 @@ const PaymentSummary: React.FC<PaymentSummaryProps> = ({
                                 onSetPaymentMethod(btn.id);
                                 if (btn.id === PaymentMethod.SPLIT) onShowSplitModal();
                             }}
-                            className={`flex flex-col items-center justify-center gap-1.5 md:gap-2.5 rounded-xl md:rounded-3xl border-2 transition-all active:scale-95 ${paymentMethod === btn.id ? 'bg-primary border-primary text-white shadow-lg' : 'bg-card border-border/50 text-muted hover:border-primary/30'} ${isTouchMode ? 'py-5 md:py-6' : 'py-3 md:py-4'}`}
+                            className={`flex flex-col items-center justify-center gap-2 md:gap-2.5 rounded-2xl md:rounded-3xl border-2 transition-all active:scale-95 ${paymentMethod === btn.id ? 'bg-primary border-primary text-white shadow-lg' : 'bg-card border-border/50 text-muted hover:border-primary/30'} ${isTouchMode ? 'py-4 md:py-5' : 'py-3 md:py-3.5'}`}
                         >
                             <btn.icon size={isTouchMode ? 24 : 16} className="md:w-5 md:h-5" />
-                            <span className={`${isTouchMode ? 'text-xs' : 'text-[8px] md:text-[9px]'} font-black uppercase tracking-tight text-center`}>
+                            <span className={`${isTouchMode ? 'text-xs' : 'text-[9px] md:text-[10px]'} font-black uppercase tracking-tight text-center`}>
                                 {btn.label}
                             </span>
                         </button>
@@ -70,18 +72,18 @@ const PaymentSummary: React.FC<PaymentSummaryProps> = ({
                 </div>
             </div>
 
-            <div className="space-y-1.5 md:space-y-2.5">
-                <div className="flex justify-between text-[10px] md:text-xs font-bold text-muted uppercase tracking-wider px-1">
+            <div className="space-y-2 md:space-y-3 bg-card/70 dark:bg-card/40 border border-border/50 rounded-2xl p-4">
+                <div className="flex justify-between text-[10px] md:text-xs font-bold text-muted uppercase tracking-wider">
                     <span>{t.subtotal}</span>
                     <span>{currencySymbol}{subtotal.toFixed(2)}</span>
                 </div>
                 {discount > 0 && (
-                    <div className="flex justify-between text-[10px] md:text-xs font-bold text-green-600 uppercase tracking-wider px-1">
+                    <div className="flex justify-between text-[10px] md:text-xs font-bold text-green-600 uppercase tracking-wider">
                         <span>{t.discount} ({discount}%)</span>
                         <span>-{currencySymbol}{(subtotal * discount / 100).toFixed(2)}</span>
                     </div>
                 )}
-                <div className="flex justify-between text-[10px] md:text-xs font-bold text-muted uppercase tracking-wider px-1">
+                <div className="flex justify-between text-[10px] md:text-xs font-bold text-muted uppercase tracking-wider">
                     <span>{t.tax}</span>
                     <span>{currencySymbol}{tax.toFixed(2)}</span>
                 </div>
@@ -91,26 +93,34 @@ const PaymentSummary: React.FC<PaymentSummaryProps> = ({
                 </div>
             </div>
 
-            <div className="flex gap-3 md:gap-4">
+            <div className="grid grid-cols-2 gap-3 md:gap-4">
                 <button
                     onClick={onVoid}
-                    className="flex-1 py-3 md:py-5 bg-card dark:bg-elevated/50 text-muted rounded-xl md:rounded-[1.5rem] font-black text-[10px] md:text-sm uppercase tracking-wider hover:bg-danger/10 hover:text-danger transition-all flex items-center justify-center gap-2 border border-border/50"
+                    className="py-4 md:py-5 bg-card dark:bg-elevated/50 text-muted rounded-2xl md:rounded-[1.5rem] font-black text-[11px] md:text-sm uppercase tracking-wider hover:bg-danger/10 hover:text-danger transition-all flex items-center justify-center gap-2 border border-border/50 min-h-[58px]"
                 >
                     <Trash size={14} className="md:w-[18px] md:h-[18px]" />
                     <span className="hidden sm:inline">{t.void}</span>
                 </button>
                 <button
+                    onClick={onSendKitchen}
+                    disabled={!canSubmit}
+                    className="py-4 md:py-5 bg-slate-900 text-white rounded-2xl md:rounded-[1.5rem] font-black text-[11px] md:text-sm uppercase tracking-wider hover:bg-slate-800 shadow-xl shadow-slate-900/20 disabled:opacity-50 transition-all flex items-center justify-center gap-2 min-h-[58px]"
+                >
+                    <ChefHat size={16} className="md:w-[18px] md:h-[18px]" />
+                    <span className="hidden sm:inline">{t.send_kitchen || 'Send Kitchen'}</span>
+                </button>
+                <button
                     onClick={onQuickPay}
                     disabled={!canSubmit}
                     title="Quick Pay (Cash)"
-                    className="p-3 md:p-5 bg-emerald-500 text-white rounded-xl md:rounded-[1.5rem] hover:bg-emerald-600 shadow-xl shadow-emerald-500/20 disabled:opacity-50 transition-all flex items-center justify-center aspect-square"
+                    className="py-4 md:py-5 bg-emerald-500 text-white rounded-2xl md:rounded-[1.5rem] hover:bg-emerald-600 shadow-xl shadow-emerald-500/20 disabled:opacity-50 transition-all flex items-center justify-center min-h-[58px]"
                 >
                     <Zap size={24} className="animate-pulse" />
                 </button>
                 <button
                     onClick={onSubmit}
                     disabled={!canSubmit}
-                    className="flex-[2] py-3 md:py-5 bg-primary text-white rounded-xl md:rounded-[1.5rem] font-black text-sm md:text-xl uppercase tracking-widest hover:bg-primary-hover shadow-xl shadow-primary/20 disabled:opacity-50 transition-all"
+                    className="py-4 md:py-5 bg-primary text-white rounded-2xl md:rounded-[1.5rem] font-black text-sm md:text-xl uppercase tracking-widest hover:bg-primary-hover shadow-xl shadow-primary/20 disabled:opacity-50 transition-all min-h-[58px]"
                 >
                     {t.place_order}
                 </button>

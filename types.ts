@@ -14,6 +14,7 @@ export enum AuditEventType {
   POS_VOID = 'POS_VOID',
   POS_DISCOUNT = 'POS_DISCOUNT',
   POS_ORDER_PLACEMENT = 'POS_ORDER_PLACEMENT',
+  ORDER_STATUS_CHANGE = 'ORDER_STATUS_CHANGE',
   POS_PAYMENT = 'POS_PAYMENT',
   INVENTORY_ADJUSTMENT = 'INVENTORY_ADJUSTMENT',
   INVENTORY_TRANSFER = 'INVENTORY_TRANSFER',
@@ -47,7 +48,8 @@ export interface AuditLog {
 export enum OrderType {
   DINE_IN = 'DINE_IN',
   TAKEAWAY = 'TAKEAWAY',
-  DELIVERY = 'DELIVERY'
+  DELIVERY = 'DELIVERY',
+  PICKUP = 'PICKUP'
 }
 
 export enum TableStatus {
@@ -133,6 +135,9 @@ export interface MenuItem {
   isAvailable: boolean;
   preparationTime?: number;
   isPopular?: boolean;
+  availableFrom?: string; // "09:00"
+  availableTo?: string; // "22:00"
+  availableDays?: string[]; // ["mon", "tue", ...]
   recipe?: RecipeIngredient[]; // Link to raw materials
   modifierGroups?: ModifierGroup[];
   printerIds?: string[]; // IDs of printers for this item
@@ -306,6 +311,8 @@ export interface FloorZone {
   name: string;
   color: string;
   icon?: string;
+  width?: number;
+  height?: number;
 }
 
 export interface Branch {
@@ -505,7 +512,18 @@ export const INITIAL_ROLE_PERMISSIONS: Record<UserRole, AppPermission[]> = {
   [UserRole.CUSTOM]: []
 };
 
-export type AppTheme = 'classic' | 'nebula' | 'emerald' | 'sunset' | 'quartz' | 'violet' | 'touch';
+export type AppTheme =
+  | 'classic'
+  | 'nebula'
+  | 'emerald'
+  | 'sunset'
+  | 'quartz'
+  | 'violet'
+  | 'touch'
+  | 'royal'
+  | 'emerald_luxe'
+  | 'noir'
+  | 'beige_luxe';
 
 export interface AppSettings {
   restaurantName: string;
@@ -519,6 +537,8 @@ export interface AppSettings {
   theme: AppTheme;
   branchAddress: string;
   phone: string;
+  receiptLogoUrl?: string;
+  receiptQrUrl?: string;
   activeBranchId?: string; // Current operating branch context
   currentUser?: User;
   geminiApiKey?: string;

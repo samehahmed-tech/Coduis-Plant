@@ -79,6 +79,18 @@ const QuickActionsSidebar: React.FC<QuickActionsSidebarProps> = ({
                         {t.delivery}
                     </div>
                 </button>
+                <button
+                    onClick={() => onSetMode(OrderType.PICKUP)}
+                    className={`group relative p-4 rounded-2xl transition-all duration-500 hover:scale-110 active:scale-90 ${activeMode === OrderType.PICKUP ? 'bg-teal-500 text-white shadow-2xl shadow-teal-500/40 ring-2 ring-teal-500/20' : 'bg-elevated/40 text-muted hover:text-teal-500 hover:bg-teal-500/5'}`}
+                >
+                    <Zap size={22} className={`transition-transform duration-500 ${activeMode === OrderType.PICKUP ? 'scale-110' : 'group-hover:rotate-12'}`} />
+                    {activeMode === OrderType.PICKUP && (
+                        <div className={`absolute ${lang === 'ar' ? '-right-1' : '-left-1'} top-1/2 -translate-y-1/2 w-2 h-2 bg-teal-500 rounded-full blur-sm animate-pulse`} />
+                    )}
+                    <div className={`absolute ${lang === 'ar' ? 'right-full mr-5' : 'left-full ml-5'} top-1/2 -translate-y-1/2 px-4 py-2 bg-slate-900/90 backdrop-blur-md text-white text-[10px] font-black uppercase tracking-[0.2em] rounded-xl opacity-0 group-hover:opacity-100 transition-all duration-300 pointer-events-none whitespace-nowrap shadow-2xl border border-white/10 scale-90 group-hover:scale-100 z-[100]`}>
+                        {t.pickup || (lang === 'ar' ? 'استلام' : 'Pickup')}
+                    </div>
+                </button>
             </div>
 
             <div className="w-8 h-[1px] bg-gradient-to-r from-transparent via-border to-transparent my-4 opacity-50" />
