@@ -115,7 +115,7 @@ async function migrate() {
 
             -- Key is now handled via environment variables or UI settings
             -- INSERT INTO system_settings (key, value, category) 
-            -- VALUES ('geminiApiKey', '"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"', 'ai')
+            -- VALUES ('geminiApiKey', '\"__SET_IN_UI_OR_ENV__\"', 'ai')
             -- ON CONFLICT (key) DO NOTHING;
 
             ALTER TABLE inventory_items ADD COLUMN IF NOT EXISTS purchase_price DECIMAL(12, 2) DEFAULT 0;

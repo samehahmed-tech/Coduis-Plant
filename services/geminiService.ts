@@ -1,7 +1,11 @@
-
-// Obfuscated default key to prevent GitHub leak detection
-const _DK = atob('c2stb3ItdjEtZTk0ZDc5MjkzN2ZkNzNmYmZlM2MwNjkyMWM1NTNjYmRjMTJmMjE2MWEwODdiZjgzZjgyYzkxODg1NWRiOTNiMw==');
-const DEFAULT_API_KEY = import.meta.env.VITE_GEMINI_API_KEY || _DK;
+// IMPORTANT: Never ship API keys in source control.
+// Configure one of the following env vars instead:
+// - VITE_OPENROUTER_API_KEY (preferred)
+// - VITE_GEMINI_API_KEY (legacy name kept for backwards compatibility)
+const DEFAULT_API_KEY =
+  import.meta.env.VITE_OPENROUTER_API_KEY ||
+  import.meta.env.VITE_GEMINI_API_KEY ||
+  '';
 const OPENROUTER_URL = 'https://openrouter.ai/api/v1/chat/completions';
 const PRIMARY_MODEL = 'meta-llama/llama-3.1-8b-instruct';
 const FALLBACK_MODEL = 'mistralai/mistral-7b-instruct';
@@ -10,9 +14,11 @@ const FALLBACK_MODEL = 'mistralai/mistral-7b-instruct';
  * Isolated AI Service following OpenRouter Free Model Mandatory Guidelines
  */
 async function callAI(prompt: string, systemInstruction?: string, apiKey?: string, useFallback = false) {
-  // If the provided apiKey is a Gemini key (starts with AIza), ignore it and use the OpenRouter default
-  const isGeminiKey = apiKey?.startsWith('AIza');
-  const activeKey = (apiKey && !isGeminiKey) ? apiKey : DEFAULT_API_KEY;
+  const activeKey = (apiKey || DEFAULT_API_KEY).trim();
+  // This service talks to OpenRouter. Gemini keys won't work here.
+  if (activeKey.startsWith('AIza')) {
+    throw new Error("OPENROUTER_API_KEY_REQUIRED");
+  }
 
   const currentModel = useFallback ? FALLBACK_MODEL : PRIMARY_MODEL;
 
