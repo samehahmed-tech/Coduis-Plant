@@ -115,7 +115,7 @@ const ForensicsHub: React.FC = () => {
                         </select>
                     </div>
 
-                    <div className="space-y-4 max-h-[800px] overflow-y-auto no-scrollbar pr-2">
+                    <div className="space-y-4 max-h-[70vh] md:max-h-[800px] overflow-y-auto no-scrollbar pr-2">
                         {isLoading ? (
                             <div className="flex flex-col items-center justify-center py-24 opacity-60">
                                 <Loader2 className="animate-spin text-indigo-600 mb-4" size={32} />

@@ -129,7 +129,7 @@ const RecipeManager: React.FC = () => {
                                 onChange={e => setSearchQuery(e.target.value)}
                             />
                         </div>
-                        <div className="space-y-2 max-h-[600px] overflow-y-auto no-scrollbar pr-1">
+                        <div className="space-y-2 max-h-[60vh] md:max-h-[600px] overflow-y-auto no-scrollbar pr-1">
                             {filteredMenuItems.map(item => (
                                 <button
                                     key={item.id}

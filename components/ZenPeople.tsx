@@ -83,7 +83,7 @@ const ZenPeople: React.FC = () => {
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
                 {/* Employee Directory */}
                 <div className="lg:col-span-2 space-y-6">
-                    <div className="bg-card border border-border rounded-[3rem] shadow-sm overflow-hidden min-h-[500px]">
+                    <div className="bg-card border border-border rounded-[3rem] shadow-sm overflow-hidden min-h-[360px] md:min-h-[440px] lg:min-h-[500px]">
                         <div className="p-8 border-b border-border bg-elevated/30 flex flex-col md:flex-row justify-between items-center gap-4">
                             <h3 className="text-xl font-black text-main uppercase tracking-tight">{lang === 'ar' ? 'دليل الفريق' : 'Talent Roster'}</h3>
                             <div className="relative w-full max-w-xs group">

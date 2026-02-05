@@ -199,7 +199,7 @@ const AIAssistant: React.FC = () => {
   };
 
   return (
-    <div className="flex flex-col h-screen bg-slate-50 dark:bg-slate-950 transition-colors pb-24 lg:pb-0 lg:pt-0">
+    <div className="flex flex-col app-viewport bg-slate-50 dark:bg-slate-950 transition-colors pb-24 lg:pb-0 lg:pt-0">
       <div className="flex-1 overflow-y-auto p-4 md:p-8 space-y-6 no-scrollbar">
         <div className="max-w-4xl mx-auto space-y-6">
           {messages.map((message) => (

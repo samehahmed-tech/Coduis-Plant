@@ -268,7 +268,7 @@ const Dashboard: React.FC = () => {
                     </p>
                   </div>
                 </div>
-                <div className="h-80 md:h-[400px] w-full relative overflow-hidden">
+                <div className="min-h-[260px] md:h-[320px] lg:h-[400px] w-full relative overflow-hidden">
                   {hourlyData.some(h => h.revenue > 0) ? (
                     <ResponsiveContainer width="100%" height="100%">
                       <BarChart data={hourlyData}>
