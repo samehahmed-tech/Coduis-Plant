@@ -2,6 +2,8 @@
 import { create } from 'zustand';
 import { InventoryItem, Supplier, PurchaseOrder, Warehouse, WarehouseType } from '../types';
 import { inventoryApi } from '../services/api';
+import { localDb } from '../db/localDb';
+import { syncService } from '../services/syncService';
 
 interface InventoryState {
     inventory: InventoryItem[];
@@ -45,25 +47,31 @@ export const useInventoryStore = create<InventoryState>((set, get) => ({
     fetchInventory: async () => {
         set({ isLoading: true, error: null });
         try {
-            const data = await inventoryApi.getAll();
-            const inventory = data.map((item: any) => ({
-                id: item.id,
-                name: item.name,
-                nameAr: item.name_ar,
-                sku: item.sku,
-                barcode: item.barcode,
-                unit: item.unit,
-                category: item.category,
-                costPrice: Number(item.cost_price),
-                purchasePrice: Number(item.purchase_price),
-                threshold: Number(item.threshold),
-                isAudited: item.is_audited,
-                auditFrequency: item.audit_frequency,
-                isComposite: item.is_composite,
-                bom: item.bom,
-                warehouseQuantities: item.warehouseQuantities || [],
-            }));
-            set({ inventory, isLoading: false });
+            if (navigator.onLine) {
+                const data = await inventoryApi.getAll();
+                const inventory = data.map((item: any) => ({
+                    id: item.id,
+                    name: item.name,
+                    nameAr: item.name_ar,
+                    sku: item.sku,
+                    barcode: item.barcode,
+                    unit: item.unit,
+                    category: item.category,
+                    costPrice: Number(item.cost_price),
+                    purchasePrice: Number(item.purchase_price),
+                    threshold: Number(item.threshold),
+                    isAudited: item.is_audited,
+                    auditFrequency: item.audit_frequency,
+                    isComposite: item.is_composite,
+                    bom: item.bom,
+                    warehouseQuantities: item.warehouseQuantities || [],
+                }));
+                set({ inventory, isLoading: false });
+                await localDb.inventoryItems.bulkPut(inventory.map(i => ({ ...i, updatedAt: Date.now() })));
+            } else {
+                const cached = await localDb.inventoryItems.toArray();
+                set({ inventory: cached as InventoryItem[], isLoading: false });
+            }
         } catch (error: any) {
             set({ error: error.message, isLoading: false });
         }
@@ -71,9 +79,9 @@ export const useInventoryStore = create<InventoryState>((set, get) => ({
 
     fetchWarehouses: async () => {
         try {
-            const data = await inventoryApi.getWarehouses();
-            set({
-                warehouses: data.map((w: any) => ({
+            if (navigator.onLine) {
+                const data = await inventoryApi.getWarehouses();
+                const warehouses = data.map((w: any) => ({
                     id: w.id,
                     name: w.name,
                     nameAr: w.name_ar,
@@ -81,8 +89,13 @@ export const useInventoryStore = create<InventoryState>((set, get) => ({
                     type: w.type,
                     isActive: w.is_active,
                     parentId: w.parent_id
-                }))
-            });
+                }));
+                set({ warehouses });
+                await localDb.warehouses.bulkPut(warehouses.map(w => ({ ...w, updatedAt: Date.now() })));
+            } else {
+                const cached = await localDb.warehouses.toArray();
+                set({ warehouses: cached as Warehouse[] });
+            }
         } catch (error: any) {
             console.error('Failed to fetch warehouses:', error);
         }
@@ -91,7 +104,7 @@ export const useInventoryStore = create<InventoryState>((set, get) => ({
     addInventoryItem: async (item) => {
         set({ isLoading: true });
         try {
-            await inventoryApi.create({
+            const payload = {
                 id: item.id,
                 name: item.name,
                 name_ar: item.nameAr,
@@ -106,11 +119,17 @@ export const useInventoryStore = create<InventoryState>((set, get) => ({
                 audit_frequency: item.auditFrequency,
                 is_composite: item.isComposite,
                 bom: item.bom
-            });
+            };
+            if (navigator.onLine) {
+                await inventoryApi.create(payload);
+            } else {
+                await syncService.queue('inventoryItem', 'CREATE', payload);
+            }
             set((state) => ({
                 inventory: [...state.inventory, item],
                 isLoading: false
             }));
+            await localDb.inventoryItems.put({ ...item, updatedAt: Date.now() });
         } catch (error: any) {
             set({ error: error.message, isLoading: false });
             throw error;
@@ -124,7 +143,7 @@ export const useInventoryStore = create<InventoryState>((set, get) => ({
             if (!current) return;
 
             const updated = { ...current, ...item };
-            await inventoryApi.update(id, {
+            const payload = {
                 name: updated.name,
                 name_ar: updated.nameAr,
                 sku: updated.sku,
@@ -139,12 +158,18 @@ export const useInventoryStore = create<InventoryState>((set, get) => ({
                 is_composite: updated.isComposite,
                 bom: updated.bom,
                 is_active: true
-            });
+            };
+            if (navigator.onLine) {
+                await inventoryApi.update(id, payload);
+            } else {
+                await syncService.queue('inventoryItem', 'UPDATE', { id, ...payload });
+            }
 
             set((state) => ({
                 inventory: state.inventory.map(i => i.id === id ? updated : i),
                 isLoading: false
             }));
+            await localDb.inventoryItems.put({ ...updated, updatedAt: Date.now() });
         } catch (error: any) {
             set({ error: error.message, isLoading: false });
             throw error;
@@ -153,15 +178,21 @@ export const useInventoryStore = create<InventoryState>((set, get) => ({
 
     addWarehouse: async (warehouse) => {
         try {
-            await inventoryApi.createWarehouse({
+            const payload = {
                 id: warehouse.id,
                 name: warehouse.name,
                 name_ar: warehouse.nameAr,
                 branch_id: warehouse.branchId,
                 type: warehouse.type,
                 parent_id: warehouse.parentId
-            });
+            };
+            if (navigator.onLine) {
+                await inventoryApi.createWarehouse(payload);
+            } else {
+                await syncService.queue('warehouse', 'CREATE', payload);
+            }
             set((state) => ({ warehouses: [...state.warehouses, warehouse] }));
+            await localDb.warehouses.put({ ...warehouse, updatedAt: Date.now() });
         } catch (error: any) {
             set({ error: error.message });
         }
@@ -169,13 +200,18 @@ export const useInventoryStore = create<InventoryState>((set, get) => ({
 
     updateStock: async (itemId, warehouseId, quantity, type, reason) => {
         try {
-            await inventoryApi.updateStock({
+            const payload = {
                 item_id: itemId,
                 warehouse_id: warehouseId,
                 quantity,
                 type,
                 reason
-            });
+            };
+            if (navigator.onLine) {
+                await inventoryApi.updateStock(payload);
+            } else {
+                await syncService.queue('stockUpdate', 'UPDATE', payload);
+            }
 
             set((state) => ({
                 inventory: state.inventory.map(item => {
@@ -188,6 +224,15 @@ export const useInventoryStore = create<InventoryState>((set, get) => ({
                     return { ...item, warehouseQuantities: updatedWq };
                 })
             }));
+
+            const existing = await localDb.inventoryItems.get(itemId);
+            if (existing) {
+                const wqExists = (existing.warehouseQuantities || []).some((wq: any) => wq.warehouseId === warehouseId);
+                const updatedWq = wqExists
+                    ? existing.warehouseQuantities.map((wq: any) => wq.warehouseId === warehouseId ? { ...wq, quantity } : wq)
+                    : [...(existing.warehouseQuantities || []), { warehouseId, quantity }];
+                await localDb.inventoryItems.put({ ...existing, warehouseQuantities: updatedWq, updatedAt: Date.now() });
+            }
         } catch (error: any) {
             set({ error: error.message });
         }

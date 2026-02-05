@@ -136,7 +136,7 @@ const Finance: React.FC = () => {
 
         {/* Right Column: Recent Transactions */}
         <div className="space-y-6">
-          <div className="bg-white dark:bg-slate-900 rounded-[3rem] border border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden flex flex-col h-[700px]">
+          <div className="bg-white dark:bg-slate-900 rounded-[3rem] border border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden flex flex-col min-h-[420px] md:h-[560px] lg:h-[700px]">
             <div className="p-8 border-b border-slate-100 dark:border-slate-800">
               <h3 className="text-xl font-black text-slate-800 dark:text-white flex items-center gap-3">
                 <History size={24} className="text-indigo-600" /> Journal Log

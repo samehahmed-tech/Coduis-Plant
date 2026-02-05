@@ -19,7 +19,7 @@ const backgrounds = [
 ];
 
 const Login: React.FC = () => {
-    const { login, settings, updateSettings } = useAuthStore();
+    const { loginWithPassword, settings, updateSettings } = useAuthStore();
     const navigate = useNavigate();
 
     const [email, setEmail] = useState('');
@@ -28,28 +28,15 @@ const Login: React.FC = () => {
     const [bgIndex, setBgIndex] = useState(0);
     const [error, setError] = useState<string | undefined>();
 
-    // Mock User Database for Demo
-    const handleLogin = (e: string, p: string) => {
-        // In a real app, this would hit an API
-        // For demo, we verify against hardcoded demo users (which we could also pull from a constant or store)
-        const DEMO_USERS = [
-            { email: 'admin@1.com', role: 'SUPER_ADMIN', name: 'Super Admin', id: 'u1', isActive: true, permissions: [] },
-            { email: 'manager@1.com', role: 'BRANCH_MANAGER', name: 'Manager Base', id: 'u2', isActive: true, permissions: [], assignedBranchId: 'b1' },
-            { email: 'cashier@1.com', role: 'CASHIER', name: 'Cashier Main', id: 'u3', isActive: true, permissions: [], assignedBranchId: 'b1' },
-            { email: 'kitchen@1.com', role: 'KITCHEN_STAFF', name: 'Kitchen Display', id: 'u4', isActive: true, permissions: [], assignedBranchId: 'b1' },
-            { email: 'callcenter@1.com', role: 'CALL_CENTER', name: 'Call Center', id: 'u5', isActive: true, permissions: [] }
-        ];
-
-        const user = DEMO_USERS.find(u => u.email === e);
-
-        if (user) {
-            // @ts-ignore - simplistic casting for demo
-            login(user);
+    // Real API Login
+    const handleLogin = async (e: string, p: string) => {
+        try {
+            const user = await loginWithPassword(e, p);
             if (user.role === 'CASHIER') navigate('/pos');
             else if (user.role === 'KITCHEN_STAFF') navigate('/kitchen');
             else navigate('/');
-        } else {
-            setError(settings.language === 'ar' ? 'Ø¨ÙŠØ§Ù†Ø§Øª Ø§Ù„Ø¯Ø®ÙˆÙ„ ØºÙŠØ± ØµØ­ÙŠØ­Ø©' : 'Invalid credentials');
+        } catch (err: any) {
+            setError(settings.language === 'ar' ? 'ÈíÇäÇÊ ÇáÏÎæá ÛíÑ ÕÍíÍÉ' : 'Invalid credentials');
         }
     };
 
@@ -100,7 +87,7 @@ const Login: React.FC = () => {
     }[settings.language];
 
     return (
-        <div className="fixed inset-0 min-h-screen flex items-center justify-center p-4 overflow-hidden font-outfit">
+        <div className="fixed inset-0 app-viewport safe-area flex items-center justify-center p-4 overflow-hidden font-outfit">
             {/* Background Slideshow */}
             {backgrounds.map((bg, index) => (
                 <div
@@ -117,25 +104,6 @@ const Login: React.FC = () => {
 
             {/* Overlay */}
             <div className="absolute inset-0 bg-slate-950/40 backdrop-blur-[2px]" />
-
-            {/* Demo Login Helpers */}
-            <div className="absolute bottom-8 left-8 right-8 z-50 flex gap-2 justify-center flex-wrap">
-                {[
-                    { email: 'admin@1.com', label: 'Admin' },
-                    { email: 'manager@1.com', label: 'Manager' },
-                    { email: 'cashier@1.com', label: 'Cashier' },
-                    { email: 'kitchen@1.com', label: 'Kitchen' },
-                    { email: 'callcenter@1.com', label: 'Call Center' }
-                ].map(u => (
-                    <button
-                        key={u.email}
-                        onClick={() => handleLogin(u.email, '123456')}
-                        className="px-3 py-1 bg-white/10 hover:bg-white/20 backdrop-blur-md rounded-lg text-white/60 hover:text-white text-[10px] font-bold uppercase transition-all tracking-wider border border-white/5"
-                    >
-                        {u.label}
-                    </button>
-                ))}
-            </div>
 
             {/* Language Toggle */}
             <button
@@ -245,3 +213,7 @@ const Login: React.FC = () => {
 };
 
 export default Login;
+
+
+
+

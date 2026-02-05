@@ -24,8 +24,23 @@ export const getUserById = async (req: Request, res: Response) => {
 
 export const createUser = async (req: Request, res: Response) => {
     try {
+        const body = req.body || {};
+        let passwordHash = body.password_hash || body.passwordHash;
+        if (body.password) {
+            const bcrypt = await import('bcryptjs');
+            passwordHash = await bcrypt.hash(body.password, 10);
+        }
+
         const newUser = await db.insert(users).values({
-            ...req.body,
+            id: body.id,
+            name: body.name,
+            email: body.email,
+            role: body.role,
+            permissions: body.permissions,
+            assignedBranchId: body.assigned_branch_id || body.assignedBranchId,
+            isActive: body.is_active !== false,
+            managerPin: body.manager_pin || body.managerPin,
+            passwordHash,
             createdAt: new Date(),
             updatedAt: new Date(),
         }).returning();
@@ -37,8 +52,24 @@ export const createUser = async (req: Request, res: Response) => {
 
 export const updateUser = async (req: Request, res: Response) => {
     try {
+        const body = req.body || {};
+        let passwordHash = body.password_hash || body.passwordHash;
+        if (body.password) {
+            const bcrypt = await import('bcryptjs');
+            passwordHash = await bcrypt.hash(body.password, 10);
+        }
         const updatedUser = await db.update(users)
-            .set({ ...req.body, updatedAt: new Date() })
+            .set({
+                name: body.name,
+                email: body.email,
+                role: body.role,
+                permissions: body.permissions,
+                assignedBranchId: body.assigned_branch_id || body.assignedBranchId,
+                isActive: body.is_active !== undefined ? body.is_active : undefined,
+                managerPin: body.manager_pin || body.managerPin,
+                passwordHash,
+                updatedAt: new Date()
+            })
             .where(eq(users.id, req.params.id))
             .returning();
         if (updatedUser.length === 0) return res.status(404).json({ error: 'User not found' });

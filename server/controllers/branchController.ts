@@ -14,8 +14,20 @@ export const getAllBranches = async (req: Request, res: Response) => {
 
 export const createBranch = async (req: Request, res: Response) => {
     try {
+        const body = req.body || {};
         const newBranch = await db.insert(branches).values({
-            ...req.body,
+            id: body.id,
+            name: body.name,
+            nameAr: body.name_ar || body.nameAr,
+            location: body.location,
+            address: body.address,
+            phone: body.phone,
+            email: body.email,
+            isActive: body.is_active !== false,
+            timezone: body.timezone,
+            currency: body.currency,
+            taxRate: body.tax_rate ?? body.taxRate,
+            serviceCharge: body.service_charge ?? body.serviceCharge,
             createdAt: new Date(),
             updatedAt: new Date(),
         }).returning();
@@ -27,8 +39,22 @@ export const createBranch = async (req: Request, res: Response) => {
 
 export const updateBranch = async (req: Request, res: Response) => {
     try {
+        const body = req.body || {};
         const updatedBranch = await db.update(branches)
-            .set({ ...req.body, updatedAt: new Date() })
+            .set({
+                name: body.name,
+                nameAr: body.name_ar || body.nameAr,
+                location: body.location,
+                address: body.address,
+                phone: body.phone,
+                email: body.email,
+                isActive: body.is_active !== undefined ? body.is_active : undefined,
+                timezone: body.timezone,
+                currency: body.currency,
+                taxRate: body.tax_rate ?? body.taxRate,
+                serviceCharge: body.service_charge ?? body.serviceCharge,
+                updatedAt: new Date()
+            })
             .where(eq(branches.id, req.params.id))
             .returning();
         res.json(updatedBranch[0]);

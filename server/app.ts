@@ -14,6 +14,12 @@ import purchaseOrderRoutes from './routes/purchaseOrderRoutes';
 import customerRoutes from './routes/customerRoutes';
 import settingsRoutes from './routes/settingsRoutes';
 import tableRoutes from './routes/tableRoutes';
+import inventoryRoutes from './routes/inventoryRoutes';
+import warehouseRoutes from './routes/warehouseRoutes';
+import auditRoutes from './routes/auditRoutes';
+import imageRoutes from './routes/imageRoutes';
+import authRoutes from './routes/authRoutes';
+import { authenticateToken, requireRoles } from './middleware/auth';
 
 const app = express();
 
@@ -25,25 +31,36 @@ app.use(cors({
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ limit: '50mb', extended: true }));
 
-// Routes
-app.use('/api/users', userRoutes);
-app.use('/api/branches', branchRoutes);
-app.use('/api/menu', menuRoutes);
-app.use('/api/orders', orderRoutes);
-app.use('/api/shifts', shiftRoutes);
-app.use('/api/approvals', approvalRoutes);
-app.use('/api/reports', reportRoutes);
-app.use('/api/delivery', deliveryRoutes);
-app.use('/api/wastage', wastageRoutes);
-app.use('/api/suppliers', supplierRoutes);
-app.use('/api/purchase-orders', purchaseOrderRoutes);
-app.use('/api/customers', customerRoutes);
-app.use('/api/settings', settingsRoutes);
-app.use('/api/tables', tableRoutes);
+// Public Routes
+app.use('/api/auth', authRoutes);
 
 // Health check
 app.get('/api/health', (req, res) => {
     res.json({ status: 'ok', timestamp: new Date() });
 });
+
+// Protected Routes
+app.use('/api', authenticateToken);
+
+app.use('/api/users', requireRoles('SUPER_ADMIN'), userRoutes);
+app.use('/api/branches', branchRoutes);
+app.use('/api/menu', menuRoutes);
+app.use('/api/orders', orderRoutes);
+app.use('/api/shifts', shiftRoutes);
+app.use('/api/approvals', requireRoles('SUPER_ADMIN', 'BRANCH_MANAGER', 'MANAGER'), approvalRoutes);
+app.use('/api/reports', requireRoles('SUPER_ADMIN', 'BRANCH_MANAGER', 'FINANCE'), reportRoutes);
+app.use('/api/delivery', deliveryRoutes);
+app.use('/api/wastage', requireRoles('SUPER_ADMIN', 'BRANCH_MANAGER', 'MANAGER'), wastageRoutes);
+app.use('/api/suppliers', requireRoles('SUPER_ADMIN', 'BRANCH_MANAGER', 'MANAGER'), supplierRoutes);
+app.use('/api/purchase-orders', requireRoles('SUPER_ADMIN', 'BRANCH_MANAGER', 'MANAGER'), purchaseOrderRoutes);
+app.use('/api/customers', customerRoutes);
+app.use('/api/settings', requireRoles('SUPER_ADMIN', 'BRANCH_MANAGER'), settingsRoutes);
+app.use('/api/tables', tableRoutes);
+app.use('/api/inventory', inventoryRoutes);
+app.use('/api/warehouses', warehouseRoutes);
+app.use('/api/audit-logs', requireRoles('SUPER_ADMIN', 'BRANCH_MANAGER', 'MANAGER'), auditRoutes);
+app.use('/api/images', imageRoutes);
+
+// (health moved above)
 
 export default app;

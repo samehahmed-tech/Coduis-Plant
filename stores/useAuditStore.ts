@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { AuditLog, AuditEventType } from '../types';
 import { auditApi } from '../services/api';
+import { localDb } from '../db/localDb';
 
 interface AuditState {
     logs: AuditLog[];
@@ -19,15 +20,21 @@ export const useAuditStore = create<AuditState>((set, get) => ({
     fetchLogs: async (params) => {
         set({ isLoading: true, error: null });
         try {
-            const data = await auditApi.getAll(params);
-            const logs = data.map((l: any) => ({
-                ...l,
-                timestamp: new Date(l.created_at || l.timestamp),
-                payload: typeof l.payload === 'string' ? JSON.parse(l.payload) : l.payload,
-                before: typeof l.before === 'string' && l.before ? JSON.parse(l.before) : l.before,
-                after: typeof l.after === 'string' && l.after ? JSON.parse(l.after) : l.after,
-            }));
-            set({ logs, isLoading: false });
+            if (navigator.onLine) {
+                const data = await auditApi.getAll(params);
+                const logs = data.map((l: any) => ({
+                    ...l,
+                    timestamp: new Date(l.created_at || l.timestamp),
+                    payload: typeof l.payload === 'string' ? JSON.parse(l.payload) : l.payload,
+                    before: typeof l.before === 'string' && l.before ? JSON.parse(l.before) : l.before,
+                    after: typeof l.after === 'string' && l.after ? JSON.parse(l.after) : l.after,
+                }));
+                set({ logs, isLoading: false });
+                await localDb.auditLogs.bulkPut(logs.map(l => ({ ...l, createdAt: l.timestamp })));
+            } else {
+                const cached = await localDb.auditLogs.toArray();
+                set({ logs: cached as AuditLog[], isLoading: false });
+            }
         } catch (error: any) {
             set({ error: error.message, isLoading: false });
         }

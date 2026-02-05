@@ -2,6 +2,8 @@
 import { create } from 'zustand';
 import { Order, OrderType, OrderItem, OrderStatus, Table, TableStatus, AuditEventType } from '../types';
 import { ordersApi, tablesApi } from '../services/api';
+import { localDb } from '../db/localDb';
+import { syncService } from '../services/syncService';
 
 interface HeldOrder {
     id: string;
@@ -88,30 +90,37 @@ export const useOrderStore = create<OrderState>()(
             fetchOrders: async (params) => {
                 set({ isLoading: true, error: null });
                 try {
-                    const data = await ordersApi.getAll(params);
-                    const orders = data.map((o: any) => ({
-                        id: o.id,
-                        type: o.type as OrderType,
-                        branchId: o.branch_id,
-                        tableId: o.table_id,
-                        customerId: o.customer_id,
-                        customerName: o.customer_name,
-                        customerPhone: o.customer_phone,
-                        deliveryAddress: o.delivery_address,
-                        isCallCenterOrder: o.is_call_center_order,
-                        items: o.items || [],
-                        status: o.status as OrderStatus,
-                        subtotal: o.subtotal,
-                        tax: o.tax,
-                        total: o.total,
-                        discount: o.discount,
-                        freeDelivery: o.free_delivery,
-                        isUrgent: o.is_urgent,
-                        paymentMethod: o.payment_method,
-                        notes: o.notes,
-                        createdAt: new Date(o.created_at),
-                    }));
-                    set({ orders, isLoading: false });
+                    if (navigator.onLine) {
+                        const data = await ordersApi.getAll(params);
+                        const orders = data.map((o: any) => ({
+                            id: o.id,
+                            type: o.type as OrderType,
+                            branchId: o.branch_id || o.branchId,
+                            tableId: o.table_id || o.tableId,
+                            customerId: o.customer_id || o.customerId,
+                            customerName: o.customer_name || o.customerName,
+                            customerPhone: o.customer_phone || o.customerPhone,
+                            deliveryAddress: o.delivery_address || o.deliveryAddress,
+                            isCallCenterOrder: o.is_call_center_order || o.isCallCenterOrder,
+                            items: o.items || [],
+                            status: o.status as OrderStatus,
+                            subtotal: o.subtotal,
+                            tax: o.tax,
+                            total: o.total,
+                            discount: o.discount,
+                            freeDelivery: o.free_delivery,
+                            isUrgent: o.is_urgent,
+                            paymentMethod: o.payment_method,
+                            notes: o.notes,
+                            createdAt: new Date(o.created_at || o.createdAt),
+                            syncStatus: o.sync_status || 'SYNCED'
+                        }));
+                        set({ orders, isLoading: false });
+                        await localDb.orders.bulkPut(orders as any[]);
+                    } else {
+                        const cached = await localDb.orders.toArray();
+                        set({ orders: cached as Order[], isLoading: false });
+                    }
                 } catch (error: any) {
                     set({ error: error.message, isLoading: false });
                     console.error('Failed to fetch orders:', error);
@@ -121,11 +130,19 @@ export const useOrderStore = create<OrderState>()(
             fetchTables: async (branchId: string) => {
                 set({ isLoading: true });
                 try {
-                    const tables = await tablesApi.getAll(branchId);
-                    const zones = await tablesApi.getZones(branchId);
-                    // Map or validate data if needed
-                    console.log('Fetched tables:', tables);
-                    set({ tables, zones, isLoading: false });
+                    if (navigator.onLine) {
+                        const tables = await tablesApi.getAll(branchId);
+                        const zones = await tablesApi.getZones(branchId);
+                        // Map or validate data if needed
+                        console.log('Fetched tables:', tables);
+                        set({ tables, zones, isLoading: false });
+                        await localDb.tables.bulkPut(tables.map((t: any) => ({ ...t, branchId })));
+                        await localDb.zones.bulkPut(zones.map((z: any) => ({ ...z, branchId })));
+                    } else {
+                        const tables = await localDb.tables.where('branchId').equals(branchId).toArray();
+                        const zones = await localDb.zones.where('branchId').equals(branchId).toArray();
+                        set({ tables, zones, isLoading: false });
+                    }
                 } catch (error: any) {
                     console.error('Failed to fetch tables:', error);
                     set({ error: error.message, isLoading: false });
@@ -135,8 +152,7 @@ export const useOrderStore = create<OrderState>()(
             placeOrder: async (order) => {
                 set({ isLoading: true, error: null });
                 try {
-                    // Send to API
-                    const savedOrder = await ordersApi.create({
+                    const payload = {
                         id: order.id,
                         type: order.type,
                         source: order.isCallCenterOrder ? 'call_center' : 'pos',
@@ -166,7 +182,16 @@ export const useOrderStore = create<OrderState>()(
                             notes: item.notes,
                             modifiers: item.selectedModifiers,
                         }))
-                    });
+                    };
+
+                    let savedOrder: any = order;
+
+                    if (navigator.onLine) {
+                        savedOrder = await ordersApi.create(payload);
+                    } else {
+                        await syncService.queue('order', 'CREATE', payload);
+                        savedOrder = { ...order, syncStatus: 'PENDING' };
+                    }
 
                     // Emit event for other systems (Inventory, Audit, etc.)
                     eventBus.emit(AuditEventType.POS_ORDER_PLACEMENT, {
@@ -176,11 +201,13 @@ export const useOrderStore = create<OrderState>()(
 
                     // Update local state
                     set((state) => ({
-                        orders: [order, ...state.orders],
+                        orders: [savedOrder, ...state.orders],
                         activeCart: [],
                         discount: 0,
                         isLoading: false
                     }));
+
+                    await localDb.orders.put(savedOrder as any);
 
                     return savedOrder;
                 } catch (error: any) {
@@ -192,10 +219,18 @@ export const useOrderStore = create<OrderState>()(
 
             updateOrderStatus: async (orderId, status, changedBy) => {
                 try {
-                    await ordersApi.updateStatus(orderId, { status, changed_by: changedBy });
+                    if (navigator.onLine) {
+                        await ordersApi.updateStatus(orderId, { status, changed_by: changedBy });
+                    } else {
+                        await syncService.queue('orderStatus', 'UPDATE', { id: orderId, data: { status, changed_by: changedBy } });
+                    }
                     set((state) => ({
                         orders: state.orders.map(o => o.id === orderId ? { ...o, status } : o)
                     }));
+                    const existing = await localDb.orders.get(orderId);
+                    if (existing) {
+                        await localDb.orders.put({ ...existing, status } as any);
+                    }
                 } catch (error: any) {
                     // Update locally anyway for responsiveness
                     set((state) => ({
@@ -273,7 +308,15 @@ export const useOrderStore = create<OrderState>()(
                     tables: state.tables.map(t => t.id === tableId ? { ...t, status } : t)
                 }));
                 try {
-                    await tablesApi.updateStatus(tableId, status);
+                    if (navigator.onLine) {
+                        await tablesApi.updateStatus(tableId, status);
+                    } else {
+                        await syncService.queue('tableStatus', 'UPDATE', { id: tableId, status });
+                    }
+                    const existing = await localDb.tables.get(tableId);
+                    if (existing) {
+                        await localDb.tables.put({ ...existing, status });
+                    }
                 } catch (error) {
                     console.error('Failed to sync table status:', error);
                 }
@@ -379,3 +422,4 @@ export const useOrderStore = create<OrderState>()(
         { name: 'order-storage' }
     )
 );
+

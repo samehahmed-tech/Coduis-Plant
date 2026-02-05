@@ -2,7 +2,9 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { User, AppSettings, AppPermission, UserRole, INITIAL_ROLE_PERMISSIONS, Branch, Printer } from '../types';
-import { usersApi, branchesApi, settingsApi } from '../services/api';
+import { usersApi, branchesApi, settingsApi, authApi } from '../services/api';
+import { localDb } from '../db/localDb';
+import { syncService } from '../services/syncService';
 
 interface AuthState {
     settings: AppSettings;
@@ -10,11 +12,14 @@ interface AuthState {
     printers: Printer[];
     users: User[];
     isAuthenticated: boolean;
+    token: string | null;
     isSidebarCollapsed: boolean;
     isLoading: boolean;
     error: string | null;
 
     // Async Actions (API)
+    loginWithPassword: (email: string, password: string) => Promise<User>;
+    restoreSession: () => Promise<void>;
     fetchUsers: () => Promise<void>;
     fetchBranches: () => Promise<void>;
     fetchSettings: () => Promise<void>;
@@ -22,6 +27,7 @@ interface AuthState {
     updateUserInDB: (user: User) => Promise<void>;
     deleteUserFromDB: (id: string) => Promise<void>;
     createBranch: (branch: Branch) => Promise<void>;
+    syncToDatabase: () => Promise<void>;
 
     // Local Actions
     login: (user: User) => void;
@@ -68,29 +74,104 @@ export const useAuthStore = create<AuthState>()(
             printers: [],
             users: INITIAL_USERS,
             isAuthenticated: false,
+            token: null,
             isSidebarCollapsed: false,
             isLoading: false,
             error: null,
 
             // ============ API Actions ============
 
+            loginWithPassword: async (email, password) => {
+                set({ isLoading: true, error: null });
+                try {
+                    const result = await authApi.login(email, password);
+                    const { token, user } = result;
+
+                    if (token) {
+                        localStorage.setItem('auth_token', token);
+                    }
+
+                    const mappedUser: User = {
+                        id: user.id,
+                        name: user.name,
+                        email: user.email,
+                        role: user.role,
+                        permissions: user.permissions || INITIAL_ROLE_PERMISSIONS[user.role as UserRole] || [],
+                        isActive: user.isActive !== false,
+                        assignedBranchId: user.assignedBranchId,
+                    };
+
+                    set((state) => ({
+                        token,
+                        settings: { ...state.settings, currentUser: mappedUser, activeBranchId: mappedUser.assignedBranchId || state.branches[0]?.id },
+                        isAuthenticated: true,
+                        isLoading: false
+                    }));
+                    syncService.syncPending();
+                    return mappedUser;
+                } catch (error: any) {
+                    set({ error: error.message || 'Login failed', isLoading: false });
+                    throw error;
+                }
+            },
+
+            restoreSession: async () => {
+                const token = localStorage.getItem('auth_token');
+                if (!token) return;
+                try {
+                    const { user } = await authApi.me();
+                    const mappedUser: User = {
+                        id: user.id,
+                        name: user.name,
+                        email: user.email,
+                        role: user.role,
+                        permissions: user.permissions || INITIAL_ROLE_PERMISSIONS[user.role as UserRole] || [],
+                        isActive: user.isActive !== false,
+                        assignedBranchId: user.assignedBranchId,
+                    };
+                    set((state) => ({
+                        token,
+                        settings: { ...state.settings, currentUser: mappedUser, activeBranchId: mappedUser.assignedBranchId || state.branches[0]?.id },
+                        isAuthenticated: true
+                    }));
+                } catch {
+                    const cachedUser = get().settings.currentUser;
+                    if (cachedUser) {
+                        set((state) => ({
+                            token,
+                            settings: { ...state.settings, currentUser: cachedUser, activeBranchId: cachedUser.assignedBranchId || state.branches[0]?.id },
+                            isAuthenticated: true
+                        }));
+                    } else {
+                        localStorage.removeItem('auth_token');
+                    }
+                }
+            },
+
             fetchUsers: async () => {
                 set({ isLoading: true });
                 try {
-                    const data = await usersApi.getAll();
-                    if (data.length > 0) {
-                        const users = data.map((u: any) => ({
-                            id: u.id,
-                            name: u.name,
-                            email: u.email,
-                            role: u.role as UserRole,
-                            permissions: u.permissions || INITIAL_ROLE_PERMISSIONS[u.role as UserRole] || [],
-                            isActive: u.is_active !== false,
-                            assignedBranchId: u.assigned_branch_id,
-                        }));
-                        set({ users, isLoading: false });
+                    if (navigator.onLine) {
+                        const data = await usersApi.getAll();
+                        if (data.length > 0) {
+                            const users = data.map((u: any) => ({
+                                id: u.id,
+                                name: u.name,
+                                email: u.email,
+                                role: u.role as UserRole,
+                                permissions: u.permissions || INITIAL_ROLE_PERMISSIONS[u.role as UserRole] || [],
+                                isActive: u.is_active !== false,
+                                assignedBranchId: u.assigned_branch_id,
+                            }));
+                            set({ users, isLoading: false });
+                            await localDb.users.bulkPut(users);
+                        } else {
+                            set({ isLoading: false });
+                        }
                     } else {
-                        set({ isLoading: false });
+                        const cached = await localDb.users.toArray();
+                        if (cached.length > 0) set({ users: cached as User[], isLoading: false });
+                        else set({ isLoading: false });
                     }
                 } catch (error: any) {
                     set({ isLoading: false });
@@ -100,17 +181,23 @@ export const useAuthStore = create<AuthState>()(
 
             fetchBranches: async () => {
                 try {
-                    const data = await branchesApi.getAll();
-                    if (data.length > 0) {
-                        const branches = data.map((b: any) => ({
-                            id: b.id,
-                            name: b.name,
-                            location: b.location || b.address,
-                            address: b.address,
-                            phone: b.phone,
-                            isActive: b.is_active !== false,
-                        }));
-                        set({ branches });
+                    if (navigator.onLine) {
+                        const data = await branchesApi.getAll();
+                        if (data.length > 0) {
+                            const branches = data.map((b: any) => ({
+                                id: b.id,
+                                name: b.name,
+                                location: b.location || b.address,
+                                address: b.address,
+                                phone: b.phone,
+                                isActive: b.is_active !== false,
+                            }));
+                            set({ branches });
+                            await localDb.branches.bulkPut(branches as any[]);
+                        }
+                    } else {
+                        const cached = await localDb.branches.toArray();
+                        if (cached.length > 0) set({ branches: cached as Branch[] });
                     }
                 } catch (error) {
                     console.error('Failed to fetch branches:', error);
@@ -119,25 +206,50 @@ export const useAuthStore = create<AuthState>()(
 
             fetchSettings: async () => {
                 try {
-                    const data = await settingsApi.getAll();
-                    if (Object.keys(data).length > 0) {
-                        set((state) => ({
-                            settings: {
-                                ...state.settings,
-                                restaurantName: data.restaurantName || state.settings.restaurantName,
-                                phone: data.phone || state.settings.phone,
-                                branchAddress: data.branchAddress || state.settings.branchAddress,
-                                currency: data.currency || state.settings.currency,
-                                taxRate: data.taxRate ?? state.settings.taxRate,
-                                serviceCharge: data.serviceCharge ?? state.settings.serviceCharge,
-                                language: data.language || state.settings.language,
-                                isDarkMode: data.isDarkMode ?? state.settings.isDarkMode,
-                                theme: data.theme || state.settings.theme,
-                                geminiApiKey: data.geminiApiKey || state.settings.geminiApiKey,
-                                currencySymbol: data.currencySymbol || state.settings.currencySymbol,
-                                isTouchMode: data.isTouchMode ?? state.settings.isTouchMode,
-                            }
-                        }));
+                    if (navigator.onLine) {
+                        const data = await settingsApi.getAll();
+                        if (Object.keys(data).length > 0) {
+                            set((state) => ({
+                                settings: {
+                                    ...state.settings,
+                                    restaurantName: data.restaurantName || state.settings.restaurantName,
+                                    phone: data.phone || state.settings.phone,
+                                    branchAddress: data.branchAddress || state.settings.branchAddress,
+                                    currency: data.currency || state.settings.currency,
+                                    taxRate: data.taxRate ?? state.settings.taxRate,
+                                    serviceCharge: data.serviceCharge ?? state.settings.serviceCharge,
+                                    language: data.language || state.settings.language,
+                                    isDarkMode: data.isDarkMode ?? state.settings.isDarkMode,
+                                    theme: data.theme || state.settings.theme,
+                                    geminiApiKey: data.geminiApiKey || state.settings.geminiApiKey,
+                                    currencySymbol: data.currencySymbol || state.settings.currencySymbol,
+                                    isTouchMode: data.isTouchMode ?? state.settings.isTouchMode,
+                                }
+                            }));
+                            await localDb.settings.put({ key: 'app', value: data, updatedAt: Date.now() });
+                        }
+                    } else {
+                        const cached = await localDb.settings.get('app');
+                        if (cached?.value) {
+                            const data = cached.value;
+                            set((state) => ({
+                                settings: {
+                                    ...state.settings,
+                                    restaurantName: data.restaurantName || state.settings.restaurantName,
+                                    phone: data.phone || state.settings.phone,
+                                    branchAddress: data.branchAddress || state.settings.branchAddress,
+                                    currency: data.currency || state.settings.currency,
+                                    taxRate: data.taxRate ?? state.settings.taxRate,
+                                    serviceCharge: data.serviceCharge ?? state.settings.serviceCharge,
+                                    language: data.language || state.settings.language,
+                                    isDarkMode: data.isDarkMode ?? state.settings.isDarkMode,
+                                    theme: data.theme || state.settings.theme,
+                                    geminiApiKey: data.geminiApiKey || state.settings.geminiApiKey,
+                                    currencySymbol: data.currencySymbol || state.settings.currencySymbol,
+                                    isTouchMode: data.isTouchMode ?? state.settings.isTouchMode,
+                                }
+                            }));
+                        }
                     }
                 } catch (error) {
                     console.error('Failed to fetch settings:', error);
@@ -197,19 +309,35 @@ export const useAuthStore = create<AuthState>()(
             createBranch: async (branch) => {
                 set({ isLoading: true });
                 try {
-                    await branchesApi.create({
-                        id: branch.id,
-                        name: branch.name,
-                        location: branch.location,
-                        address: branch.address,
-                        phone: branch.phone,
-                        is_active: branch.isActive,
-                    });
+                    if (navigator.onLine) {
+                        await branchesApi.create({
+                            id: branch.id,
+                            name: branch.name,
+                            location: branch.location,
+                            address: branch.address,
+                            phone: branch.phone,
+                            is_active: branch.isActive,
+                        });
+                    } else {
+                        await syncService.queue('branch', 'CREATE', {
+                            id: branch.id,
+                            name: branch.name,
+                            location: branch.location,
+                            address: branch.address,
+                            phone: branch.phone,
+                            is_active: branch.isActive,
+                        });
+                    }
                     set((state) => ({ branches: [...state.branches, branch], isLoading: false }));
+                    await localDb.branches.put(branch as any);
                 } catch (error: any) {
                     set({ error: error.message, isLoading: false });
                     throw error;
                 }
+            },
+
+            syncToDatabase: async () => {
+                await syncService.syncPending();
             },
 
             // ============ Local Actions ============
@@ -219,17 +347,26 @@ export const useAuthStore = create<AuthState>()(
                 isAuthenticated: true
             })),
 
-            logout: () => set((state) => ({
-                settings: { ...state.settings, currentUser: undefined, activeBranchId: undefined },
-                isAuthenticated: false
-            })),
+            logout: () => {
+                localStorage.removeItem('auth_token');
+                set((state) => ({
+                    settings: { ...state.settings, currentUser: undefined, activeBranchId: undefined },
+                    isAuthenticated: false,
+                    token: null
+                }));
+            },
 
             updateSettings: (newSettings) => {
                 set((state) => ({
                     settings: { ...state.settings, ...newSettings }
                 }));
                 // Sync to database in background
-                settingsApi.updateBulk(newSettings).catch(console.error);
+                if (navigator.onLine) {
+                    settingsApi.updateBulk(newSettings).catch(console.error);
+                } else {
+                    syncService.queue('settingsBulk', 'UPDATE', newSettings).catch(console.error);
+                }
+                localDb.settings.put({ key: 'app', value: { ...get().settings, ...newSettings }, updatedAt: Date.now() }).catch(console.error);
             },
 
             setActiveBranch: (branchId) => set((state) => ({

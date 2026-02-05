@@ -39,7 +39,12 @@ import { aiIntelligenceService } from './services/aiIntelligenceService';
 
 const App: React.FC = () => {
   const { settings } = useAuthStore();
+  const restoreSession = useAuthStore(state => state.restoreSession);
   const { isLoading, isConnected } = useDataInit();
+
+  useEffect(() => {
+    restoreSession();
+  }, []);
 
   useEffect(() => {
     // Initialize services

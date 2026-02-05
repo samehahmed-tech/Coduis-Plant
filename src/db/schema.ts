@@ -287,10 +287,13 @@ export const payments = pgTable('payments', {
 export const warehouses = pgTable('warehouses', {
     id: text('id').primaryKey(),
     name: text('name').notNull(),
+    nameAr: text('name_ar'),
     branchId: text('branch_id').references(() => branches.id),
     type: text('type').default('MAIN'), // MAIN, SUB, KITCHEN, POINT_OF_SALE
+    parentId: text('parent_id'),
     isActive: boolean('is_active').default(true),
     createdAt: timestamp('created_at').defaultNow(),
+    updatedAt: timestamp('updated_at').defaultNow(),
 });
 
 export const inventoryItems = pgTable('inventory_items', {
@@ -303,7 +306,12 @@ export const inventoryItems = pgTable('inventory_items', {
     category: text('category'),
     threshold: real('threshold').default(0), // Low stock alert threshold
     costPrice: real('cost_price').default(0),
+    purchasePrice: real('purchase_price').default(0),
     supplierId: text('supplier_id'),
+    isAudited: boolean('is_audited').default(true),
+    auditFrequency: text('audit_frequency').default('DAILY'),
+    isComposite: boolean('is_composite').default(false),
+    bom: json('bom').$type<any[]>().default([]),
     isActive: boolean('is_active').default(true),
     createdAt: timestamp('created_at').defaultNow(),
     updatedAt: timestamp('updated_at').defaultNow(),
@@ -435,6 +443,22 @@ export const auditLogs = pgTable('audit_logs', {
 });
 
 // ============================================================================
+// 🖼️ IMAGES
+// ============================================================================
+
+export const images = pgTable('images', {
+    id: text('id').primaryKey(),
+    key: text('key').notNull(),
+    url: text('url').notNull(),
+    filename: text('filename'),
+    contentType: text('content_type'),
+    width: integer('width'),
+    height: integer('height'),
+    size: integer('size'),
+    createdAt: timestamp('created_at').defaultNow(),
+});
+
+// ============================================================================
 // 🕒 SHIFT MANAGEMENT
 // ============================================================================
 
@@ -547,6 +571,7 @@ export type InventoryItem = typeof inventoryItems.$inferSelect;
 export type StockMovement = typeof stockMovements.$inferSelect;
 
 export type AuditLog = typeof auditLogs.$inferSelect;
+export type Image = typeof images.$inferSelect;
 
 // ============================================================================
 // 🪑 TABLES & FLOOR PLAN

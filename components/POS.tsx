@@ -98,6 +98,7 @@ const POS: React.FC = () => {
    const [showSplitModal, setShowSplitModal] = useState(false);
    const [showCalculator, setShowCalculator] = useState(false);
    const [showApprovalModal, setShowApprovalModal] = useState(false);
+   const [isCartOpenMobile, setIsCartOpenMobile] = useState(false);
    const [approvalCallback, setApprovalCallback] = useState<{ fn: () => void; action: string } | null>(null);
    const activeShift = useFinanceStore(state => state.activeShift);
    const setShift = useFinanceStore(state => state.setShift);
@@ -134,7 +135,6 @@ const POS: React.FC = () => {
    const isDarkMode = settings.isDarkMode;
    const isTouchMode = settings.isTouchMode;
    const currencySymbol = settings.currencySymbol;
-   const branchId = settings.activeBranchId || 'b1';
 
    const currentCategories = useMemo(() =>
       (categories || []).filter(cat => cat.menuIds.includes(activeMenuId || '')),
@@ -242,6 +242,7 @@ const POS: React.FC = () => {
       } else {
          addToCart({ ...item, cartId: Math.random().toString(36).substr(2, 9), quantity: 1, selectedModifiers: [] });
       }
+      setIsCartOpenMobile(true);
    }, [activeCart, addToCart, updateCartItemQuantity]);
 
    const handleUpdateQuantity = useCallback((cartId: string, delta: number) => {
@@ -364,9 +365,18 @@ const POS: React.FC = () => {
    }, []);
    const showMap = activeOrderType === OrderType.DINE_IN && !selectedTableId;
    const showCustomerSelect = activeOrderType === OrderType.DELIVERY && !deliveryCustomer;
+   const shouldShowCart = (activeCart.length > 0 || selectedTableId) && !showMap && !showCustomerSelect;
+
+   useEffect(() => {
+      if (showMap || showCustomerSelect) setIsCartOpenMobile(false);
+   }, [showMap, showCustomerSelect]);
+
+   useEffect(() => {
+      if (activeCart.length === 0 && !selectedTableId) setIsCartOpenMobile(false);
+   }, [activeCart.length, selectedTableId]);
 
    return (
-      <div className="flex h-screen bg-app text-main transition-colors overflow-hidden">
+      <div className="flex app-viewport bg-app text-main transition-colors overflow-hidden">
          <ShiftOverlays onOpen={() => console.log('Shift opened')} />
 
          <CloseShiftModal
@@ -423,8 +433,8 @@ const POS: React.FC = () => {
 
             <div className="flex-1 flex overflow-hidden relative">
                {/* Cart Mobile Overlay */}
-               {(activeCart.length > 0 || selectedTableId) && !showMap && !showCustomerSelect && (
-                  <div className="lg:hidden fixed inset-0 bg-black/40 backdrop-blur-sm z-30 animate-in fade-in" />
+               {shouldShowCart && isCartOpenMobile && (
+                  <div className="lg:hidden fixed inset-0 bg-black/40 backdrop-blur-sm z-30 animate-in fade-in" onClick={() => setIsCartOpenMobile(false)} />
                )}
 
                {showMap ? (
@@ -446,6 +456,7 @@ const POS: React.FC = () => {
                               setSelectedTableId(table.id);
                               clearCart();
                               setShowMap(false);
+                              setIsCartOpenMobile(true);
                            }
                         }}
                         lang={lang}
@@ -456,7 +467,7 @@ const POS: React.FC = () => {
                ) : showCustomerSelect ? (
                   <CustomerSelectView
                      customers={customers}
-                     onSelectCustomer={setDeliveryCustomer}
+                     onSelectCustomer={(c) => { setDeliveryCustomer(c); setIsCartOpenMobile(true); }}
                      lang={lang}
                      t={t}
                   />
@@ -494,11 +505,20 @@ const POS: React.FC = () => {
                         </div>
                      </div>
 
+{shouldShowCart && !isCartOpenMobile && (
+                        <button
+                           onClick={() => setIsCartOpenMobile(true)}
+                           className={`lg:hidden fixed bottom-[max(1rem,var(--safe-bottom))] z-40 px-4 py-3 bg-primary text-white rounded-2xl shadow-2xl font-black text-xs uppercase tracking-widest flex items-center gap-2 ${lang === 'ar' ? 'right-4' : 'left-4'}`}
+                        >
+                           {t.checkout || 'Cart'} ({activeCart.length})
+                        </button>
+                     )}
+
                      {/* Cart Sidebar */}
                      <div className={`
-                     fixed lg:relative inset-y-0 w-[85%] sm:w-[400px] xl:w-[480px] bg-card dark:bg-card flex flex-col h-full shadow-2xl z-40 transition-transform duration-300
+                     fixed lg:relative inset-y-0 w-[85%] max-w-[90vw] sm:w-[400px] xl:w-[480px] bg-card dark:bg-card flex flex-col h-full shadow-2xl z-40 transition-transform duration-300
                      ${lang === 'ar' ? 'border-r left-0' : 'border-l right-0'} border-slate-200 dark:border-slate-800
-                     ${activeCart.length > 0 || selectedTableId ? 'translate-x-0' : (lang === 'ar' ? '-translate-x-full' : 'translate-x-full')} lg:translate-x-0
+                     ${shouldShowCart && isCartOpenMobile ? 'translate-x-0' : (lang === 'ar' ? '-translate-x-full' : 'translate-x-full')} lg:translate-x-0
                   `}>
                         <div className="p-4 md:p-8 border-b border-slate-200 dark:border-slate-800 bg-elevated dark:bg-elevated/50 flex justify-between items-center shrink-0">
                            <div className="min-w-0">
@@ -509,7 +529,7 @@ const POS: React.FC = () => {
                                  {activeOrderType === OrderType.DINE_IN ? `${t.table} ${selectedTableId}` : (activeOrderType === OrderType.DELIVERY ? deliveryCustomer?.name : t.quick_order)}
                               </p>
                            </div>
-                           <button onClick={() => { if (activeOrderType === OrderType.DINE_IN) setSelectedTableId(null); }} className="p-2 md:p-3 text-muted hover:text-primary transition-all bg-card dark:bg-elevated rounded-full shadow-sm flex-shrink-0">
+                           <button onClick={() => { if (activeOrderType === OrderType.DINE_IN) setSelectedTableId(null); setIsCartOpenMobile(false); }} className="p-2 md:p-3 text-muted hover:text-primary transition-all bg-card dark:bg-elevated rounded-full shadow-sm flex-shrink-0">
                               <X size={20} className="md:w-6 md:h-6" />
                            </button>
                         </div>

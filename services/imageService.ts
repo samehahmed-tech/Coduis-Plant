@@ -2,6 +2,13 @@
 // Handles image uploads with automatic resizing based on usage type
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || '/api';
+const getAuthToken = () => {
+    try {
+        return localStorage.getItem('auth_token');
+    } catch {
+        return null;
+    }
+};
 
 // ============================================================================
 // IMAGE SIZE PRESETS (width x height)
@@ -247,7 +254,10 @@ export const uploadImage = async (
         // Send to API
         const response = await fetch(`${API_BASE_URL}/images`, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: {
+                'Content-Type': 'application/json',
+                ...(getAuthToken() ? { 'Authorization': `Bearer ${getAuthToken()}` } : {})
+            },
             body: JSON.stringify({
                 id: `img-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
                 filename: file.name,
@@ -293,7 +303,11 @@ export const uploadImage = async (
  */
 export const getImage = async (id: string): Promise<string | null> => {
     try {
-        const response = await fetch(`${API_BASE_URL}/images/${id}`);
+        const response = await fetch(`${API_BASE_URL}/images/${id}`, {
+            headers: {
+                ...(getAuthToken() ? { 'Authorization': `Bearer ${getAuthToken()}` } : {})
+            }
+        });
         if (!response.ok) return null;
         const data = await response.json();
         return data.url || data.data;
@@ -309,6 +323,9 @@ export const deleteImage = async (id: string): Promise<boolean> => {
     try {
         const response = await fetch(`${API_BASE_URL}/images/${id}`, {
             method: 'DELETE',
+            headers: {
+                ...(getAuthToken() ? { 'Authorization': `Bearer ${getAuthToken()}` } : {})
+            }
         });
         return response.ok;
     } catch {

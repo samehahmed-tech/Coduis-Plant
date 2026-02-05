@@ -2,6 +2,13 @@
 // Connects frontend to backend API
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || '/api';
+const getAuthToken = () => {
+    try {
+        return localStorage.getItem('auth_token');
+    } catch {
+        return null;
+    }
+};
 
 // ============================================================================
 // Generic API Functions
@@ -20,6 +27,7 @@ async function apiRequest<T>(
         ...options,
         headers: {
             'Content-Type': 'application/json',
+            ...(getAuthToken() ? { 'Authorization': `Bearer ${getAuthToken()}` } : {}),
             ...options.headers,
         },
     };
@@ -49,6 +57,16 @@ async function apiRequest<T>(
 // ============================================================================
 
 export const checkHealth = () => apiRequest<{ status: string; timestamp: string; database: string }>('/health');
+
+// ============================================================================
+// 🔐 Auth API
+// ============================================================================
+
+export const authApi = {
+    login: (email: string, password: string) =>
+        apiRequest<{ token: string; user: any }>('/auth/login', { method: 'POST', body: JSON.stringify({ email, password }) }),
+    me: () => apiRequest<{ user: any }>('/auth/me'),
+};
 
 // ============================================================================
 // 👤 Users API
@@ -288,6 +306,7 @@ export const tablesApi = {
 
 export default {
     health: checkHealth,
+    auth: authApi,
     users: usersApi,
     branches: branchesApi,
     customers: customersApi,

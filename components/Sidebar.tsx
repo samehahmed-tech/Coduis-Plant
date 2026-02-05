@@ -264,7 +264,7 @@ const Sidebar: React.FC = () => {
       {/* Mobile menu button */}
       <button
         onClick={() => setIsMobileOpen(true)}
-        className={`lg:hidden fixed top-3 z-[60] p-2 bg-slate-900 text-white rounded-xl shadow-lg ${lang === 'ar' ? 'right-3' : 'left-3'}`}
+        className={`lg:hidden fixed top-[max(0.75rem,var(--safe-top))] z-[60] p-2 bg-slate-900 text-white rounded-xl shadow-lg ${lang === 'ar' ? 'right-3' : 'left-3'}`}
       >
         <Menu size={20} />
       </button>
@@ -280,7 +280,7 @@ const Sidebar: React.FC = () => {
       {/* Sidebar */}
       <aside className={`
         ${isCollapsed ? 'w-20' : (isTouchMode ? 'w-72' : 'w-64')} 
-        bg-sidebar/95 backdrop-blur-3xl text-main flex flex-col h-screen 
+        bg-sidebar/95 backdrop-blur-3xl text-main flex flex-col app-viewport 
         fixed top-0 shadow-[0_0_40px_rgba(0,0,0,0.08)] z-[80] transition-all duration-500
         ${lang === 'ar' ? 'right-0 border-l' : 'left-0 border-r'} border-border/50
         ${isMobileOpen ? 'translate-x-0' : `${lang === 'ar' ? 'translate-x-full' : '-translate-x-full'} lg:translate-x-0`}

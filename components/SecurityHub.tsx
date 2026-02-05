@@ -206,7 +206,7 @@ const SecurityHub: React.FC = () => {
 
                                 <div className="space-y-6">
                                     <label className="text-[10px] font-black uppercase text-slate-400 tracking-[0.2em] mb-2 block">Cortex Permissions</label>
-                                    <div className="space-y-10 max-h-[500px] overflow-y-auto no-scrollbar pr-2">
+                                    <div className="space-y-10 max-h-[60vh] md:max-h-[500px] overflow-y-auto no-scrollbar pr-2">
                                         {Object.entries({
                                             "NAV ARCHITECTURE": permissionsList.filter(p => p.startsWith('NAV_')),
                                             "SYSTEM DATA (KERNEL)": permissionsList.filter(p => p.startsWith('DATA_')),

@@ -302,7 +302,7 @@ const Inventory: React.FC = () => {
         </div>
       </div>
 
-      <div className="bg-card rounded-[2.5rem] shadow-2xl shadow-primary/5 border border-border/50 overflow-hidden min-h-[600px]">
+      <div className="bg-card rounded-[2.5rem] shadow-2xl shadow-primary/5 border border-border/50 overflow-hidden min-h-[420px] md:min-h-[520px] lg:min-h-[600px]">
         {activeTab === 'STOCK' && renderStock()}
         {activeTab === 'WAREHOUSES' && renderWarehouses()}
         {activeTab === 'SUPPLIERS' && <div className="p-20 text-center text-slate-400 font-bold uppercase tracking-widest">Supplier Module Integration In Progress</div>}

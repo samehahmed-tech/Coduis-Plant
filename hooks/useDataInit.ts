@@ -7,6 +7,7 @@ import { useMenuStore } from '../stores/useMenuStore';
 import { useOrderStore } from '../stores/useOrderStore';
 import { useCRMStore } from '../stores/useCRMStore';
 import { checkHealth } from '../services/api';
+import { syncService } from '../services/syncService';
 
 interface InitResult {
     isLoading: boolean;
@@ -22,6 +23,7 @@ export const useDataInit = (): InitResult => {
     const fetchUsers = useAuthStore(state => state.fetchUsers);
     const fetchBranches = useAuthStore(state => state.fetchBranches);
     const fetchSettings = useAuthStore(state => state.fetchSettings);
+    const isAuthenticated = useAuthStore(state => state.isAuthenticated);
     const fetchMenu = useMenuStore(state => state.fetchMenu);
     const fetchOrders = useOrderStore(state => state.fetchOrders);
     const fetchCustomers = useCRMStore(state => state.fetchCustomers);
@@ -32,9 +34,17 @@ export const useDataInit = (): InitResult => {
             setError(null);
 
             try {
+                if (!isAuthenticated) {
+                    setIsLoading(false);
+                    return;
+                }
                 // Check API health first
                 const health = await checkHealth();
-                setIsConnected(health.status === 'ok');
+                const connected = health.status === 'ok';
+                setIsConnected(connected);
+                if (connected) {
+                    syncService.syncPending();
+                }
 
                 // Load all data in parallel
                 await Promise.allSettled([
@@ -52,12 +62,13 @@ export const useDataInit = (): InitResult => {
                 setIsConnected(false);
                 console.warn('⚠️ Running in offline mode:', err.message);
             } finally {
+                syncService.initSyncInterval();
                 setIsLoading(false);
             }
         };
 
         initData();
-    }, []);
+    }, [isAuthenticated]);
 
     return { isLoading, isConnected, error };
 };

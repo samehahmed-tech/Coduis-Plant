@@ -1,12 +1,34 @@
 import { Request, Response } from 'express';
 import { db } from '../db';
-import { orders, orderItems, orderStatusHistory, inventoryStock, stockMovements, menuItems, warehouses, shifts } from '../../src/db/schema';
-import { eq, and, desc } from 'drizzle-orm';
+import { orders, orderItems, orderStatusHistory, payments, warehouses, shifts } from '../../src/db/schema';
+import { eq, and, desc, gte, lte } from 'drizzle-orm';
 import { inventoryService } from '../services/inventoryService';
 
 export const getAllOrders = async (req: Request, res: Response) => {
     try {
-        const allOrders = await db.select().from(orders).orderBy(desc(orders.createdAt)).limit(100);
+        const { status, branch_id, type, date, limit } = req.query;
+        const conditions = [];
+
+        if (status) conditions.push(eq(orders.status, status as string));
+        if (branch_id) conditions.push(eq(orders.branchId, branch_id as string));
+        if (type) conditions.push(eq(orders.type, type as string));
+
+        if (date) {
+            const start = new Date(date as string);
+            const end = new Date(date as string);
+            end.setHours(23, 59, 59, 999);
+            conditions.push(gte(orders.createdAt, start));
+            conditions.push(lte(orders.createdAt, end));
+        }
+
+        const max = Math.min(Number(limit) || 100, 500);
+        let query = db.select().from(orders);
+        if (conditions.length > 0) {
+            // @ts-ignore
+            query = query.where(and(...conditions));
+        }
+
+        const allOrders = await query.orderBy(desc(orders.createdAt)).limit(max);
         res.json(allOrders);
     } catch (error: any) {
         res.status(500).json({ error: error.message });
@@ -136,6 +158,27 @@ export const createOrder = async (req: Request, res: Response) => {
                 status: newOrder.status || 'PENDING',
                 createdAt: new Date(),
             });
+
+            // 5. Payments (if provided)
+            const rawPayments = Array.isArray(bodyData.payments) ? bodyData.payments : [];
+            const fallbackPayment = (orderData.paymentMethod && (orderData.paidAmount || orderData.total))
+                ? [{ method: orderData.paymentMethod, amount: orderData.paidAmount || orderData.total }]
+                : [];
+            const paymentsToInsert = rawPayments.length > 0 ? rawPayments : fallbackPayment;
+
+            for (const p of paymentsToInsert) {
+                if (!p?.method || p?.amount === undefined) continue;
+                await tx.insert(payments).values({
+                    id: `PAY-${Date.now()}-${Math.random().toString(36).slice(2, 7).toUpperCase()}`,
+                    orderId: newOrder.id,
+                    method: p.method,
+                    amount: Number(p.amount),
+                    referenceNumber: p.referenceNumber || p.reference_number,
+                    status: 'COMPLETED',
+                    processedBy: userId || orderData.callCenterAgentId || 'system',
+                    createdAt: new Date(),
+                });
+            }
 
             return newOrder;
         });

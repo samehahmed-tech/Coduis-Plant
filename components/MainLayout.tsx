@@ -26,7 +26,7 @@ const MainLayout: React.FC = () => {
 
     return (
         <div
-            className={`flex h-screen bg-app text-main ${isDark ? 'dark' : ''} ${fontClass} transition-colors duration-500`}
+            className={`flex app-viewport safe-area bg-app text-main ${isDark ? 'dark' : ''} ${fontClass} transition-colors duration-500`}
             dir={direction}
             data-theme={theme}
         >

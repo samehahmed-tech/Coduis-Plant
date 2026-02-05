@@ -71,7 +71,14 @@ export const createCustomer = async (req: Request, res: Response) => {
             email: customerData.email,
             address: customerData.address,
             area: customerData.area,
+            building: customerData.building,
+            floor: customerData.floor,
+            apartment: customerData.apartment,
+            landmark: customerData.landmark,
             notes: customerData.notes,
+            visits: customerData.visits || 0,
+            totalSpent: customerData.total_spent ?? customerData.totalSpent ?? 0,
+            loyaltyTier: customerData.loyalty_tier || customerData.loyaltyTier || 'Bronze',
             createdAt: new Date(),
             updatedAt: new Date(),
         }).returning();
@@ -88,7 +95,23 @@ export const createCustomer = async (req: Request, res: Response) => {
 export const updateCustomer = async (req: Request, res: Response) => {
     try {
         const { id } = req.params;
-        const updates = req.body;
+        const body = req.body || {};
+
+        const updates: any = {
+            name: body.name,
+            phone: body.phone,
+            email: body.email,
+            address: body.address,
+            area: body.area,
+            building: body.building,
+            floor: body.floor,
+            apartment: body.apartment,
+            landmark: body.landmark,
+            notes: body.notes,
+            visits: body.visits,
+            totalSpent: body.total_spent ?? body.totalSpent,
+            loyaltyTier: body.loyalty_tier ?? body.loyaltyTier,
+        };
 
         const [updated] = await db.update(customers)
             .set({
@@ -103,6 +126,29 @@ export const updateCustomer = async (req: Request, res: Response) => {
         }
 
         res.json(updated);
+    } catch (error: any) {
+        res.status(500).json({ error: error.message });
+    }
+};
+
+/**
+ * Delete customer
+ */
+export const deleteCustomer = async (req: Request, res: Response) => {
+    try {
+        const { id } = req.params;
+
+        const result = await db.transaction(async (tx) => {
+            await tx.delete(customerAddresses).where(eq(customerAddresses.customerId, id));
+            const [deleted] = await tx.delete(customers).where(eq(customers.id, id)).returning();
+            return deleted;
+        });
+
+        if (!result) {
+            return res.status(404).json({ error: 'Customer not found' });
+        }
+
+        res.json({ message: 'Customer deleted', customer: result });
     } catch (error: any) {
         res.status(500).json({ error: error.message });
     }

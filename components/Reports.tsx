@@ -156,7 +156,7 @@ const Reports: React.FC = () => {
             <div className="space-y-8">
                <div className="bg-white dark:bg-slate-900 p-10 rounded-[3rem] border border-slate-200 dark:border-slate-800 shadow-sm">
                   <h3 className="text-2xl font-black text-slate-800 dark:text-white mb-10 tracking-tight">Revenue vs Cost Analysis</h3>
-                  <div className="h-[500px] w-full min-h-[500px] relative overflow-hidden">
+                  <div className="min-h-[320px] md:h-[420px] lg:h-[500px] w-full relative overflow-hidden">
                      <ResponsiveContainer width="100%" height="100%" minHeight={500}>
                         <AreaChart data={salesData7D} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
                            <defs>
@@ -252,7 +252,7 @@ const Reports: React.FC = () => {
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
                <div className="bg-white dark:bg-slate-900 p-10 rounded-[3rem] border border-slate-200 dark:border-slate-800 shadow-sm">
                   <h3 className="text-2xl font-black text-slate-800 dark:text-white mb-10 tracking-tight">Sales Distribution</h3>
-                  <div className="h-[400px] w-full min-h-[400px] relative overflow-hidden">
+                  <div className="min-h-[260px] md:h-[340px] lg:h-[400px] w-full relative overflow-hidden">
                      <ResponsiveContainer width="100%" height="100%" minHeight={400}>
                         <BarChart data={salesData7D}>
                            <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f011" />

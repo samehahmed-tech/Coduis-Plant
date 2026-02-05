@@ -249,7 +249,7 @@ const RecipeManager: React.FC = () => {
                                         />
                                     </div>
 
-                                    <div className="grid grid-cols-1 gap-3 max-h-[500px] overflow-y-auto no-scrollbar pr-1">
+                                    <div className="grid grid-cols-1 gap-3 max-h-[60vh] md:max-h-[500px] overflow-y-auto no-scrollbar pr-1">
                                         {availableInventory.map(item => {
                                             const isAdded = currentRecipe.some(ing => ing.itemId === item.id);
                                             return (

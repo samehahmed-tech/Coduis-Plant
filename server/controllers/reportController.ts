@@ -1,7 +1,7 @@
 import { Request, Response } from 'express';
 import { db } from '../db';
 import { orders, payments } from '../../src/db/schema';
-import { eq, and, sql, gte, lte } from 'drizzle-orm';
+import { eq, and, sql, gte, lte, inArray } from 'drizzle-orm';
 
 export const getVatReport = async (req: Request, res: Response) => {
     try {
@@ -27,7 +27,7 @@ export const getVatReport = async (req: Request, res: Response) => {
                     branchId ? eq(orders.branchId, branchId as string) : undefined,
                     gte(orders.createdAt, start),
                     lte(orders.createdAt, end),
-                    eq(orders.status, 'COMPLETED')
+                    inArray(orders.status, ['DELIVERED', 'COMPLETED'])
                 )
             );
 
@@ -87,7 +87,7 @@ export const getFiscalSummary = async (req: Request, res: Response) => {
                 and(
                     gte(orders.createdAt, start),
                     lte(orders.createdAt, end),
-                    eq(orders.status, 'COMPLETED')
+                    inArray(orders.status, ['DELIVERED', 'COMPLETED'])
                 )
             );
 

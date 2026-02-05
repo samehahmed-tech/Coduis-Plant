@@ -2,6 +2,7 @@ import { eventBus } from './eventBus';
 import { AuditEventType, AuditLog } from '../types';
 import { auditApi } from './api';
 import { useAuthStore } from '../stores/useAuthStore';
+import { syncService } from './syncService';
 
 class AuditService {
     private secretKey = 'restoflow-secure-audit-secret'; // Should be in .env
@@ -45,6 +46,7 @@ class AuditService {
             await auditApi.create(finalLog);
         } catch (error) {
             console.error('Failed to persist audit log:', error);
+            syncService.queue('auditLog', 'CREATE', finalLog).catch(console.error);
         }
     }
 

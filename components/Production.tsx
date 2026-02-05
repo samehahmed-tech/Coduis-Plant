@@ -103,7 +103,7 @@ const Production: React.FC = () => {
             </div>
 
             {/* Main Content */}
-            <div className="bg-card rounded-[2.5rem] border border-border shadow-2xl shadow-primary/5 overflow-hidden min-h-[500px]">
+            <div className="bg-card rounded-[2.5rem] border border-border shadow-2xl shadow-primary/5 overflow-hidden min-h-[360px] md:min-h-[440px] lg:min-h-[500px]">
                 {activeTab === 'ORDERS' && (
                     <div className="p-8">
                         {productionOrders.length === 0 ? (

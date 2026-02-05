@@ -492,11 +492,11 @@ const CallCenter: React.FC = () => {
     // ========================================================================
 
     return (
-        <div className="flex flex-col h-screen overflow-hidden bg-gradient-to-br from-slate-50 via-indigo-50/30 to-slate-50 dark:from-slate-950 dark:via-indigo-950/20 dark:to-slate-950">
+        <div className="flex flex-col app-viewport overflow-hidden bg-gradient-to-br from-slate-50 via-indigo-50/30 to-slate-50 dark:from-slate-950 dark:via-indigo-950/20 dark:to-slate-950">
 
             {/* ==================== TOP HEADER ==================== */}
             <div className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl border-b border-slate-200/50 dark:border-slate-800/50 px-6 py-3 shrink-0 shadow-sm z-30">
-                <div className="max-w-[1800px] mx-auto flex items-center gap-4">
+                <div className="max-w-[1800px] mx-auto px-4 md:px-6 flex flex-col lg:flex-row lg:items-center gap-4">
 
                     {/* View Switcher */}
                     <div className="flex bg-slate-100 dark:bg-slate-800 rounded-2xl p-1">
@@ -584,7 +584,7 @@ const CallCenter: React.FC = () => {
                     {/* Customer Context or "Not Found" Message */}
                     {customerSearched && !selectedCustomer && !showRegistrationModal && (
                         <div className="bg-amber-500/10 border-b border-amber-500/20 px-6 py-4 animate-in slide-in-from-top-2">
-                            <div className="max-w-[1800px] mx-auto flex items-center justify-between">
+                            <div className="max-w-[1800px] mx-auto px-4 md:px-6 flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3">
                                 <div className="flex items-center gap-3">
                                     <div className="w-12 h-12 rounded-2xl bg-amber-500/20 flex items-center justify-center">
                                         <AlertCircle size={24} className="text-amber-600" />
@@ -603,7 +603,7 @@ const CallCenter: React.FC = () => {
 
                     {selectedCustomer && (
                         <div className="bg-gradient-to-r from-indigo-500/5 via-violet-500/5 to-indigo-500/5 dark:from-indigo-900/20 dark:via-violet-900/20 dark:to-indigo-900/20 border-b border-indigo-200/30 dark:border-indigo-800/30 px-6 py-4 animate-in slide-in-from-top-2 duration-300">
-                            <div className="max-w-[1800px] mx-auto flex items-center gap-6">
+                            <div className="max-w-[1800px] mx-auto px-4 md:px-6 flex flex-col lg:flex-row lg:items-center gap-4">
                                 <div className="flex items-center gap-4">
                                     <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-indigo-500 to-violet-600 text-white flex items-center justify-center font-black text-xl shadow-lg shadow-indigo-500/30">
                                         {selectedCustomer.name?.charAt(0) || 'C'}
@@ -645,7 +645,7 @@ const CallCenter: React.FC = () => {
 
                     {/* Main Content - Only show if customer selected */}
                     {selectedCustomer ? (
-                        <div className="flex-1 flex overflow-hidden">
+                        <div className="flex-1 flex flex-col lg:flex-row overflow-hidden">
                             {/* Menu Area */}
                             <div className="flex-1 flex flex-col min-w-0">
                                 <div className="bg-white/60 dark:bg-slate-900/60 backdrop-blur-sm px-6 py-4 border-b border-slate-200/50 dark:border-slate-800/50 flex flex-wrap justify-between items-center gap-4">
@@ -679,7 +679,7 @@ const CallCenter: React.FC = () => {
                             </div>
 
                             {/* Right Panel: Cart */}
-                            <div className="w-[420px] bg-white dark:bg-slate-900 border-l border-slate-200 dark:border-slate-800 flex flex-col shadow-2xl">
+                            <div className="w-full lg:w-[420px] bg-white dark:bg-slate-900 border-l border-slate-200 dark:border-slate-800 flex flex-col shadow-2xl">
                                 <div className="px-6 py-4 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center">
                                     <h3 className="text-lg font-black text-slate-800 dark:text-white uppercase flex items-center gap-2">
                                         <ShoppingBag size={20} className="text-indigo-600" /> {lang === 'ar' ? 'السلة' : 'Cart'}
