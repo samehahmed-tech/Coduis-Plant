@@ -2,6 +2,7 @@ import { Request, Response } from 'express';
 import { db } from '../db';
 import { shifts, orders, payments } from '../../src/db/schema';
 import { eq, and, sql } from 'drizzle-orm';
+import { getStringParam } from '../utils/request';
 
 export const openShift = async (req: Request, res: Response) => {
     try {
@@ -38,7 +39,8 @@ export const openShift = async (req: Request, res: Response) => {
 export const closeShift = async (req: Request, res: Response) => {
     try {
         const { actualBalance, notes } = req.body;
-        const shiftId = req.params.id;
+        const shiftId = getStringParam((req.params as any).id);
+        if (!shiftId) return res.status(400).json({ error: 'SHIFT_ID_REQUIRED' });
 
         const shift = await db.select().from(shifts).where(eq(shifts.id, shiftId));
         if (shift.length === 0) return res.status(404).json({ error: 'Shift not found' });
@@ -81,10 +83,11 @@ export const closeShift = async (req: Request, res: Response) => {
 
 export const getActiveShift = async (req: Request, res: Response) => {
     try {
-        const { branchId } = req.query;
+        const branchId = getStringParam(req.query.branchId);
+        if (!branchId) return res.status(400).json({ error: 'BRANCH_ID_REQUIRED' });
         const activeShift = await db.select().from(shifts).where(
             and(
-                eq(shifts.branchId, branchId as string),
+                eq(shifts.branchId, branchId),
                 eq(shifts.status, 'OPEN')
             )
         );
@@ -101,7 +104,8 @@ export const getActiveShift = async (req: Request, res: Response) => {
  */
 export const getXReport = async (req: Request, res: Response) => {
     try {
-        const shiftId = req.params.id;
+        const shiftId = getStringParam((req.params as any).id);
+        if (!shiftId) return res.status(400).json({ error: 'SHIFT_ID_REQUIRED' });
 
         const shift = await db.select().from(shifts).where(eq(shifts.id, shiftId));
         if (shift.length === 0) return res.status(404).json({ error: 'Shift not found' });

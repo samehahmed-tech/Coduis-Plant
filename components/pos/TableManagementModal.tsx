@@ -268,7 +268,7 @@ const TableManagementModal: React.FC<TableManagementModalProps> = ({
                 {renderHeader()}
 
                 {mode === 'ACTIONS' && renderActions()}
-                {(mode === 'TRANSFER_ALL' || mode === 'MERGE' || ((mode === 'TRANSFER_ITEMS' || mode === 'SPLIT') && selectedItems.length > 0 && mode !== 'SPLIT_ITEMS' && !targetTableId)) && (
+                {(mode === 'TRANSFER_ALL' || mode === 'MERGE' || ((mode === 'TRANSFER_ITEMS' || mode === 'SPLIT') && selectedItems.length > 0 && !targetTableId)) && (
                     mode === 'MERGE'
                         ? renderTableSelector(TableStatus.OCCUPIED)
                         : mode === 'TRANSFER_ITEMS' || mode === 'SPLIT'

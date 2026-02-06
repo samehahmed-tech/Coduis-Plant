@@ -1,5 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
+import { requireEnv } from '../config/env';
 
 export interface AuthUser {
     id: string;
@@ -19,7 +20,7 @@ declare module 'express-serve-static-core' {
     }
 }
 
-const JWT_SECRET = process.env.JWT_SECRET || 'restoflow-dev-secret';
+const JWT_SECRET = requireEnv('JWT_SECRET');
 
 export const authenticateToken = (req: Request, res: Response, next: NextFunction) => {
     const authHeader = req.headers.authorization || '';

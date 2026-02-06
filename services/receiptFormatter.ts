@@ -64,7 +64,7 @@ export const formatReceipt = ({
     lines.push(line);
 
     (order.items || []).forEach(item => {
-        const mods = item.selectedModifiers?.map(m => `${m.name} (+${m.price})`).join(', ');
+        const mods = item.selectedModifiers?.map(m => `${m.optionName} (+${m.price})`).join(', ');
         const lineTotal = (item.price + (item.selectedModifiers || []).reduce((sum, m) => sum + m.price, 0)) * item.quantity;
         const label = `${item.quantity}x ${item.name}`;
         const totalText = `${currencySymbol}${lineTotal.toFixed(2)}`;

@@ -11,6 +11,8 @@ import {
     List
 } from 'lucide-react';
 import { Table, TableStatus, FloorZone, Order, OrderStatus } from '../types';
+import VirtualGrid from './common/VirtualGrid';
+import VirtualList from './common/VirtualList';
 
 interface TableMapProps {
     tables: Table[];
@@ -137,8 +139,9 @@ const TableMap: React.FC<TableMapProps> = ({
     }, [sortedDecoratedTables, activeZone, searchQuery, statusFilter]);
 
     React.useEffect(() => {
+        // Keep view modes within the supported set (GRID / COMPACT / LIST)
         if (activeZone === 'all') setViewMode('GRID');
-        else setViewMode('FLOOR');
+        else setViewMode('COMPACT');
     }, [activeZone]);
 
     const stats = useMemo(() => {
@@ -664,7 +667,7 @@ const TableMap: React.FC<TableMapProps> = ({
             {/* Main Content Area */}
             <div className="flex-1 overflow-auto rounded-2xl border border-slate-200 dark:border-slate-800 bg-gradient-to-br from-slate-50 to-white dark:from-slate-900 dark:to-slate-950 p-4 md:p-6 shadow-inner relative">
                 {viewMode === 'LIST' ? (
-                    <div className="flex flex-col gap-3">
+                    <div className="flex flex-col gap-3 h-full">
                         <div className={`grid grid-cols-12 gap-3 px-4 py-2 bg-slate-100 dark:bg-slate-800 rounded-xl ${isRtl ? 'text-right' : 'text-left'}`}>
                             <div className="col-span-3 text-[10px] font-black uppercase tracking-widest text-slate-500">{t.table}</div>
                             <div className="col-span-2 text-[10px] font-black uppercase tracking-widest text-slate-500">{t.status || (lang === 'ar' ? 'الحالة' : 'Status')}</div>
@@ -672,21 +675,36 @@ const TableMap: React.FC<TableMapProps> = ({
                             <div className="col-span-2 text-[10px] font-black uppercase tracking-widest text-slate-500">{t.bill}</div>
                             <div className="col-span-3 text-[10px] font-black uppercase tracking-widest text-slate-500">{lang === 'ar' ? 'إجراءات' : 'Actions'}</div>
                         </div>
-                        {filteredTables.map((table) => (
-                            <ListTableRow key={table.id} table={table} />
-                        ))}
+                        <div className="flex-1 min-h-0">
+                            <VirtualList
+                                itemCount={filteredTables.length}
+                                itemHeight={92}
+                                className="h-full no-scrollbar"
+                                renderItem={(index) => <ListTableRow table={filteredTables[index]} />}
+                                getKey={(index) => filteredTables[index]?.id || index}
+                            />
+                        </div>
                     </div>
                 ) : (
-                    <div className={`grid ${viewMode === 'GRID'
-                        ? 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-4 md:gap-5'
-                        : 'grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 2xl:grid-cols-8 gap-3'
-                        }`}>
-                        {filteredTables.map((table) => (
-                            viewMode === 'GRID'
-                                ? <GridTableCard key={table.id} table={table} />
-                                : <CompactTableCard key={table.id} table={table} />
-                        ))}
-                    </div>
+                    <VirtualGrid
+                        itemCount={filteredTables.length}
+                        columnWidth={viewMode === 'GRID' ? 280 : 200}
+                        rowHeight={viewMode === 'GRID' ? 320 : 220}
+                        gap={viewMode === 'GRID' ? 20 : 12}
+                        className="h-full"
+                        renderItem={(index) => {
+                            const table = filteredTables[index];
+                            return (
+                                <div className="h-full">
+                                    {viewMode === 'GRID'
+                                        ? <GridTableCard table={table} />
+                                        : <CompactTableCard table={table} />
+                                    }
+                                </div>
+                            );
+                        }}
+                        getKey={(index) => filteredTables[index]?.id || index}
+                    />
                 )}
 
                 {filteredTables.length === 0 && (

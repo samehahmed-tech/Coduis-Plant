@@ -324,7 +324,7 @@ const CallCenter: React.FC = () => {
 
     // --- Menu & Items ---
     const allMenuItems = useMemo(() => categories.flatMap(cat => cat.items.map(item => ({ ...item, categoryId: cat.name }))), [categories]);
-    const categoryNames = useMemo(() => ['All', ...categories.map(c => c.name)], [categories]);
+    // CategoryTabs expects full category objects (it adds "All" internally)
 
     const filteredItems = useMemo(() => {
         let items = allMenuItems;
@@ -676,7 +676,7 @@ const CallCenter: React.FC = () => {
                             {/* Menu Area */}
                             <div className="flex-1 flex flex-col min-w-0">
                                 <div className="bg-white/60 dark:bg-slate-900/60 backdrop-blur-sm px-6 py-4 border-b border-slate-200/50 dark:border-slate-800/50 flex flex-wrap justify-between items-center gap-4">
-                                    <CategoryTabs categories={categoryNames} activeCategory={activeCategory} onSetCategory={setActiveCategory} isTouchMode={false} lang={lang} t={t} />
+                                    <CategoryTabs categories={categories} activeCategory={activeCategory} onSetCategory={setActiveCategory} isTouchMode={false} lang={lang} t={t} />
                                     <div className="relative w-72">
                                         <Search className={`absolute top-1/2 -translate-y-1/2 text-slate-400 ${lang === 'ar' ? 'right-4' : 'left-4'}`} size={16} />
                                         <input id="item-search" type="text" placeholder={lang === 'ar' ? 'بحث عن منتج (F2)...' : 'Search Product (F2)...'} className={`w-full bg-slate-100 dark:bg-slate-800 border-none rounded-xl py-2.5 ${lang === 'ar' ? 'pr-12 pl-4' : 'pl-10 pr-4'} text-xs font-bold outline-none focus:ring-2 focus:ring-indigo-500/30`} value={itemSearchQuery} onChange={(e) => setItemSearchQuery(e.target.value)} />

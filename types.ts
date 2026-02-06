@@ -22,7 +22,9 @@ export enum AuditEventType {
   SECURITY_PERMISSION_CHANGE = 'SECURITY_PERMISSION_CHANGE',
   SECURITY_LOGIN = 'SECURITY_LOGIN',
   ACCOUNTING_ADJUSTMENT = 'ACCOUNTING_ADJUSTMENT',
-  SETTINGS_CHANGE = 'SETTINGS_CHANGE'
+  SETTINGS_CHANGE = 'SETTINGS_CHANGE',
+  AI_ACTION_PREVIEW = 'AI_ACTION_PREVIEW',
+  AI_ACTION_EXECUTED = 'AI_ACTION_EXECUTED'
 }
 
 export interface AuditLog {
@@ -43,6 +45,7 @@ export interface AuditLog {
   metadata?: Record<string, any>;
   isTampered?: boolean; // For forensic detection
   signature?: string; // Potential HMAC for verification
+  signatureValid?: boolean; // Server-side verification result (no secrets on client)
 }
 
 export enum OrderType {
@@ -132,6 +135,9 @@ export interface MenuItem {
   price: number;
   image?: string;
   categoryId: string;
+  // Derived UI helpers (not persisted; attached when flattening categories)
+  category?: string;
+  categoryAr?: string;
   isAvailable: boolean;
   preparationTime?: number;
   isPopular?: boolean;
@@ -219,6 +225,7 @@ export interface StockMovement {
 export interface OrderItem extends MenuItem {
   cartId: string;
   quantity: number;
+  notes?: string;
   selectedModifiers: {
     groupName: string;
     optionName: string;
@@ -251,6 +258,7 @@ export interface Order {
   notes?: string;
   kitchenNotes?: string; // Notes for kitchen staff
   driverId?: string; // Link to the assigned driver
+  updatedAt?: Date;
 }
 
 export interface Supplier {
@@ -300,17 +308,29 @@ export interface Customer {
   id: string;
   name: string;
   phone: string;
+  email?: string;
   address?: string;
+  area?: string;
+  building?: string;
+  floor?: string;
+  apartment?: string;
+  landmark?: string;
+  notes?: string;
+  visits: number;
+  loyaltyTier?: string;
   loyaltyPoints: number;
   totalSpent: number;
+  createdAt?: Date;
+  updatedAt?: Date;
   lastOrderDate?: Date;
 }
 
 export interface FloorZone {
   id: string;
   name: string;
-  color: string;
+  color?: string;
   icon?: string;
+  branchId?: string;
   width?: number;
   height?: number;
 }
@@ -318,14 +338,20 @@ export interface FloorZone {
 export interface Branch {
   id: string;
   name: string;
+  nameAr?: string;
   location: string;
   managerName?: string;
   phone: string;
   email?: string;
+  address?: string;
   menuId?: string; // Main menu for this branch
   isActive: boolean;
   openingHours?: string;
   taxNumber?: string;
+  timezone?: string;
+  currency?: string;
+  taxRate?: number;
+  serviceCharge?: number;
 }
 
 export interface DeliveryPlatform {
@@ -356,6 +382,11 @@ export interface MenuCategory {
   id: string;
   name: string;
   nameAr?: string;
+  description?: string;
+  icon?: string;
+  color?: string;
+  sortOrder?: number;
+  isActive?: boolean;
   items: MenuItem[];
   menuIds: string[]; // Linked to these menu IDs
   image?: string;
@@ -513,6 +544,11 @@ export const INITIAL_ROLE_PERMISSIONS: Record<UserRole, AppPermission[]> = {
 };
 
 export type AppTheme =
+  | 'xen'
+  | 'ember'
+  | 'graphite'
+  | 'ocean'
+  | 'carbon'
   | 'classic'
   | 'nebula'
   | 'emerald'

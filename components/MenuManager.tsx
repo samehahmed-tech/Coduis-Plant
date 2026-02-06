@@ -115,10 +115,12 @@ const MenuManager: React.FC = () => {
     if (!newIngredientId || newIngredientQty <= 0 || !recipeModal) return;
     setRecipeModal(prev => {
       if (!prev) return null;
-      const existingIdx = prev.tempRecipe.findIndex(ri => ri.inventoryItemId === newIngredientId);
+      const existingIdx = prev.tempRecipe.findIndex(ri => ri.itemId === newIngredientId);
       let nextRecipe = [...prev.tempRecipe];
-      if (existingIdx !== -1) nextRecipe[existingIdx] = { ...nextRecipe[existingIdx], quantityNeeded: nextRecipe[existingIdx].quantityNeeded + newIngredientQty };
-      else nextRecipe.push({ inventoryItemId: newIngredientId, quantityNeeded: newIngredientQty });
+      const inv = inventory.find(i => i.id === newIngredientId);
+      const unit = String(inv?.unit || '');
+      if (existingIdx !== -1) nextRecipe[existingIdx] = { ...nextRecipe[existingIdx], quantity: nextRecipe[existingIdx].quantity + newIngredientQty };
+      else nextRecipe.push({ itemId: newIngredientId, quantity: newIngredientQty, unit });
       return { ...prev, tempRecipe: nextRecipe };
     });
     setNewIngredientId('');
@@ -143,13 +145,13 @@ const MenuManager: React.FC = () => {
   };
 
   const dayOptions = [
-    { id: 'mon', en: 'Mon', ar: 'ط§ظ„ط§ط«ظ†ظٹظ†' },
-    { id: 'tue', en: 'Tue', ar: 'ط§ظ„ط«ظ„ط§ط«ط§ط،' },
-    { id: 'wed', en: 'Wed', ar: 'ط§ظ„ط£ط±ط¨ط¹ط§ط،' },
-    { id: 'thu', en: 'Thu', ar: 'ط§ظ„ط®ظ…ظٹط³' },
-    { id: 'fri', en: 'Fri', ar: 'ط§ظ„ط¬ظ…ط¹ط©' },
-    { id: 'sat', en: 'Sat', ar: 'ط§ظ„ط³ط¨طھ' },
-    { id: 'sun', en: 'Sun', ar: 'ط§ظ„ط£ط­ط¯' }
+    { id: 'mon', en: 'Mon', ar: 'الاثنين' },
+    { id: 'tue', en: 'Tue', ar: 'الثلاثاء' },
+    { id: 'wed', en: 'Wed', ar: 'الأربعاء' },
+    { id: 'thu', en: 'Thu', ar: 'الخميس' },
+    { id: 'fri', en: 'Fri', ar: 'الجمعة' },
+    { id: 'sat', en: 'Sat', ar: 'السبت' },
+    { id: 'sun', en: 'Sun', ar: 'الأحد' }
   ];
 
   const toggleItemDay = (dayId: string) => {
@@ -250,7 +252,7 @@ const MenuManager: React.FC = () => {
       <div className="flex flex-col items-center justify-center min-h-screen bg-app">
         <Loader2 className="w-12 h-12 text-primary animate-spin mb-4" />
         <p className="text-muted font-bold uppercase tracking-widest text-sm">
-          {lang === 'ar' ? 'ط¬ط§ط±ظٹ طھط­ظ…ظٹظ„ ط§ظ„ظ‚ظˆط§ط¦ظ…...' : 'Loading menu data...'}
+          {lang === 'ar' ? 'جاري تحميل القوائم...' : 'Loading menu data...'}
         </p>
       </div>
     );
@@ -262,7 +264,7 @@ const MenuManager: React.FC = () => {
       {error && (
         <div className="mb-6 p-4 bg-rose-50 dark:bg-rose-900/20 border border-rose-200 dark:border-rose-800 rounded-2xl text-rose-600 dark:text-rose-400 text-sm font-bold flex items-center gap-3">
           <AlertCircle size={20} />
-          {lang === 'ar' ? 'ط®ط·ط£ ظپظٹ طھط­ظ…ظٹظ„ ط§ظ„ط¨ظٹط§ظ†ط§طھ: ' : 'Error loading data: '}{error}
+          {lang === 'ar' ? 'خطأ في تحميل البيانات: ' : 'Error loading data: '}{error}
         </div>
       )}
 
@@ -271,11 +273,11 @@ const MenuManager: React.FC = () => {
         <div>
           <h2 className="text-xl md:text-3xl font-black text-main uppercase tracking-tight flex items-center gap-3">
             <UtensilsCrossed className="text-primary" size={32} />
-            {lang === 'ar' ? 'ظƒطھط§ظ„ظˆط¬ ط§ظ„ظ…ظ†ظٹظˆ' : 'Menu Catalog'}
+            {lang === 'ar' ? 'كتالوج المنيو' : 'Menu Catalog'}
             {isLoading && <Loader2 className="w-5 h-5 text-primary/70 animate-spin" />}
           </h2>
           <p className="text-xs md:text-sm text-muted font-bold uppercase tracking-widest mt-1 opacity-70">
-            {lang === 'ar' ? 'ط£ط·ظ„ظ‚ ط§ظ„ط¹ظ†ط§ظ† ظ„ظ„ظ‡ظ†ط¯ط³ط© ط§ظ„ط°ظƒظٹط© ظ„ظ‚ط§ط¦ظ…ط© ط·ط¹ط§ظ…ظƒ' : 'Engineer your recipes for maximum profit'}
+            {lang === 'ar' ? 'هندس قائمتك بذكاء لتحقيق أفضل ربح' : 'Engineer your recipes for maximum profit'}
           </p>
         </div>
         <div className="flex flex-wrap gap-2 w-full sm:w-auto">
@@ -288,7 +290,7 @@ const MenuManager: React.FC = () => {
             className="flex-1 sm:flex-none flex items-center justify-center gap-2 bg-primary text-white px-6 py-4 rounded-[1.5rem] font-black text-xs uppercase tracking-widest hover:bg-elevated transition-all border border-primary"
           >
             <Plus size={18} />
-            {lang === 'ar' ? 'ظ‚ط³ظ… ط¬ط¯ظٹط¯' : 'New Section'}
+            {lang === 'ar' ? 'قسم جديد' : 'New Section'}
           </button>
 
           <button
@@ -315,7 +317,7 @@ const MenuManager: React.FC = () => {
             disabled={filteredCategories.length === 0}
           >
             <UtensilsCrossed size={18} />
-            {lang === 'ar' ? 'طµظ†ظپ ط¬ط¯ظٹط¯' : 'New Item'}
+            {lang === 'ar' ? 'صنف جديد' : 'New Item'}
           </button>
         </div>
       </div>
@@ -323,15 +325,15 @@ const MenuManager: React.FC = () => {
       <div className="flex flex-col lg:flex-row justify-between items-stretch lg:items-center gap-4 mb-8">
         <div className="flex bg-card p-1.5 rounded-2xl shadow-sm border border-border shrink-0 self-start">
           <button onClick={() => setActiveTab('MENUS')} className={`px-6 py-2.5 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all ${activeTab === 'MENUS' ? 'bg-primary text-white shadow-md' : 'text-muted hover:text-main'}`}>
-            <LayoutGrid size={14} className="inline mr-2" /> {lang === 'ar' ? 'ط§ظ„ظ‚ظˆط§ط¦ظ… ط§ظ„ظ†ط´ط·ط©' : 'Active Menus'}
+            <LayoutGrid size={14} className="inline mr-2" /> {lang === 'ar' ? 'القوائم النشطة' : 'Active Menus'}
           </button>
           <button onClick={() => setActiveTab('OFFERS')} className={`px-6 py-2.5 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all ${activeTab === 'OFFERS' ? 'bg-primary text-white shadow-md' : 'text-muted hover:text-main'}`}>
-            <Gift size={14} className="inline mr-2" /> {lang === 'ar' ? 'ط§ظ„ط¹ط±ظˆط¶' : 'Offers'}
+            <Gift size={14} className="inline mr-2" /> {lang === 'ar' ? 'العروض' : 'Offers'}
           </button>
         </div>
         <div className="relative flex-1 lg:max-w-md">
           <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-muted" size={18} />
-          <input type="text" placeholder={lang === 'ar' ? 'ط¨ط­ط« ط¹ظ† ط£طµظ†ط§ظپ...' : 'Search items...'} value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="w-full pl-12 pr-4 py-3.5 bg-card border border-border rounded-2xl outline-none focus:ring-2 focus:ring-primary transition-all shadow-sm font-bold text-sm" />
+          <input type="text" placeholder={lang === 'ar' ? 'بحث عن أصناف...' : 'Search items...'} value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="w-full pl-12 pr-4 py-3.5 bg-card border border-border rounded-2xl outline-none focus:ring-2 focus:ring-primary transition-all shadow-sm font-bold text-sm" />
         </div>
       </div>
 
@@ -356,7 +358,7 @@ const MenuManager: React.FC = () => {
               </button>
               <button
                 onClick={() => {
-                  const newName = prompt(lang === 'ar' ? 'ط§ط³ظ… ط§ظ„ظ…ظ†ظٹظˆ ط§ظ„ط¬ط¯ظٹط¯:' : 'New Menu Name:', menu.name);
+                  const newName = prompt(lang === 'ar' ? 'اسم المنيو الجديد:' : 'New Menu Name:', menu.name);
                   if (newName) updateMenu({ ...menu, name: newName });
                 }}
                 className="absolute top-4 right-4 p-2 opacity-0 group-hover:opacity-100 transition-opacity bg-card/10 hover:bg-card/20 rounded-xl text-white"
@@ -383,7 +385,7 @@ const MenuManager: React.FC = () => {
                   <div>
                     <h4 className="text-2xl font-black text-main uppercase tracking-tight">{lang === 'ar' ? (category.nameAr || category.name) : category.name}</h4>
                     <div className="flex items-center gap-2 mt-1">
-                      <p className="text-[10px] font-bold text-muted uppercase tracking-widest">{category.items.length} {lang === 'ar' ? 'ط£طµظ†ط§ظپ' : 'Items'}</p>
+                      <p className="text-[10px] font-bold text-muted uppercase tracking-widest">{category.items.length} {lang === 'ar' ? 'أصناف' : 'Items'}</p>
                       {category.targetOrderTypes && category.targetOrderTypes.length > 0 && (
                         <div className="flex gap-1">
                           {category.targetOrderTypes.includes('DINE_IN' as any) && <span className="p-1 rounded bg-orange-100 text-orange-600" title="Dine In"><UtensilsCrossed size={10} /></span>}
@@ -417,7 +419,7 @@ const MenuManager: React.FC = () => {
                     <button
                       onClick={() => updateMenuItem(selectedMenuId, category.id, { ...item, isAvailable: !item.isAvailable })}
                       className={`absolute top-6 right-6 p-2 rounded-xl ${item.isAvailable ? 'bg-emerald-100 text-emerald-600' : 'bg-rose-100 text-rose-600'}`}
-                      title={item.isAvailable ? (lang === 'ar' ? 'ط¥ظٹظ‚ط§ظپ ط§ظ„طµظ†ظپ (86)' : 'Disable item (86)') : (lang === 'ar' ? 'طھط´ط؛ظٹظ„ ط§ظ„طµظ†ظپ' : 'Enable item')}
+                      title={item.isAvailable ? (lang === 'ar' ? 'إيقاف الصنف (86)' : 'Disable item (86)') : (lang === 'ar' ? 'تشغيل الصنف' : 'Enable item')}
                     >
                       {item.isAvailable ? <Eye size={14} /> : <EyeOff size={14} />}
                     </button>
@@ -448,7 +450,7 @@ const MenuManager: React.FC = () => {
               </div>
             </div>
           )) : (
-            <div className="py-20 text-center bg-card rounded-[3rem] border border-border"><p className="text-muted font-black uppercase tracking-widest">{lang === 'ar' ? 'ظ„ط§ ظٹظˆط¬ط¯ ط£ظ‚ط³ط§ظ… ظ„ط¹ط±ط¶ظ‡ط§' : 'No sections linked to this menu'}</p></div>
+            <div className="py-20 text-center bg-card rounded-[3rem] border border-border"><p className="text-muted font-black uppercase tracking-widest">{lang === 'ar' ? 'لا يوجد أقسام لعرضها' : 'No sections linked to this menu'}</p></div>
           )}
 
           {/* Link Existing */}
@@ -527,10 +529,10 @@ const MenuManager: React.FC = () => {
                 </div>
                 <div>
                   <h3 className="text-2xl font-black text-main uppercase">
-                    {itemModal.mode === 'ADD' ? (lang === 'ar' ? 'طµظ†ظپ ط¬ط¯ظٹط¯' : 'New Item') : (lang === 'ar' ? 'طھط¹ط¯ظٹظ„ طµظ†ظپ' : 'Edit Item')}
+                    {itemModal.mode === 'ADD' ? (lang === 'ar' ? 'صنف جديد' : 'New Item') : (lang === 'ar' ? 'تعديل صنف' : 'Edit Item')}
                   </h3>
                   <p className="text-[10px] font-bold text-muted uppercase tracking-widest">
-                    {lang === 'ar' ? 'طھط®طµظٹطµ ط¨ظٹط§ظ†ط§طھ ظˆطھظپط§طµظٹظ„ ط§ظ„ظ…ظ†طھط¬' : 'Customize product details and printers'}
+                    {lang === 'ar' ? 'تخصيص بيانات وتفاصيل المنتج' : 'Customize product details and printers'}
                   </p>
                 </div>
               </div>
@@ -542,31 +544,31 @@ const MenuManager: React.FC = () => {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                 <div className="space-y-6">
                   <div className="space-y-2">
-                    <label className="text-[10px] font-black text-muted uppercase tracking-widest ml-1">{lang === 'ar' ? 'ط§ظ„ط§ط³ظ… (EN)' : 'Name (English)'}</label>
+                    <label className="text-[10px] font-black text-muted uppercase tracking-widest ml-1">{lang === 'ar' ? 'الاسم (EN)' : 'Name (English)'}</label>
                     <input type="text" value={itemModal.item.name} onChange={(e) => setItemModal({ ...itemModal, item: { ...itemModal.item, name: e.target.value } })} className="w-full p-5 bg-elevated rounded-2xl font-bold border border-transparent focus:border-primary transition-all outline-none" placeholder="e.g. Classic Burger" />
                   </div>
                   <div className="space-y-2">
-                    <label className="text-[10px] font-black text-muted uppercase tracking-widest ml-1">{lang === 'ar' ? 'ط§ظ„ط§ط³ظ… (AR)' : 'Name (Arabic)'}</label>
-                    <input type="text" value={itemModal.item.nameAr || ''} onChange={(e) => setItemModal({ ...itemModal, item: { ...itemModal.item, nameAr: e.target.value } })} className="w-full p-5 bg-elevated rounded-2xl font-bold text-right border border-transparent focus:border-primary transition-all outline-none" placeholder="ظ…ط«ظ„ط§ظ‹: ط¨ط±ط¬ط± ظƒظ„ط§ط³ظٹظƒ" />
+                    <label className="text-[10px] font-black text-muted uppercase tracking-widest ml-1">{lang === 'ar' ? 'الاسم (AR)' : 'Name (Arabic)'}</label>
+                    <input type="text" value={itemModal.item.nameAr || ''} onChange={(e) => setItemModal({ ...itemModal, item: { ...itemModal.item, nameAr: e.target.value } })} className="w-full p-5 bg-elevated rounded-2xl font-bold text-right border border-transparent focus:border-primary transition-all outline-none" placeholder="مثلاً: برجر كلاسيك" />
                   </div>
                 </div>
                 <div className="space-y-6">
                   <div className="grid grid-cols-2 gap-3">
                     <div className="space-y-2">
-                      <label className="text-[10px] font-black text-muted uppercase tracking-widest ml-1">{lang === 'ar' ? 'ط§ظ„ط³ط¹ط±' : 'Price'}</label>
+                      <label className="text-[10px] font-black text-muted uppercase tracking-widest ml-1">{lang === 'ar' ? 'السعر' : 'Price'}</label>
                       <div className="relative">
                         <DollarSign className="absolute left-4 top-1/2 -translate-y-1/2 text-muted" size={18} />
                         <input type="number" value={itemModal.item.price || ''} onChange={(e) => setItemModal({ ...itemModal, item: { ...itemModal.item, price: parseFloat(e.target.value) || 0 } })} className="w-full pl-12 pr-4 py-5 bg-elevated rounded-2xl font-black outline-none border border-transparent focus:border-primary transition-all" />
                       </div>
                     </div>
                     <div className="space-y-2">
-                      <label className="text-[10px] font-black text-muted uppercase tracking-widest ml-1">{lang === 'ar' ? 'ط§ظ„طھط±طھظٹط¨' : 'Sort Order'}</label>
+                      <label className="text-[10px] font-black text-muted uppercase tracking-widest ml-1">{lang === 'ar' ? 'الترتيب' : 'Sort Order'}</label>
                       <input type="number" value={itemModal.item.sortOrder || 0} onChange={(e) => setItemModal({ ...itemModal, item: { ...itemModal.item, sortOrder: parseInt(e.target.value) || 0 } })} className="w-full p-5 bg-elevated rounded-2xl font-black outline-none border border-transparent focus:border-primary transition-all" />
                     </div>
                   </div>
                   <div className="grid grid-cols-2 gap-3">
                     <div className="space-y-2">
-                      <label className="text-[10px] font-black text-muted uppercase tracking-widest ml-1">{lang === 'ar' ? 'ظƒظˆط¯ ط§ظ„ط¶ط±ظٹط¨ط©' : 'Fiscal Code (GS1)'}</label>
+                      <label className="text-[10px] font-black text-muted uppercase tracking-widest ml-1">{lang === 'ar' ? 'كود الضريبة' : 'Fiscal Code (GS1)'}</label>
                       <input type="text" value={itemModal.item.fiscalCode || ''} onChange={(e) => setItemModal({ ...itemModal, item: { ...itemModal.item, fiscalCode: e.target.value } })} className="w-full p-5 bg-elevated rounded-2xl font-black outline-none border border-transparent focus:border-primary transition-all" placeholder="e.g. 10001234" />
                     </div>
                     <div className="flex flex-col justify-end pb-1">
@@ -575,7 +577,7 @@ const MenuManager: React.FC = () => {
                         className={`flex items-center justify-center gap-2 p-4 rounded-2xl border-2 transition-all font-black text-[10px] uppercase tracking-widest ${itemModal.item.isWeighted ? 'bg-amber-500 border-amber-500 text-white' : 'bg-elevated border-border text-muted'}`}
                       >
                         <Scale size={14} />
-                        {lang === 'ar' ? 'ظ…ظٹط²ط§ظ†' : 'Scale Required'}
+                        {lang === 'ar' ? 'ميزان' : 'Scale Required'}
                       </button>
                     </div>
                   </div>
@@ -584,12 +586,11 @@ const MenuManager: React.FC = () => {
                       value={itemModal.item.image || ''}
                       onChange={(url) => setItemModal({ ...itemModal, item: { ...itemModal.item, image: url } })}
                       type="item"
-                      size="md"
-                      label={lang === 'ar' ? 'طµظˆط±ط© ط§ظ„طµظ†ظپ' : 'Item Image'}
+                      label={lang === 'ar' ? 'صورة الصنف' : 'Item Image'}
                       lang={lang}
                     />
                     <div className="space-y-2">
-                      <label className="text-[10px] font-black text-muted uppercase tracking-widest ml-1">{lang === 'ar' ? 'ط§ظ„ظ‚ط³ظ…' : 'Category'}</label>
+                      <label className="text-[10px] font-black text-muted uppercase tracking-widest ml-1">{lang === 'ar' ? 'القسم' : 'Category'}</label>
                       <select
                         value={itemModal.categoryId}
                         onChange={(e) => setItemModal({ ...itemModal, categoryId: e.target.value, item: { ...itemModal.item, categoryId: e.target.value } })}
@@ -607,7 +608,7 @@ const MenuManager: React.FC = () => {
               {/* Layout & Printers */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                 <div className="space-y-4">
-                  <label className="text-[10px] font-black text-muted uppercase tracking-widest ml-1">{lang === 'ar' ? 'ط´ظƒظ„ ط§ظ„ط¹ط±ط¶' : 'Appearance Layout'}</label>
+                  <label className="text-[10px] font-black text-muted uppercase tracking-widest ml-1">{lang === 'ar' ? 'شكل العرض' : 'Appearance Layout'}</label>
                   <div className="grid grid-cols-3 gap-3">
                     {['standard', 'wide', 'image-only'].map(layout => (
                       <button
@@ -624,7 +625,7 @@ const MenuManager: React.FC = () => {
                   </div>
                 </div>
                 <div className="space-y-4">
-                  <label className="text-[10px] font-black text-muted uppercase tracking-widest ml-1">{lang === 'ar' ? 'طھظˆط¬ظٹظ‡ ط§ظ„ط·ط¨ط§ط¹ط©' : 'Print Routing'}</label>
+                  <label className="text-[10px] font-black text-muted uppercase tracking-widest ml-1">{lang === 'ar' ? 'توجيه الطباعة' : 'Print Routing'}</label>
                   <div className="flex flex-wrap gap-2">
                     {printers.map(p => (
                       <button
@@ -812,11 +813,11 @@ const MenuManager: React.FC = () => {
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                 <div className="space-y-2">
-                  <label className="text-[10px] font-black text-muted uppercase tracking-widest ml-1">{lang === 'ar' ? 'ط§ظ„ظˆطµظپ (EN)' : 'Description (English)'}</label>
+                  <label className="text-[10px] font-black text-muted uppercase tracking-widest ml-1">{lang === 'ar' ? 'الوصف (EN)' : 'Description (English)'}</label>
                   <textarea rows={3} value={itemModal.item.description || ''} onChange={(e) => setItemModal({ ...itemModal, item: { ...itemModal.item, description: e.target.value } })} className="w-full p-5 bg-elevated rounded-2xl resize-none outline-none border border-transparent focus:border-primary transition-all" />
                 </div>
                 <div className="space-y-2">
-                  <label className="text-[10px] font-black text-muted uppercase tracking-widest ml-1">{lang === 'ar' ? 'ط§ظ„ظˆطµظپ (AR)' : 'Description (Arabic)'}</label>
+                  <label className="text-[10px] font-black text-muted uppercase tracking-widest ml-1">{lang === 'ar' ? 'الوصف (AR)' : 'Description (Arabic)'}</label>
                   <textarea rows={3} value={itemModal.item.descriptionAr || ''} onChange={(e) => setItemModal({ ...itemModal, item: { ...itemModal.item, descriptionAr: e.target.value } })} className="w-full p-5 bg-elevated rounded-2xl resize-none text-right outline-none border border-transparent focus:border-primary transition-all" />
                 </div>
               </div>
@@ -850,8 +851,8 @@ const MenuManager: React.FC = () => {
                   <Layers size={28} />
                 </div>
                 <div>
-                  <h3 className="text-xl font-black text-main uppercase">{categoryModal.mode === 'ADD' ? (lang === 'ar' ? 'ظ‚ط³ظ… ط¬ط¯ظٹط¯' : 'New Section') : (lang === 'ar' ? 'طھط¹ط¯ظٹظ„ ظ‚ط³ظ…' : 'Edit Section')}</h3>
-                  <p className="text-[10px] font-bold text-muted uppercase tracking-widest">{lang === 'ar' ? 'طھظ‡ظٹط¦ط© ظˆطھط®طµظٹطµ ط§ظ„ظ…ط¬ظ…ظˆط¹ط§طھ' : 'Configure group & visibility'}</p>
+                  <h3 className="text-xl font-black text-main uppercase">{categoryModal.mode === 'ADD' ? (lang === 'ar' ? 'قسم جديد' : 'New Section') : (lang === 'ar' ? 'تعديل قسم' : 'Edit Section')}</h3>
+                  <p className="text-[10px] font-bold text-muted uppercase tracking-widest">{lang === 'ar' ? 'تهيئة وتخصيص المجموعات' : 'Configure group & visibility'}</p>
                 </div>
               </div>
               <button onClick={() => setCategoryModal(null)} className="p-2 text-muted hover:rotate-90 transition-all"><X size={24} /></button>
@@ -860,11 +861,11 @@ const MenuManager: React.FC = () => {
             <div className="p-8 space-y-6 max-h-[70vh] overflow-y-auto no-scrollbar">
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <label className="text-[10px] font-black text-muted uppercase tracking-widest ml-1">{lang === 'ar' ? 'ط§ظ„ط§ط³ظ… (EN)' : 'Name (English)'}</label>
+                  <label className="text-[10px] font-black text-muted uppercase tracking-widest ml-1">{lang === 'ar' ? 'الاسم (EN)' : 'Name (English)'}</label>
                   <input type="text" value={categoryModal.category.name} onChange={(e) => setCategoryModal({ ...categoryModal, category: { ...categoryModal.category, name: e.target.value } })} className="w-full p-4 bg-elevated rounded-2xl font-bold border border-transparent focus:border-primary transition-all outline-none" />
                 </div>
                 <div className="space-y-2">
-                  <label className="text-[10px] font-black text-muted uppercase tracking-widest ml-1">{lang === 'ar' ? 'ط§ظ„ط§ط³ظ… (AR)' : 'Name (Arabic)'}</label>
+                  <label className="text-[10px] font-black text-muted uppercase tracking-widest ml-1">{lang === 'ar' ? 'الاسم (AR)' : 'Name (Arabic)'}</label>
                   <input type="text" value={categoryModal.category.nameAr || ''} onChange={(e) => setCategoryModal({ ...categoryModal, category: { ...categoryModal.category, nameAr: e.target.value } })} className="w-full p-4 bg-elevated rounded-2xl font-bold text-right border border-transparent focus:border-primary transition-all outline-none" />
                 </div>
               </div>
@@ -873,13 +874,12 @@ const MenuManager: React.FC = () => {
                 value={categoryModal.category.image || ''}
                 onChange={(url) => setCategoryModal({ ...categoryModal, category: { ...categoryModal.category, image: url } })}
                 type="category"
-                size="md"
-                label={lang === 'ar' ? 'طµظˆط±ط© ط§ظ„ظ‚ط³ظ…' : 'Category Image'}
+                label={lang === 'ar' ? 'صورة القسم' : 'Category Image'}
                 lang={lang}
               />
 
               <div className="space-y-3">
-                <label className="text-[10px] font-black text-muted uppercase tracking-widest ml-1">{lang === 'ar' ? 'ط£ظ†ظˆط§ط¹ ط§ظ„ط·ظ„ط¨ط§طھ ط§ظ„ظ…ط³ظ…ظˆط­ط©' : 'Available Order Modes'}</label>
+                <label className="text-[10px] font-black text-muted uppercase tracking-widest ml-1">{lang === 'ar' ? 'أنواع الطلبات المسموحة' : 'Available Order Modes'}</label>
                 <div className="grid grid-cols-3 gap-3">
                   {[
                     { id: 'DINE_IN', icon: UtensilsCrossed, label: 'Dine In' },
@@ -909,7 +909,7 @@ const MenuManager: React.FC = () => {
               </div>
 
               <div className="space-y-3">
-                <label className="text-[10px] font-black text-muted uppercase tracking-widest ml-1">{lang === 'ar' ? 'ط±ط¨ط· ط¨ط§ظ„ظ‚ظˆط§ط¦ظ…' : 'Linked Menus'}</label>
+                <label className="text-[10px] font-black text-muted uppercase tracking-widest ml-1">{lang === 'ar' ? 'ربط بالقوائم' : 'Linked Menus'}</label>
                 <div className="flex flex-wrap gap-2">
                   {menus.map(menu => {
                     const isLinked = categoryModal.category.menuIds.includes(menu.id);
@@ -933,7 +933,7 @@ const MenuManager: React.FC = () => {
 
             <div className="p-8 border-t border-border dark:border-border bg-app/20">
               <button onClick={handleSaveCategory} className="w-full py-5 bg-primary text-white rounded-[1.5rem] font-black uppercase tracking-widest shadow-xl shadow-primary/20 hover:bg-primary-hover transition-all">
-                {categoryModal.mode === 'ADD' ? (lang === 'ar' ? 'ط¥ظ†ط´ط§ط، ط§ظ„ظ‚ط³ظ…' : 'Create Section') : (lang === 'ar' ? 'ط­ظپط¸ ط§ظ„طھط¹ط¯ظٹظ„ط§طھ' : 'Save Changes')}
+                {categoryModal.mode === 'ADD' ? (lang === 'ar' ? 'إنشاء القسم' : 'Create Section') : (lang === 'ar' ? 'حفظ التعديلات' : 'Save Changes')}
               </button>
             </div>
           </div>
@@ -951,9 +951,9 @@ const MenuManager: React.FC = () => {
             <div className="flex-1 overflow-y-auto p-8 space-y-6 no-scrollbar">
               <div className="space-y-3">
                 {recipeModal.tempRecipe.map((ri) => {
-                  const inv = inventory.find(i => i.id === ri.inventoryItemId);
+                  const inv = inventory.find(i => i.id === ri.itemId);
                   return (
-                    <div key={ri.inventoryItemId} className="flex justify-between items-center p-5 bg-elevated rounded-2xl border border-border dark:border-border"><div className="flex items-center gap-4"><div className="w-10 h-10 bg-card dark:bg-elevated rounded-xl flex items-center justify-center text-primary font-black">{inv?.name.charAt(0)}</div><div><p className="font-black text-main">{inv?.name}</p></div></div><div className="flex items-center gap-4"><span className="text-xl font-black text-primary">{ri.quantityNeeded}</span><button onClick={() => setRecipeModal({ ...recipeModal, tempRecipe: recipeModal.tempRecipe.filter(r => r.inventoryItemId !== ri.inventoryItemId) })} className="p-2 text-muted hover:text-red-500 transition-all"><Trash2 size={18} /></button></div></div>
+                    <div key={ri.itemId} className="flex justify-between items-center p-5 bg-elevated rounded-2xl border border-border dark:border-border"><div className="flex items-center gap-4"><div className="w-10 h-10 bg-card dark:bg-elevated rounded-xl flex items-center justify-center text-primary font-black">{inv?.name.charAt(0)}</div><div><p className="font-black text-main">{inv?.name}</p></div></div><div className="flex items-center gap-4"><span className="text-xl font-black text-primary">{ri.quantity}</span><button onClick={() => setRecipeModal({ ...recipeModal, tempRecipe: recipeModal.tempRecipe.filter(r => r.itemId !== ri.itemId) })} className="p-2 text-muted hover:text-red-500 transition-all"><Trash2 size={18} /></button></div></div>
                   );
                 })}
               </div>

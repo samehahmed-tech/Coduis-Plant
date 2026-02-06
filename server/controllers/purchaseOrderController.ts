@@ -2,6 +2,7 @@ import { Request, Response } from 'express';
 import { db } from '../db';
 import { purchaseOrders, purchaseOrderItems, inventoryStock, stockMovements, inventoryItems } from '../../src/db/schema';
 import { eq, desc, sql, and } from 'drizzle-orm';
+import { getStringParam } from '../utils/request';
 
 /**
  * Create new Purchase Order
@@ -56,7 +57,8 @@ export const createPO = async (req: Request, res: Response) => {
  */
 export const receivePO = async (req: Request, res: Response) => {
     try {
-        const { id } = req.params;
+        const id = getStringParam((req.params as any).id);
+        if (!id) return res.status(400).json({ error: 'PO_ID_REQUIRED' });
         const { warehouseId, items, receivedBy } = req.body;
 
         if (!warehouseId || !items || items.length === 0) {
@@ -145,16 +147,16 @@ export const receivePO = async (req: Request, res: Response) => {
  */
 export const getPOs = async (req: Request, res: Response) => {
     try {
-        const { status, supplierId } = req.query;
+        const status = getStringParam(req.query.status);
+        const supplierId = getStringParam(req.query.supplierId);
 
-        let query = db.select().from(purchaseOrders).orderBy(desc(purchaseOrders.createdAt));
+        const conditions: any[] = [];
+        if (status) conditions.push(eq(purchaseOrders.status, status));
+        if (supplierId) conditions.push(eq(purchaseOrders.supplierId, supplierId));
 
-        if (status) {
-            query = query.where(eq(purchaseOrders.status, status as string));
-        }
-        if (supplierId) {
-            query = query.where(eq(purchaseOrders.supplierId, supplierId as string));
-        }
+        const query = conditions.length
+            ? db.select().from(purchaseOrders).where(and(...conditions)).orderBy(desc(purchaseOrders.createdAt))
+            : db.select().from(purchaseOrders).orderBy(desc(purchaseOrders.createdAt));
 
         const pos = await query.limit(100);
         res.json(pos);
@@ -168,7 +170,8 @@ export const getPOs = async (req: Request, res: Response) => {
  */
 export const getPOById = async (req: Request, res: Response) => {
     try {
-        const { id } = req.params;
+        const id = getStringParam((req.params as any).id);
+        if (!id) return res.status(400).json({ error: 'PO_ID_REQUIRED' });
 
         const [po] = await db.select().from(purchaseOrders).where(eq(purchaseOrders.id, id));
         if (!po) {
@@ -198,7 +201,8 @@ export const getPOById = async (req: Request, res: Response) => {
  */
 export const updatePOStatus = async (req: Request, res: Response) => {
     try {
-        const { id } = req.params;
+        const id = getStringParam((req.params as any).id);
+        if (!id) return res.status(400).json({ error: 'PO_ID_REQUIRED' });
         const { status } = req.body;
 
         const [updated] = await db.update(purchaseOrders)

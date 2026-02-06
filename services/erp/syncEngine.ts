@@ -1,5 +1,5 @@
-import { ERPEvent, SyncStats } from './types';
 import { ordersApi } from '../api';
+import { ERPEvent, ERPEventType, SyncStats } from './types';
 
 /**
  * SYNC ENGINE
@@ -53,7 +53,7 @@ export class ERPSyncEngine {
 
     private async pushToRemoteServer(event: ERPEvent): Promise<boolean> {
         try {
-            if (event.type === 'ORDER_PLACEMENT') {
+            if (event.type === ERPEventType.ORDER_CREATED) {
                 const orderData = event.payload;
                 await ordersApi.create(orderData);
                 return true;

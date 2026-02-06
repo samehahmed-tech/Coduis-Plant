@@ -2,6 +2,7 @@ import { Request, Response } from 'express';
 import { db } from '../db';
 import { branches } from '../../src/db/schema';
 import { eq } from 'drizzle-orm';
+import { getStringParam } from '../utils/request';
 
 export const getAllBranches = async (req: Request, res: Response) => {
     try {
@@ -40,6 +41,8 @@ export const createBranch = async (req: Request, res: Response) => {
 export const updateBranch = async (req: Request, res: Response) => {
     try {
         const body = req.body || {};
+        const id = getStringParam((req.params as any).id);
+        if (!id) return res.status(400).json({ error: 'BRANCH_ID_REQUIRED' });
         const updatedBranch = await db.update(branches)
             .set({
                 name: body.name,
@@ -55,7 +58,7 @@ export const updateBranch = async (req: Request, res: Response) => {
                 serviceCharge: body.service_charge ?? body.serviceCharge,
                 updatedAt: new Date()
             })
-            .where(eq(branches.id, req.params.id))
+            .where(eq(branches.id, id))
             .returning();
         res.json(updatedBranch[0]);
     } catch (error: any) {
@@ -65,7 +68,9 @@ export const updateBranch = async (req: Request, res: Response) => {
 
 export const deleteBranch = async (req: Request, res: Response) => {
     try {
-        await db.delete(branches).where(eq(branches.id, req.params.id));
+        const id = getStringParam((req.params as any).id);
+        if (!id) return res.status(400).json({ error: 'BRANCH_ID_REQUIRED' });
+        await db.delete(branches).where(eq(branches.id, id));
         res.json({ message: 'Branch deleted' });
     } catch (error: any) {
         res.status(500).json({ error: error.message });

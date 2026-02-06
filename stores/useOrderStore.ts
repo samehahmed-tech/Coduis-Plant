@@ -1,6 +1,6 @@
 // Order Store - Connected to Database API (Production Ready)
 import { create } from 'zustand';
-import { Order, OrderType, OrderItem, OrderStatus, Table, TableStatus, AuditEventType } from '../types';
+import { Order, OrderType, OrderItem, OrderStatus, Table, TableStatus, AuditEventType, FloorZone } from '../types';
 import { ordersApi, tablesApi } from '../services/api';
 import { localDb } from '../db/localDb';
 import { syncService } from '../services/syncService';
@@ -37,7 +37,7 @@ interface OrderState {
     updateOrderStatus: (orderId: string, status: OrderStatus, changedBy?: string) => Promise<void>;
 
     fetchTables: (branchId: string) => Promise<void>;
-    updateTableStatus: (tableId: string, status: string) => Promise<void>;
+    updateTableStatus: (tableId: string, status: TableStatus) => Promise<void>;
 
     // Local Actions
     setOrderMode: (mode: OrderType) => void;
@@ -118,6 +118,7 @@ export const useOrderStore = create<OrderState>()(
                             paymentMethod: o.payment_method,
                             notes: o.notes,
                             createdAt: new Date(o.created_at || o.createdAt),
+                            updatedAt: o.updated_at ? new Date(o.updated_at) : (o.updatedAt ? new Date(o.updatedAt) : undefined),
                             syncStatus: o.sync_status || 'SYNCED'
                         }));
                         set({ orders, isLoading: false });
@@ -244,6 +245,7 @@ export const useOrderStore = create<OrderState>()(
                         payments: savedOrder.payments ?? order.payments,
                         notes: savedOrder.notes ?? order.notes,
                         createdAt: new Date(savedOrder.created_at || savedOrder.createdAt || new Date()),
+                        updatedAt: savedOrder.updated_at ? new Date(savedOrder.updated_at) : (savedOrder.updatedAt ? new Date(savedOrder.updatedAt) : undefined),
                         syncStatus: savedOrder.sync_status || savedOrder.syncStatus || 'SYNCED'
                     };
 
@@ -273,10 +275,15 @@ export const useOrderStore = create<OrderState>()(
 
             updateOrderStatus: async (orderId, status, changedBy) => {
                 try {
+                    const current = get().orders.find(o => o.id === orderId);
+                    const expectedUpdatedAt = current?.updatedAt ? new Date(current.updatedAt).toISOString() : undefined;
                     if (navigator.onLine) {
-                        await ordersApi.updateStatus(orderId, { status, changed_by: changedBy });
+                        await ordersApi.updateStatus(orderId, { status, changed_by: changedBy, expected_updated_at: expectedUpdatedAt });
                     } else {
-                        await syncService.queue('orderStatus', 'UPDATE', { id: orderId, data: { status, changed_by: changedBy } });
+                        await syncService.queue('orderStatus', 'UPDATE', {
+                            id: orderId,
+                            data: { status, changed_by: changedBy, expected_updated_at: expectedUpdatedAt }
+                        });
                     }
                     eventBus.emit(AuditEventType.ORDER_STATUS_CHANGE, {
                         orderId,
@@ -285,16 +292,16 @@ export const useOrderStore = create<OrderState>()(
                         timestamp: new Date()
                     });
                     set((state) => ({
-                        orders: state.orders.map(o => o.id === orderId ? { ...o, status } : o)
+                        orders: state.orders.map(o => o.id === orderId ? { ...o, status, updatedAt: new Date() } : o)
                     }));
                     const existing = await localDb.orders.get(orderId);
                     if (existing) {
-                        await localDb.orders.put({ ...existing, status } as any);
+                        await localDb.orders.put({ ...existing, status, updatedAt: new Date() } as any);
                     }
                 } catch (error: any) {
                     // Update locally anyway for responsiveness
                     set((state) => ({
-                        orders: state.orders.map(o => o.id === orderId ? { ...o, status } : o)
+                        orders: state.orders.map(o => o.id === orderId ? { ...o, status, updatedAt: new Date() } : o)
                     }));
                     console.error('Failed to update order status:', error);
                 }

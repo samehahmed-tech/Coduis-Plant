@@ -3,6 +3,9 @@ import { db } from '../db';
 import { orders, orderItems, orderStatusHistory, payments, warehouses, shifts } from '../../src/db/schema';
 import { eq, and, desc, gte, lte } from 'drizzle-orm';
 import { inventoryService } from '../services/inventoryService';
+import { getStringParam } from '../utils/request';
+import { getIO } from '../socket';
+import { submitOrderToFiscal } from '../services/fiscalSubmitService';
 
 export const getAllOrders = async (req: Request, res: Response) => {
     try {
@@ -75,6 +78,14 @@ export const createOrder = async (req: Request, res: Response) => {
             syncStatus: bodyData.sync_status || bodyData.syncStatus
         };
 
+        // Idempotency guard: if client retries the same order id, return existing record.
+        if (orderData.id) {
+            const [existingOrder] = await db.select().from(orders).where(eq(orders.id, orderData.id)).limit(1);
+            if (existingOrder) {
+                return res.status(200).json(existingOrder);
+            }
+        }
+
         // ================== SHIFT-LOCK ENFORCEMENT ==================
         // Every order MUST be linked to an active shift for cash reconciliation
         // Now using the correctly mapped branchId
@@ -93,7 +104,7 @@ export const createOrder = async (req: Request, res: Response) => {
         }
         // =============================================================
 
-        const savedOrder = await db.transaction(async (tx) => {
+        const { savedOrder, paidNow } = await db.transaction(async (tx) => {
             // 1. Calculate and Enforce Totals (Egyptian Standards)
             // Use values from mapped orderData or fallback to bodyData if needed (though mapped should be enough)
             const subtotal = items.reduce((acc: number, item: any) => acc + (item.price * item.quantity), 0);
@@ -166,10 +177,14 @@ export const createOrder = async (req: Request, res: Response) => {
                 : [];
             const paymentsToInsert = rawPayments.length > 0 ? rawPayments : fallbackPayment;
 
-            for (const p of paymentsToInsert) {
+            for (let idx = 0; idx < paymentsToInsert.length; idx += 1) {
+                const p = paymentsToInsert[idx];
                 if (!p?.method || p?.amount === undefined) continue;
+                const paymentId = p.id || p.paymentId || `PAY-${newOrder.id}-${idx + 1}`;
+                const [existingPayment] = await tx.select().from(payments).where(eq(payments.id, paymentId)).limit(1);
+                if (existingPayment) continue;
                 await tx.insert(payments).values({
-                    id: `PAY-${Date.now()}-${Math.random().toString(36).slice(2, 7).toUpperCase()}`,
+                    id: paymentId,
                     orderId: newOrder.id,
                     method: p.method,
                     amount: Number(p.amount),
@@ -180,8 +195,26 @@ export const createOrder = async (req: Request, res: Response) => {
                 });
             }
 
-            return newOrder;
+            const paidNow = Boolean(orderData.isPaid) || paymentsToInsert.length > 0;
+            return { savedOrder: newOrder, paidNow };
         });
+
+        try {
+            const branchRoom = savedOrder.branchId ? `branch:${savedOrder.branchId}` : null;
+            if (branchRoom) {
+                getIO().to(branchRoom).emit('order:created', savedOrder);
+            }
+        } catch {
+            // socket is optional
+        }
+
+        if (paidNow) {
+            setTimeout(() => {
+                submitOrderToFiscal(savedOrder.id).catch(() => {
+                    // background submission; errors are stored in fiscal logs
+                });
+            }, 0);
+        }
 
         res.status(201).json(savedOrder);
     } catch (error: any) {
@@ -192,14 +225,34 @@ export const createOrder = async (req: Request, res: Response) => {
 export const updateOrderStatus = async (req: Request, res: Response) => {
     try {
         const { status, changed_by, notes } = req.body;
-        const orderId = req.params.id;
+        const expectedUpdatedAtRaw = req.body?.expected_updated_at || req.body?.expectedUpdatedAt;
+        const orderId = getStringParam((req.params as any).id);
+        if (!orderId) return res.status(400).json({ error: 'ORDER_ID_REQUIRED' });
 
         const result = await db.transaction(async (tx) => {
+            const [currentOrder] = await tx.select().from(orders).where(eq(orders.id, orderId)).limit(1);
+            if (!currentOrder) throw new Error('Order not found');
+
+            if (expectedUpdatedAtRaw && currentOrder.updatedAt) {
+                const expected = new Date(expectedUpdatedAtRaw).getTime();
+                const actual = new Date(currentOrder.updatedAt).getTime();
+                if (!Number.isNaN(expected) && expected !== actual) {
+                    const conflict: any = new Error('ORDER_VERSION_CONFLICT');
+                    conflict.status = 409;
+                    conflict.currentUpdatedAt = currentOrder.updatedAt;
+                    throw conflict;
+                }
+            }
+
+            // Idempotent status update: avoid duplicate history rows on retries.
+            if (String(currentOrder.status) === String(status)) {
+                return currentOrder;
+            }
+
             const [updatedOrder] = await tx.update(orders)
                 .set({ status, updatedAt: new Date() })
                 .where(eq(orders.id, orderId))
                 .returning();
-
             if (!updatedOrder) throw new Error('Order not found');
 
             await tx.insert(orderStatusHistory).values({
@@ -213,8 +266,32 @@ export const updateOrderStatus = async (req: Request, res: Response) => {
             return updatedOrder;
         });
 
+        try {
+            const branchRoom = result.branchId ? `branch:${result.branchId}` : null;
+            if (branchRoom) {
+                getIO().to(branchRoom).emit('order:status', { id: result.id, status: result.status });
+            }
+        } catch {
+            // socket is optional
+        }
+
+        if (['DELIVERED', 'COMPLETED'].includes(String(result.status))) {
+            setTimeout(() => {
+                submitOrderToFiscal(result.id).catch(() => {
+                    // background submission; errors are stored in fiscal logs
+                });
+            }, 0);
+        }
+
         res.json(result);
     } catch (error: any) {
-        res.status(500).json({ error: error.message });
+        const statusCode = Number(error?.status) || 500;
+        if (statusCode === 409) {
+            return res.status(409).json({
+                error: error.message,
+                currentUpdatedAt: error.currentUpdatedAt
+            });
+        }
+        res.status(statusCode).json({ error: error.message });
     }
 };

@@ -18,7 +18,7 @@ interface ImageUploaderProps {
 const ImageUploader: React.FC<ImageUploaderProps> = ({
     value,
     onChange,
-    type = 'other',
+    type = 'other' as ImagePresetType,
     className = '',
     label,
     lang = 'ar',

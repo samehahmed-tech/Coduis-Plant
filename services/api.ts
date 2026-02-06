@@ -1,7 +1,8 @@
-// API Client for Restaurant ERP
+﻿// API Client for Restaurant ERP
 // Connects frontend to backend API
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || '/api';
+const IS_DEV = import.meta.env.DEV;
 const getAuthToken = () => {
     try {
         return localStorage.getItem('auth_token');
@@ -21,7 +22,9 @@ async function apiRequest<T>(
     const url = endpoint.startsWith('http') ? endpoint : `${API_BASE_URL}${endpoint}`;
 
     // Debug log for API calls
-    console.log(`API Request: ${options.method || 'GET'} ${url}`);
+    if (IS_DEV) {
+        console.log(`API Request: ${options.method || 'GET'} ${url}`);
+    }
 
     const config: RequestInit = {
         ...options,
@@ -52,11 +55,11 @@ async function apiRequest<T>(
         const data = await response.json();
         return data;
     } catch (error: any) {
-        if (!error?.silent) {
+        if (!error?.silent && IS_DEV) {
             console.error(`API Error [${endpoint}]:`, error.message);
         }
         // If it's a syntax error with '<', it's likely we hit an HTML page instead of JSON
-        if (!error?.silent && error.message?.includes('Unexpected token')) {
+        if (!error?.silent && IS_DEV && error.message?.includes('Unexpected token')) {
             console.error('Hint: The server might be returning an HTML page. Check if the backend is running and the API URL is correct.');
         }
         throw error;
@@ -75,7 +78,15 @@ export const checkHealth = async () => {
     }
 };
 // ============================================================================
-// ط·آ·ط¢آ¸ط£آ¢أ¢â€ڑآ¬ط¢آ¹ط·آ·ط¢آ¹ط·آ·أ¢â‚¬ط›ط·آ£ط¢آ¢ط£آ¢أ¢â‚¬ع‘ط¢آ¬ط£آ¢أ¢â€ڑآ¬ط¥â€™ط·آ·ط¢آ¹ط·آ¢ط¢آ¯ Auth API
+// Setup API (First-Time Bootstrap)
+// ============================================================================
+
+export const setupApi = {
+    status: () => apiRequest<{ needsSetup: boolean }>('/setup/status'),
+    bootstrap: (payload: any) => apiRequest<{ ok: boolean }>('/setup/bootstrap', { method: 'POST', body: JSON.stringify(payload) }),
+};
+// ============================================================================
+// Auth API
 // ============================================================================
 
 export const authApi = {
@@ -85,7 +96,7 @@ export const authApi = {
 };
 
 // ============================================================================
-// ط·آ·ط¢آ¸ط£آ¢أ¢â€ڑآ¬ط¢آ¹ط·آ·ط¢آ¹ط·آ·أ¢â‚¬ط›ط·آ£ط¢آ¢ط£آ¢أ¢â‚¬ع‘ط¢آ¬ط·آ¹ط¢آ©ط·آ·ط¢آ¢ط·آ¢ط¢آ¤ Users API
+// Users API
 // ============================================================================
 
 export const usersApi = {
@@ -97,7 +108,7 @@ export const usersApi = {
 };
 
 // ============================================================================
-// ط·آ·ط¢آ¸ط£آ¢أ¢â€ڑآ¬ط¢آ¹ط·آ·ط¢آ¹ط·آ·أ¢â‚¬ط›ط·آ·ط¢آ¹ط·آ«أ¢â‚¬آ ط·آ·ط¢آ¹ط·آ¢ط¢آ¾ Branches API
+// Branches API
 // ============================================================================
 
 export const branchesApi = {
@@ -109,7 +120,7 @@ export const branchesApi = {
 };
 
 // ============================================================================
-// ط·آ·ط¢آ¸ط£آ¢أ¢â€ڑآ¬ط¢آ¹ط·آ·ط¢آ¹ط·آ·أ¢â‚¬ط›ط·آ£ط¢آ¢ط£آ¢أ¢â‚¬ع‘ط¢آ¬ط·آ¹ط¢آ©ط·آ·ط¢آ¢ط·آ¢ط¢آ¥ Customers API
+// Customers API
 // ============================================================================
 
 export const customersApi = {
@@ -125,7 +136,7 @@ export const customersApi = {
 };
 
 // ============================================================================
-// ط·آ·ط¢آ¸ط£آ¢أ¢â€ڑآ¬ط¢آ¹ط·آ·ط¢آ¹ط·آ·أ¢â‚¬ط›ط·آ·ط¢آ¹ط£آ¢أ¢â€ڑآ¬ط¢آ ط·آ·ط¢آ¢ط·آ¢ط¢آ½ط·آ·ط¢آ£ط·آ¢ط¢آ¯ط·آ·ط¢آ¢ط·آ¢ط¢آ¸ط·آ·ط¢آ¹ط·آ«أ¢â‚¬آ  Menu API
+// Menu API
 // ============================================================================
 
 export const menuApi = {
@@ -150,7 +161,7 @@ export const menuApi = {
 };
 
 // ============================================================================
-// ط·آ·ط¢آ¸ط£آ¢أ¢â€ڑآ¬ط¢آ¹ط·آ·ط¢آ¹ط·آ·أ¢â‚¬ط›ط·آ£ط¢آ¢ط£آ¢أ¢â‚¬ع‘ط¢آ¬ط·آ¥أ¢â‚¬إ“ط·آ£ط¢آ¢ط£آ¢أ¢â‚¬ع‘ط¢آ¬ط·آ¢ط¢آ¹ Orders API
+// Orders API
 // ============================================================================
 
 export const ordersApi = {
@@ -160,17 +171,13 @@ export const ordersApi = {
     },
     getById: (id: string) => apiRequest<any>(`/orders/${id}`),
     create: (order: any) => apiRequest<any>('/orders', { method: 'POST', body: JSON.stringify(order) }),
-    updateStatus: (id: string, data: { status: string; changed_by?: string; notes?: string }) =>
+    updateStatus: (id: string, data: { status: string; changed_by?: string; notes?: string; expected_updated_at?: string; expectedUpdatedAt?: string }) =>
         apiRequest<any>(`/orders/${id}/status`, { method: 'PUT', body: JSON.stringify(data) }),
     delete: (id: string) => apiRequest<any>(`/orders/${id}`, { method: 'DELETE' }),
 };
 
 // ============================================================================
-// ط·آ·ط¢آ¸ط£آ¢أ¢â€ڑآ¬ط¢آ¹ط·آ·ط¢آ¹ط·آ·أ¢â‚¬ط›ط·آ£ط¢آ¢ط£آ¢أ¢â‚¬ع‘ط¢آ¬ط·آ¥أ¢â‚¬إ“ط·آ·ط¢آ¢ط·آ¢ط¢آ¦ Inventory API
-// ============================================================================
-
-// ============================================================================
-// ط·آ·ط¢آ¸ط£آ¢أ¢â€ڑآ¬ط¢آ¹ط·آ·ط¢آ¹ط·آ·أ¢â‚¬ط›ط·آ£ط¢آ¢ط£آ¢أ¢â‚¬ع‘ط¢آ¬ط·آ¥أ¢â‚¬إ“ط·آ·ط¢آ¢ط·آ¢ط¢آ¦ INVENTORY API
+// Inventory API
 // ============================================================================
 
 export const inventoryApi = {
@@ -190,7 +197,7 @@ export const inventoryApi = {
 
 
 // ============================================================================
-// ط·آ·ط¢آ£ط·آ¢ط¢آ¢ط·آ·ط¢آ¹ط£آ¢أ¢â€ڑآ¬ط¹آ©ط·آ£ط¢آ¢ط£آ¢أ¢â€ڑآ¬أ¢â‚¬ع†ط·آ¢ط¢آ¢ط·آ·ط¢آ£ط·آ¢ط¢آ¯ط·آ·ط¢آ¢ط·آ¢ط¢آ¸ط·آ·ط¢آ¹ط·آ«أ¢â‚¬آ  Settings API
+// Settings API
 // ============================================================================
 
 export const settingsApi = {
@@ -202,7 +209,7 @@ export const settingsApi = {
 };
 
 // ============================================================================
-// ط·آ·ط¢آ¸ط£آ¢أ¢â€ڑآ¬ط¢آ¹ط·آ·ط¢آ¹ط·آ·أ¢â‚¬ط›ط·آ£ط¢آ¢ط£آ¢أ¢â‚¬ع‘ط¢آ¬ط£آ¢أ¢â€ڑآ¬ط¥â€™ط·آ£ط¢آ¢ط£آ¢أ¢â‚¬ع‘ط¢آ¬ط£آ¢أ¢â‚¬â€چط¢آ¢ Audit Logs API
+// Audit Logs API
 // ============================================================================
 
 export const auditApi = {
@@ -214,7 +221,7 @@ export const auditApi = {
 };
 
 // ============================================================================
-// ط·آ·ط¢آ¸ط£آ¢أ¢â€ڑآ¬ط¢آ¹ط·آ·ط¢آ¹ط·آ·أ¢â‚¬ط›ط·آ£ط¢آ¢ط£آ¢أ¢â‚¬ع‘ط¢آ¬ط·آ¢ط¢آ¢ط·آ£ط¢آ¢ط£آ¢أ¢â‚¬ع‘ط¢آ¬ط£آ¢أ¢â‚¬â€چط¢آ¢ Shifts API
+// Shifts API
 // ============================================================================
 
 export const shiftsApi = {
@@ -229,7 +236,7 @@ export const shiftsApi = {
 };
 
 // ============================================================================
-// ط·آ·ط¢آ¸ط£آ¢أ¢â€ڑآ¬ط¢آ¹ط·آ·ط¢آ¹ط·آ·أ¢â‚¬ط›ط·آ£ط¢آ¢ط£آ¢أ¢â‚¬ع‘ط¢آ¬ط£آ¢أ¢â€ڑآ¬ط¥â€™ط·آ·ط¢آ¹ط·آ¢ط¢آ¯ Manager Approvals API
+// Manager Approvals API
 // ============================================================================
 
 export const approvalsApi = {
@@ -245,7 +252,7 @@ export const approvalsApi = {
 };
 
 // ============================================================================
-// ط·آ·ط¢آ¸ط£آ¢أ¢â€ڑآ¬ط¢آ¹ط·آ·ط¢آ¹ط·آ·أ¢â‚¬ط›ط·آ£ط¢آ¢ط£آ¢أ¢â‚¬ع‘ط¢آ¬ط·آ¥أ¢â‚¬إ“ط·آ·ط¢آ¸ط·آ¢ط¢آ¹ Reports API
+// Reports API
 // ============================================================================
 
 export const reportsApi = {
@@ -261,10 +268,28 @@ export const reportsApi = {
         const query = new URLSearchParams(params as any).toString();
         return apiRequest<any>(`/reports/fiscal?${query}`);
     },
+    getDailySales: (params: { branchId?: string; startDate: string; endDate: string }) => {
+        const query = new URLSearchParams(params as any).toString();
+        return apiRequest<Array<{ day: string; revenue: number; net: number; tax: number; orderCount: number }>>(`/reports/daily-sales?${query}`);
+    },
 };
 
 // ============================================================================
-// ط·آ·ط¢آ¸ط£آ¢أ¢â€ڑآ¬ط¢آ¹ط·آ·ط¢آ¹ط·آ·أ¢â‚¬ط›ط·آ£ط¢آ¢ط£آ¢أ¢â‚¬ع‘ط¢آ¬ط£آ¢أ¢â€ڑآ¬ط¥â€™ط·آ·ط¢آ¢ط·آ¢ط¢آ¥ Wastage API
+// Fiscal API
+// ============================================================================
+
+export const fiscalApi = {
+    submit: (orderId: string, options?: { force?: boolean }) =>
+        apiRequest<any>('/fiscal/submit', { method: 'POST', body: JSON.stringify({ orderId, ...options }) }),
+    getLogs: (params?: { branchId?: string; limit?: number }) => {
+        const query = new URLSearchParams(params as any).toString();
+        return apiRequest<any[]>(`/fiscal/logs${query ? `?${query}` : ''}`);
+    },
+    getConfig: () => apiRequest<{ ok: boolean; missing: string[] }>('/fiscal/config'),
+};
+
+// ============================================================================
+// Wastage API
 // ============================================================================
 
 export const wastageApi = {
@@ -275,7 +300,7 @@ export const wastageApi = {
 };
 
 // ============================================================================
-// ط·آ·ط¢آ¸ط£آ¢أ¢â€ڑآ¬ط¢آ¹ط·آ·ط¢آ¹ط·آ·أ¢â‚¬ط›ط·آ·ط¢آ¹ط£آ¢أ¢â€ڑآ¬ط¹آ©ط·آ·ط¢آ¹ط£آ¢أ¢â€ڑآ¬ط¹آ© Suppliers API
+// Suppliers API
 // ============================================================================
 
 export const suppliersApi = {
@@ -287,7 +312,7 @@ export const suppliersApi = {
 };
 
 // ============================================================================
-// ط·آ·ط¢آ¸ط£آ¢أ¢â€ڑآ¬ط¢آ¹ط·آ·ط¢آ¹ط·آ·أ¢â‚¬ط›ط·آ£ط¢آ¢ط£آ¢أ¢â‚¬ع‘ط¢آ¬ط·آ¥أ¢â‚¬إ“ط·آ£ط¢آ¢ط£آ¢أ¢â‚¬ع‘ط¢آ¬ط·آ¢ط¢آ¹ Purchase Orders API
+// Purchase Orders API
 // ============================================================================
 
 export const purchaseOrdersApi = {
@@ -304,7 +329,7 @@ export const purchaseOrdersApi = {
 };
 
 // ============================================================================
-// ط·آ·ط¢آ¸ط£آ¢أ¢â€ڑآ¬ط¢آ¹ط·آ·ط¢آ¹ط·آ·أ¢â‚¬ط›ط·آ·ط¢آ¹ط·آ¢ط¢آ¾ط·آ£ط¢آ¢ط£آ¢أ¢â‚¬ع‘ط¢آ¬ط·آ¹ط¢آ© Tables API
+// Tables API
 // ============================================================================
 
 export const tablesApi = {
@@ -322,6 +347,7 @@ export const tablesApi = {
 
 export default {
     health: checkHealth,
+    setup: setupApi,
     auth: authApi,
     users: usersApi,
     branches: branchesApi,
@@ -334,8 +360,11 @@ export default {
     shifts: shiftsApi,
     approvals: approvalsApi,
     reports: reportsApi,
+    fiscal: fiscalApi,
     wastage: wastageApi,
     suppliers: suppliersApi,
     purchaseOrders: purchaseOrdersApi,
     tables: tablesApi,
 };
+
+

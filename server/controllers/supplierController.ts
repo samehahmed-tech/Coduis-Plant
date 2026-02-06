@@ -1,22 +1,22 @@
 import { Request, Response } from 'express';
 import { db } from '../db';
 import { suppliers } from '../../src/db/schema';
-import { eq, desc } from 'drizzle-orm';
+import { and, eq, desc } from 'drizzle-orm';
+import { getStringParam } from '../utils/request';
 
 /**
  * Get all suppliers
  */
 export const getSuppliers = async (req: Request, res: Response) => {
     try {
-        const { active } = req.query;
+        const active = getStringParam(req.query.active);
 
-        let query = db.select().from(suppliers).orderBy(desc(suppliers.createdAt));
+        const conditions: any[] = [];
+        if (active === 'true') conditions.push(eq(suppliers.isActive, true));
 
-        if (active === 'true') {
-            query = query.where(eq(suppliers.isActive, true));
-        }
-
-        const allSuppliers = await query;
+        const base = db.select().from(suppliers);
+        const query = conditions.length ? base.where(and(...conditions)) : base;
+        const allSuppliers = await query.orderBy(desc(suppliers.createdAt));
         res.json(allSuppliers);
     } catch (error: any) {
         res.status(500).json({ error: error.message });
@@ -28,7 +28,8 @@ export const getSuppliers = async (req: Request, res: Response) => {
  */
 export const getSupplierById = async (req: Request, res: Response) => {
     try {
-        const { id } = req.params;
+        const id = getStringParam((req.params as any).id);
+        if (!id) return res.status(400).json({ error: 'SUPPLIER_ID_REQUIRED' });
         const [supplier] = await db.select().from(suppliers).where(eq(suppliers.id, id));
 
         if (!supplier) {
@@ -78,7 +79,8 @@ export const createSupplier = async (req: Request, res: Response) => {
  */
 export const updateSupplier = async (req: Request, res: Response) => {
     try {
-        const { id } = req.params;
+        const id = getStringParam((req.params as any).id);
+        if (!id) return res.status(400).json({ error: 'SUPPLIER_ID_REQUIRED' });
         const updates = req.body;
 
         const [updated] = await db.update(suppliers)
@@ -104,7 +106,8 @@ export const updateSupplier = async (req: Request, res: Response) => {
  */
 export const deactivateSupplier = async (req: Request, res: Response) => {
     try {
-        const { id } = req.params;
+        const id = getStringParam((req.params as any).id);
+        if (!id) return res.status(400).json({ error: 'SUPPLIER_ID_REQUIRED' });
 
         const [updated] = await db.update(suppliers)
             .set({ isActive: false, updatedAt: new Date() })

@@ -36,7 +36,7 @@ const Login: React.FC = () => {
             else if (user.role === 'KITCHEN_STAFF') navigate('/kitchen');
             else navigate('/');
         } catch (err: any) {
-            setError(settings.language === 'ar' ? 'راجع تفاصيل الحساب ( اسم او باسورد غلط ) ' : 'Invalid credentials');
+            setError(settings.language === 'ar' ? 'راجع تفاصيل الحساب (اسم أو باسورد غلط)' : 'Invalid credentials');
         }
     };
 

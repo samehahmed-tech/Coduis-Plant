@@ -4,8 +4,10 @@ import { Clock, CheckCircle, Flame, Filter, Timer, RefreshCw, MonitorPlay, Volum
 import { OrderStatus, AuditEventType } from '../types';
 import { useOrderStore } from '../stores/useOrderStore';
 import { eventBus } from '../services/eventBus';
+import { socketService } from '../services/socketService';
 import { useAuthStore } from '../stores/useAuthStore';
 import { translations } from '../services/translations';
+import VirtualList from './common/VirtualList';
 
 const KDS: React.FC = () => {
   const { orders, updateOrderStatus, fetchOrders } = useOrderStore();
@@ -69,8 +71,13 @@ const KDS: React.FC = () => {
   }, []);
 
   React.useEffect(() => {
-    const poll = setInterval(() => fetchOrders(), 30000);
-    return () => clearInterval(poll);
+    const handleOrder = () => fetchOrders();
+    socketService.on('order:created', handleOrder);
+    socketService.on('order:status', handleOrder);
+    return () => {
+      socketService.off('order:created', handleOrder);
+      socketService.off('order:status', handleOrder);
+    };
   }, [fetchOrders]);
 
   React.useEffect(() => {
@@ -84,7 +91,7 @@ const KDS: React.FC = () => {
     const name = normalizeToken(item?.name || '');
     const category = normalizeToken(item?.category || '');
     const source = `${name} ${category}`;
-    const entries = Object.entries(stationKeywords);
+    const entries = Object.entries(stationKeywords) as [string, string][];
     for (const [station, list] of entries) {
       const tokens = list.split(',').map(s => s.trim()).filter(Boolean);
       if (tokens.some(token => source.includes(normalizeToken(token)))) {
@@ -315,7 +322,9 @@ const KDS: React.FC = () => {
       </div>
 
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
-        {[OrderStatus.PENDING, OrderStatus.PREPARING, OrderStatus.READY].map(status => (
+        {[OrderStatus.PENDING, OrderStatus.PREPARING, OrderStatus.READY].map(status => {
+          const ordersForStatus = groupByStatus(status);
+          return (
           <div key={status} className="bg-white/40 dark:bg-slate-950/30 border border-border/50 rounded-[2rem] p-4 md:p-5">
             <div className="flex items-center justify-between mb-4">
               <div className="flex items-center gap-2">
@@ -323,8 +332,8 @@ const KDS: React.FC = () => {
                 <h3 className="text-xs font-black uppercase tracking-widest text-slate-500">{status}</h3>
               </div>
               <div className="flex items-center gap-2">
-                <span className="text-[10px] font-black text-slate-400">{groupByStatus(status).length} Tickets</span>
-                {status === OrderStatus.READY && groupByStatus(status).length > 0 && (
+                <span className="text-[10px] font-black text-slate-400">{ordersForStatus.length} Tickets</span>
+                {status === OrderStatus.READY && ordersForStatus.length > 0 && (
                   <button
                     onClick={completeReadyBatch}
                     className="px-3 py-1.5 rounded-xl text-[9px] font-black uppercase tracking-widest bg-emerald-600 text-white shadow-lg shadow-emerald-600/20"
@@ -334,9 +343,17 @@ const KDS: React.FC = () => {
                 )}
               </div>
             </div>
-            <div className="space-y-4">
-              {groupByStatus(status).map(order => (
-          <div key={order.id} className="bg-card rounded-[2rem] shadow-sm border border-border/50 overflow-hidden flex flex-col animate-fade-in transition-colors">
+            <div className="h-[70vh] overflow-hidden">
+              <VirtualList
+                itemCount={ordersForStatus.length}
+                itemHeight={420}
+                className="h-full no-scrollbar"
+                getKey={(index) => ordersForStatus[index]?.id || index}
+                renderItem={(index) => {
+                  const order = ordersForStatus[index];
+                  if (!order) return null;
+                  return (
+          <div className="bg-card rounded-[2rem] shadow-sm border border-border/50 overflow-hidden flex flex-col animate-fade-in transition-colors">
             {/* Ticket Header */}
             <div className={`p-6 border-b dark:border-slate-800 flex justify-between items-center ${getHeaderColor(order.status)}`}>
               <div>
@@ -417,15 +434,18 @@ const KDS: React.FC = () => {
               )}
             </div>
           </div>
-              ))}
-              {groupByStatus(status).length === 0 && (
+                  );
+                }}
+              />
+              {ordersForStatus.length === 0 && (
                 <div className="p-6 rounded-2xl border-2 border-dashed border-slate-200 dark:border-slate-800 text-center text-slate-400 text-xs font-black uppercase tracking-widest">
                   No tickets
                 </div>
               )}
             </div>
           </div>
-        ))}
+        );
+        })}
 
         {activeOrders.length === 0 && (
           <div className="col-span-full flex flex-col items-center justify-center h-96 text-slate-400 dark:text-slate-500 border-2 border-dashed border-slate-200 dark:border-slate-800 rounded-[3rem] bg-white dark:bg-slate-900/50">

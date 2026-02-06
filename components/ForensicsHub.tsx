@@ -15,6 +15,7 @@ import {
     User as UserIcon
 } from 'lucide-react';
 import { AuditEventType } from '../types';
+import VirtualList from './common/VirtualList';
 
 // Stores
 import { useAuditStore } from '../stores/useAuditStore';
@@ -22,7 +23,6 @@ import { useAuthStore } from '../stores/useAuthStore';
 
 // Services
 import { translations } from '../services/translations';
-import { auditService } from '../services/auditService';
 import { Loader2 } from 'lucide-react';
 
 const ForensicsHub: React.FC = () => {
@@ -115,7 +115,7 @@ const ForensicsHub: React.FC = () => {
                         </select>
                     </div>
 
-                    <div className="space-y-4 max-h-[70vh] md:max-h-[800px] overflow-y-auto no-scrollbar pr-2">
+                    <div className="max-h-[70vh] md:max-h-[800px] pr-2 h-full">
                         {isLoading ? (
                             <div className="flex flex-col items-center justify-center py-24 opacity-60">
                                 <Loader2 className="animate-spin text-indigo-600 mb-4" size={32} />
@@ -127,41 +127,52 @@ const ForensicsHub: React.FC = () => {
                                 <p className="font-black uppercase text-xs tracking-[0.2em]">No forensic matches in the timeline</p>
                             </div>
                         ) : (
-                            filteredLogs.map(log => {
-                                const isVerified = auditService.verifyLog(log);
-                                return (
-                                    <div
-                                        key={log.id}
-                                        onClick={() => setSelectedLogId(log.id)}
-                                        className={`w-full text-left p-6 rounded-[2rem] border-2 transition-all flex items-center gap-6 group cursor-pointer ${selectedLogId === log.id ? 'bg-white dark:bg-slate-900 border-indigo-600 shadow-2xl relative z-10' : 'bg-white/50 dark:bg-slate-900/30 border-slate-100 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700'}`}
-                                    >
-                                        <div className={`w-14 h-14 rounded-2xl flex items-center justify-center flex-shrink-0 transition-all ${selectedLogId === log.id ? 'bg-indigo-50 dark:bg-indigo-900/30 scale-110 shadow-lg' : 'bg-slate-100 dark:bg-slate-800'}`}>
-                                            {getEventIcon(log.eventType)}
-                                        </div>
-                                        <div className="flex-1 overflow-hidden">
-                                            <div className="flex justify-between items-start mb-2">
-                                                <span className="text-[9px] font-black text-indigo-600 uppercase tracking-[0.3em] font-mono">{log.eventType}</span>
-                                                <span className="text-[9px] font-black text-slate-400 uppercase">{log.timestamp.toLocaleTimeString()}</span>
+                            <VirtualList
+                                itemCount={filteredLogs.length}
+                                itemHeight={118}
+                                className="h-full no-scrollbar"
+                                renderItem={(index) => {
+                                    const log = filteredLogs[index];
+                                    const isVerified = log.signatureValid === true;
+                                    const isTampered = log.signatureValid === false;
+                                    const isUnverified = log.signatureValid == null;
+                                    return (
+                                        <div
+                                            onClick={() => setSelectedLogId(log.id)}
+                                            className={`w-full text-left p-6 rounded-[2rem] border-2 transition-all flex items-center gap-6 group cursor-pointer ${selectedLogId === log.id ? 'bg-white dark:bg-slate-900 border-indigo-600 shadow-2xl relative z-10' : 'bg-white/50 dark:bg-slate-900/30 border-slate-100 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700'}`}
+                                        >
+                                            <div className={`w-14 h-14 rounded-2xl flex items-center justify-center flex-shrink-0 transition-all ${selectedLogId === log.id ? 'bg-indigo-50 dark:bg-indigo-900/30 scale-110 shadow-lg' : 'bg-slate-100 dark:bg-slate-800'}`}>
+                                                {getEventIcon(log.eventType)}
                                             </div>
-                                            <h4 className="text-sm font-black text-slate-800 dark:text-white uppercase truncate tracking-tight mb-1">{log.id}</h4>
-                                            <div className="flex items-center gap-3">
-                                                <div className="flex items-center gap-1.5 grayscale opacity-60">
-                                                    <UserIcon size={12} className="text-slate-400" />
-                                                    <span className="text-[10px] font-black text-slate-500 uppercase">{log.userName}</span>
+                                            <div className="flex-1 overflow-hidden">
+                                                <div className="flex justify-between items-start mb-2">
+                                                    <span className="text-[9px] font-black text-indigo-600 uppercase tracking-[0.3em] font-mono">{log.eventType}</span>
+                                                    <span className="text-[9px] font-black text-slate-400 uppercase">{log.timestamp.toLocaleTimeString()}</span>
                                                 </div>
-                                                <span className="text-[8px] font-black text-slate-300 uppercase tracking-[0.2em]">•</span>
-                                                {!isVerified && (
-                                                    <span className="text-[8px] px-2 py-0.5 bg-rose-500 text-white rounded-full font-black uppercase">TAMPERED</span>
-                                                )}
-                                                {isVerified && (
-                                                    <span className="text-[8px] px-2 py-0.5 bg-emerald-500 text-white rounded-full font-black uppercase">VERIFIED</span>
-                                                )}
+                                                <h4 className="text-sm font-black text-slate-800 dark:text-white uppercase truncate tracking-tight mb-1">{log.id}</h4>
+                                                <div className="flex items-center gap-3">
+                                                    <div className="flex items-center gap-1.5 grayscale opacity-60">
+                                                        <UserIcon size={12} className="text-slate-400" />
+                                                        <span className="text-[10px] font-black text-slate-500 uppercase">{log.userName}</span>
+                                                    </div>
+                                                    <span className="text-[8px] font-black text-slate-300 uppercase tracking-[0.2em]">•</span>
+                                                    {isTampered && (
+                                                        <span className="text-[8px] px-2 py-0.5 bg-rose-500 text-white rounded-full font-black uppercase">TAMPERED</span>
+                                                    )}
+                                                    {isVerified && (
+                                                        <span className="text-[8px] px-2 py-0.5 bg-emerald-500 text-white rounded-full font-black uppercase">VERIFIED</span>
+                                                    )}
+                                                    {isUnverified && (
+                                                        <span className="text-[8px] px-2 py-0.5 bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-200 rounded-full font-black uppercase">UNVERIFIED</span>
+                                                    )}
+                                                </div>
                                             </div>
+                                            <ArrowRight size={20} className={`text-indigo-600 transition-all duration-300 ${selectedLogId === log.id ? 'translate-x-0 opacity-100' : '-translate-x-4 opacity-0'}`} />
                                         </div>
-                                        <ArrowRight size={20} className={`text-indigo-600 transition-all duration-300 ${selectedLogId === log.id ? 'translate-x-0 opacity-100' : '-translate-x-4 opacity-0'}`} />
-                                    </div>
-                                );
-                            })
+                                    );
+                                }}
+                                getKey={(index) => filteredLogs[index]?.id || index}
+                            />
                         )}
                     </div>
                 </div>
@@ -186,13 +197,17 @@ const ForensicsHub: React.FC = () => {
                                     </div>
                                     <div className="text-right">
                                         <p className="text-[10px] font-black text-indigo-600 uppercase tracking-widest">Integrity Seal</p>
-                                        {auditService.verifyLog(selectedLog) ? (
+                                        {selectedLog.signatureValid === true ? (
                                             <p className="text-[10px] font-black text-emerald-500 flex items-center justify-end gap-1 mt-1 bg-emerald-50 dark:bg-emerald-900/30 px-3 py-1 rounded-lg uppercase">
                                                 <CheckCircle2 size={12} /> Cryptographically Verified
                                             </p>
-                                        ) : (
+                                        ) : selectedLog.signatureValid === false ? (
                                             <p className="text-[10px] font-black text-rose-500 flex items-center justify-end gap-1 mt-1 bg-rose-50 dark:bg-rose-900/30 px-3 py-1 rounded-lg uppercase animate-pulse">
                                                 <AlertTriangle size={12} /> Tampering Detected
+                                            </p>
+                                        ) : (
+                                            <p className="text-[10px] font-black text-slate-500 flex items-center justify-end gap-1 mt-1 bg-slate-100 dark:bg-slate-800/60 px-3 py-1 rounded-lg uppercase">
+                                                <Clock size={12} /> Unverified
                                             </p>
                                         )}
                                     </div>
@@ -280,3 +295,4 @@ const ForensicsHub: React.FC = () => {
 };
 
 export default ForensicsHub;
+

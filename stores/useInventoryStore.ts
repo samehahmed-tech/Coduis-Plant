@@ -1,6 +1,6 @@
 // Inventory Store - Connected to Database API (Production Ready)
 import { create } from 'zustand';
-import { InventoryItem, Supplier, PurchaseOrder, Warehouse, WarehouseType } from '../types';
+import { InventoryItem, Supplier, PurchaseOrder, Warehouse, WarehouseType, ProductionOrder, PurchaseRequest } from '../types';
 import { inventoryApi } from '../services/api';
 import { localDb } from '../db/localDb';
 import { syncService } from '../services/syncService';

@@ -1,9 +1,12 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { RouterProvider } from 'react-router-dom';
 import { router } from './routes';
 import { useAuthStore } from './stores/useAuthStore';
 import { useDataInit } from './hooks/useDataInit';
 import { Loader2, WifiOff, Wifi } from 'lucide-react';
+import { setupApi } from './services/api';
+import { socketService } from './services/socketService';
+import { useOrderStore } from './stores/useOrderStore';
 
 // Loading Screen Component
 const LoadingScreen: React.FC<{ isConnected: boolean }> = ({ isConnected }) => (
@@ -39,11 +42,40 @@ import { aiIntelligenceService } from './services/aiIntelligenceService';
 
 const App: React.FC = () => {
   const { settings } = useAuthStore();
+  const isAuthenticated = useAuthStore(state => state.isAuthenticated);
+  const token = useAuthStore(state => state.token);
+  const fetchOrders = useOrderStore(state => state.fetchOrders);
+  const fetchTables = useOrderStore(state => state.fetchTables);
   const restoreSession = useAuthStore(state => state.restoreSession);
   const { isLoading, isConnected } = useDataInit();
+  const [setupStatus, setSetupStatus] = useState<'checking' | 'needs' | 'ready'>('checking');
 
   useEffect(() => {
     restoreSession();
+  }, []);
+
+  useEffect(() => {
+    let active = true;
+    const checkSetup = async () => {
+      try {
+        const result = await setupApi.status();
+        if (!active) return;
+        const needsSetup = !!result?.needsSetup;
+        setSetupStatus(needsSetup ? 'needs' : 'ready');
+        if (needsSetup && window.location.pathname !== '/setup') {
+          window.history.replaceState(null, '', '/setup');
+        }
+        if (!needsSetup && window.location.pathname === '/setup') {
+          window.history.replaceState(null, '', '/login');
+        }
+      } catch {
+        if (active) setSetupStatus('ready');
+      }
+    };
+    checkSetup();
+    return () => {
+      active = false;
+    };
   }, []);
 
   useEffect(() => {
@@ -70,20 +102,35 @@ const App: React.FC = () => {
     }
   }, [settings.theme, settings.isDarkMode, settings.language]);
 
-  // Warm up the module cache for ALL routes after initial data load
   useEffect(() => {
-    if (!isLoading) {
-      const preload = async () => {
-        const { loaders } = await import('./routes');
-        // Preload everything in background
-        Object.values(loaders).forEach(loader => (loader as Function)());
-      };
-      preload();
-    }
-  }, [isLoading]);
+    if (!isAuthenticated || !token) return;
+    socketService.init(token);
+    socketService.joinBranch(settings.activeBranchId);
+
+    const handleOrderCreated = () => fetchOrders({ limit: 50 });
+    const handleOrderStatus = () => fetchOrders({ limit: 50 });
+    const handleTableStatus = () => {
+      if (settings.activeBranchId) fetchTables(settings.activeBranchId);
+    };
+    const handleTableLayout = () => {
+      if (settings.activeBranchId) fetchTables(settings.activeBranchId);
+    };
+
+    socketService.on('order:created', handleOrderCreated);
+    socketService.on('order:status', handleOrderStatus);
+    socketService.on('table:status', handleTableStatus);
+    socketService.on('table:layout', handleTableLayout);
+
+    return () => {
+      socketService.off('order:created', handleOrderCreated);
+      socketService.off('order:status', handleOrderStatus);
+      socketService.off('table:status', handleTableStatus);
+      socketService.off('table:layout', handleTableLayout);
+    };
+  }, [isAuthenticated, token, settings.activeBranchId, fetchOrders, fetchTables]);
 
   // Show loading screen while initializing
-  if (isLoading) {
+  if (isLoading || setupStatus === 'checking') {
     return <LoadingScreen isConnected={isConnected} />;
   }
 

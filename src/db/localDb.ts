@@ -11,11 +11,15 @@ export interface SyncQueueItem {
     entity: string;
     action: string;
     payload: any;
+    dedupeKey: string;
     status: 'PENDING' | 'SYNCED' | 'FAILED';
     retryCount: number;
     lastError?: string;
     createdAt: number;
     updatedAt?: number;
+    lastAttemptAt?: number;
+    nextAttemptAt?: number;
+    lockedAt?: number;
 }
 
 export class RestoFlowLocalDb extends Dexie {
@@ -73,6 +77,23 @@ export class RestoFlowLocalDb extends Dexie {
             floorTables: 'id, branchId',
             floorZones: 'id, branchId',
             syncQueue: 'id, status, createdAt, entity'
+        });
+
+        // Phase 1: Add de-dup + retry metadata to sync queue
+        this.version(4).stores({
+            orders: 'id, status, syncStatus, createdAt',
+            menuCategories: 'id, updatedAt',
+            menuItems: 'id, categoryId, updatedAt',
+            customers: 'id, phone, updatedAt',
+            inventoryItems: 'id, updatedAt',
+            warehouses: 'id, branchId, updatedAt',
+            settings: 'key, updatedAt',
+            users: 'id, email',
+            branches: 'id',
+            auditLogs: 'id, createdAt',
+            floorTables: 'id, branchId',
+            floorZones: 'id, branchId',
+            syncQueue: 'id, status, createdAt, entity, dedupeKey, nextAttemptAt'
         });
     }
 }

@@ -1,42 +1,112 @@
 import { localDb, SyncQueueItem } from '../db/localDb';
 import { auditApi, branchesApi, customersApi, inventoryApi, menuApi, ordersApi, settingsApi, tablesApi } from '../../services/api';
+import { buildDedupeKey, computeNextAttempt } from './syncQueueUtils';
+
+const MAX_RETRIES = 10;
+const BASE_RETRY_MS = 2000;
+
+const enrichPayload = (payload: any) => {
+    if (!payload || typeof payload !== 'object') return payload;
+    if (payload.clientUpdatedAt) return payload;
+    return { ...payload, clientUpdatedAt: Date.now() };
+};
 
 const createQueueItem = (entity: string, action: string, payload: any): SyncQueueItem => ({
     id: `SYNC-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`.toUpperCase(),
     entity,
     action,
-    payload,
+    payload: enrichPayload(payload),
+    dedupeKey: buildDedupeKey(entity, action, payload),
     status: 'PENDING',
     retryCount: 0,
     createdAt: Date.now(),
+    nextAttemptAt: Date.now(),
 });
 
 export const syncService = {
+    _isSyncing: false,
+    _started: false,
+    _intervalId: undefined as ReturnType<typeof setInterval> | undefined,
+
     async queue(entity: string, action: string, payload: any) {
-        await localDb.syncQueue.add(createQueueItem(entity, action, payload));
+        const item = createQueueItem(entity, action, payload);
+        const existing = await localDb.syncQueue
+            .where('dedupeKey')
+            .equals(item.dedupeKey)
+            .and(i => i.status !== 'SYNCED')
+            .first();
+
+        if (existing) {
+            await localDb.syncQueue.update(existing.id, {
+                payload: item.payload,
+                status: 'PENDING',
+                retryCount: 0,
+                lastError: undefined,
+                nextAttemptAt: Date.now(),
+                updatedAt: Date.now(),
+            });
+            return;
+        }
+
+        await localDb.syncQueue.add(item);
     },
 
     async syncPending() {
         if (!navigator.onLine) return;
+        if (this._isSyncing) return;
+        this._isSyncing = true;
 
-        const pending = await localDb.syncQueue
-            .where('status')
-            .equals('PENDING')
-            .toArray();
+        try {
+            const now = Date.now();
+            const candidates = await localDb.syncQueue
+                .where('status')
+                .anyOf('PENDING', 'FAILED')
+                .toArray();
 
-        for (const item of pending) {
-            try {
-                await this.processItem(item);
-                await localDb.syncQueue.update(item.id, { status: 'SYNCED', updatedAt: Date.now() });
-            } catch (error: any) {
+            const pending = candidates
+                .filter(item => !item.lockedAt)
+                .filter(item => (item.retryCount || 0) < MAX_RETRIES)
+                .filter(item => (item.nextAttemptAt ?? 0) <= now)
+                .sort((a, b) => (a.createdAt || 0) - (b.createdAt || 0));
+
+            for (const item of pending) {
                 await localDb.syncQueue.update(item.id, {
-                    status: 'FAILED',
-                    retryCount: (item.retryCount || 0) + 1,
-                    lastError: error.message,
-                    updatedAt: Date.now(),
+                    lockedAt: Date.now(),
+                    lastAttemptAt: Date.now(),
                 });
+
+                try {
+                    await this.processItem(item);
+                    await localDb.syncQueue.update(item.id, {
+                        status: 'SYNCED',
+                        updatedAt: Date.now(),
+                        lockedAt: undefined,
+                        lastError: undefined,
+                    });
+                } catch (error: any) {
+                    const retryCount = (item.retryCount || 0) + 1;
+                    await localDb.syncQueue.update(item.id, {
+                        status: 'FAILED',
+                        retryCount,
+                        lastError: error.message,
+                        updatedAt: Date.now(),
+                        nextAttemptAt: computeNextAttempt(retryCount, BASE_RETRY_MS),
+                        lockedAt: undefined,
+                    });
+                }
             }
+        } finally {
+            this._isSyncing = false;
         }
+    },
+
+    async markSynced(item: SyncQueueItem) {
+        await localDb.syncQueue.update(item.id, {
+            status: 'SYNCED',
+            updatedAt: Date.now(),
+            lockedAt: undefined,
+            lastError: undefined,
+        });
     },
 
     async processItem(item: SyncQueueItem) {
@@ -73,9 +143,17 @@ export const syncService = {
                 break;
             case 'order':
                 if (action === 'CREATE') {
-                    const result = await ordersApi.create(payload);
-                    await localDb.orders.update(payload.id, { syncStatus: 'SYNCED' } as any);
-                    return result;
+                    try {
+                        const result = await ordersApi.create(payload);
+                        await localDb.orders.update(payload.id, { syncStatus: 'SYNCED' } as any);
+                        return result;
+                    } catch (error: any) {
+                        if (error?.status === 409) {
+                            await localDb.orders.update(payload.id, { syncStatus: 'SYNCED' } as any);
+                            return;
+                        }
+                        throw error;
+                    }
                 }
                 break;
             case 'orderStatus':
@@ -90,6 +168,9 @@ export const syncService = {
                 break;
             case 'tableStatus':
                 if (action === 'UPDATE') return tablesApi.updateStatus(payload.id, payload.status, payload.currentOrderId);
+                break;
+            case 'tableLayout':
+                if (action === 'SAVE') return tablesApi.saveLayout(payload);
                 break;
             case 'setting':
                 if (action === 'UPDATE') return settingsApi.update(payload.key, payload.value, payload.category, payload.updated_by);
@@ -106,12 +187,32 @@ export const syncService = {
     },
 
     initSyncInterval(ms: number = 30000) {
-        setInterval(() => {
+        this._intervalId = setInterval(() => {
             if (navigator.onLine) {
                 this.syncPending();
             }
         }, ms);
-    }
+    },
+
+    init(ms: number = 30000) {
+        if (this._started) return;
+        this._started = true;
+        window.addEventListener('online', () => this.syncPending());
+        this.initSyncInterval(ms);
+        if (navigator.onLine) {
+            this.syncPending();
+        }
+    },
+
+    async getQueueStats() {
+        const all = await localDb.syncQueue.toArray();
+        return {
+            total: all.length,
+            pending: all.filter(i => i.status === 'PENDING').length,
+            failed: all.filter(i => i.status === 'FAILED').length,
+            synced: all.filter(i => i.status === 'SYNCED').length,
+        };
+    },
 };
 
 export default syncService;

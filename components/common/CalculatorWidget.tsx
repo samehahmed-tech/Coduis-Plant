@@ -9,15 +9,82 @@ const CalculatorWidget: React.FC<CalculatorWidgetProps> = ({ onClose, isCompact 
     const [display, setDisplay] = useState('0');
     const [equation, setEquation] = useState('');
 
+    const evaluateExpression = (input: string): number => {
+        const tokens = input.match(/\d+(\.\d+)?|[+\-*/()]/g) || [];
+        if (tokens.join('') !== input.replace(/\s+/g, '')) {
+            throw new Error('Invalid expression');
+        }
+
+        const output: string[] = [];
+        const operators: string[] = [];
+        const precedence: Record<string, number> = { '+': 1, '-': 1, '*': 2, '/': 2 };
+
+        for (const token of tokens) {
+            if (/^\d+(\.\d+)?$/.test(token)) {
+                output.push(token);
+                continue;
+            }
+            if (token in precedence) {
+                while (
+                    operators.length > 0 &&
+                    operators[operators.length - 1] in precedence &&
+                    precedence[operators[operators.length - 1]] >= precedence[token]
+                ) {
+                    output.push(operators.pop() as string);
+                }
+                operators.push(token);
+                continue;
+            }
+            if (token === '(') {
+                operators.push(token);
+                continue;
+            }
+            if (token === ')') {
+                while (operators.length > 0 && operators[operators.length - 1] !== '(') {
+                    output.push(operators.pop() as string);
+                }
+                if (operators.pop() !== '(') {
+                    throw new Error('Mismatched parentheses');
+                }
+            }
+        }
+
+        while (operators.length > 0) {
+            const op = operators.pop() as string;
+            if (op === '(' || op === ')') throw new Error('Mismatched parentheses');
+            output.push(op);
+        }
+
+        const stack: number[] = [];
+        for (const token of output) {
+            if (/^\d+(\.\d+)?$/.test(token)) {
+                stack.push(Number(token));
+                continue;
+            }
+            const b = stack.pop();
+            const a = stack.pop();
+            if (a === undefined || b === undefined) throw new Error('Invalid expression');
+            if (token === '+') stack.push(a + b);
+            else if (token === '-') stack.push(a - b);
+            else if (token === '*') stack.push(a * b);
+            else if (token === '/') {
+                if (b === 0) throw new Error('Division by zero');
+                stack.push(a / b);
+            }
+        }
+
+        if (stack.length !== 1 || Number.isNaN(stack[0])) throw new Error('Invalid expression');
+        return stack[0];
+    };
+
     const handleInput = (char: string) => {
         if (char === 'C') {
             setDisplay('0');
             setEquation('');
         } else if (char === '=') {
             try {
-                // Safely evaluate simple arithmetic
-                // eslint-disable-next-line no-eval
-                const result = eval(equation).toString();
+                const value = evaluateExpression(equation);
+                const result = Number.isInteger(value) ? String(value) : value.toFixed(6).replace(/\.?0+$/, '');
                 setDisplay(result);
                 setEquation(result);
             } catch {

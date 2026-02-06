@@ -2,6 +2,7 @@ import { Request, Response } from 'express';
 import { db } from '../db';
 import { settings } from '../../src/db/schema';
 import { eq } from 'drizzle-orm';
+import { getStringParam } from '../utils/request';
 
 /**
  * Get all settings as a flat object
@@ -38,7 +39,8 @@ export const getAllSettings = async (req: Request, res: Response) => {
  */
 export const updateSetting = async (req: Request, res: Response) => {
     try {
-        const { key } = req.params;
+        const key = getStringParam((req.params as any).key);
+        if (!key) return res.status(400).json({ error: 'SETTING_KEY_REQUIRED' });
         const { value, category, updated_by } = req.body;
 
         const [updated] = await db.insert(settings)

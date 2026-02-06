@@ -70,11 +70,59 @@ The project envisions a wide array of integrated modules:
     ```
 
 3.  **Configure Environment:**
-    Create a `.env` file in the root directory and configure your database connection string and other environment variables. Start by copying the example:
-    ```bash
-    # Example .env
-    DATABASE_URL="postgresql://user:password@host:port/database"
-    ```
+    Create a `.env` file in the root directory and start by copying `.env.example`. Required variables:
+    -   `DATABASE_URL` - PostgreSQL connection string
+    -   `JWT_SECRET` - required for auth tokens
+    -   `AUDIT_HMAC_SECRET` - required for audit log signatures
+
+    Common optional variables:
+    -   `API_PORT` - backend port (default `3001`)
+    -   `JWT_EXPIRES_IN` - token expiration (default `12h`)
+    -   `S3_*` - enable image uploads to object storage
+    -   `VITE_API_URL` - frontend API base URL
+    -   `VITE_OPENROUTER_API_KEY`, `VITE_GEMINI_API_KEY` - AI providers
+    -   `VITE_FIREBASE_*` - Firebase integration
+    -   `ETA_*` - Egyptian Tax Authority integration (receipts, signatures, branch data)
+
+### ETA Test Flow (Quick)
+1.  Ensure ETA environment variables are set in `.env` (all `ETA_*` keys).
+2.  Run the app and create an order, then mark it as `DELIVERED` or `COMPLETED`.
+3.  Open `Fiscal Hub` and use the `Submit to ETA` button (or enter an Order ID and submit).
+4.  Review `fiscal_logs` via the UI or `/api/fiscal/logs` for submission status.
+
+### ETA Smoke Test (CLI)
+Run a direct end-to-end smoke test that inserts a paid order and triggers ETA submission:
+```bash
+npx tsx scripts/eta-e2e-smoke.ts
+```
+Expected output:
+- `fiscalLogStatus: "SUBMITTED"` when ETA is configured and reachable.
+- `fiscalLogStatus: "FAILED"` with `lastError` when required ETA config is missing.
+
+### Online / Offline Production Model
+- Architectural decision document: `docs/ONLINE_OFFLINE_ARCHITECTURE.md`
+- Current production model:
+  - Server source of truth: PostgreSQL
+  - Offline local queue/cache: IndexedDB (Dexie)
+
+### Realtime Scaling (Socket.IO + Redis)
+To run Socket.IO across multiple backend instances:
+1. Set in `.env`:
+   - `SOCKET_REDIS_ENABLED=true`
+   - `SOCKET_REDIS_URL=redis://<host>:6379`
+2. Start multiple API instances behind a load balancer with sticky sessions.
+3. Verify runtime health:
+   - `GET /api/ops/realtime-health` (requires `SUPER_ADMIN` token)
+
+### Load Test (1000 Realtime Connections)
+Use k6 script:
+```bash
+k6 run scripts/load/realtime-1000.js
+```
+Optional env:
+- `API_BASE=http://localhost:3001`
+- `WS_BASE=ws://localhost:3001/socket.io/?EIO=4&transport=websocket`
+- `AUTH_TOKEN=<jwt>`
 
 4.  **Run Database Migrations:**
     The project uses Drizzle ORM for schema management. Apply the migrations to your database:

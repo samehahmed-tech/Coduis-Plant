@@ -3,7 +3,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { Send, Bot, User, Loader2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { chatWithRestaurantAI, analyzeMenuEngineering, forecastInventory } from '../services/geminiService';
-import { ViewState } from '../types';
+import { ViewState, AuditEventType } from '../types';
 
 // Stores
 import { useAuthStore } from '../stores/useAuthStore';
@@ -15,6 +15,8 @@ import { useCRMStore } from '../stores/useCRMStore';
 
 // Services
 import { translations } from '../services/translations';
+import { guardAction, GuardedAIAction } from '../services/aiActionGuard';
+import { eventBus } from '../services/eventBus';
 
 interface Message {
   id: string;
@@ -28,6 +30,7 @@ interface Message {
 const AIAssistant: React.FC = () => {
   const navigate = useNavigate();
   const { settings, branches } = useAuthStore();
+  const hasPermission = useAuthStore(state => state.hasPermission);
   const { inventory, updateInventoryItem } = useInventoryStore();
   const { orders } = useOrderStore();
   const { categories, updateMenuItem, addMenuItem } = useMenuStore();
@@ -49,6 +52,8 @@ const AIAssistant: React.FC = () => {
   const [input, setInput] = useState('');
   const [isTyping, setIsTyping] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const [pendingActions, setPendingActions] = useState<GuardedAIAction[]>([]);
+  const [actionReason, setActionReason] = useState<Record<string, string>>({});
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -117,6 +122,33 @@ const AIAssistant: React.FC = () => {
     }
   };
 
+  const handleApproveAction = async (guarded: GuardedAIAction) => {
+    if (!guarded.canExecute) return;
+    const permission = guarded.permission;
+    if (permission && !hasPermission(permission)) return;
+    const reason = actionReason[guarded.id] || 'Approved via AI Assistant';
+
+    const before = guarded.before;
+    const after = guarded.after;
+    eventBus.emit(AuditEventType.AI_ACTION_PREVIEW, {
+      before,
+      after,
+      reason,
+      metadata: { action: guarded.action }
+    });
+
+    const result = await executeAction(guarded.action);
+
+    eventBus.emit(AuditEventType.AI_ACTION_EXECUTED, {
+      before,
+      after,
+      reason,
+      metadata: { action: guarded.action, result }
+    });
+
+    setPendingActions(prev => prev.filter(a => a.id !== guarded.id));
+  };
+
   const handleSend = async () => {
     if (!input.trim() || isTyping) return;
 
@@ -147,12 +179,12 @@ const AIAssistant: React.FC = () => {
         settings.geminiApiKey
       );
 
-      const executedActionResults: string[] = [];
-      if (response.actions && response.actions.length > 0) {
-        for (const action of response.actions) {
-          const result = await executeAction(action);
-          executedActionResults.push(result);
-        }
+      const guarded = (response.actions || []).map((action: any) =>
+        guardAction(action, { inventory, menuItems, categories })
+      );
+
+      if (guarded.length > 0) {
+        setPendingActions(prev => [...guarded, ...prev]);
       }
 
       const aiMessage: Message = {
@@ -161,7 +193,7 @@ const AIAssistant: React.FC = () => {
         text: response.text,
         timestamp: new Date(),
         suggestion: response.suggestion,
-        actionsExecuted: executedActionResults.length > 0 ? executedActionResults : undefined
+        actionsExecuted: undefined
       };
 
       setMessages(prev => [...prev, aiMessage]);
@@ -246,6 +278,72 @@ const AIAssistant: React.FC = () => {
               </div>
             </div>
           ))}
+          {pendingActions.length > 0 && (
+            <div className="max-w-4xl mx-auto w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-4 space-y-4">
+              <div className="text-[10px] font-black uppercase tracking-widest text-slate-400">
+                AI Suggested Actions (Approval Required)
+              </div>
+              {pendingActions.map((guarded) => {
+                const permissionOk = guarded.permission ? hasPermission(guarded.permission) : true;
+                return (
+                  <div key={guarded.id} className="border border-slate-200 dark:border-slate-800 rounded-2xl p-4 space-y-3">
+                    <div className="flex items-center justify-between gap-3">
+                      <div className="font-black text-sm text-slate-800 dark:text-slate-100">
+                        {guarded.label}
+                      </div>
+                      {!permissionOk && (
+                        <span className="text-[10px] font-black uppercase tracking-widest text-rose-500">
+                          Permission required
+                        </span>
+                      )}
+                      {!guarded.canExecute && (
+                        <span className="text-[10px] font-black uppercase tracking-widest text-amber-500">
+                          {guarded.reason || 'Blocked'}
+                        </span>
+                      )}
+                    </div>
+
+                    {(guarded.before !== undefined || guarded.after !== undefined) && (
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                        <div className="bg-slate-50 dark:bg-slate-800/60 rounded-xl p-3 text-[10px]">
+                          <div className="text-[9px] font-black uppercase tracking-widest text-slate-400 mb-2">Before</div>
+                          <pre className="whitespace-pre-wrap text-slate-600 dark:text-slate-300">{JSON.stringify(guarded.before, null, 2)}</pre>
+                        </div>
+                        <div className="bg-slate-50 dark:bg-slate-800/60 rounded-xl p-3 text-[10px]">
+                          <div className="text-[9px] font-black uppercase tracking-widest text-slate-400 mb-2">After</div>
+                          <pre className="whitespace-pre-wrap text-slate-600 dark:text-slate-300">{JSON.stringify(guarded.after, null, 2)}</pre>
+                        </div>
+                      </div>
+                    )}
+
+                    <input
+                      type="text"
+                      value={actionReason[guarded.id] || ''}
+                      onChange={(e) => setActionReason(prev => ({ ...prev, [guarded.id]: e.target.value }))}
+                      placeholder={lang === 'ar' ? 'سبب التنفيذ (اختياري)' : 'Reason for approval (optional)'}
+                      className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2 text-xs font-bold"
+                    />
+
+                    <div className="flex items-center justify-end gap-2">
+                      <button
+                        onClick={() => setPendingActions(prev => prev.filter(a => a.id !== guarded.id))}
+                        className="px-3 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest bg-slate-100 dark:bg-slate-800 text-slate-500"
+                      >
+                        {lang === 'ar' ? 'إلغاء' : 'Dismiss'}
+                      </button>
+                      <button
+                        onClick={() => handleApproveAction(guarded)}
+                        disabled={!guarded.canExecute || !permissionOk}
+                        className="px-3 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest bg-emerald-600 text-white disabled:opacity-50"
+                      >
+                        {lang === 'ar' ? 'تنفيذ' : 'Approve & Run'}
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
           {isTyping && (
             <div className="flex items-center gap-4 animate-pulse">
               <div className="w-10 h-10 rounded-2xl bg-indigo-600 text-white flex items-center justify-center shrink-0">

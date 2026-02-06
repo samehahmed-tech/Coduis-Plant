@@ -2,6 +2,7 @@ import { Request, Response } from 'express';
 import { db } from '../db';
 import { users } from '../../src/db/schema';
 import { eq, desc } from 'drizzle-orm';
+import { getStringParam } from '../utils/request';
 
 export const getAllUsers = async (req: Request, res: Response) => {
     try {
@@ -14,7 +15,9 @@ export const getAllUsers = async (req: Request, res: Response) => {
 
 export const getUserById = async (req: Request, res: Response) => {
     try {
-        const user = await db.select().from(users).where(eq(users.id, req.params.id));
+        const id = getStringParam((req.params as any).id);
+        if (!id) return res.status(400).json({ error: 'USER_ID_REQUIRED' });
+        const user = await db.select().from(users).where(eq(users.id, id));
         if (user.length === 0) return res.status(404).json({ error: 'User not found' });
         res.json(user[0]);
     } catch (error: any) {
@@ -53,6 +56,8 @@ export const createUser = async (req: Request, res: Response) => {
 export const updateUser = async (req: Request, res: Response) => {
     try {
         const body = req.body || {};
+        const id = getStringParam((req.params as any).id);
+        if (!id) return res.status(400).json({ error: 'USER_ID_REQUIRED' });
         let passwordHash = body.password_hash || body.passwordHash;
         if (body.password) {
             const bcrypt = await import('bcryptjs');
@@ -70,7 +75,7 @@ export const updateUser = async (req: Request, res: Response) => {
                 passwordHash,
                 updatedAt: new Date()
             })
-            .where(eq(users.id, req.params.id))
+            .where(eq(users.id, id))
             .returning();
         if (updatedUser.length === 0) return res.status(404).json({ error: 'User not found' });
         res.json(updatedUser[0]);
@@ -81,7 +86,9 @@ export const updateUser = async (req: Request, res: Response) => {
 
 export const deleteUser = async (req: Request, res: Response) => {
     try {
-        const deletedUser = await db.delete(users).where(eq(users.id, req.params.id)).returning();
+        const id = getStringParam((req.params as any).id);
+        if (!id) return res.status(400).json({ error: 'USER_ID_REQUIRED' });
+        const deletedUser = await db.delete(users).where(eq(users.id, id)).returning();
         if (deletedUser.length === 0) return res.status(404).json({ error: 'User not found' });
         res.json({ message: 'User deleted', user: deletedUser[0] });
     } catch (error: any) {

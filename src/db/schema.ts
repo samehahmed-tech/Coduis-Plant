@@ -444,6 +444,22 @@ export const auditLogs = pgTable('audit_logs', {
 });
 
 // ============================================================================
+// 💰 FISCAL / ETA LOGS
+// ============================================================================
+
+export const fiscalLogs = pgTable('fiscal_logs', {
+    id: serial('id').primaryKey(),
+    orderId: text('order_id'),
+    branchId: text('branch_id'),
+    status: text('status').notNull(), // PENDING, SUBMITTED, FAILED
+    attempt: integer('attempt').default(0),
+    lastError: text('last_error'),
+    payload: json('payload'),
+    response: json('response'),
+    createdAt: timestamp('created_at').defaultNow(),
+    updatedAt: timestamp('updated_at').defaultNow(),
+});
+// ============================================================================
 // 🖼️ IMAGES
 // ============================================================================
 
@@ -573,6 +589,7 @@ export type StockMovement = typeof stockMovements.$inferSelect;
 
 export type AuditLog = typeof auditLogs.$inferSelect;
 export type Image = typeof images.$inferSelect;
+export type FiscalLog = typeof fiscalLogs.$inferSelect;
 
 // ============================================================================
 // 🪑 TABLES & FLOOR PLAN

@@ -13,6 +13,23 @@ export default defineConfig(({ mode }) => {
         '/api': {
           target: 'http://localhost:3001',
           changeOrigin: true,
+        },
+        '/socket.io': {
+          target: 'http://localhost:3001',
+          changeOrigin: true,
+          ws: true,
+        },
+      }
+    },
+    build: {
+      rollupOptions: {
+        output: {
+          manualChunks: {
+            vendor: ['react', 'react-dom', 'react-router-dom'],
+            charts: ['recharts'],
+            socket: ['socket.io-client'],
+            ui: ['lucide-react', 'zustand', 'dexie']
+          }
         }
       }
     },

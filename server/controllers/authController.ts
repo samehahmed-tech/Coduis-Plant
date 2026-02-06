@@ -4,8 +4,9 @@ import { users } from '../../src/db/schema';
 import { eq } from 'drizzle-orm';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
+import { requireEnv } from '../config/env';
 
-const JWT_SECRET = process.env.JWT_SECRET || 'restoflow-dev-secret';
+const JWT_SECRET = requireEnv('JWT_SECRET');
 const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || '12h';
 
 const sanitizeUser = (u: any) => ({

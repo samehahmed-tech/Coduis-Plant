@@ -33,7 +33,7 @@ export const addItem = async <T extends DocumentData>(collectionName: string, it
     return await addDoc(collection(db, collectionName), item);
 };
 
-export const updateItem = async <T extends DocumentData>(collectionName: string, id: string, updates: Partial<T>) => {
+export const updateItem = async (collectionName: string, id: string, updates: Partial<DocumentData>) => {
     const docRef = doc(db, collectionName, id);
     return await updateDoc(docRef, updates);
 };

@@ -29,6 +29,8 @@ export const loaders = {
     CampaignHub: () => import('./components/CampaignHub'),
     ZenPeople: () => import('./components/ZenPeople'),
     FiscalHub: () => import('./components/FiscalHub'),
+    FranchiseManager: () => import('./components/FranchiseManager'),
+    SetupWizard: () => import('./components/SetupWizard'),
 };
 
 // Lazy load components using exported loaders
@@ -54,6 +56,8 @@ const DispatchHub = React.lazy(loaders.DispatchHub);
 const CampaignHub = React.lazy(loaders.CampaignHub);
 const ZenPeople = React.lazy(loaders.ZenPeople);
 const FiscalHub = React.lazy(loaders.FiscalHub);
+const FranchiseManager = React.lazy(loaders.FranchiseManager);
+const LazySetupWizard = React.lazy(loaders.SetupWizard);
 
 const Loading = () => <div className="p-8 text-center text-slate-400 font-black uppercase tracking-widest text-[8px] opacity-40">Initializing Module...</div>;
 
@@ -230,6 +234,14 @@ export const router = createBrowserRouter([
                     </Suspense>
                 ),
             },
+            {
+                path: 'franchise',
+                element: (
+                    <Suspense fallback={<Loading />}>
+                        <FranchiseManager />
+                    </Suspense>
+                ),
+            },
         ],
     },
     {
@@ -243,5 +255,13 @@ export const router = createBrowserRouter([
     {
         path: '/login',
         element: <Login />,
-    }
+    },
+    {
+        path: '/setup',
+        element: (
+            <Suspense fallback={<Loading />}>
+                <LazySetupWizard />
+            </Suspense>
+        ),
+    },
 ]);

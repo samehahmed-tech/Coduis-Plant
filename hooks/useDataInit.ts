@@ -1,4 +1,4 @@
-// Data Initialization Hook
+﻿// Data Initialization Hook
 // Loads data from API on app start
 
 import { useEffect, useState } from 'react';
@@ -56,13 +56,13 @@ export const useDataInit = (): InitResult => {
                     fetchCustomers(),
                 ]);
 
-                console.log('✅ Data loaded from database');
+                console.log('Data loaded from database');
             } catch (err: any) {
                 setError(err.message);
                 setIsConnected(false);
-                console.warn('⚠️ Running in offline mode:', err.message);
+                console.warn('Running in offline mode:', err.message);
             } finally {
-                syncService.initSyncInterval();
+                syncService.init();
                 setIsLoading(false);
             }
         };
@@ -92,10 +92,10 @@ export const useSyncToDatabase = () => {
                 syncMenu(),
             ]);
             setLastSync(new Date());
-            console.log('✅ Data synced to database');
+            console.log('Data synced to database');
         } catch (err: any) {
             setError(err.message);
-            console.error('❌ Sync failed:', err);
+            console.error('Sync failed:', err);
         } finally {
             setIsSyncing(false);
         }
@@ -105,3 +105,4 @@ export const useSyncToDatabase = () => {
 };
 
 export default useDataInit;
+

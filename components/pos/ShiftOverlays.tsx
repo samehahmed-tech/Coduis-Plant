@@ -14,9 +14,9 @@ export const ShiftOverlays: React.FC<ShiftOverlaysProps> = ({ onOpen }) => {
     const activeShift = useFinanceStore(state => state.activeShift);
     const setShift = useFinanceStore(state => state.setShift);
     const settings = useAuthStore(state => state.settings);
-    const user = useAuthStore(state => state.user);
-    const t = translations[settings.language];
-    const lang = settings.language;
+    const user = useAuthStore(state => state.settings.currentUser);
+    const lang = (settings.language || 'en') as 'en' | 'ar';
+    const t = translations[lang] || translations.en;
     const { showToast } = useToast();
 
     const [openingBalance, setOpeningBalance] = useState('0');

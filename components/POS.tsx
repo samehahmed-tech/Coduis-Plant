@@ -31,6 +31,7 @@ import { useModal } from './Modal';
 
 // Services
 import { translations } from '../services/translations';
+import { shiftsApi } from '../services/api';
 
 // Stores
 import { useAuthStore } from '../stores/useAuthStore';
@@ -232,12 +233,19 @@ const POS: React.FC = () => {
 
    const filteredItems = useMemo(() => {
       const now = new Date(nowTick);
-      const allItems = currentCategories.flatMap(c => c.items);
+      const allItems = currentCategories.flatMap(c =>
+         c.items.map(item => ({
+            ...item,
+            category: c.name,
+            categoryAr: c.nameAr,
+         }))
+      );
+      const q = searchQuery.toLowerCase();
       return allItems.filter(item =>
-         (activeCategory === 'All' || item.category === activeCategory) &&
+         (activeCategory === 'All' || (item.category || '') === activeCategory) &&
          isItemAvailableNow(item, now) &&
-         (item.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-            item.category.toLowerCase().includes(searchQuery.toLowerCase()))
+         (item.name.toLowerCase().includes(q) ||
+            (item.category || '').toLowerCase().includes(q))
       );
    }, [currentCategories, activeCategory, searchQuery, isItemAvailableNow, nowTick]);
 
@@ -369,6 +377,7 @@ const POS: React.FC = () => {
 
    const showMap = activeOrderType === OrderType.DINE_IN && !selectedTableId;
    const showCustomerSelect = activeOrderType === OrderType.DELIVERY && !deliveryCustomer;
+   const isPOS = true;
 
    useEffect(() => {
       const handleKeyDown = (e: KeyboardEvent) => {
@@ -545,6 +554,45 @@ const POS: React.FC = () => {
       showToast(t.table_closed || (lang === 'ar' ? 'تم إغلاق الترابيزة' : 'Table closed'), 'success');
    };
 
+   const handleMergeTables = async (sourceTableId: string, targetTableId: string, itemCartIds: string[]) => {
+      if (!sourceTableId || !targetTableId || sourceTableId === targetTableId) return;
+
+      const sourceOrder = orders.find(o => o.tableId === sourceTableId && o.status !== OrderStatus.DELIVERED);
+      if (!sourceOrder) {
+         showToast(lang === 'ar' ? 'لا يوجد طلب على الطاولة المصدر' : 'No active order on source table', 'error');
+         return;
+      }
+
+      const sourceItemIds = (sourceOrder.items || []).map(i => i.cartId);
+      const idsToMove = (itemCartIds && itemCartIds.length > 0) ? itemCartIds : sourceItemIds;
+      if (idsToMove.length === 0) {
+         showToast(lang === 'ar' ? 'اختر أصناف للدمج' : 'Select items to merge', 'error');
+         return;
+      }
+
+      const movingAll = idsToMove.length === sourceItemIds.length;
+      if (movingAll) {
+         await transferTable(sourceTableId, targetTableId);
+         clearTableDraft(sourceTableId);
+         setManagedTableId(null);
+         showToast(t.tables_merged || (lang === 'ar' ? 'تم دمج الترابيزات' : 'Tables merged'), 'success');
+         return;
+      }
+
+      // Partial merge: move selected items to the target table order.
+      transferItems(sourceTableId, targetTableId, idsToMove);
+      await updateTableStatus(targetTableId, TableStatus.OCCUPIED);
+
+      const remainingCount = (sourceOrder.items || []).filter(i => !idsToMove.includes(i.cartId)).length;
+      if (remainingCount === 0) {
+         await updateTableStatus(sourceTableId, TableStatus.AVAILABLE);
+         clearTableDraft(sourceTableId);
+      }
+
+      setManagedTableId(null);
+      showToast(t.tables_merged || (lang === 'ar' ? 'تم دمج الترابيزات' : 'Tables merged'), 'success');
+   };
+
    const handleTempBill = async (tableId: string) => {
       const activeOrder = orders.find(o => o.tableId === tableId && o.status !== OrderStatus.DELIVERED);
       if (!activeOrder) return;
@@ -596,7 +644,7 @@ const POS: React.FC = () => {
          type: 'KITCHEN',
          content: formatReceipt({
             order: newOrder,
-            title: t.kitchen_ticket || (lang === 'ar' ? 'ط´ظٹظƒ ط§ظ„ظ…ط·ط¨ط®' : 'Kitchen Ticket'),
+            title: t.kitchen_ticket || (lang === 'ar' ? 'شيك المطبخ' : 'Kitchen Ticket'),
             settings,
             currencySymbol,
             lang,
@@ -1015,7 +1063,7 @@ const POS: React.FC = () => {
                )}
             </div>
 
-            <SplitBillModal
+           <SplitBillModal
                isOpen={showSplitModal}
                onClose={() => setShowSplitModal(false)}
                total={cartTotal}
@@ -1023,6 +1071,7 @@ const POS: React.FC = () => {
                lang={lang}
                t={t}
                splitPayments={splitPayments}
+               onSetPayments={setSplitPayments}
                onAddPayment={(method) => {
                   const currentSplitSum = splitPayments.reduce((s, p) => s + p.amount, 0);
                   const remaining = Math.max(0, cartTotal - currentSplitSum);

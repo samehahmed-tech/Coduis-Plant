@@ -60,6 +60,8 @@ const DEFAULT_SETTINGS: AppSettings = {
     receiptQrUrl: '',
     currentUser: undefined,
     activeBranchId: undefined,
+    syncAuthority: 'SERVER',
+    branchHierarchy: { id: 'central', level: 'MASTER' },
     // IMPORTANT: Never ship API keys in source control. Provide via env or UI settings instead.
     geminiApiKey: import.meta.env.VITE_OPENROUTER_API_KEY || import.meta.env.VITE_GEMINI_API_KEY || ''
 };

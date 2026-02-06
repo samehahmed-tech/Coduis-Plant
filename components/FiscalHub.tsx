@@ -14,7 +14,7 @@ import {
     Landmark,
     Calculator
 } from 'lucide-react';
-import { reportsApi, shiftsApi } from '../services/api';
+import { reportsApi, fiscalApi } from '../services/api';
 import { useAuthStore } from '../stores/useAuthStore';
 import { translations } from '../services/translations';
 
@@ -25,6 +25,10 @@ const FiscalHub: React.FC = () => {
 
     const [fiscalData, setFiscalData] = useState<any>(null);
     const [isLoading, setIsLoading] = useState(true);
+    const [isSubmitting, setIsSubmitting] = useState(false);
+    const [submitResult, setSubmitResult] = useState<string | null>(null);
+    const [etaConfig, setEtaConfig] = useState<{ ok: boolean; missing: string[] } | null>(null);
+    const [manualOrderId, setManualOrderId] = useState('');
     const [dateRange, setDateRange] = useState({
         start: new Date(new Date().setDate(1)).toISOString().split('T')[0], // 1st of current month
         end: new Date().toISOString().split('T')[0]
@@ -33,6 +37,18 @@ const FiscalHub: React.FC = () => {
     useEffect(() => {
         loadFiscalData();
     }, [dateRange]);
+
+    useEffect(() => {
+        const loadConfig = async () => {
+            try {
+                const config = await fiscalApi.getConfig();
+                setEtaConfig(config);
+            } catch {
+                setEtaConfig({ ok: false, missing: ['ETA config unreachable'] });
+            }
+        };
+        loadConfig();
+    }, []);
 
     const loadFiscalData = async () => {
         setIsLoading(true);
@@ -46,6 +62,29 @@ const FiscalHub: React.FC = () => {
             console.error("Failed to load fiscal data", error);
         } finally {
             setIsLoading(false);
+        }
+    };
+
+    const handleSubmitETA = async (force = false) => {
+        setIsSubmitting(true);
+        setSubmitResult(null);
+        try {
+            const latestOrderId = fiscalData?.data?.latestOrderId;
+            const targetOrderId = manualOrderId.trim() || latestOrderId;
+            if (!targetOrderId) {
+                setSubmitResult('No order available for submission');
+                return;
+            }
+            const result = await fiscalApi.submit(targetOrderId, force ? { force: true } : undefined);
+            if (result?.skipped) {
+                setSubmitResult('Already submitted (skipped)');
+                return;
+            }
+            setSubmitResult('Submitted successfully');
+        } catch (error: any) {
+            setSubmitResult(error.message || 'Submission failed');
+        } finally {
+            setIsSubmitting(false);
         }
     };
 
@@ -153,7 +192,9 @@ const FiscalHub: React.FC = () => {
                             <div className="p-4 bg-white/10 rounded-2xl">
                                 <ShieldCheck size={28} />
                             </div>
-                            <span className="text-[10px] font-black bg-white/20 px-3 py-1 rounded-full">BETA</span>
+                            <span className="text-[10px] font-black bg-white/20 px-3 py-1 rounded-full">
+                                {etaConfig?.ok ? 'READY' : 'SETUP'}
+                            </span>
                         </div>
                         <h4 className="text-2xl font-black uppercase tracking-tighter mb-4">ETA Mandate Readiness</h4>
                         <div className="space-y-4">
@@ -163,19 +204,61 @@ const FiscalHub: React.FC = () => {
                             </div>
                             <div className="flex items-center justify-between">
                                 <span className="text-xs font-black uppercase opacity-70 italic">Digital Signature</span>
-                                <CheckCircle2 size={16} className="text-emerald-400" />
+                                {etaConfig?.missing?.includes('ETA_PRIVATE_KEY') ? (
+                                    <AlertTriangle size={16} className="text-amber-400" />
+                                ) : (
+                                    <CheckCircle2 size={16} className="text-emerald-400" />
+                                )}
                             </div>
                             <div className="flex items-center justify-between">
                                 <span className="text-xs font-black uppercase opacity-70 italic">E-Receipt API Bridge</span>
-                                <AlertTriangle size={16} className="text-amber-400" />
+                                {etaConfig?.ok ? (
+                                    <CheckCircle2 size={16} className="text-emerald-400" />
+                                ) : (
+                                    <AlertTriangle size={16} className="text-amber-400" />
+                                )}
                             </div>
+                            {etaConfig && !etaConfig.ok && (
+                                <div className="text-[9px] font-black uppercase tracking-widest bg-white/10 p-3 rounded-xl">
+                                    Missing: {etaConfig.missing.join(', ')}
+                                </div>
+                            )}
                         </div>
                     </div>
 
-                    <button className="mt-8 flex items-center justify-center gap-3 bg-white text-indigo-700 px-6 py-4 rounded-2xl font-black uppercase text-xs tracking-widest hover:scale-105 active:scale-95 transition-all">
-                        Integrate With ETA Portal
-                        <ExternalLink size={16} />
-                    </button>
+                    <div className="mt-6 bg-white/10 p-3 rounded-2xl">
+                        <p className="text-[9px] font-black uppercase tracking-widest mb-2 opacity-80">Submit Specific Order ID</p>
+                        <input
+                            value={manualOrderId}
+                            onChange={(e) => setManualOrderId(e.target.value)}
+                            placeholder="ORD-XXXX"
+                            className="w-full bg-white/10 rounded-xl px-3 py-2 text-xs font-black uppercase tracking-widest outline-none placeholder:text-white/50"
+                        />
+                    </div>
+
+                    <div className="mt-8 grid grid-cols-1 md:grid-cols-2 gap-3">
+                        <button
+                            onClick={() => handleSubmitETA(false)}
+                            disabled={isSubmitting}
+                            className="flex items-center justify-center gap-3 bg-white text-indigo-700 px-6 py-4 rounded-2xl font-black uppercase text-xs tracking-widest hover:scale-105 active:scale-95 transition-all disabled:opacity-60"
+                        >
+                            {isSubmitting ? 'Submitting...' : 'Submit to ETA'}
+                            <ExternalLink size={16} />
+                        </button>
+                        <button
+                            onClick={() => handleSubmitETA(true)}
+                            disabled={isSubmitting}
+                            className="flex items-center justify-center gap-3 bg-white/10 text-white px-6 py-4 rounded-2xl font-black uppercase text-xs tracking-widest border border-white/20 hover:bg-white/20 transition-all disabled:opacity-60"
+                        >
+                            Force Resend
+                            <ExternalLink size={16} />
+                        </button>
+                    </div>
+                    {submitResult && (
+                        <div className="mt-4 text-[10px] font-black uppercase tracking-widest bg-white/10 p-3 rounded-xl">
+                            {submitResult}
+                        </div>
+                    )}
                 </div>
             </div>
 

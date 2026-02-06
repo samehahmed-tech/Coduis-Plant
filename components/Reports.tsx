@@ -12,42 +12,61 @@ import {
 import { useMenuStore } from '../stores/useMenuStore';
 import { useInventoryStore } from '../stores/useInventoryStore';
 import { useAuthStore } from '../stores/useAuthStore';
-
-// Mock data expansion for the new financial reports
-const salesData7D = [
-   { name: 'Mon', revenue: 2400, cost: 800, profit: 1600 },
-   { name: 'Tue', revenue: 1398, cost: 500, profit: 898 },
-   { name: 'Wed', revenue: 4500, cost: 1600, profit: 2900 },
-   { name: 'Thu', revenue: 3908, cost: 1400, profit: 2508 },
-   { name: 'Fri', revenue: 4800, cost: 1700, profit: 3100 },
-   { name: 'Sat', revenue: 8800, cost: 3100, profit: 5700 },
-   { name: 'Sun', revenue: 7300, cost: 2600, profit: 4700 },
-];
+import { useNavigate } from 'react-router-dom';
+import { reportsApi } from '../services/api';
 
 const Reports: React.FC = () => {
+   const navigate = useNavigate();
    const { categories } = useMenuStore();
    const { inventory } = useInventoryStore();
    const { settings } = useAuthStore();
+   const activeBranchId = settings.activeBranchId;
 
    const menuItems = useMemo(() => categories.flatMap(cat => cat.items), [categories]);
    const [activeTab, setActiveTab] = useState<'SALES' | 'PROFIT' | 'FOOD_COST' | 'VAT'>('SALES');
+   const [dateRange, setDateRange] = useState({
+      start: new Date(new Date().setDate(new Date().getDate() - 7)).toISOString().split('T')[0],
+      end: new Date().toISOString().split('T')[0]
+   });
+   const [appliedRange, setAppliedRange] = useState(dateRange);
+   const [dailySales, setDailySales] = useState<Array<{ day: string; revenue: number; net: number; tax: number; orderCount: number }>>([]);
+   const [paymentSummary, setPaymentSummary] = useState<Array<{ method: string; total: number; count: number }>>([]);
    const [vatReport, setVatReport] = useState<any>(null);
+   const [isLoadingReport, setIsLoadingReport] = useState(false);
+   const [reportError, setReportError] = useState<string | null>(null);
 
    React.useEffect(() => {
-      if (activeTab === 'VAT') {
-         // In production: reportsApi.getVatReport({ startDate: ..., endDate: ... }).then(setVatReport)
-         // For now, setting a realistic mock that matches the backend reportController.ts structure
-         setVatReport({
-            summary: {
-               count: 124,
-               netTotal: 10357.50,
-               taxTotal: 1450.05,
-               serviceChargeTotal: 0,
-               grandTotal: 11807.55
-            }
-         });
-      }
-   }, [activeTab]);
+      const loadReports = async () => {
+         setIsLoadingReport(true);
+         setReportError(null);
+         try {
+            const params = { branchId: activeBranchId, startDate: appliedRange.start, endDate: appliedRange.end };
+            const [vat, daily, payments] = await Promise.all([
+               reportsApi.getVat(params),
+               reportsApi.getDailySales(params),
+               reportsApi.getPayments(params)
+            ]);
+            setVatReport(vat);
+            setDailySales(daily || []);
+            setPaymentSummary(payments || []);
+         } catch (error: any) {
+            setReportError(error.message || 'Failed to load reports');
+         } finally {
+            setIsLoadingReport(false);
+         }
+      };
+      loadReports();
+   }, [activeBranchId, appliedRange.start, appliedRange.end]);
+
+   const salesSeries = useMemo(() => (
+      dailySales.map(row => ({
+         name: row.day,
+         revenue: Number(row.revenue || 0),
+         cost: Math.max(0, Number(row.revenue || 0) - Number(row.net || 0)),
+         profit: Number(row.net || 0),
+         tax: Number(row.tax || 0)
+      }))
+   ), [dailySales]);
 
    const foodCostData = useMemo(() => {
       return menuItems.map(item => {
@@ -72,23 +91,55 @@ const Reports: React.FC = () => {
 
    return (
       <div className="p-8 bg-slate-50 dark:bg-slate-950 min-h-screen transition-colors animate-fade-in pb-24">
-         <div className="flex justify-between items-center mb-10">
+         <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-6 mb-10">
             <div>
                <h2 className="text-3xl font-black text-slate-800 dark:text-white uppercase tracking-tight">Business Intelligence</h2>
                <p className="text-slate-500 dark:text-slate-400 font-semibold">Financial insights and operational performance tracking.</p>
             </div>
-            <div className="flex bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-1.5 rounded-2xl shadow-sm">
-               {['SALES', 'PROFIT', 'FOOD_COST', 'VAT'].map(tab => (
+            <div className="flex flex-col xl:flex-row gap-3 w-full lg:w-auto">
+               <div className="flex bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-1.5 rounded-2xl shadow-sm">
+                  {['SALES', 'PROFIT', 'FOOD_COST', 'VAT'].map(tab => (
+                     <button
+                        key={tab}
+                        onClick={() => setActiveTab(tab as any)}
+                        className={`px-6 py-2 rounded-xl text-xs font-black uppercase tracking-widest transition-all ${activeTab === tab ? 'bg-indigo-600 text-white shadow-lg' : 'text-slate-500 hover:text-slate-800'}`}
+                     >
+                        {tab === 'VAT' ? 'Z-Report' : tab.replace('_', ' ')}
+                     </button>
+                  ))}
+               </div>
+               <div className="flex items-center gap-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-2.5 rounded-2xl shadow-sm w-full xl:w-auto">
+                  <Calendar size={16} className="text-slate-400" />
+                  <input
+                     type="date"
+                     value={dateRange.start}
+                     onChange={(e) => setDateRange(prev => ({ ...prev, start: e.target.value }))}
+                     className="bg-transparent text-xs font-black text-slate-700 dark:text-slate-200 outline-none"
+                  />
+                  <span className="text-slate-300">-</span>
+                  <input
+                     type="date"
+                     value={dateRange.end}
+                     onChange={(e) => setDateRange(prev => ({ ...prev, end: e.target.value }))}
+                     className="bg-transparent text-xs font-black text-slate-700 dark:text-slate-200 outline-none"
+                  />
                   <button
-                     key={tab}
-                     onClick={() => setActiveTab(tab as any)}
-                     className={`px-6 py-2 rounded-xl text-xs font-black uppercase tracking-widest transition-all ${activeTab === tab ? 'bg-indigo-600 text-white shadow-lg' : 'text-slate-500 hover:text-slate-800'}`}
+                     onClick={() => setAppliedRange(dateRange)}
+                     className="ml-auto px-3 py-1.5 rounded-xl bg-slate-100 dark:bg-slate-800 text-[10px] font-black uppercase tracking-widest text-slate-600 flex items-center gap-2"
                   >
-                     {tab === 'VAT' ? 'Z-Report' : tab.replace('_', ' ')}
+                     <Filter size={12} />
+                     Apply
                   </button>
-               ))}
+               </div>
             </div>
          </div>
+
+         {isLoadingReport && (
+            <div className="mb-6 text-[10px] font-black uppercase tracking-widest text-indigo-600">Loading report data from PostgreSQL...</div>
+         )}
+         {reportError && (
+            <div className="mb-6 text-[10px] font-black uppercase tracking-widest text-rose-500">{reportError}</div>
+         )}
 
          {activeTab === 'FOOD_COST' ? (
             <div className="space-y-8">
@@ -158,7 +209,7 @@ const Reports: React.FC = () => {
                   <h3 className="text-2xl font-black text-slate-800 dark:text-white mb-10 tracking-tight">Revenue vs Cost Analysis</h3>
                   <div className="min-h-[320px] md:h-[420px] lg:h-[500px] w-full relative overflow-hidden">
                      <ResponsiveContainer width="100%" height="100%" minHeight={500}>
-                        <AreaChart data={salesData7D} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
+                        <AreaChart data={salesSeries} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
                            <defs>
                               <linearGradient id="colorRev" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor="#6366f1" stopOpacity={0.2} /><stop offset="95%" stopColor="#6366f1" stopOpacity={0} /></linearGradient>
                               <linearGradient id="colorCost" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor="#f43f5e" stopOpacity={0.1} /><stop offset="95%" stopColor="#f43f5e" stopOpacity={0} /></linearGradient>
@@ -169,8 +220,8 @@ const Reports: React.FC = () => {
                            <Tooltip contentStyle={{ borderRadius: '24px', border: 'none', boxShadow: '0 25px 50px -12px rgba(0,0,0,0.25)', padding: '20px' }} />
                            <Legend iconType="circle" wrapperStyle={{ paddingTop: '40px' }} />
                            <Area type="monotone" dataKey="revenue" name="Total Revenue" stroke="#6366f1" fill="url(#colorRev)" strokeWidth={4} />
-                           <Area type="monotone" dataKey="cost" name="Operation Cost" stroke="#f43f5e" fill="url(#colorCost)" strokeWidth={2} strokeDasharray="5 5" />
-                           <Line type="monotone" dataKey="profit" name="Net Profit" stroke="#10b981" strokeWidth={5} dot={{ r: 6, fill: '#10b981', strokeWidth: 4, stroke: '#fff' }} />
+                           <Area type="monotone" dataKey="cost" name="Tax + Discounts Impact" stroke="#f43f5e" fill="url(#colorCost)" strokeWidth={2} strokeDasharray="5 5" />
+                           <Line type="monotone" dataKey="profit" name="Net Sales" stroke="#10b981" strokeWidth={5} dot={{ r: 6, fill: '#10b981', strokeWidth: 4, stroke: '#fff' }} />
                         </AreaChart>
                      </ResponsiveContainer>
                   </div>
@@ -178,6 +229,21 @@ const Reports: React.FC = () => {
             </div>
          ) : activeTab === 'VAT' ? (
             <div className="space-y-8 animate-in slide-in-from-bottom-5 duration-500">
+               <div className="bg-indigo-50 dark:bg-indigo-950/40 border border-indigo-100 dark:border-indigo-800 rounded-3xl p-6 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+                  <div className="flex items-start gap-3">
+                     <Info className="text-indigo-600" />
+                     <div>
+                        <p className="text-xs font-black uppercase tracking-widest text-indigo-600">Fiscal Compliance</p>
+                        <p className="text-sm font-bold text-slate-600 dark:text-slate-300">For ETA submissions and audit trail, open Fiscal Hub.</p>
+                     </div>
+                  </div>
+                  <button
+                     onClick={() => navigate('/fiscal')}
+                     className="px-4 py-2 rounded-xl bg-indigo-600 text-white text-[10px] font-black uppercase tracking-widest shadow-lg"
+                  >
+                     Open Fiscal Hub
+                  </button>
+               </div>
                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                   <div className="bg-white dark:bg-slate-900 rounded-3xl p-8 border border-slate-200 dark:border-slate-800 shadow-xl">
                      <div className="w-12 h-12 bg-indigo-500/10 rounded-2xl flex items-center justify-center mb-6 border border-indigo-500/20">
@@ -254,7 +320,7 @@ const Reports: React.FC = () => {
                   <h3 className="text-2xl font-black text-slate-800 dark:text-white mb-10 tracking-tight">Sales Distribution</h3>
                   <div className="min-h-[260px] md:h-[340px] lg:h-[400px] w-full relative overflow-hidden">
                      <ResponsiveContainer width="100%" height="100%" minHeight={400}>
-                        <BarChart data={salesData7D}>
+                        <BarChart data={salesSeries}>
                            <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f011" />
                            <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: '#94a3b8', fontWeight: 900 }} dy={10} />
                            <YAxis axisLine={false} tickLine={false} tick={{ fill: '#94a3b8', fontSize: 12, fontWeight: 900 }} dx={-10} />
@@ -267,10 +333,17 @@ const Reports: React.FC = () => {
 
                <div className="bg-white dark:bg-slate-900 p-10 rounded-[3rem] border border-slate-200 dark:border-slate-800 shadow-sm flex flex-col items-center justify-center">
                   <Target size={48} className="text-indigo-600 mb-6" />
-                  <h3 className="text-2xl font-black text-slate-800 dark:text-white uppercase mb-2">Performance Metrics</h3>
-                  <p className="text-slate-500 font-bold text-center max-w-xs mb-8 uppercase text-xs tracking-widest">System is analyzing real-time data to generate predictive sales models.</p>
-                  <div className="w-full h-2 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
-                     <div className="w-2/3 h-full bg-indigo-600 animate-pulse" />
+                  <h3 className="text-2xl font-black text-slate-800 dark:text-white uppercase mb-2">Payment Mix</h3>
+                  <p className="text-slate-500 font-bold text-center max-w-xs mb-8 uppercase text-xs tracking-widest">Live payment totals from database.</p>
+                  <div className="w-full space-y-3">
+                     {paymentSummary.length === 0 ? (
+                        <div className="text-[10px] font-black uppercase tracking-widest text-slate-400 text-center">No payments in selected range</div>
+                     ) : paymentSummary.map((p) => (
+                        <div key={p.method} className="flex items-center justify-between rounded-2xl border border-slate-200 dark:border-slate-800 px-4 py-3">
+                           <span className="text-[10px] font-black uppercase tracking-widest text-slate-500">{p.method}</span>
+                           <span className="text-sm font-black text-slate-800 dark:text-white">{Number(p.total || 0).toLocaleString()} LE</span>
+                        </div>
+                     ))}
                   </div>
                </div>
             </div>

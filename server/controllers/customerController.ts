@@ -2,19 +2,21 @@ import { Request, Response } from 'express';
 import { db } from '../db';
 import { customers, customerAddresses } from '../../src/db/schema';
 import { eq, or, ilike, and } from 'drizzle-orm';
+import { getStringParam } from '../utils/request';
 
 /**
  * Get all customers with optional search
  */
 export const getAllCustomers = async (req: Request, res: Response) => {
     try {
-        const { search, phone } = req.query;
+        const search = getStringParam(req.query.search);
+        const phone = getStringParam(req.query.phone);
 
         // Simple search logic
         const query = db.select().from(customers);
 
         if (phone) {
-            const results = await query.where(eq(customers.phone, phone as string));
+            const results = await query.where(eq(customers.phone, phone));
             return res.json(results);
         }
 
@@ -41,7 +43,8 @@ export const getAllCustomers = async (req: Request, res: Response) => {
  */
 export const getCustomerByPhone = async (req: Request, res: Response) => {
     try {
-        const { phone } = req.params;
+        const phone = getStringParam((req.params as any).phone);
+        if (!phone) return res.status(400).json({ error: 'PHONE_REQUIRED' });
         const [customer] = await db.select().from(customers).where(eq(customers.phone, phone));
 
         if (!customer) {
@@ -94,7 +97,8 @@ export const createCustomer = async (req: Request, res: Response) => {
  */
 export const updateCustomer = async (req: Request, res: Response) => {
     try {
-        const { id } = req.params;
+        const id = getStringParam((req.params as any).id);
+        if (!id) return res.status(400).json({ error: 'CUSTOMER_ID_REQUIRED' });
         const body = req.body || {};
 
         const updates: any = {
@@ -136,7 +140,8 @@ export const updateCustomer = async (req: Request, res: Response) => {
  */
 export const deleteCustomer = async (req: Request, res: Response) => {
     try {
-        const { id } = req.params;
+        const id = getStringParam((req.params as any).id);
+        if (!id) return res.status(400).json({ error: 'CUSTOMER_ID_REQUIRED' });
 
         const result = await db.transaction(async (tx) => {
             await tx.delete(customerAddresses).where(eq(customerAddresses.customerId, id));

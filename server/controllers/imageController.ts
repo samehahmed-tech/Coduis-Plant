@@ -3,12 +3,13 @@ import { S3Client, PutObjectCommand, DeleteObjectCommand } from '@aws-sdk/client
 import { db } from '../db';
 import { images } from '../../src/db/schema';
 import { eq } from 'drizzle-orm';
+import { getStringParam } from '../utils/request';
 
 const S3_REGION = process.env.S3_REGION || 'us-east-1';
 const S3_ENDPOINT = process.env.S3_ENDPOINT;
-const S3_ACCESS_KEY_ID = process.env.S3_ACCESS_KEY_ID || '';
-const S3_SECRET_ACCESS_KEY = process.env.S3_SECRET_ACCESS_KEY || '';
-const S3_BUCKET = process.env.S3_BUCKET || '';
+const S3_ACCESS_KEY_ID = process.env.S3_ACCESS_KEY_ID;
+const S3_SECRET_ACCESS_KEY = process.env.S3_SECRET_ACCESS_KEY;
+const S3_BUCKET = process.env.S3_BUCKET;
 const S3_PUBLIC_URL = process.env.S3_PUBLIC_URL;
 const S3_FORCE_PATH_STYLE = process.env.S3_FORCE_PATH_STYLE === 'true' || !!S3_ENDPOINT;
 
@@ -105,7 +106,8 @@ export const uploadImage = async (req: Request, res: Response) => {
 
 export const getImage = async (req: Request, res: Response) => {
     try {
-        const { id } = req.params;
+        const id = getStringParam((req.params as any).id);
+        if (!id) return res.status(400).json({ error: 'IMAGE_ID_REQUIRED' });
         const [record] = await db.select().from(images).where(eq(images.id, id));
         if (!record) return res.status(404).json({ error: 'Image not found' });
 
@@ -125,7 +127,8 @@ export const getImage = async (req: Request, res: Response) => {
 
 export const deleteImage = async (req: Request, res: Response) => {
     try {
-        const { id } = req.params;
+        const id = getStringParam((req.params as any).id);
+        if (!id) return res.status(400).json({ error: 'IMAGE_ID_REQUIRED' });
         const [record] = await db.select().from(images).where(eq(images.id, id));
         if (!record) return res.status(404).json({ error: 'Image not found' });
 

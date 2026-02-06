@@ -1,7 +1,7 @@
 import { Request, Response } from 'express';
 import { db } from '../db';
 import { orders, payments } from '../../src/db/schema';
-import { eq, and, sql, gte, lte, inArray } from 'drizzle-orm';
+import { eq, and, sql, gte, lte, inArray, desc } from 'drizzle-orm';
 
 export const getVatReport = async (req: Request, res: Response) => {
     try {
@@ -91,10 +91,50 @@ export const getFiscalSummary = async (req: Request, res: Response) => {
                 )
             );
 
+        const [latestOrder] = await db.select({ id: orders.id }).from(orders).orderBy(desc(orders.createdAt)).limit(1);
+
         res.json({
             taxPeriod: `${start.getFullYear()}-${start.getMonth() + 1}`,
-            data: summary[0] || { totalSales: 0, netSales: 0, vatAmount: 0, orderCount: 0 }
+            data: {
+                ...(summary[0] || { totalSales: 0, netSales: 0, vatAmount: 0, orderCount: 0 }),
+                latestOrderId: latestOrder?.id
+            }
         });
+    } catch (error: any) {
+        res.status(500).json({ error: error.message });
+    }
+};
+
+export const getDailySales = async (req: Request, res: Response) => {
+    try {
+        const { branchId, startDate, endDate } = req.query;
+        if (!startDate || !endDate) {
+            return res.status(400).json({ error: 'Start date and end date are required' });
+        }
+
+        const start = new Date(startDate as string);
+        const end = new Date(endDate as string);
+        end.setHours(23, 59, 59, 999);
+
+        const rows = await db.select({
+            day: sql<string>`to_char(${orders.createdAt}, 'YYYY-MM-DD')`,
+            revenue: sql<number>`sum(${orders.total})`,
+            net: sql<number>`sum(${orders.subtotal} - ${orders.discount})`,
+            tax: sql<number>`sum(${orders.tax})`,
+            orderCount: sql<number>`count(*)`
+        }).from(orders)
+            .where(
+                and(
+                    branchId ? eq(orders.branchId, branchId as string) : undefined,
+                    gte(orders.createdAt, start),
+                    lte(orders.createdAt, end),
+                    inArray(orders.status, ['DELIVERED', 'COMPLETED'])
+                )
+            )
+            .groupBy(sql`to_char(${orders.createdAt}, 'YYYY-MM-DD')`)
+            .orderBy(sql`to_char(${orders.createdAt}, 'YYYY-MM-DD') asc`);
+
+        res.json(rows);
     } catch (error: any) {
         res.status(500).json({ error: error.message });
     }

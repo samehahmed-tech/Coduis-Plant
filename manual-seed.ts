@@ -35,8 +35,6 @@ async function manualSeed() {
             createdAt: new Date('2026-02-01T08:43:19.000Z'),
             updatedAt: new Date('2026-02-01T08:43:19.000Z'),
             sortOrder: 0,
-            isPopular: false,
-            preparationTime: 15,
         }).onConflictDoNothing();
 
         console.log('--- Manual Seeding Complete ---');

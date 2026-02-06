@@ -50,8 +50,9 @@ export const useCRMStore = create<CRMState>()(
                             landmark: c.landmark,
                             notes: c.notes,
                             visits: c.visits || 0,
-                            totalSpent: c.total_spent || 0,
+                            totalSpent: c.total_spent ?? c.totalSpent ?? 0,
                             loyaltyTier: c.loyalty_tier || 'Bronze',
+                            loyaltyPoints: c.loyalty_points ?? c.loyaltyPoints ?? 0,
                             createdAt: c.created_at ? new Date(c.created_at) : new Date(),
                         }));
                         set({ customers, isLoading: false });
@@ -79,9 +80,16 @@ export const useCRMStore = create<CRMState>()(
                             phone: result.phone,
                             email: result.email,
                             address: result.address,
+                            area: result.area,
+                            building: result.building,
+                            floor: result.floor,
+                            apartment: result.apartment,
+                            landmark: result.landmark,
+                            notes: result.notes,
                             visits: result.visits || 0,
                             totalSpent: result.total_spent || 0,
                             loyaltyTier: result.loyalty_tier || 'Bronze',
+                            loyaltyPoints: result.loyalty_points || 0,
                             createdAt: new Date(result.created_at),
                         };
                     } else {
@@ -100,6 +108,7 @@ export const useCRMStore = create<CRMState>()(
                             visits: 0,
                             totalSpent: 0,
                             loyaltyTier: 'Bronze',
+                            loyaltyPoints: 0,
                             createdAt: new Date(),
                         };
                         await syncService.queue('customer', 'CREATE', { id, ...customerData });
@@ -182,9 +191,16 @@ export const useCRMStore = create<CRMState>()(
                         phone: result.phone,
                         email: result.email,
                         address: result.address,
+                        area: result.area,
+                        building: result.building,
+                        floor: result.floor,
+                        apartment: result.apartment,
+                        landmark: result.landmark,
+                        notes: result.notes,
                         visits: result.visits || 0,
                         totalSpent: result.total_spent || 0,
                         loyaltyTier: result.loyalty_tier || 'Bronze',
+                        loyaltyPoints: result.loyalty_points || 0,
                     } as Customer;
                 } catch (error: any) {
                     if (error.message.includes('not found')) return null;
@@ -202,6 +218,9 @@ export const useCRMStore = create<CRMState>()(
                             phone: c.phone,
                             address: c.address,
                             loyaltyTier: c.loyalty_tier,
+                            visits: c.visits || 0,
+                            totalSpent: c.total_spent || 0,
+                            loyaltyPoints: c.loyalty_points || 0,
                         })) as Customer[];
                     }
 

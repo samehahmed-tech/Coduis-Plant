@@ -2,6 +2,7 @@ import { Request, Response } from 'express';
 import { db } from '../db';
 import { inventoryItems, inventoryStock, stockMovements } from '../../src/db/schema';
 import { and, asc, eq } from 'drizzle-orm';
+import { getStringParam } from '../utils/request';
 
 /**
  * Inventory Items
@@ -81,7 +82,8 @@ export const createInventoryItem = async (req: Request, res: Response) => {
 
 export const updateInventoryItem = async (req: Request, res: Response) => {
     try {
-        const { id } = req.params;
+        const id = getStringParam((req.params as any).id);
+        if (!id) return res.status(400).json({ error: 'ITEM_ID_REQUIRED' });
         const body = req.body || {};
 
         const updates: Record<string, any> = { updatedAt: new Date() };
@@ -118,7 +120,8 @@ export const updateInventoryItem = async (req: Request, res: Response) => {
 
 export const deleteInventoryItem = async (req: Request, res: Response) => {
     try {
-        const { id } = req.params;
+        const id = getStringParam((req.params as any).id);
+        if (!id) return res.status(400).json({ error: 'ITEM_ID_REQUIRED' });
         const [deleted] = await db.delete(inventoryItems).where(eq(inventoryItems.id, id)).returning();
         if (!deleted) return res.status(404).json({ error: 'Inventory item not found' });
         res.json({ message: 'Inventory item deleted', item: deleted });

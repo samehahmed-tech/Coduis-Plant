@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import {
   LayoutDashboard,
   UtensilsCrossed,
@@ -31,9 +31,11 @@ import {
   Megaphone,
   Truck,
   ShieldCheck,
-  Map as MapIcon
+  Map as MapIcon,
+  Wifi,
+  WifiOff
 } from 'lucide-react';
-import { UserRole, AppPermission } from '../types';
+import { UserRole, AppPermission, AppTheme } from '../types';
 import { translations } from '../services/translations';
 import { useAuthStore } from '../stores/useAuthStore';
 import { NavLink, useNavigate, useLocation } from 'react-router-dom';
@@ -52,6 +54,7 @@ interface NavItem {
 
 import CalculatorWidget from './common/CalculatorWidget';
 import { loaders } from '../routes';
+import { syncService } from '../services/syncService';
 
 const Sidebar: React.FC = () => {
   const navigate = useNavigate();
@@ -93,6 +96,8 @@ const Sidebar: React.FC = () => {
 
   const [isMobileOpen, setIsMobileOpen] = useState(false);
   const [showCalc, setShowCalc] = useState(false);
+  const [isOnline, setIsOnline] = useState(typeof navigator !== 'undefined' ? navigator.onLine : true);
+  const [syncStats, setSyncStats] = useState({ total: 0, pending: 0, failed: 0, synced: 0 });
   const t = translations[lang] || translations['en'];
 
   const isCallCenter = user?.role === UserRole.CALL_CENTER;
@@ -152,6 +157,7 @@ const Sidebar: React.FC = () => {
         {
           title: lang === 'ar' ? 'التقارير والتحليلات' : 'Reports & Analytics',
           items: [
+            { path: '/franchise', label: lang === 'ar' ? 'إدارة الفروع' : 'Multi-Branch', icon: Building2, permission: AppPermission.NAV_REPORTS, loaderKey: 'FranchiseManager' },
             { path: '/reports', label: lang === 'ar' ? 'التقارير' : 'Reports', icon: BarChart3, permission: AppPermission.NAV_REPORTS, loaderKey: 'Reports' },
             { path: '/ai-insights', label: t.ai_insights, icon: Sparkles, permission: AppPermission.NAV_AI_ASSISTANT, loaderKey: 'AIInsights' },
             { path: '/ai-assistant', label: t.ai_assistant, icon: Bot, permission: AppPermission.NAV_AI_ASSISTANT, loaderKey: 'AIAssistant' },
@@ -257,9 +263,39 @@ const Sidebar: React.FC = () => {
     updateSettings({ language: lang === 'en' ? 'ar' : 'en' });
   };
 
-  const handleThemeChange = (newTheme: string) => {
+  const handleThemeChange = (newTheme: AppTheme) => {
     updateSettings({ theme: newTheme });
   };
+
+  useEffect(() => {
+    let mounted = true;
+    const refreshStats = async () => {
+      try {
+        const stats = await syncService.getQueueStats();
+        if (mounted) setSyncStats(stats);
+      } catch {
+        // ignore stats errors in UI
+      }
+    };
+    const onOnline = () => {
+      setIsOnline(true);
+      refreshStats();
+    };
+    const onOffline = () => {
+      setIsOnline(false);
+      refreshStats();
+    };
+    refreshStats();
+    const interval = window.setInterval(refreshStats, 5000);
+    window.addEventListener('online', onOnline);
+    window.addEventListener('offline', onOffline);
+    return () => {
+      mounted = false;
+      window.clearInterval(interval);
+      window.removeEventListener('online', onOnline);
+      window.removeEventListener('offline', onOffline);
+    };
+  }, []);
 
   return (
     <>
@@ -559,7 +595,7 @@ const Sidebar: React.FC = () => {
                   {/* Calculator Panel */}
                   {showCalc && (
                     <div className="animate-in slide-in-from-top-2 duration-300">
-                      <CalculatorWidget isLarge={false} />
+                      <CalculatorWidget isCompact />
                     </div>
                   )}
                 </div>
@@ -646,13 +682,13 @@ const Sidebar: React.FC = () => {
                 <span className="text-[10px] font-black text-muted uppercase tracking-[0.2em] opacity-50">Interface Skin</span>
               </div>
               <div className="flex justify-between px-2">
-                {[
+                {([
                   { id: 'xen', color: '#00B4D8' },
                   { id: 'ember', color: '#F97316' },
                   { id: 'graphite', color: '#52525B' },
                   { id: 'ocean', color: '#3B82F6' },
                   { id: 'carbon', color: '#171717' }
-                ].map(t => (
+                ] as const satisfies ReadonlyArray<{ id: AppTheme; color: string }>).map(t => (
                   <button
                     key={t.id}
                     onClick={() => handleThemeChange(t.id)}
@@ -668,6 +704,32 @@ const Sidebar: React.FC = () => {
 
         {/* Footer Actions */}
         <div className="p-6 border-t border-border space-y-4">
+          {!isCollapsed && (
+            <div className="p-3 rounded-2xl border border-border bg-elevated/40">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-[9px] font-black uppercase tracking-widest text-muted">Sync Health</span>
+                <span className={`inline-flex items-center gap-1 text-[9px] font-black uppercase tracking-widest ${isOnline ? 'text-emerald-500' : 'text-amber-500'}`}>
+                  {isOnline ? <Wifi size={12} /> : <WifiOff size={12} />}
+                  {isOnline ? 'Online' : 'Offline'}
+                </span>
+              </div>
+              <div className="grid grid-cols-3 gap-2">
+                <div className="rounded-xl bg-card border border-border px-2 py-1.5 text-center">
+                  <div className="text-[8px] font-black uppercase text-muted">Pending</div>
+                  <div className="text-xs font-black text-amber-500">{syncStats.pending}</div>
+                </div>
+                <div className="rounded-xl bg-card border border-border px-2 py-1.5 text-center">
+                  <div className="text-[8px] font-black uppercase text-muted">Failed</div>
+                  <div className="text-xs font-black text-rose-500">{syncStats.failed}</div>
+                </div>
+                <div className="rounded-xl bg-card border border-border px-2 py-1.5 text-center">
+                  <div className="text-[8px] font-black uppercase text-muted">Queued</div>
+                  <div className="text-xs font-black text-main">{syncStats.total}</div>
+                </div>
+              </div>
+            </div>
+          )}
+
           {!isCollapsed && (
             <div className="grid grid-cols-2 gap-2 mb-2">
               <button

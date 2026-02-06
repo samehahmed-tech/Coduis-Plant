@@ -2,10 +2,12 @@ import { Request, Response } from 'express';
 import { db } from '../db';
 import { tables, floorZones } from '../../src/db/schema';
 import { eq, and } from 'drizzle-orm';
+import { getStringParam } from '../utils/request';
+import { getIO } from '../socket';
 
 export const getTables = async (req: Request, res: Response) => {
     try {
-        const branchId = req.query.branchId as string;
+        const branchId = getStringParam(req.query.branchId);
         if (!branchId) return res.status(400).json({ error: 'Branch ID required' });
 
         const allTables = await db.select().from(tables).where(eq(tables.branchId, branchId));
@@ -17,7 +19,7 @@ export const getTables = async (req: Request, res: Response) => {
 
 export const getZones = async (req: Request, res: Response) => {
     try {
-        const branchId = req.query.branchId as string;
+        const branchId = getStringParam(req.query.branchId);
         if (!branchId) return res.status(400).json({ error: 'Branch ID required' });
 
         const allZones = await db.select().from(floorZones).where(eq(floorZones.branchId, branchId));
@@ -64,6 +66,15 @@ export const saveLayout = async (req: Request, res: Response) => {
             }
         });
 
+        try {
+            const branchRoom = branchId ? `branch:${branchId}` : null;
+            if (branchRoom) {
+                getIO().to(branchRoom).emit('table:layout', { branchId });
+            }
+        } catch {
+            // socket is optional
+        }
+
         res.json({ success: true });
     } catch (error: any) {
         res.status(500).json({ error: error.message });
@@ -72,7 +83,8 @@ export const saveLayout = async (req: Request, res: Response) => {
 
 export const updateTableStatus = async (req: Request, res: Response) => {
     try {
-        const { id } = req.params;
+        const id = getStringParam((req.params as any).id);
+        if (!id) return res.status(400).json({ error: 'TABLE_ID_REQUIRED' });
         const { status, currentOrderId } = req.body;
 
         const [updatedTable] = await db.update(tables)
@@ -85,6 +97,19 @@ export const updateTableStatus = async (req: Request, res: Response) => {
             .returning();
 
         if (!updatedTable) return res.status(404).json({ error: 'Table not found' });
+
+        try {
+            const branchRoom = updatedTable.branchId ? `branch:${updatedTable.branchId}` : null;
+            if (branchRoom) {
+                getIO().to(branchRoom).emit('table:status', {
+                    id: updatedTable.id,
+                    status: updatedTable.status,
+                    currentOrderId: updatedTable.currentOrderId
+                });
+            }
+        } catch {
+            // socket is optional
+        }
 
         res.json(updatedTable);
     } catch (error: any) {

@@ -19,6 +19,9 @@ import warehouseRoutes from './routes/warehouseRoutes';
 import auditRoutes from './routes/auditRoutes';
 import imageRoutes from './routes/imageRoutes';
 import authRoutes from './routes/authRoutes';
+import setupRoutes from './routes/setupRoutes';
+import fiscalRoutes from './routes/fiscalRoutes';
+import opsRoutes from './routes/opsRoutes';
 import { authenticateToken, requireRoles } from './middleware/auth';
 
 const app = express();
@@ -33,6 +36,7 @@ app.use(express.urlencoded({ limit: '50mb', extended: true }));
 
 // Public Routes
 app.use('/api/auth', authRoutes);
+app.use('/api/setup', setupRoutes);
 
 // Health check
 app.get('/api/health', (req, res) => {
@@ -60,6 +64,8 @@ app.use('/api/inventory', inventoryRoutes);
 app.use('/api/warehouses', warehouseRoutes);
 app.use('/api/audit-logs', requireRoles('SUPER_ADMIN', 'BRANCH_MANAGER', 'MANAGER'), auditRoutes);
 app.use('/api/images', imageRoutes);
+app.use('/api/fiscal', requireRoles('SUPER_ADMIN', 'BRANCH_MANAGER', 'FINANCE'), fiscalRoutes);
+app.use('/api/ops', requireRoles('SUPER_ADMIN'), opsRoutes);
 
 // (health moved above)
 
