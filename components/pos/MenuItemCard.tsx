@@ -18,6 +18,9 @@ const MenuItemCard: React.FC<MenuItemCardProps> = React.memo(({
     // Default high-end food image if none provided
     const defaultImage = "https://images.unsplash.com/photo-1568901346375-23c9450c58cd?auto=format&fit=crop&q=80&w=800";
 
+    const displayName = (item as any).displayName || item.name;
+    const displayDescription = (item as any).displayDescription || item.description || "Freshly made with premium ingredients.";
+
     return (
         <div
             onClick={() => onAddItem(item)}
@@ -27,7 +30,7 @@ const MenuItemCard: React.FC<MenuItemCardProps> = React.memo(({
             <div className="w-[38%] md:w-[40%] relative overflow-hidden shrink-0">
                 <img
                     src={item.image || defaultImage}
-                    alt={item.name}
+                    alt={displayName}
                     loading="lazy"
                     className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700 ease-in-out"
                 />
@@ -43,13 +46,13 @@ const MenuItemCard: React.FC<MenuItemCardProps> = React.memo(({
             <div className="flex-1 p-4 md:p-5 flex flex-col justify-between min-w-0">
                 <div className="space-y-1">
                     <span className="text-[9px] font-bold text-primary/80 uppercase tracking-widest">
-                        {item.categoryAr || item.category || 'Main'}
+                        {item.category || 'Main'}
                     </span>
                     <h3 className={`${isTouchMode ? 'text-base md:text-lg' : 'text-sm md:text-base'} font-black text-main dark:text-main leading-tight line-clamp-2`}>
-                        {item.name}
+                        {displayName}
                     </h3>
                     <p className="text-[10px] md:text-[11px] text-muted dark:text-muted/80 font-medium leading-snug line-clamp-2 mt-1">
-                        {item.description || "Freshly made with premium ingredients and our signature seasoning."}
+                        {displayDescription}
                     </p>
                 </div>
 
@@ -64,13 +67,12 @@ const MenuItemCard: React.FC<MenuItemCardProps> = React.memo(({
                         </div>
                     </div>
 
-                    <button
-                        className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-primary text-white text-[10px] font-black uppercase tracking-widest shadow-lg shadow-primary/20 group-hover:translate-y-[-1px] transition-all"
+                    <div
+                        className="w-10 h-10 rounded-full bg-primary text-white flex items-center justify-center shadow-lg shadow-primary/20 group-hover:scale-110 group-active:scale-95 transition-all"
                         aria-label="Add Item"
                     >
-                        <Plus size={14} />
-                        Add
-                    </button>
+                        <Plus size={20} strokeWidth={3} />
+                    </div>
                 </div>
             </div>
         </div>

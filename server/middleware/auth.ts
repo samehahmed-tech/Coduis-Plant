@@ -25,7 +25,7 @@ declare module 'express-serve-static-core' {
     }
 }
 
-const JWT_SECRET = requireEnv('JWT_SECRET');
+const getJwtSecret = () => requireEnv('JWT_SECRET');
 
 export const authenticateToken = async (req: Request, res: Response, next: NextFunction) => {
     const authHeader = req.headers.authorization || '';
@@ -36,7 +36,7 @@ export const authenticateToken = async (req: Request, res: Response, next: NextF
     }
 
     try {
-        const payload = jwt.verify(token, JWT_SECRET) as AuthUser & { sub?: string; sid?: string; jti?: string };
+        const payload = jwt.verify(token, getJwtSecret()) as AuthUser & { sub?: string; sid?: string; jti?: string };
         const sessionId = payload.sid || payload.sessionId;
         const tokenId = payload.jti || payload.tokenId;
         if (!sessionId || !tokenId) {

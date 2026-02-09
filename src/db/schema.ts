@@ -23,13 +23,19 @@ export const users = pgTable('users', {
     name: text('name').notNull(),
     email: text('email').unique().notNull(),
     passwordHash: text('password_hash'),
-    role: text('role').notNull(), // SUPER_ADMIN, BRANCH_MANAGER, CASHIER, CALL_CENTER, etc.
-    permissions: json('permissions').$type<string[]>().default([]),
+    pinCode: text('pin_code'), // 4-6 digit PIN for quick login
+    pinCodeHash: text('pin_code_hash'), // Hashed PIN for security
+    role: text('role').notNull(), // OWNER, ADMIN, MANAGER, ACCOUNTANT, CASHIER, IT, WAITER, etc.
+    roleId: text('role_id'), // Reference to roles table for custom roles
+    permissions: json('permissions').$type<string[]>().default([]), // Custom user-specific permissions
+    customPermissions: json('custom_permissions').$type<Record<string, boolean>>().default({}), // Granular permission overrides
     assignedBranchId: text('assigned_branch_id'),
+    allowedBranches: json('allowed_branches').$type<string[]>().default([]), // Multiple branch access
     isActive: boolean('is_active').default(true),
     managerPin: text('manager_pin'), // 4-digit PIN for manager overrides
     mfaEnabled: boolean('mfa_enabled').default(false),
     mfaSecret: text('mfa_secret'),
+    pinLoginEnabled: boolean('pin_login_enabled').default(false), // Enable PIN-based login
     lastLoginAt: timestamp('last_login_at'),
     createdAt: timestamp('created_at').defaultNow(),
     updatedAt: timestamp('updated_at').defaultNow(),
@@ -48,6 +54,44 @@ export const userSessions = pgTable('user_sessions', {
     lastSeenAt: timestamp('last_seen_at').defaultNow(),
     createdAt: timestamp('created_at').defaultNow(),
     updatedAt: timestamp('updated_at').defaultNow(),
+});
+
+// ============================================================================
+// 🔐 ROLES & PERMISSIONS
+// ============================================================================
+
+// Predefined and custom roles
+export const roles = pgTable('roles', {
+    id: text('id').primaryKey(),
+    name: text('name').notNull().unique(), // OWNER, ADMIN, MANAGER, ACCOUNTANT, CASHIER, IT, WAITER
+    nameAr: text('name_ar'), // Arabic name
+    description: text('description'),
+    descriptionAr: text('description_ar'),
+    permissions: json('permissions').$type<string[]>().default([]), // List of permission keys
+    isSystem: boolean('is_system').default(false), // System roles cannot be deleted
+    isActive: boolean('is_active').default(true),
+    priority: integer('priority').default(0), // Higher = more privileged (for conflict resolution)
+    color: text('color').default('#6366f1'), // UI color for displaying role
+    icon: text('icon').default('user'), // Lucide icon name
+    createdAt: timestamp('created_at').defaultNow(),
+    updatedAt: timestamp('updated_at').defaultNow(),
+});
+
+// Permission definitions for the entire system
+export const permissionDefinitions = pgTable('permission_definitions', {
+    id: text('id').primaryKey(),
+    key: text('key').notNull().unique(), // e.g., 'orders.create', 'menu.edit', 'reports.view'
+    name: text('name').notNull(), // Human-readable name
+    nameAr: text('name_ar'), // Arabic name
+    description: text('description'),
+    descriptionAr: text('description_ar'),
+    category: text('category').notNull(), // orders, menu, reports, settings, users, etc.
+    categoryAr: text('category_ar'),
+    subCategory: text('sub_category'), // For nested grouping
+    isActive: boolean('is_active').default(true),
+    sortOrder: integer('sort_order').default(0),
+    dependsOn: json('depends_on').$type<string[]>().default([]), // Required permissions
+    createdAt: timestamp('created_at').defaultNow(),
 });
 
 // ============================================================================

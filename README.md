@@ -92,6 +92,7 @@ The project envisions a wide array of integrated modules:
     -   `VITE_OPENROUTER_API_KEY`, `VITE_GEMINI_API_KEY` - AI providers
     -   `VITE_FIREBASE_*` - Firebase integration
     -   `ETA_*` - Egyptian Tax Authority integration (receipts, signatures, branch data)
+    -   `SMTP_*` - Day close report email delivery (SMTP)
     -   For production deployments, use `.env.production.example` as the baseline.
 
 ### CI Verification (Local)
@@ -114,6 +115,35 @@ npx tsx scripts/eta-e2e-smoke.ts
 Expected output:
 - `fiscalLogStatus: "SUBMITTED"` when ETA is configured and reachable.
 - `fiscalLogStatus: "FAILED"` with `lastError` when required ETA config is missing.
+
+### Fiscal Monitoring APIs
+Use these endpoints for operational monitoring and dead-letter handling:
+- `GET /api/fiscal/summary?branchId=<id>&dateFrom=YYYY-MM-DD&dateTo=YYYY-MM-DD`
+- `GET /api/fiscal/dead-letters?branchId=<id>&status=PENDING`
+- `POST /api/fiscal/dead-letters/:id/retry`
+- `POST /api/fiscal/dead-letters/:id/dismiss`
+
+### Day Close Email (SMTP)
+Day close email now sends through SMTP when the following are configured:
+- `SMTP_HOST`
+- `SMTP_PORT`
+- `SMTP_SECURE`
+- `SMTP_USER`
+- `SMTP_PASS`
+- `SMTP_FROM`
+
+If SMTP is not configured, the API returns `SMTP_NOT_CONFIGURED`.
+
+### Report Export Granularity
+CSV/PDF export supports:
+- `granularity=DAILY`
+- `granularity=WEEKLY`
+- `granularity=MONTHLY`
+
+Example:
+```bash
+GET /api/reports/export/csv?startDate=2026-02-01&endDate=2026-02-09&reportType=overview&granularity=WEEKLY
+```
 
 ### ETA Config Preflight
 Validate ETA environment keys before smoke test:

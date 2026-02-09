@@ -4,9 +4,10 @@
  */
 
 import { db } from '../db';
-import { orders, payments, branches, auditLogs } from '../../src/db/schema';
+import { orders, payments, branches, auditLogs, fiscalLogs, etaDeadLetters } from '../../src/db/schema';
 import { eq, and, gte, lte, desc } from 'drizzle-orm';
 import { createSignedAuditLog } from './auditService';
+import { emailService } from './emailService';
 
 // Day close status
 type DayCloseStatus = 'OPEN' | 'CLOSING' | 'CLOSED';
@@ -49,6 +50,14 @@ interface DayCloseReport {
         voidCount: number;
         discountCount: number;
         refundCount: number;
+    };
+
+    // Fiscal health snapshot
+    fiscalHealth?: {
+        submitted: number;
+        pending: number;
+        failed: number;
+        deadLettersPending: number;
     };
 }
 
@@ -167,6 +176,48 @@ export const dayCloseService = {
         };
     },
 
+    async getFiscalHealth(branchId: string, date: string) {
+        const startOfDay = new Date(date);
+        startOfDay.setHours(0, 0, 0, 0);
+
+        const endOfDay = new Date(date);
+        endOfDay.setHours(23, 59, 59, 999);
+
+        const [submittedRows, pendingRows, failedRows, deadLettersRows] = await Promise.all([
+            db.select().from(fiscalLogs).where(and(
+                eq(fiscalLogs.branchId, branchId),
+                eq(fiscalLogs.status, 'SUBMITTED'),
+                gte(fiscalLogs.createdAt, startOfDay),
+                lte(fiscalLogs.createdAt, endOfDay),
+            )),
+            db.select().from(fiscalLogs).where(and(
+                eq(fiscalLogs.branchId, branchId),
+                eq(fiscalLogs.status, 'PENDING'),
+                gte(fiscalLogs.createdAt, startOfDay),
+                lte(fiscalLogs.createdAt, endOfDay),
+            )),
+            db.select().from(fiscalLogs).where(and(
+                eq(fiscalLogs.branchId, branchId),
+                eq(fiscalLogs.status, 'FAILED'),
+                gte(fiscalLogs.createdAt, startOfDay),
+                lte(fiscalLogs.createdAt, endOfDay),
+            )),
+            db.select().from(etaDeadLetters).where(and(
+                eq(etaDeadLetters.branchId, branchId),
+                eq(etaDeadLetters.status, 'PENDING'),
+                gte(etaDeadLetters.createdAt, startOfDay),
+                lte(etaDeadLetters.createdAt, endOfDay),
+            )),
+        ]);
+
+        return {
+            submitted: submittedRows.length,
+            pending: pendingRows.length,
+            failed: failedRows.length,
+            deadLettersPending: deadLettersRows.length,
+        };
+    },
+
     /**
      * Close the day for a branch
      */
@@ -174,14 +225,20 @@ export const dayCloseService = {
         branchId: string,
         date: string,
         userId: string,
-        options?: { emailConfig?: EmailConfig; notes?: string }
+        options?: { emailConfig?: EmailConfig; notes?: string; enforceFiscalClean?: boolean }
     ) {
         const report = await this.generateReport(branchId, date);
+        const fiscalHealth = await this.getFiscalHealth(branchId, date);
+
+        if (options?.enforceFiscalClean && (fiscalHealth.failed > 0 || fiscalHealth.pending > 0 || fiscalHealth.deadLettersPending > 0)) {
+            throw new Error('FISCAL_NOT_CLEAN_FOR_DAY_CLOSE');
+        }
 
         // Mark as closed
         report.status = 'CLOSED';
         report.closedBy = userId;
         report.closedAt = new Date();
+        report.fiscalHealth = fiscalHealth;
 
         // Log the day close event
         await createSignedAuditLog({
@@ -195,6 +252,7 @@ export const dayCloseService = {
                     totalRevenue: report.salesSummary.totalRevenue,
                     netSales: report.salesSummary.netSales,
                 },
+                fiscalHealth,
                 notes: options?.notes,
             },
         });
@@ -211,56 +269,68 @@ export const dayCloseService = {
      * Send day close email report
      */
     async sendDayCloseEmail(report: DayCloseReport, config: EmailConfig) {
-        // Build email content based on included reports
         const sections: string[] = [];
 
         if (config.includeReports.includes('sales')) {
             sections.push(`
-## ملخص المبيعات - Sales Summary
-- إجمالي الطلبات: ${report.salesSummary.totalOrders}
-- إجمالي الإيرادات: ${report.salesSummary.totalRevenue.toFixed(2)} EGP
-- صافي المبيعات: ${report.salesSummary.netSales.toFixed(2)} EGP
-- الخصومات: ${report.salesSummary.totalDiscount.toFixed(2)} EGP
-- الضريبة: ${report.salesSummary.totalTax.toFixed(2)} EGP
-- متوسط قيمة الطلب: ${report.salesSummary.averageOrderValue.toFixed(2)} EGP
+## Sales Summary
+- Total Orders: ${report.salesSummary.totalOrders}
+- Gross Revenue: ${report.salesSummary.totalRevenue.toFixed(2)} EGP
+- Net Sales: ${report.salesSummary.netSales.toFixed(2)} EGP
+- Discounts: ${report.salesSummary.totalDiscount.toFixed(2)} EGP
+- Tax: ${report.salesSummary.totalTax.toFixed(2)} EGP
+- Average Order Value: ${report.salesSummary.averageOrderValue.toFixed(2)} EGP
             `);
         }
 
         if (config.includeReports.includes('payments')) {
             const paymentLines = report.paymentBreakdown.map(p =>
-                `- ${p.method}: ${p.count} عملية - ${p.total.toFixed(2)} EGP`
+                `- ${p.method}: ${p.count} tx - ${p.total.toFixed(2)} EGP`
             ).join('\n');
             sections.push(`
-## طرق الدفع - Payment Methods
+## Payment Methods
 ${paymentLines}
             `);
         }
 
         if (config.includeReports.includes('audit')) {
             sections.push(`
-## ملخص المراجعة - Audit Summary
-- إجمالي الأحداث: ${report.auditSummary.totalEvents}
-- الإلغاءات: ${report.auditSummary.voidCount}
-- الخصومات: ${report.auditSummary.discountCount}
-- المرتجعات: ${report.auditSummary.refundCount}
+## Audit Summary
+- Total Events: ${report.auditSummary.totalEvents}
+- Voids: ${report.auditSummary.voidCount}
+- Discounts: ${report.auditSummary.discountCount}
+- Refunds: ${report.auditSummary.refundCount}
+            `);
+        }
+
+        if (report.fiscalHealth) {
+            sections.push(`
+## Fiscal Health
+- Submitted: ${report.fiscalHealth.submitted}
+- Pending: ${report.fiscalHealth.pending}
+- Failed: ${report.fiscalHealth.failed}
+- Dead Letters Pending: ${report.fiscalHealth.deadLettersPending}
             `);
         }
 
         const emailBody = `
-# تقرير إغلاق اليوم - Day Close Report
-**التاريخ:** ${report.date}
-**الفرع:** ${report.branchName || report.branchId}
-**تم الإغلاق في:** ${report.closedAt?.toISOString()}
+# Day Close Report
+Date: ${report.date}
+Branch: ${report.branchName || report.branchId}
+Closed At: ${report.closedAt?.toISOString() || new Date().toISOString()}
 
 ${sections.join('\n---\n')}
         `;
 
-        // Send via email service (placeholder - integrate with actual email provider)
         try {
-            // INTEGRATION: Replace with actual SMTP/Email service (e.g., SendGrid, Mailgun)
-            // console.log('📧 Sending day close email to:', config.to);
+            const result = await emailService.sendTextMail({
+                to: config.to,
+                cc: config.cc,
+                subject: config.subject,
+                text: emailBody,
+            });
 
-            return { sent: true, recipients: config.to };
+            return { sent: true, recipients: config.to, messageId: result.messageId };
         } catch (error: any) {
             return { sent: false, error: error.message };
         }
@@ -285,6 +355,7 @@ ${sections.join('\n---\n')}
             closedBy: log.userId,
             closedAt: log.createdAt,
             summary: (log.payload as any)?.report,
+            fiscalHealth: (log.payload as any)?.fiscalHealth,
         }));
     },
 };

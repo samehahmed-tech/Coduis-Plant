@@ -199,10 +199,10 @@ const Dashboard: React.FC = () => {
 
   const alerts = useMemo(() => {
     const list: string[] = [];
-    if (totals.cancelRate > 8) list.push(lang === 'ar' ? 'ظ…ط¹ط¯ظ„ ط¥ظ„ط؛ط§ط، ظ…ط±طھظپط¹' : 'High cancellation rate');
-    if (totals.pending > Math.max(5, Math.round(totals.orderCount * 0.35))) list.push(lang === 'ar' ? 'ط·ظ„ط¨ط§طھ ظ…ط¹ظ„ظ‚ط© ظƒط«ظٹط±ط©' : 'Too many pending orders');
-    if (totals.avgTicket < 80 && totals.orderCount > 20) list.push(lang === 'ar' ? 'ظ…طھظˆط³ط· ط§ظ„ط·ظ„ط¨ ظ…ظ†ط®ظپط¶' : 'Average ticket is low');
-    if (totals.paidRevenue < totals.revenue * 0.8 && totals.orderCount > 0) list.push(lang === 'ar' ? 'ظ†ط³ط¨ط© طھط­طµظٹظ„ ظ…ظ†ط®ظپط¶ط©' : 'Collection ratio is low');
+    if (totals.cancelRate > 8) list.push(lang === 'ar' ? 'معدل إلغاء مرتفع' : 'High cancellation rate');
+    if (totals.pending > Math.max(5, Math.round(totals.orderCount * 0.35))) list.push(lang === 'ar' ? 'طلبات معلقة كثيرة' : 'Too many pending orders');
+    if (totals.avgTicket < 80 && totals.orderCount > 20) list.push(lang === 'ar' ? 'متوسط الطلب منخفض' : 'Average ticket is low');
+    if (totals.paidRevenue < totals.revenue * 0.8 && totals.orderCount > 0) list.push(lang === 'ar' ? 'نسبة تحصيل منخفضة' : 'Collection ratio is low');
     return list.slice(0, 4);
   }, [totals, lang]);
 
@@ -231,18 +231,18 @@ const Dashboard: React.FC = () => {
     fontSize: '12px',
   };
 
-  const hasData = totals.orderCount > 0 || topCustomers.length > 0 || topItems.length > 0;
+  const hasData = totals.orderCount > 0 || totals.pending > 0 || topCustomers.length > 0 || topItems.length > 0;
 
   return (
     <div className="p-4 md:p-6 lg:p-8 space-y-6 animate-fade-in transition-colors duration-200 min-h-screen pb-20">
       <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4">
         <div>
           <h2 className="heading-lg text-main uppercase flex items-center gap-3">
-            {lang === 'ar' ? 'ظ„ظˆط­ط© ط§ظ„طھط­ظƒظ…' : 'Dashboard'}
+            {lang === 'ar' ? 'لوحة التحكم' : 'Dashboard'}
             <div className={`w-2.5 h-2.5 rounded-full ${hasData ? 'bg-emerald-500' : 'bg-amber-500'} animate-pulse`} />
           </h2>
           <p className="text-sm text-muted font-semibold">
-            {lang === 'ar' ? 'طھظپط§طµظٹظ„ طھط´ط؛ظٹظ„ظٹط© ظ„ط­ط¸ظٹط© ظ„ظ„ظ…ط¨ظٹط¹ط§طھ ظˆط§ظ„ط¹ظ…ظ„ظٹط§طھ' : 'Live operational and financial breakdown'}
+            {lang === 'ar' ? 'تفاصيل تشغيلية لحظية للمبيعات والعمليات' : 'Live operational and financial breakdown'}
           </p>
         </div>
 
@@ -282,9 +282,9 @@ const Dashboard: React.FC = () => {
           <div className="w-20 h-20 mx-auto mb-6 rounded-3xl bg-primary/10 flex items-center justify-center">
             <Database size={40} className="text-primary" />
           </div>
-          <h3 className="text-xl font-black text-main mb-2">{lang === 'ar' ? 'ظ„ط§ طھظˆط¬ط¯ ط¨ظٹط§ظ†ط§طھ ط¨ط¹ط¯' : 'No data yet'}</h3>
+          <h3 className="text-xl font-black text-main mb-2">{lang === 'ar' ? 'لا توجد بيانات بعد' : 'No data yet'}</h3>
           <p className="text-muted mb-6 max-w-md mx-auto">
-            {lang === 'ar' ? 'ط§ط¨ط¯ط£ ط¨ط¥ط¶ط§ظپط© ط§ظ„ط£طµظ†ط§ظپ ظˆط§ظ„ط·ظ„ط¨ط§طھ ظ„ط¹ط±ط¶ طھظپط§طµظٹظ„ ط§ظ„ط£ط¯ط§ط، ظ‡ظ†ط§.' : 'Start with menu items and orders to unlock full dashboard insights.'}
+            {lang === 'ar' ? 'ابدأ بإضافة الأصناف والطلبات لعرض تفاصيل الأداء هنا.' : 'Start with menu items and orders to unlock full dashboard insights.'}
           </p>
           <div className="flex justify-center gap-4">
             <button onClick={() => navigate('/menu')} className="px-6 py-3 bg-primary text-white rounded-2xl font-bold text-sm hover:bg-primary-hover transition-all">Add Menu</button>
@@ -326,7 +326,7 @@ const Dashboard: React.FC = () => {
             <div className="xl:col-span-2 space-y-6">
               <div className="card-primary p-6 rounded-3xl">
                 <div className="flex items-center justify-between mb-6">
-                  <h3 className="text-lg font-black text-main">{lang === 'ar' ? 'ط§طھط¬ط§ظ‡ ط§ظ„ظ…ط¨ظٹط¹ط§طھ' : 'Revenue Trend'}</h3>
+                  <h3 className="text-lg font-black text-main">{lang === 'ar' ? 'اتجاه المبيعات' : 'Revenue Trend'}</h3>
                   <div className="text-xs text-muted font-bold">{viewScope}</div>
                 </div>
                 <div className="h-[320px]">

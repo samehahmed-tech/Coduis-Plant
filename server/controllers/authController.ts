@@ -441,3 +441,191 @@ export const disableMfa = async (req: Request, res: Response) => {
         return res.status(500).json({ error: error.message });
     }
 };
+
+// ============================================================================
+// PIN CODE LOGIN
+// ============================================================================
+
+export const loginWithPin = async (req: Request, res: Response) => {
+    try {
+        const { pin, branchId } = req.body || {};
+        const clientIp = req.ip || req.socket.remoteAddress || 'unknown';
+
+        if (!pin || pin.length < 4) {
+            return res.status(400).json({ error: 'PIN_REQUIRED' });
+        }
+
+        const throttle = getLoginThrottleState(clientIp, `pin:${pin.slice(0, 2)}`);
+        if (throttle.blocked) {
+            return res.status(429).json({
+                error: 'TOO_MANY_LOGIN_ATTEMPTS',
+                retryAfterSeconds: throttle.retryAfterSeconds,
+            });
+        }
+
+        // Find user with this PIN (PIN must be unique per branch or globally)
+        const allUsers = await db.select().from(users).where(eq(users.isActive, true));
+
+        let matchedUser = null;
+        for (const user of allUsers) {
+            if (!user.pinLoginEnabled || !user.pinCodeHash) continue;
+
+            // Check if user belongs to the requested branch (if branchId provided)
+            if (branchId && user.assignedBranchId !== branchId) {
+                const allowedBranches = (user as any).allowedBranches || [];
+                if (!allowedBranches.includes(branchId)) continue;
+            }
+
+            const isMatch = await bcrypt.compare(pin, user.pinCodeHash);
+            if (isMatch) {
+                matchedUser = user;
+                break;
+            }
+        }
+
+        if (!matchedUser) {
+            registerLoginFailure(clientIp, `pin:${pin.slice(0, 2)}`);
+            await writeAuthAudit({
+                eventType: 'auth.pin_login.failed',
+                ipAddress: clientIp,
+                payload: { pinPrefix: pin.slice(0, 2) },
+                reason: 'INVALID_PIN',
+            });
+            return res.status(401).json({ error: 'INVALID_PIN' });
+        }
+
+        registerLoginSuccess(clientIp, `pin:${pin.slice(0, 2)}`);
+
+        const deviceName = String(req.body?.deviceName || '').trim() || 'PIN Login';
+        const token = await issueAccessToken(matchedUser, req, deviceName);
+
+        await writeAuthAudit({
+            eventType: 'auth.pin_login.success',
+            userId: matchedUser.id,
+            userName: matchedUser.name,
+            userRole: matchedUser.role,
+            branchId: matchedUser.assignedBranchId,
+            ipAddress: clientIp,
+        });
+
+        return res.json({
+            token,
+            user: sanitizeUser(matchedUser),
+        });
+    } catch (error: any) {
+        return res.status(500).json({ error: error.message });
+    }
+};
+
+export const setupPin = async (req: Request, res: Response) => {
+    try {
+        const userId = req.user?.id;
+        const { pin, currentPassword } = req.body || {};
+
+        if (!userId) return res.status(401).json({ error: 'AUTH_REQUIRED' });
+        if (!pin || pin.length < 4 || pin.length > 6) {
+            return res.status(400).json({ error: 'PIN_MUST_BE_4_TO_6_DIGITS' });
+        }
+        if (!/^\d+$/.test(pin)) {
+            return res.status(400).json({ error: 'PIN_MUST_BE_NUMERIC' });
+        }
+
+        const [user] = await db.select().from(users).where(eq(users.id, userId));
+        if (!user) return res.status(404).json({ error: 'USER_NOT_FOUND' });
+
+        // Verify current password if user has one
+        if (user.passwordHash && currentPassword) {
+            const isValid = await bcrypt.compare(currentPassword, user.passwordHash);
+            if (!isValid) {
+                return res.status(401).json({ error: 'INVALID_PASSWORD' });
+            }
+        }
+
+        const pinHash = await bcrypt.hash(pin, 10);
+        await db.update(users).set({
+            pinCodeHash: pinHash,
+            pinLoginEnabled: true,
+            updatedAt: new Date(),
+        }).where(eq(users.id, userId));
+
+        await writeAuthAudit({
+            eventType: 'auth.pin.setup',
+            userId,
+            userRole: req.user?.role,
+            branchId: req.user?.branchId || null,
+            ipAddress: req.ip || req.socket.remoteAddress || 'unknown',
+        });
+
+        return res.json({ ok: true, message: 'PIN_SETUP_COMPLETE' });
+    } catch (error: any) {
+        return res.status(500).json({ error: error.message });
+    }
+};
+
+export const disablePin = async (req: Request, res: Response) => {
+    try {
+        const userId = req.user?.id;
+        if (!userId) return res.status(401).json({ error: 'AUTH_REQUIRED' });
+
+        await db.update(users).set({
+            pinCodeHash: null,
+            pinLoginEnabled: false,
+            updatedAt: new Date(),
+        }).where(eq(users.id, userId));
+
+        await writeAuthAudit({
+            eventType: 'auth.pin.disabled',
+            userId,
+            userRole: req.user?.role,
+            branchId: req.user?.branchId || null,
+            ipAddress: req.ip || req.socket.remoteAddress || 'unknown',
+        });
+
+        return res.json({ ok: true, message: 'PIN_DISABLED' });
+    } catch (error: any) {
+        return res.status(500).json({ error: error.message });
+    }
+};
+
+// Admin function to set PIN for another user
+export const adminSetUserPin = async (req: Request, res: Response) => {
+    try {
+        const adminId = req.user?.id;
+        const adminRole = req.user?.role;
+        const { userId, pin } = req.body || {};
+
+        if (!adminId) return res.status(401).json({ error: 'AUTH_REQUIRED' });
+        if (!['SUPER_ADMIN', 'OWNER', 'ADMIN'].includes(adminRole || '')) {
+            return res.status(403).json({ error: 'FORBIDDEN' });
+        }
+        if (!userId || !pin) {
+            return res.status(400).json({ error: 'USER_ID_AND_PIN_REQUIRED' });
+        }
+        if (pin.length < 4 || pin.length > 6 || !/^\d+$/.test(pin)) {
+            return res.status(400).json({ error: 'PIN_MUST_BE_4_TO_6_DIGITS' });
+        }
+
+        const [targetUser] = await db.select().from(users).where(eq(users.id, userId));
+        if (!targetUser) return res.status(404).json({ error: 'USER_NOT_FOUND' });
+
+        const pinHash = await bcrypt.hash(pin, 10);
+        await db.update(users).set({
+            pinCodeHash: pinHash,
+            pinLoginEnabled: true,
+            updatedAt: new Date(),
+        }).where(eq(users.id, userId));
+
+        await writeAuthAudit({
+            eventType: 'auth.pin.admin_set',
+            userId: adminId,
+            userRole: adminRole,
+            branchId: req.user?.branchId || null,
+            ipAddress: req.ip || req.socket.remoteAddress || 'unknown',
+            payload: { targetUserId: userId, targetUserName: targetUser.name },
+        });
+
+        return res.json({ ok: true, message: 'PIN_SET_FOR_USER' });
+    } catch (error: any) {
+        return res.status(500).json({ error: error.message });
+    }
+};

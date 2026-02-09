@@ -45,6 +45,9 @@ export const getVatReport = async (req: Request, res: Response) => {
 export const getPaymentMethodSummary = async (req: Request, res: Response) => {
     try {
         const { branchId, startDate, endDate } = req.query;
+        if (!startDate || !endDate) {
+            return res.status(400).json({ error: 'Start date and end date are required' });
+        }
 
         const start = new Date(startDate as string);
         const end = new Date(endDate as string);
@@ -60,7 +63,8 @@ export const getPaymentMethodSummary = async (req: Request, res: Response) => {
                 and(
                     branchId ? eq(orders.branchId, branchId as string) : undefined,
                     gte(orders.createdAt, start),
-                    lte(orders.createdAt, end)
+                    lte(orders.createdAt, end),
+                    eq(payments.status, 'COMPLETED')
                 )
             )
             .groupBy(payments.method);
@@ -380,8 +384,10 @@ export const getFoodCostReport = async (req: Request, res: Response) => {
     }
 };
 
+type ReportGranularity = 'DAILY' | 'WEEKLY' | 'MONTHLY';
+
 const parseReportFilters = (req: Request) => {
-    const { branchId, startDate, endDate, reportType } = req.query;
+    const { branchId, startDate, endDate, reportType, granularity } = req.query;
     if (!startDate || !endDate) throw new Error('Start date and end date are required');
     const start = new Date(startDate as string);
     const end = new Date(endDate as string);
@@ -391,6 +397,7 @@ const parseReportFilters = (req: Request) => {
         start,
         end,
         reportType: String(reportType || 'overview').toUpperCase(),
+        granularity: String(granularity || 'DAILY').toUpperCase() as ReportGranularity,
     };
 };
 
@@ -402,13 +409,15 @@ const resolveScopedBranchId = (req: Request, requestedBranchId?: string) => {
     if (!user) {
         throw new Error('AUTH_REQUIRED');
     }
+    const effectiveRequestedId = requestedBranchId && requestedBranchId !== 'undefined' && requestedBranchId !== 'null' ? requestedBranchId : undefined;
+
     if (user.role === 'SUPER_ADMIN') {
-        return requestedBranchId || undefined;
+        return effectiveRequestedId;
     }
     if (!user.branchId) {
         throw new Error('BRANCH_SCOPE_REQUIRED');
     }
-    if (requestedBranchId && requestedBranchId !== user.branchId) {
+    if (effectiveRequestedId && effectiveRequestedId !== user.branchId) {
         throw new Error('FORBIDDEN_BRANCH_SCOPE');
     }
     return user.branchId;
@@ -458,6 +467,7 @@ export const getDashboardKpis = async (req: Request, res: Response) => {
                         branchId ? eq(orders.branchId, branchId) : undefined,
                         gte(orders.createdAt, start),
                         lte(orders.createdAt, end),
+                        eq(payments.status, 'COMPLETED'),
                         inArray(orders.status, DELIVERED_STATUSES)
                     )
                 )
@@ -471,6 +481,7 @@ export const getDashboardKpis = async (req: Request, res: Response) => {
                         branchId ? eq(orders.branchId, branchId) : undefined,
                         gte(orders.createdAt, start),
                         lte(orders.createdAt, end),
+                        eq(payments.status, 'COMPLETED'),
                         inArray(orders.status, DELIVERED_STATUSES)
                     )
                 ),
@@ -763,7 +774,8 @@ const getExportSnapshot = async (branchId: string | undefined, start: Date, end:
             and(
                 branchId ? eq(orders.branchId, branchId) : undefined,
                 gte(orders.createdAt, start),
-                lte(orders.createdAt, end)
+                lte(orders.createdAt, end),
+                eq(payments.status, 'COMPLETED')
             )
         )
         .groupBy(payments.method);
@@ -809,6 +821,7 @@ export const getIntegrityChecks = async (req: Request, res: Response) => {
                     branchId ? eq(orders.branchId, branchId) : undefined,
                     gte(orders.createdAt, start),
                     lte(orders.createdAt, end),
+                    eq(payments.status, 'COMPLETED'),
                     inArray(orders.status, deliveredStatuses)
                 )
             );
@@ -882,13 +895,51 @@ export const getIntegrityChecks = async (req: Request, res: Response) => {
     }
 };
 
+const toWeekBucket = (isoDay: string) => {
+    const date = new Date(`${isoDay}T00:00:00.000Z`);
+    const day = date.getUTCDay() || 7;
+    date.setUTCDate(date.getUTCDate() + 4 - day);
+    const yearStart = new Date(Date.UTC(date.getUTCFullYear(), 0, 1));
+    const weekNo = Math.ceil((((date.getTime() - yearStart.getTime()) / 86400000) + 1) / 7);
+    return `${date.getUTCFullYear()}-W${String(weekNo).padStart(2, '0')}`;
+};
+
+const aggregateDailyRows = (rows: any[], granularity: ReportGranularity) => {
+    if (granularity === 'DAILY') return rows;
+
+    const grouped = new Map<string, { revenue: number; net: number; tax: number; orderCount: number }>();
+    for (const row of rows) {
+        const bucket = granularity === 'MONTHLY'
+            ? String(row.day).slice(0, 7)
+            : toWeekBucket(String(row.day));
+        const existing = grouped.get(bucket) || { revenue: 0, net: 0, tax: 0, orderCount: 0 };
+        existing.revenue += Number(row.revenue || 0);
+        existing.net += Number(row.net || 0);
+        existing.tax += Number(row.tax || 0);
+        existing.orderCount += Number(row.orderCount || 0);
+        grouped.set(bucket, existing);
+    }
+
+    return Array.from(grouped.entries())
+        .sort((a, b) => a[0].localeCompare(b[0]))
+        .map(([day, values]) => ({
+            day,
+            revenue: values.revenue,
+            net: values.net,
+            tax: values.tax,
+            orderCount: values.orderCount,
+        }));
+};
+
 export const exportReportCsv = async (req: Request, res: Response) => {
     try {
-        const { branchId, start, end, reportType } = parseReportFilters(req);
+        const { branchId, start, end, reportType, granularity } = parseReportFilters(req);
         const snapshot = await getExportSnapshot(branchId, start, end);
+        const dailyRows = aggregateDailyRows(snapshot.daily, granularity);
 
         const lines: string[] = [];
         lines.push(`Report Type,${reportType}`);
+        lines.push(`Granularity,${granularity}`);
         lines.push(`Branch,${branchId || 'ALL'}`);
         lines.push(`Start Date,${start.toISOString()}`);
         lines.push(`End Date,${end.toISOString()}`);
@@ -905,9 +956,9 @@ export const exportReportCsv = async (req: Request, res: Response) => {
             Number(snapshot.profit.cogs || 0).toFixed(2),
         ].join(','));
         lines.push('');
-        lines.push('Daily');
-        lines.push('Day,Revenue,Net,Tax,Order Count');
-        snapshot.daily.forEach((row: any) => {
+        lines.push('Time Series');
+        lines.push('Period,Revenue,Net,Tax,Order Count');
+        dailyRows.forEach((row: any) => {
             lines.push([
                 row.day,
                 Number(row.revenue || 0).toFixed(2),
@@ -939,8 +990,9 @@ export const exportReportCsv = async (req: Request, res: Response) => {
 
 export const exportReportPdf = async (req: Request, res: Response) => {
     try {
-        const { branchId, start, end, reportType } = parseReportFilters(req);
+        const { branchId, start, end, reportType, granularity } = parseReportFilters(req);
         const snapshot = await getExportSnapshot(branchId, start, end);
+        const dailyRows = aggregateDailyRows(snapshot.daily, granularity);
         const filename = `report_${reportType.toLowerCase()}_${Date.now()}.pdf`;
 
         res.setHeader('Content-Type', 'application/pdf');
@@ -952,6 +1004,7 @@ export const exportReportPdf = async (req: Request, res: Response) => {
         doc.fontSize(18).text('RestoFlow Report Export', { align: 'left' });
         doc.moveDown(0.5);
         doc.fontSize(10).text(`Type: ${reportType}`);
+        doc.text(`Granularity: ${granularity}`);
         doc.text(`Branch: ${branchId || 'ALL'}`);
         doc.text(`Range: ${start.toISOString()} -> ${end.toISOString()}`);
         doc.moveDown();
@@ -967,9 +1020,9 @@ export const exportReportPdf = async (req: Request, res: Response) => {
         doc.text(`COGS: ${Number(snapshot.profit.cogs || 0).toFixed(2)}`);
         doc.moveDown();
 
-        doc.fontSize(12).text('Daily Snapshot', { underline: true });
+        doc.fontSize(12).text('Time Series Snapshot', { underline: true });
         doc.fontSize(9);
-        snapshot.daily.slice(0, 20).forEach((row: any) => {
+        dailyRows.slice(0, 20).forEach((row: any) => {
             doc.text(`${row.day} | Rev ${Number(row.revenue || 0).toFixed(2)} | Net ${Number(row.net || 0).toFixed(2)} | Tax ${Number(row.tax || 0).toFixed(2)} | Orders ${Number(row.orderCount || 0)}`);
         });
         doc.moveDown();

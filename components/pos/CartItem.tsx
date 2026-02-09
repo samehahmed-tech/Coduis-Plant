@@ -9,6 +9,7 @@ interface CartItemProps {
     onEditNote: (cartId: string, currentNote: string) => void;
     onUpdateQuantity: (cartId: string, delta: number) => void;
     onRemove: (cartId: string) => void;
+    lang: 'en' | 'ar';
 }
 
 const CartItem: React.FC<CartItemProps> = React.memo(({
@@ -18,11 +19,14 @@ const CartItem: React.FC<CartItemProps> = React.memo(({
     onEditNote,
     onUpdateQuantity,
     onRemove,
+    lang,
 }) => {
+    const displayName = lang === 'ar' ? (item.nameAr || item.name) : item.name;
+
     return (
         <div className="bg-card dark:bg-card p-4 rounded-2xl border border-border/50 flex justify-between items-center shadow-sm animate-in slide-in-from-right-2 transition-all hover:border-primary/30">
             <div className="flex-1 min-w-0">
-                <h4 className="font-bold text-main dark:text-main leading-tight mb-0.5">{item.name}</h4>
+                <h4 className="font-bold text-main dark:text-main leading-tight mb-0.5">{displayName}</h4>
                 <p className="text-sm font-bold text-primary">
                     {currencySymbol}{(item.price * item.quantity).toFixed(2)}
                 </p>
@@ -71,4 +75,3 @@ const CartItem: React.FC<CartItemProps> = React.memo(({
 });
 
 export default CartItem;
-

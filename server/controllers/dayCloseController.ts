@@ -13,12 +13,13 @@ export const getDayCloseReport = async (req: Request, res: Response) => {
         if (!branchId || !date) {
             return res.status(400).json({
                 error: 'BRANCH_ID_AND_DATE_REQUIRED',
-                message: 'يرجى تحديد الفرع والتاريخ - Please provide branch and date'
+                message: 'Please provide branch and date',
             });
         }
 
         const report = await dayCloseService.generateReport(branchId, date);
-        res.json(report);
+        const fiscalHealth = await dayCloseService.getFiscalHealth(branchId, date);
+        res.json({ ...report, fiscalHealth });
     } catch (error: any) {
         res.status(500).json({ error: error.message });
     }
@@ -33,33 +34,40 @@ export const closeDay = async (req: Request, res: Response) => {
         const branchId = req.params.branchId as string;
         const date = req.params.date as string;
         const userId = (req as any).user?.id || req.body.userId;
-        const { emailConfig, notes } = req.body;
+        const { emailConfig, notes, enforceFiscalClean } = req.body;
 
         if (!branchId || !date) {
             return res.status(400).json({
                 error: 'BRANCH_ID_AND_DATE_REQUIRED',
-                message: 'يرجى تحديد الفرع والتاريخ - Please provide branch and date'
+                message: 'Please provide branch and date',
             });
         }
 
         if (!userId) {
             return res.status(401).json({
                 error: 'USER_ID_REQUIRED',
-                message: 'يجب تسجيل الدخول - Authentication required'
+                message: 'Authentication required',
             });
         }
 
         const report = await dayCloseService.closeDay(branchId, date, userId, {
             emailConfig,
             notes,
+            enforceFiscalClean: Boolean(enforceFiscalClean),
         });
 
         res.json({
             success: true,
-            message: 'تم إغلاق اليوم بنجاح - Day closed successfully',
+            message: 'Day closed successfully',
             report,
         });
     } catch (error: any) {
+        if (error?.message === 'FISCAL_NOT_CLEAN_FOR_DAY_CLOSE') {
+            return res.status(409).json({
+                error: error.message,
+                message: 'Cannot close day while pending/failed fiscal submissions exist',
+            });
+        }
         res.status(500).json({ error: error.message });
     }
 };
@@ -76,7 +84,7 @@ export const getDayCloseHistory = async (req: Request, res: Response) => {
         if (!branchId) {
             return res.status(400).json({
                 error: 'BRANCH_ID_REQUIRED',
-                message: 'يرجى تحديد الفرع - Please provide branch ID'
+                message: 'Please provide branch ID',
             });
         }
 
@@ -100,25 +108,24 @@ export const sendDayCloseEmail = async (req: Request, res: Response) => {
         if (!branchId || !date) {
             return res.status(400).json({
                 error: 'BRANCH_ID_AND_DATE_REQUIRED',
-                message: 'يرجى تحديد الفرع والتاريخ - Please provide branch and date'
+                message: 'Please provide branch and date',
             });
         }
 
         if (!emailConfig || !emailConfig.to || !emailConfig.to.length) {
             return res.status(400).json({
                 error: 'EMAIL_CONFIG_REQUIRED',
-                message: 'يرجى تحديد إعدادات البريد - Please provide email config'
+                message: 'Please provide email config',
             });
         }
 
         const report = await dayCloseService.generateReport(branchId, date);
+        report.fiscalHealth = await dayCloseService.getFiscalHealth(branchId, date);
         const result = await dayCloseService.sendDayCloseEmail(report, emailConfig);
 
         res.json({
             success: result.sent,
-            message: result.sent
-                ? 'تم إرسال البريد الإلكتروني - Email sent'
-                : 'فشل إرسال البريد - Email failed',
+            message: result.sent ? 'Email sent' : 'Email failed',
             ...result,
         });
     } catch (error: any) {

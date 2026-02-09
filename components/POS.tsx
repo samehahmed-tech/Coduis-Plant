@@ -14,6 +14,7 @@ import {
 import TableMap from './TableMap';
 import POSHeader from './pos/POSHeader';
 import CategoryTabs from './pos/CategoryTabs';
+import CategorySidebar from './pos/CategorySidebar';
 import ItemGrid from './pos/ItemGrid';
 import CartItem from './pos/CartItem';
 import PaymentSummary from './pos/PaymentSummary';
@@ -102,7 +103,7 @@ const POS: React.FC = () => {
    const [managedTableId, setManagedTableId] = useState<string | null>(null);
    const [deliveryCustomer, setDeliveryCustomer] = useState<Customer | null>(null);
    // cart is now activeCart from store
-   const [activeCategory, setActiveCategory] = useState('All');
+   const [activeCategory, setActiveCategory] = useState<string>('all');
    const [searchQuery, setSearchQuery] = useState('');
    const [editingItemId, setEditingItemId] = useState<string | null>(null);
    const [noteInput, setNoteInput] = useState('');
@@ -177,8 +178,10 @@ const POS: React.FC = () => {
    const currencySymbol = settings.currencySymbol;
 
    const currentCategories = useMemo(() =>
-      (categories || []).filter(cat => cat.menuIds.includes(activeMenuId || '')),
-      [categories, activeMenuId]);
+      (categories || []).filter(cat =>
+         cat.isActive !== false
+      ),
+      [categories]);
 
    const dynamicCategories = useMemo(() =>
       ['All', ...currentCategories.map(c => c.name)],
@@ -254,24 +257,33 @@ const POS: React.FC = () => {
    const filteredItems = useMemo(() => {
       const now = new Date(nowTick);
       const allItems = currentCategories.flatMap(c =>
-         c.items.map(item => ({
+         (c.items || []).map(item => ({
             ...item,
-            category: c.name,
-            categoryAr: c.nameAr,
+            displayCategory: lang === 'ar' ? (c.nameAr || c.name) : c.name,
          }))
       );
       const q = searchQuery.toLowerCase();
-      return allItems.filter(item =>
-         (activeCategory === 'All' || (item.category || '') === activeCategory) &&
-         isItemAvailableNow(item, now) &&
-         (item.name.toLowerCase().includes(q) ||
-            (item.category || '').toLowerCase().includes(q))
-      );
-   }, [currentCategories, activeCategory, searchQuery, isItemAvailableNow, nowTick]);
+
+      return allItems.filter(item => {
+         // Matches category ID or 'all'
+         const matchesCategory = activeCategory === 'all' || item.categoryId === activeCategory;
+
+         const matchesSearch = !q ||
+            item.name.toLowerCase().includes(q) ||
+            (item.nameAr || '').toLowerCase().includes(q);
+
+         return matchesCategory && matchesSearch && isItemAvailableNow(item, now);
+      });
+   }, [currentCategories, activeCategory, searchQuery, isItemAvailableNow, nowTick, lang]);
 
    const pricedItems = useMemo(() =>
-      filteredItems.map(item => ({ ...item, price: resolveItemPrice(item) })),
-      [filteredItems, resolveItemPrice]);
+      filteredItems.map(item => ({
+         ...item,
+         displayName: lang === 'ar' ? (item.nameAr || item.name) : item.name,
+         displayDescription: lang === 'ar' ? (item.descriptionAr || item.description) : item.description,
+         price: resolveItemPrice(item)
+      })),
+      [filteredItems, resolveItemPrice, lang]);
 
    const safeActiveCart = activeCart || [];
 
@@ -925,13 +937,13 @@ const POS: React.FC = () => {
                         onSelectTable={(table) => {
                            if (table.status === TableStatus.DIRTY) {
                               showModal({
-                                    title: t.confirm,
-                                    message: t.mark_table_clean,
-                                    type: 'confirm',
-                                    confirmText: t.confirm,
-                                    cancelText: t.cancel,
-                                    onConfirm: () => updateTableStatus(table.id, TableStatus.AVAILABLE)
-                                 });
+                                 title: t.confirm,
+                                 message: t.mark_table_clean,
+                                 type: 'confirm',
+                                 confirmText: t.confirm,
+                                 cancelText: t.cancel,
+                                 onConfirm: () => updateTableStatus(table.id, TableStatus.AVAILABLE)
+                              });
                               return;
                            }
                            if (table.status === TableStatus.OCCUPIED) {
@@ -961,39 +973,62 @@ const POS: React.FC = () => {
                   />
                ) : (
                   <>
-                     <div className="flex-1 flex flex-col h-full overflow-hidden min-h-0">
-                        <div className="bg-card dark:bg-card p-3 md:p-5 border-b border-border/50 flex flex-col sm:flex-row justify-between items-stretch sm:items-center gap-3 shadow-sm">
-                           <CategoryTabs
+                     <div className="flex-1 flex flex-row h-full overflow-hidden min-h-0">
+                        {/* Professionl Category Sidebar (Desktop/Tablet) */}
+                        <div className="hidden sm:block">
+                           <CategorySidebar
                               categories={currentCategories}
                               activeCategory={activeCategory}
                               onSetCategory={setActiveCategory}
-                              isTouchMode={isTouchMode}
                               lang={lang}
-                              t={t}
                            />
-                           <div className="relative w-full sm:w-64 xl:w-80">
-                              <Search className={`absolute top-1/2 -translate-y-1/2 text-slate-400 ${isTouchMode ? 'w-6 h-6' : 'w-3.5 h-3.5 md:w-4 md:h-4'} ${lang === 'ar' ? 'right-4' : 'left-4'} `} />
-                              <input
-                                 ref={searchInputRef}
-                                 type="text"
-                                 placeholder={t.search_placeholder}
-                                 value={searchQuery}
-                                 onChange={(e) => setSearchQuery(e.target.value)}
-                                 className={`w-full ${isTouchMode ? 'py-4 text-lg pr-12 pl-12' : 'py-2 md:py-3 text-sm pr-10 md:pr-12 pl-4 text-right'} bg-elevated dark:bg-elevated/50 border-none rounded-xl md:rounded-2xl focus:ring-2 focus:ring-primary font-bold ${lang === 'ar' ? 'text-right' : 'text-left'} `}
+                        </div>
+
+                        <div className="flex-1 flex flex-col h-full overflow-hidden min-h-0">
+                           <div className="bg-card dark:bg-card p-3 md:p-5 border-b border-border/50 flex flex-col sm:flex-row justify-between items-stretch sm:items-center gap-4 shadow-sm">
+                              <div className="sm:hidden">
+                                 <CategoryTabs
+                                    categories={currentCategories}
+                                    activeCategory={activeCategory}
+                                    onSetCategory={setActiveCategory}
+                                    isTouchMode={isTouchMode}
+                                    lang={lang as any}
+                                 />
+                              </div>
+
+                              <div className="hidden sm:flex items-center gap-3">
+                                 <div className="w-1.5 h-6 bg-primary rounded-full shadow-[0_0_10px_rgba(var(--primary),0.5)]" />
+                                 <h2 className="text-sm font-black uppercase tracking-widest text-slate-500">
+                                    {activeCategory === 'all' ? (lang === 'ar' ? 'جميع الأصناف' : 'All Items') :
+                                       (currentCategories.find(c => c.id === activeCategory)?.nameAr ||
+                                          currentCategories.find(c => c.id === activeCategory)?.name || (lang === 'ar' ? 'القسم' : 'Category'))}
+                                 </h2>
+                              </div>
+
+                              <div className="relative w-full sm:w-64 xl:w-96">
+                                 <Search className={`absolute top-1/2 -translate-y-1/2 text-primary/40 w-4 h-4 ${lang === 'ar' ? 'right-4' : 'left-4'}`} />
+                                 <input
+                                    ref={searchInputRef}
+                                    type="text"
+                                    placeholder={t.search_placeholder}
+                                    value={searchQuery}
+                                    onChange={(e) => setSearchQuery(e.target.value)}
+                                    className={`w-full py-2.5 md:py-3.5 text-sm pr-11 pl-11 bg-elevated dark:bg-elevated/50 border-none rounded-2xl focus:ring-2 focus:ring-primary font-bold ${lang === 'ar' ? 'text-right' : 'text-left'} `}
+                                 />
+                              </div>
+                           </div>
+                           <div className="flex-1 overflow-y-auto p-4 md:p-8 min-h-0 bg-slate-50/30 dark:bg-slate-950/20">
+                              <ItemGrid
+                                 items={pricedItems}
+                                 onAddItem={handleAddItem}
+                                 currencySymbol={currencySymbol}
+                                 isTouchMode={isTouchMode}
                               />
                            </div>
                         </div>
-                        <div className="flex-1 overflow-y-auto p-3 md:p-5 min-h-0">
-                           <ItemGrid
-                              items={pricedItems}
-                              onAddItem={handleAddItem}
-                              currencySymbol={currencySymbol}
-                              isTouchMode={isTouchMode}
-                           />
-                        </div>
                      </div>
 
-{shouldShowCart && !isCartOpenMobile && (
+                     {shouldShowCart && !isCartOpenMobile && (
                         <button
                            onClick={() => setIsCartOpenMobile(true)}
                            className={`lg:hidden fixed bottom-[max(1rem,var(--safe-bottom))] z-40 px-4 py-3 bg-primary text-white rounded-2xl shadow-2xl font-black text-xs uppercase tracking-widest flex items-center gap-2 ${lang === 'ar' ? 'right-4' : 'left-4'}`}
@@ -1085,9 +1120,13 @@ const POS: React.FC = () => {
                                  item={item}
                                  currencySymbol={currencySymbol}
                                  isTouchMode={isTouchMode}
-                                 onEditNote={(id, note) => { setEditingItemId(id); setNoteInput(note); }}
+                                 lang={lang}
+                                 onEditNote={(cartId, note) => {
+                                    setEditingItemId(cartId);
+                                    setNoteInput(note);
+                                 }}
                                  onUpdateQuantity={handleUpdateQuantity}
-                                 onRemove={(id) => removeFromCart(id)}
+                                 onRemove={(cartId) => removeFromCart(cartId)}
                               />
                            ))}
                            {safeActiveCart.length === 0 && (
@@ -1127,7 +1166,7 @@ const POS: React.FC = () => {
                )}
             </div>
 
-           <SplitBillModal
+            <SplitBillModal
                isOpen={showSplitModal}
                onClose={() => setShowSplitModal(false)}
                total={cartTotal}
@@ -1145,19 +1184,19 @@ const POS: React.FC = () => {
                onUpdateAmount={(idx, val) => setSplitPayments(prev => prev.map((p, i) => i === idx ? { ...p, amount: val } : p))}
             />
 
-               {managedTableId && (
-                  <TableManagementModal
-                     sourceTable={tables.find(t => t.id === managedTableId)!}
-                     allTables={tables}
-                     orders={orders}
-                     lang={lang}
-                     onClose={() => setManagedTableId(null)}
-                     onCloseTable={handleCloseTable}
-                     onMergeTables={(targetId, itemIds) => handleMergeTables(managedTableId, targetId, itemIds)}
-                     onEditOrder={() => {
-                        switchToTable(managedTableId);
-                        setManagedTableId(null);
-                     }}
+            {managedTableId && (
+               <TableManagementModal
+                  sourceTable={tables.find(t => t.id === managedTableId)!}
+                  allTables={tables}
+                  orders={orders}
+                  lang={lang}
+                  onClose={() => setManagedTableId(null)}
+                  onCloseTable={handleCloseTable}
+                  onMergeTables={(targetId, itemIds) => handleMergeTables(managedTableId, targetId, itemIds)}
+                  onEditOrder={() => {
+                     switchToTable(managedTableId);
+                     setManagedTableId(null);
+                  }}
                   onTransferTable={(targetId) => {
                      transferTable(managedTableId, targetId);
                      setManagedTableId(null);

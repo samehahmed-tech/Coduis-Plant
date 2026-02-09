@@ -69,7 +69,7 @@ app.use('/api/menu', menuRoutes);
 app.use('/api/orders', orderRoutes);
 app.use('/api/shifts', shiftRoutes);
 app.use('/api/approvals', requireRoles('SUPER_ADMIN', 'BRANCH_MANAGER', 'MANAGER'), approvalRoutes);
-app.use('/api/reports', requireRoles('SUPER_ADMIN', 'BRANCH_MANAGER', 'FINANCE'), reportRoutes);
+app.use('/api/reports', requireRoles('SUPER_ADMIN', 'BRANCH_MANAGER', 'FINANCE', 'MANAGER'), reportRoutes);
 app.use('/api/delivery', deliveryRoutes);
 app.use('/api/campaigns', requireRoles('SUPER_ADMIN', 'BRANCH_MANAGER', 'MANAGER'), campaignRoutes);
 app.use('/api/analytics', requireRoles('SUPER_ADMIN', 'BRANCH_MANAGER', 'FINANCE', 'MANAGER'), analyticsRoutes);
@@ -93,7 +93,7 @@ app.use('/api/ai', requireRoles('SUPER_ADMIN', 'BRANCH_MANAGER', 'MANAGER'), aiR
 app.use('/api/ops', requireRoles('SUPER_ADMIN'), opsRoutes);
 
 // 404 handler for undefined routes
-app.use('/api/*', notFoundHandler);
+app.use('/api/{*path}', notFoundHandler);
 
 // Global error handler (must be last)
 app.use(errorHandler);

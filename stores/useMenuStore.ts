@@ -77,6 +77,7 @@ export const useMenuStore = create<MenuState>()(
                             icon: cat.icon,
                             targetOrderTypes: cat.targetOrderTypes || cat.target_order_types || [],
                             menuIds: cat.menuIds || cat.menu_ids || ['menu-1'],
+                            isActive: cat.isActive !== false && cat.is_active !== false,
                             items: (cat.items || []).map((item: any) => ({
                                 id: item.id,
                                 name: item.name,

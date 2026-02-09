@@ -1,10 +1,10 @@
-import app from './app';
 import * as dotenv from 'dotenv';
+dotenv.config();
+
+import app from './app';
 import pg from 'pg';
 import http from 'http';
 import { initSocket, closeSocket } from './socket';
-
-dotenv.config();
 
 const { Pool } = pg;
 const PORT = process.env.API_PORT || 3001;

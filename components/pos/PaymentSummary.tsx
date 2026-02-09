@@ -1,5 +1,5 @@
 import React from 'react';
-import { Banknote, CreditCard, Smartphone, Landmark, Calculator, Trash, Wallet, Zap, ChefHat } from 'lucide-react';
+import { Banknote, CreditCard, Smartphone, Landmark, Calculator, Trash, Wallet, Zap, ChefHat, X } from 'lucide-react';
 import { PaymentMethod } from '../../types';
 
 interface PaymentSummaryProps {
@@ -85,27 +85,28 @@ const PaymentSummary: React.FC<PaymentSummaryProps> = ({
             </div>
 
             <div className="space-y-2 md:space-y-3 bg-card/70 dark:bg-card/40 border border-border/50 rounded-2xl p-4">
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 mb-2">
                     <input
                         type="text"
-                        placeholder="Coupon Code"
+                        placeholder={lang === 'ar' ? 'كود الخصم' : 'Coupon Code'}
                         value={couponCode}
                         onChange={(e) => onCouponCodeChange(e.target.value)}
-                        className="flex-1 px-3 py-2 rounded-xl bg-elevated dark:bg-elevated/50 border border-border/50 text-xs font-black uppercase tracking-wider"
+                        className="flex-1 px-3 py-2 rounded-xl bg-elevated dark:bg-elevated/50 border border-border/50 text-xs font-black uppercase tracking-wider outline-none focus:border-primary/50"
                     />
                     <button
                         onClick={onApplyCoupon}
                         disabled={!couponCode.trim() || isApplyingCoupon}
-                        className="px-3 py-2 rounded-xl bg-indigo-600 text-white text-[10px] font-black uppercase tracking-widest disabled:opacity-50"
+                        className="px-3 py-2 rounded-xl bg-indigo-600 text-white text-[10px] font-black uppercase tracking-widest disabled:opacity-50 hover:bg-indigo-700 transition-colors"
                     >
-                        {isApplyingCoupon ? '...' : 'Apply'}
+                        {isApplyingCoupon ? '...' : (lang === 'ar' ? 'تطبيق' : 'Apply')}
                     </button>
                     {activeCoupon && (
                         <button
                             onClick={onClearCoupon}
-                            className="px-3 py-2 rounded-xl bg-slate-200 dark:bg-slate-700 text-[10px] font-black uppercase tracking-widest"
+                            className="p-2 rounded-xl bg-red-50 text-red-500 hover:bg-red-100 transition-colors"
+                            title={lang === 'ar' ? 'حذف الكود' : 'Clear Coupon'}
                         >
-                            Clear
+                            <X size={16} />
                         </button>
                     )}
                 </div>
@@ -143,12 +144,12 @@ const PaymentSummary: React.FC<PaymentSummaryProps> = ({
                     className="py-4 md:py-5 bg-slate-900 text-white rounded-2xl md:rounded-[1.5rem] font-black text-[11px] md:text-sm uppercase tracking-wider hover:bg-slate-800 shadow-xl shadow-slate-900/20 disabled:opacity-50 transition-all flex items-center justify-center gap-2 min-h-[58px]"
                 >
                     <ChefHat size={16} className="md:w-[18px] md:h-[18px]" />
-                    <span className="hidden sm:inline">{t.send_kitchen || 'Send Kitchen'}</span>
+                    <span className="hidden sm:inline">{t.send_kitchen}</span>
                 </button>
                 <button
                     onClick={onQuickPay}
                     disabled={!canSubmit}
-                    title="Quick Pay (Cash)"
+                    title={lang === 'ar' ? 'دفع سريع (كاش)' : "Quick Pay (Cash)"}
                     className="py-4 md:py-5 bg-emerald-500 text-white rounded-2xl md:rounded-[1.5rem] hover:bg-emerald-600 shadow-xl shadow-emerald-500/20 disabled:opacity-50 transition-all flex items-center justify-center min-h-[58px]"
                 >
                     <Zap size={24} className="animate-pulse" />

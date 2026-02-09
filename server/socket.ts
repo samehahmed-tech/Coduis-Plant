@@ -30,7 +30,7 @@ type AuthPayload = {
     branchId?: string;
 };
 
-const JWT_SECRET = requireEnv('JWT_SECRET');
+const getJwtSecret = () => requireEnv('JWT_SECRET');
 
 const enableRedisAdapterIfConfigured = async (server: Server) => {
     const redisEnabled = process.env.SOCKET_REDIS_ENABLED === 'true';
@@ -78,7 +78,7 @@ export const initSocket = async (httpServer: HttpServer) => {
         try {
             const token = (socket.handshake.auth?.token || socket.handshake.query?.token) as string | undefined;
             if (!token) return next(new Error('AUTH_REQUIRED'));
-            const payload = jwt.verify(token, JWT_SECRET) as AuthPayload;
+            const payload = jwt.verify(token, getJwtSecret()) as AuthPayload;
             (socket as Socket & { user?: AuthPayload }).user = payload;
             return next();
         } catch (error) {
