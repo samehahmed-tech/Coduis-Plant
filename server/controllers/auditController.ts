@@ -247,3 +247,182 @@ export const verifyAllAuditLogs = async (req: Request, res: Response) => {
         res.status(500).json({ error: error.message });
     }
 };
+
+/**
+ * Tamper detection scan with alerts
+ * POST /api/audit-logs/scan-tamper
+ */
+export const scanForTampering = async (req: Request, res: Response) => {
+    try {
+        const limit = Math.min(parseInt(req.query.limit as string) || 500, 2000);
+        const { alertWebhook } = req.body; // Optional webhook URL for alerts
+
+        const rows = await db.select()
+            .from(auditLogs)
+            .orderBy(desc(auditLogs.id))
+            .limit(limit);
+
+        const tamperedEntries: any[] = [];
+        const missingSignatures: number[] = [];
+
+        for (const row of rows) {
+            if (!row.signature) {
+                missingSignatures.push(row.id);
+                continue;
+            }
+
+            const createdAt = row.createdAt instanceof Date ? row.createdAt : new Date(row.createdAt || Date.now());
+            const expected = computeAuditSignature({
+                eventType: row.eventType,
+                userId: row.userId,
+                branchId: row.branchId,
+                deviceId: (row as any).deviceId,
+                payload: row.payload,
+                before: row.before,
+                after: row.after,
+                reason: (row as any).reason,
+                createdAt,
+            });
+
+            if (row.signature !== expected) {
+                tamperedEntries.push({
+                    id: row.id,
+                    eventType: row.eventType,
+                    userId: row.userId,
+                    branchId: row.branchId,
+                    createdAt: row.createdAt,
+                    severity: 'CRITICAL',
+                });
+            }
+        }
+
+        const hasTampering = tamperedEntries.length > 0;
+
+        // Send webhook alert if tampering detected and webhook provided
+        if (hasTampering && alertWebhook) {
+            try {
+                await fetch(alertWebhook, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        alert: 'AUDIT_TAMPERING_DETECTED',
+                        severity: 'CRITICAL',
+                        timestamp: new Date().toISOString(),
+                        tamperedCount: tamperedEntries.length,
+                        entries: tamperedEntries.slice(0, 5),
+                    }),
+                });
+            } catch {
+                // Webhook failure shouldn't fail the scan
+            }
+        }
+
+        res.json({
+            scannedCount: rows.length,
+            tamperedCount: tamperedEntries.length,
+            missingSignatureCount: missingSignatures.length,
+            hasTampering,
+            alert: hasTampering ? 'CRITICAL: Tampered audit entries detected!' : null,
+            tamperedEntries: tamperedEntries.slice(0, 20),
+            missingSignatures: missingSignatures.slice(0, 10),
+            scannedAt: new Date().toISOString(),
+        });
+    } catch (error: any) {
+        res.status(500).json({ error: error.message });
+    }
+};
+
+/**
+ * Forensic search with filters
+ * GET /api/audit-logs/forensic
+ */
+export const forensicSearch = async (req: Request, res: Response) => {
+    try {
+        const {
+            actor,      // userId
+            entity,     // entity type from eventType (e.g., ORDER, PAYMENT, USER)
+            branch,     // branchId
+            from,       // start date
+            to,         // end date
+            eventType,
+            limit: limitStr,
+        } = req.query;
+
+        const limit = Math.min(parseInt(limitStr as string) || 100, 500);
+        const conditions: any[] = [];
+
+        if (actor && typeof actor === 'string') {
+            conditions.push(eq(auditLogs.userId, actor));
+        }
+
+        if (branch && typeof branch === 'string') {
+            conditions.push(eq(auditLogs.branchId, branch));
+        }
+
+        if (eventType && typeof eventType === 'string') {
+            conditions.push(eq(auditLogs.eventType, eventType));
+        }
+
+        // Get all logs matching basic conditions
+        let rows = await (conditions.length
+            ? db.select().from(auditLogs).where(and(...conditions)).orderBy(desc(auditLogs.createdAt)).limit(limit * 2)
+            : db.select().from(auditLogs).orderBy(desc(auditLogs.createdAt)).limit(limit * 2));
+
+        // Filter by entity (extract from eventType like ORDER_CREATED, PAYMENT_RECEIVED)
+        if (entity && typeof entity === 'string') {
+            rows = rows.filter(r => r.eventType?.toUpperCase().startsWith(entity.toUpperCase()));
+        }
+
+        // Filter by date range
+        if (from && typeof from === 'string') {
+            const fromDate = new Date(from);
+            if (!isNaN(fromDate.getTime())) {
+                rows = rows.filter(r => {
+                    const rowDate = r.createdAt instanceof Date ? r.createdAt : new Date(r.createdAt || 0);
+                    return rowDate >= fromDate;
+                });
+            }
+        }
+
+        if (to && typeof to === 'string') {
+            const toDate = new Date(to);
+            if (!isNaN(toDate.getTime())) {
+                rows = rows.filter(r => {
+                    const rowDate = r.createdAt instanceof Date ? r.createdAt : new Date(r.createdAt || 0);
+                    return rowDate <= toDate;
+                });
+            }
+        }
+
+        // Limit after filtering
+        rows = rows.slice(0, limit);
+
+        // Add integrity check
+        const withIntegrity = rows.map((row) => {
+            const createdAt = row.createdAt instanceof Date ? row.createdAt : new Date(row.createdAt || Date.now());
+            const expected = computeAuditSignature({
+                eventType: row.eventType,
+                userId: row.userId,
+                branchId: row.branchId,
+                deviceId: (row as any).deviceId,
+                payload: row.payload,
+                before: row.before,
+                after: row.after,
+                reason: (row as any).reason,
+                createdAt,
+            });
+            return {
+                ...row,
+                signatureValid: row.signature ? row.signature === expected : null,
+            };
+        });
+
+        res.json({
+            count: withIntegrity.length,
+            filters: { actor, entity, branch, from, to, eventType },
+            results: withIntegrity,
+        });
+    } catch (error: any) {
+        res.status(500).json({ error: error.message });
+    }
+};

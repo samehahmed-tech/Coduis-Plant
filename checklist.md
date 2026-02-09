@@ -7,6 +7,8 @@
 - [ ] Branch protection enabled with required CI checks.
 - [ ] Secrets rotated and removed from code/history.
 - [ ] Production backup/restore drill completed.
+- [x] Day close workflow with permission-based email reports.
+- [x] Arabic translation review and fixes.
 
 ## 1) Dashboard
 - [x] Move all KPI calculations to backend report services.
@@ -33,15 +35,15 @@
 - [ ] Acceptance: Station config survives logout/device change.
 
 ## 5) Menu Manager
-- [ ] Add item lifecycle states (`draft`, `approved`, `published`).
-- [ ] Add approval flow for price/fiscal code changes.
-- [ ] Add import/export pipeline with validation.
+- [x] Add item lifecycle states (`draft`, `approved`, `published`).
+- [x] Add approval flow for price/fiscal code changes.
+- [x] Add import/export pipeline with validation.
 - [ ] Acceptance: Every published change is audited and reversible.
 
 ## 6) Recipe Manager
 - [ ] Add BOM validation (missing items, invalid units, negative costs).
-- [ ] Add recipe versioning and change history.
-- [ ] Auto-recalculate cost impact when ingredient costs change.
+- [x] Add recipe versioning and change history.
+- [x] Auto-recalculate cost impact when ingredient costs change.
 - [ ] Acceptance: Margin and cost numbers are deterministic and traceable.
 
 ## 7) Inventory
@@ -57,8 +59,8 @@
 - [x] Acceptance: Production order updates stock and finance postings correctly.
 
 ## 9) CRM
-- [ ] Add customer segmentation engine.
-- [ ] Add loyalty rules and tier automation.
+- [x] Add customer segmentation engine.
+- [x] Add loyalty rules and tier automation.
 - [ ] Add campaign trigger hooks and event history.
 - [ ] Acceptance: Segment and loyalty outputs are reproducible and auditable.
 
@@ -82,8 +84,8 @@
 
 ## 13) Fiscal Hub (ETA)
 - [ ] Configure all required ETA env keys.
-- [ ] Add dead-letter queue for failed submissions.
-- [ ] Add retry strategy with capped backoff and observability.
+- [x] Add dead-letter queue for failed submissions.
+- [x] Add retry strategy with capped backoff and observability.
 - [ ] Acceptance: ETA success rate > 98% on staging validation batch.
 
 ## 14) AI Insights
@@ -101,7 +103,7 @@
 ## 16) Security Hub
 - [x] Replace local `updateUsers` usage with backend user CRUD actions.
 - [x] Add forced sign-out/session revocation on role/permission changes.
-- [ ] Add MFA roadmap hooks and policy flags.
+- [x] Add MFA roadmap hooks and policy flags.
 - [ ] Acceptance: Role/permission change is effective system-wide in real time.
 
 ## 17) Printer Manager
@@ -111,9 +113,9 @@
 - [ ] Acceptance: Kitchen/bar/cashier routes print reliably per branch config.
 
 ## 18) Forensics Hub
-- [ ] Complete signature validation pipeline for all audit events.
-- [ ] Add tamper detection and escalation alerts.
-- [ ] Add forensic filters by actor/entity/branch/time.
+- [x] Complete signature validation pipeline for all audit events.
+- [x] Add tamper detection and escalation alerts.
+- [x] Add forensic filters by actor/entity/branch/time.
 - [ ] Acceptance: Any invalid signature is flagged and investigated automatically.
 
 ## 19) Franchise Manager
@@ -135,13 +137,13 @@
 - [x] Acceptance: Dispatch board reflects real operational state without refresh.
 
 ## 22) Settings Hub
-- [ ] Connect all quick actions (add branch/platform/warehouse) to real workflows.
+- [x] Connect all quick actions (add branch/platform/warehouse) to real workflows.
 - [ ] Add role-based restrictions for critical settings changes.
 - [ ] Add settings change audit trail and rollback support.
 - [ ] Acceptance: No settings section depends on UI-only actions.
 
 ## 23) Setup Wizard
-- [ ] Extend wizard to include printers, roles, tables, and menu bootstrap.
+- [x] Extend wizard to include printers, roles, tables, and menu bootstrap.
 - [ ] Add setup validation summary before final submit.
 - [ ] Add setup completion health checks.
 - [ ] Acceptance: New branch can go live from wizard without manual DB edits.
