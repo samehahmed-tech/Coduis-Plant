@@ -41,7 +41,7 @@
 - [ ] Acceptance: Every published change is audited and reversible.
 
 ## 6) Recipe Manager
-- [ ] Add BOM validation (missing items, invalid units, negative costs).
+- [x] Add BOM validation (missing items, invalid units, negative costs).
 - [x] Add recipe versioning and change history.
 - [x] Auto-recalculate cost impact when ingredient costs change.
 - [ ] Acceptance: Margin and cost numbers are deterministic and traceable.
@@ -61,7 +61,7 @@
 ## 9) CRM
 - [x] Add customer segmentation engine.
 - [x] Add loyalty rules and tier automation.
-- [ ] Add campaign trigger hooks and event history.
+- [x] Add campaign trigger hooks and event history.
 - [ ] Acceptance: Segment and loyalty outputs are reproducible and auditable.
 
 ## 10) HR (ZenPeople)

@@ -29,6 +29,7 @@ import fiscalRoutes from './routes/fiscalRoutes';
 import opsRoutes from './routes/opsRoutes';
 import productionRoutes from './routes/productionRoutes';
 import dayCloseRoutes from './routes/dayCloseRoutes';
+import aiRoutes from './routes/aiRoutes';
 import { authenticateToken, requireRoles } from './middleware/auth';
 import { isOriginAllowed } from './config/cors';
 import { errorHandler, notFoundHandler } from './middleware/errorHandler';
@@ -88,6 +89,7 @@ app.use('/api/audit-logs', requireRoles('SUPER_ADMIN', 'BRANCH_MANAGER', 'MANAGE
 app.use('/api/images', imageRoutes);
 app.use('/api/fiscal', requireRoles('SUPER_ADMIN', 'BRANCH_MANAGER', 'FINANCE'), fiscalRoutes);
 app.use('/api/day-close', requireRoles('SUPER_ADMIN', 'BRANCH_MANAGER', 'MANAGER', 'FINANCE'), dayCloseRoutes);
+app.use('/api/ai', requireRoles('SUPER_ADMIN', 'BRANCH_MANAGER', 'MANAGER'), aiRoutes);
 app.use('/api/ops', requireRoles('SUPER_ADMIN'), opsRoutes);
 
 // 404 handler for undefined routes

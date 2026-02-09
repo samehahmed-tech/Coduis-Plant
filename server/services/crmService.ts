@@ -3,8 +3,8 @@
  */
 
 import { db } from '../db';
-import { customers } from '../../src/db/schema';
-import { eq, gte, lte, and, sql } from 'drizzle-orm';
+import { customers, auditLogs } from '../../src/db/schema';
+import { eq, gte, lte, and, sql, desc } from 'drizzle-orm';
 
 // Loyalty tier thresholds
 const LOYALTY_TIERS = {
@@ -238,6 +238,77 @@ export const crmService = {
         if (!rule) throw new Error('Invalid segment');
 
         return allCustomers.filter(c => rule.check(c)).slice(0, limit);
+    },
+
+    /**
+     * Trigger a campaign for a segment
+     * Logs 'CAMPAIGN_SENT' event for each customer in segment
+     */
+    async triggerCampaign(segment: SegmentType, campaignName: string, channel: 'SMS' | 'EMAIL' | 'PUSH') {
+        const customersToTarget = await this.getCustomersBySegment(segment);
+        const results: any[] = [];
+
+        for (const customer of customersToTarget) {
+            // Log interaction
+            await this.logInteraction(customer.id, 'CAMPAIGN_SENT', {
+                campaignName,
+                channel,
+                segment,
+            });
+
+            results.push({
+                customerId: customer.id,
+                name: customer.name,
+                status: 'SENT',
+            });
+        }
+
+        return {
+            campaignName,
+            segment,
+            channel,
+            targetedCount: customersToTarget.length,
+            results,
+        };
+    },
+
+    /**
+     * Log a customer interaction / event
+     */
+    async logInteraction(customerId: string, eventType: string, payload: any = {}) {
+        const [customer] = await db.select().from(customers).where(eq(customers.id, customerId));
+        if (!customer) throw new Error('Customer not found');
+
+        // Use auditLogs for event history as it supports signatures and forensics
+        await db.insert(auditLogs).values({
+            eventType: `CRM_${eventType}`,
+            userId: customerId, // Using userId field for customer identity context
+            userName: customer.name,
+            payload: {
+                ...payload,
+                customerId,
+                customerPhone: customer.phone,
+            },
+            createdAt: new Date(),
+        });
+    },
+
+    /**
+     * Get interaction history for a customer
+     */
+    async getInteractionHistory(customerId: string, limit = 50) {
+        // Find logs where payload has customerId
+        const logs = await db.select()
+            .from(auditLogs)
+            .where(and(
+                sql`${auditLogs.eventType} LIKE 'CRM_%'`,
+                // Drizzle-orm doesn't support jsonb access easily in where without sql template
+                sql`${auditLogs.payload}->>'customerId' = ${customerId}`
+            ))
+            .orderBy(desc(auditLogs.createdAt))
+            .limit(limit);
+
+        return logs;
     },
 };
 

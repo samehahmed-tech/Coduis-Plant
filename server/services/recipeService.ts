@@ -179,6 +179,58 @@ export const recipeService = {
 
         return result;
     },
+
+    /**
+     * Validate Bill of Materials (BOM) for a recipe
+     * Checks for: missing inventory items, invalid units, negative costs, zero quantities
+     */
+    async validateBOM(recipeId: string) {
+        const ingredients = await db.select({
+            id: recipeIngredients.id,
+            inventoryItemId: recipeIngredients.inventoryItemId,
+            quantity: recipeIngredients.quantity,
+            unit: recipeIngredients.unit,
+            itemName: inventoryItems.name,
+            cost: inventoryItems.costPrice,
+            inventoryItemUnit: inventoryItems.unit,
+        })
+            .from(recipeIngredients)
+            .leftJoin(inventoryItems, eq(recipeIngredients.inventoryItemId, inventoryItems.id))
+            .where(eq(recipeIngredients.recipeId, recipeId));
+
+        const errors: string[] = [];
+        const warnings: string[] = [];
+
+        for (const ing of ingredients) {
+            if (!ing.inventoryItemId) {
+                errors.push(`Ingredient ${ing.id} is missing inventory item reference`);
+                continue;
+            }
+            if (!ing.itemName) {
+                errors.push(`Inventory item ${ing.inventoryItemId} not found for ingredient ${ing.id}`);
+                continue;
+            }
+            if (!ing.quantity || ing.quantity <= 0) {
+                errors.push(`Invalid quantity ${ing.quantity} for item ${ing.itemName}`);
+            }
+            if (ing.cost !== null && (ing.cost as number) < 0) {
+                errors.push(`Negative cost ${ing.cost} for item ${ing.itemName}`);
+            }
+            if (ing.cost === null || ing.cost === 0) {
+                warnings.push(`Item ${ing.itemName} has zero or null cost`);
+            }
+            if (ing.unit !== ing.inventoryItemUnit) {
+                warnings.push(`Unit mismatch for ${ing.itemName}: ingredient uses ${ing.unit}, inventory uses ${ing.inventoryItemUnit}`);
+            }
+        }
+
+        return {
+            isValid: errors.length === 0,
+            errors,
+            warnings,
+            itemCount: ingredients.length,
+        };
+    },
 };
 
 export default recipeService;

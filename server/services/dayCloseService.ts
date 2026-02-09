@@ -257,13 +257,11 @@ ${sections.join('\n---\n')}
 
         // Send via email service (placeholder - integrate with actual email provider)
         try {
-            console.log('📧 Sending day close email to:', config.to);
-            console.log('Subject:', config.subject);
-            console.log('Body:', emailBody);
+            // INTEGRATION: Replace with actual SMTP/Email service (e.g., SendGrid, Mailgun)
+            // console.log('📧 Sending day close email to:', config.to);
 
             return { sent: true, recipients: config.to };
         } catch (error: any) {
-            console.error('Email send failed:', error);
             return { sent: false, error: error.message };
         }
     },
