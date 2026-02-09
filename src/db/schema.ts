@@ -145,6 +145,17 @@ export const menuItems = pgTable('menu_items', {
     price: real('price').notNull(),
     cost: real('cost').default(0), // Cost price for profit calculation
     image: text('image'),
+    // Lifecycle Status
+    status: text('status').default('published'), // draft, pending_approval, approved, published
+    approvedBy: text('approved_by').references(() => users.id),
+    approvedAt: timestamp('approved_at'),
+    publishedAt: timestamp('published_at'),
+    // Price Change Audit
+    previousPrice: real('previous_price'),
+    pendingPrice: real('pending_price'), // Proposed price awaiting approval
+    priceChangeReason: text('price_change_reason'),
+    priceApprovedBy: text('price_approved_by').references(() => users.id),
+    priceApprovedAt: timestamp('price_approved_at'),
     // Availability
     isAvailable: boolean('is_available').default(true),
     availableFrom: text('available_from'), // Time: "09:00"
@@ -365,8 +376,36 @@ export const recipes = pgTable('recipes', {
     menuItemId: text('menu_item_id').references(() => menuItems.id).notNull(),
     yield: real('yield').default(1), // How many servings this makes
     instructions: text('instructions'),
+    // Version tracking
+    version: integer('version').default(1),
+    currentVersionId: text('current_version_id'),
+    // Cost tracking
+    calculatedCost: real('calculated_cost'), // Auto-calculated from ingredients
+    lastCostCalculation: timestamp('last_cost_calculation'),
+    // Metadata
     createdAt: timestamp('created_at').defaultNow(),
     updatedAt: timestamp('updated_at').defaultNow(),
+});
+
+export const recipeVersions = pgTable('recipe_versions', {
+    id: text('id').primaryKey(),
+    recipeId: text('recipe_id').references(() => recipes.id).notNull(),
+    version: integer('version').notNull(),
+    yield: real('yield').default(1),
+    instructions: text('instructions'),
+    // Snapshot of ingredients at this version
+    ingredientsSnapshot: json('ingredients_snapshot').$type<{
+        inventoryItemId: string;
+        itemName: string;
+        quantity: number;
+        unit: string;
+        costPerUnit: number;
+    }[]>(),
+    calculatedCost: real('calculated_cost'),
+    // Change tracking
+    changedBy: text('changed_by').references(() => users.id),
+    changeReason: text('change_reason'),
+    createdAt: timestamp('created_at').defaultNow(),
 });
 
 export const recipeIngredients = pgTable('recipe_ingredients', {
@@ -376,6 +415,9 @@ export const recipeIngredients = pgTable('recipe_ingredients', {
     quantity: real('quantity').notNull(),
     unit: text('unit').notNull(),
     notes: text('notes'),
+    // Cost tracking
+    lastKnownCost: real('last_known_cost'),
+    lastCostUpdate: timestamp('last_cost_update'),
 });
 
 // ============================================================================
@@ -456,7 +498,10 @@ export const auditLogs = pgTable('audit_logs', {
     before: json('before'),
     after: json('after'),
     reason: text('reason'),
-    signature: text('signature'), // For tamper detection
+    signature: text('signature'), // HMAC for tamper detection
+    signatureVersion: integer('signature_version').default(1),
+    isVerified: boolean('is_verified'), // Set on verification check
+    lastVerifiedAt: timestamp('last_verified_at'),
     createdAt: timestamp('created_at').defaultNow(),
 });
 
@@ -491,6 +536,7 @@ export const etaDeadLetters = pgTable('eta_dead_letters', {
     createdAt: timestamp('created_at').defaultNow(),
     updatedAt: timestamp('updated_at').defaultNow(),
 });
+
 // ============================================================================
 // 🖼️ IMAGES
 // ============================================================================

@@ -134,11 +134,14 @@ export const getFullMenu = async (req: Request, res: Response) => {
         const categories = await db.select().from(menuCategories)
             .orderBy(menuCategories.sortOrder);
 
-        // Get items - filter by availability only if requested (for POS)
+        // Get items - filter by availability and published status for POS
         let items;
         if (available_only === 'true') {
             items = await db.select().from(menuItems)
-                .where(eq(menuItems.isAvailable, true))
+                .where(and(
+                    eq(menuItems.isAvailable, true),
+                    eq(menuItems.status, 'published')
+                ))
                 .orderBy(menuItems.sortOrder);
         } else {
             items = await db.select().from(menuItems)
@@ -156,3 +159,332 @@ export const getFullMenu = async (req: Request, res: Response) => {
     }
 };
 
+// --- Lifecycle Workflow ---
+
+/**
+ * Approve a menu item (moves from draft/pending_approval -> approved)
+ * POST /api/menu/items/:id/approve
+ */
+export const approveItem = async (req: Request, res: Response) => {
+    try {
+        const id = getStringParam((req.params as any).id);
+        if (!id) return res.status(400).json({ error: 'ITEM_ID_REQUIRED' });
+
+        const userId = (req as any).user?.id;
+
+        const updated = await db.update(menuItems)
+            .set({
+                status: 'approved',
+                approvedBy: userId,
+                approvedAt: new Date(),
+                updatedAt: new Date(),
+            })
+            .where(eq(menuItems.id, id))
+            .returning();
+
+        if (updated.length === 0) return res.status(404).json({ error: 'Item not found' });
+        res.json(updated[0]);
+    } catch (error: any) {
+        res.status(500).json({ error: error.message });
+    }
+};
+
+/**
+ * Publish a menu item (makes it live on POS)
+ * POST /api/menu/items/:id/publish
+ */
+export const publishItem = async (req: Request, res: Response) => {
+    try {
+        const id = getStringParam((req.params as any).id);
+        if (!id) return res.status(400).json({ error: 'ITEM_ID_REQUIRED' });
+
+        const updated = await db.update(menuItems)
+            .set({
+                status: 'published',
+                publishedAt: new Date(),
+                updatedAt: new Date(),
+            })
+            .where(eq(menuItems.id, id))
+            .returning();
+
+        if (updated.length === 0) return res.status(404).json({ error: 'Item not found' });
+        res.json(updated[0]);
+    } catch (error: any) {
+        res.status(500).json({ error: error.message });
+    }
+};
+
+/**
+ * Request a price change (requires approval before taking effect)
+ * POST /api/menu/items/:id/request-price-change
+ */
+export const requestPriceChange = async (req: Request, res: Response) => {
+    try {
+        const id = getStringParam((req.params as any).id);
+        if (!id) return res.status(400).json({ error: 'ITEM_ID_REQUIRED' });
+
+        const { newPrice, reason } = req.body;
+        if (!newPrice) return res.status(400).json({ error: 'NEW_PRICE_REQUIRED' });
+
+        const [existing] = await db.select().from(menuItems).where(eq(menuItems.id, id));
+        if (!existing) return res.status(404).json({ error: 'Item not found' });
+
+        const updated = await db.update(menuItems)
+            .set({
+                previousPrice: existing.price,
+                pendingPrice: newPrice,
+                priceChangeReason: reason,
+                updatedAt: new Date(),
+            })
+            .where(eq(menuItems.id, id))
+            .returning();
+
+        res.json({ ...updated[0], message: 'Price change requested, awaiting approval' });
+    } catch (error: any) {
+        res.status(500).json({ error: error.message });
+    }
+};
+
+/**
+ * Approve a pending price change (applies the new price)
+ * POST /api/menu/items/:id/approve-price
+ */
+export const approvePriceChange = async (req: Request, res: Response) => {
+    try {
+        const id = getStringParam((req.params as any).id);
+        if (!id) return res.status(400).json({ error: 'ITEM_ID_REQUIRED' });
+
+        const userId = (req as any).user?.id;
+
+        const [existing] = await db.select().from(menuItems).where(eq(menuItems.id, id));
+        if (!existing) return res.status(404).json({ error: 'Item not found' });
+        if (!existing.pendingPrice) return res.status(400).json({ error: 'NO_PENDING_PRICE_CHANGE' });
+
+        const updated = await db.update(menuItems)
+            .set({
+                price: existing.pendingPrice,
+                pendingPrice: null,
+                priceApprovedBy: userId,
+                priceApprovedAt: new Date(),
+                updatedAt: new Date(),
+            })
+            .where(eq(menuItems.id, id))
+            .returning();
+
+        res.json({ ...updated[0], message: 'Price change approved and applied' });
+    } catch (error: any) {
+        res.status(500).json({ error: error.message });
+    }
+};
+
+/**
+ * Get items pending approval or with pending price changes
+ * GET /api/menu/items/pending
+ */
+export const getPendingItems = async (req: Request, res: Response) => {
+    try {
+        const pendingApproval = await db.select().from(menuItems)
+            .where(eq(menuItems.status, 'pending_approval'));
+
+        const pendingPriceChange = await db.select().from(menuItems)
+            .where(and(
+                eq(menuItems.status, 'published'),
+                // Filter where pendingPrice is not null - using raw check
+            ));
+
+        // Filter in JS for pending price since Drizzle doesn't have isNotNull easily
+        const withPendingPrice = pendingPriceChange.filter(item => item.pendingPrice !== null);
+
+        res.json({
+            pendingApproval,
+            pendingPriceChange: withPendingPrice,
+        });
+    } catch (error: any) {
+        res.status(500).json({ error: error.message });
+    }
+};
+
+// --- CSV Import/Export ---
+
+/**
+ * Export menu items as CSV
+ * GET /api/menu/items/export
+ */
+export const exportItemsCSV = async (req: Request, res: Response) => {
+    try {
+        const items = await db.select().from(menuItems).orderBy(menuItems.sortOrder);
+        const categories = await db.select().from(menuCategories);
+
+        const categoryMap = new Map(categories.map(c => [c.id, c.name]));
+
+        // CSV Header
+        const headers = [
+            'id', 'name', 'nameAr', 'categoryId', 'categoryName',
+            'price', 'cost', 'description', 'status', 'isAvailable',
+            'preparationTime', 'isPopular', 'isFeatured', 'sortOrder'
+        ];
+
+        const csvLines = [headers.join(',')];
+
+        for (const item of items) {
+            const row = [
+                item.id,
+                `"${(item.name || '').replace(/"/g, '""')}"`,
+                `"${(item.nameAr || '').replace(/"/g, '""')}"`,
+                item.categoryId || '',
+                `"${categoryMap.get(item.categoryId || '') || ''}"`,
+                item.price,
+                item.cost || 0,
+                `"${(item.description || '').replace(/"/g, '""')}"`,
+                item.status || 'published',
+                item.isAvailable ? 'true' : 'false',
+                item.preparationTime || 15,
+                item.isPopular ? 'true' : 'false',
+                item.isFeatured ? 'true' : 'false',
+                item.sortOrder || 0,
+            ];
+            csvLines.push(row.join(','));
+        }
+
+        const csv = csvLines.join('\n');
+
+        res.setHeader('Content-Type', 'text/csv');
+        res.setHeader('Content-Disposition', 'attachment; filename=menu_items.csv');
+        res.send(csv);
+    } catch (error: any) {
+        res.status(500).json({ error: error.message });
+    }
+};
+
+/**
+ * Import menu items from CSV
+ * POST /api/menu/items/import
+ */
+export const importItemsCSV = async (req: Request, res: Response) => {
+    try {
+        const { csvData, updateExisting = false } = req.body;
+
+        if (!csvData) {
+            return res.status(400).json({ error: 'CSV_DATA_REQUIRED' });
+        }
+
+        const lines = csvData.split('\n').filter((l: string) => l.trim());
+        if (lines.length < 2) {
+            return res.status(400).json({ error: 'INVALID_CSV_FORMAT' });
+        }
+
+        // Parse header
+        const headers = lines[0].split(',').map((h: string) => h.trim().toLowerCase());
+        const nameIndex = headers.indexOf('name');
+        const priceIndex = headers.indexOf('price');
+
+        if (nameIndex === -1 || priceIndex === -1) {
+            return res.status(400).json({ error: 'REQUIRED_COLUMNS_MISSING', required: ['name', 'price'] });
+        }
+
+        // Get categories for lookup
+        const categories = await db.select().from(menuCategories);
+        const categoryByName = new Map(categories.map(c => [(c.name || '').toLowerCase(), c.id]));
+
+        const results = { created: 0, updated: 0, errors: [] as string[] };
+
+        for (let i = 1; i < lines.length; i++) {
+            try {
+                // Simple CSV parse (doesn't handle all edge cases)
+                const values = parseCSVLine(lines[i]);
+
+                const getValue = (header: string) => {
+                    const idx = headers.indexOf(header.toLowerCase());
+                    return idx !== -1 ? values[idx]?.trim() : undefined;
+                };
+
+                const id = getValue('id') || `item-${Date.now()}-${i}`;
+                const name = getValue('name');
+                const price = parseFloat(getValue('price') || '0');
+
+                if (!name || isNaN(price)) {
+                    results.errors.push(`Row ${i + 1}: Missing name or invalid price`);
+                    continue;
+                }
+
+                // Resolve category
+                let categoryId = getValue('categoryid');
+                const categoryName = getValue('categoryname');
+                if (!categoryId && categoryName) {
+                    categoryId = categoryByName.get(categoryName.toLowerCase());
+                }
+
+                const itemData = {
+                    id,
+                    name,
+                    nameAr: getValue('namear') || null,
+                    categoryId: categoryId || null,
+                    price,
+                    cost: parseFloat(getValue('cost') || '0'),
+                    description: getValue('description') || null,
+                    status: getValue('status') || 'draft',
+                    isAvailable: getValue('isavailable') !== 'false',
+                    preparationTime: parseInt(getValue('preparationtime') || '15'),
+                    isPopular: getValue('ispopular') === 'true',
+                    isFeatured: getValue('isfeatured') === 'true',
+                    sortOrder: parseInt(getValue('sortorder') || '0'),
+                };
+
+                // Check if exists
+                const [existing] = await db.select().from(menuItems).where(eq(menuItems.id, id));
+
+                if (existing) {
+                    if (updateExisting) {
+                        await db.update(menuItems)
+                            .set({ ...itemData, updatedAt: new Date() })
+                            .where(eq(menuItems.id, id));
+                        results.updated++;
+                    } else {
+                        results.errors.push(`Row ${i + 1}: Item ${id} already exists`);
+                    }
+                } else {
+                    await db.insert(menuItems).values({
+                        ...itemData,
+                        createdAt: new Date(),
+                        updatedAt: new Date(),
+                    });
+                    results.created++;
+                }
+            } catch (err: any) {
+                results.errors.push(`Row ${i + 1}: ${err.message}`);
+            }
+        }
+
+        res.json(results);
+    } catch (error: any) {
+        res.status(500).json({ error: error.message });
+    }
+};
+
+// Simple CSV line parser
+function parseCSVLine(line: string): string[] {
+    const result: string[] = [];
+    let current = '';
+    let inQuotes = false;
+
+    for (let i = 0; i < line.length; i++) {
+        const char = line[i];
+
+        if (char === '"') {
+            if (inQuotes && line[i + 1] === '"') {
+                current += '"';
+                i++;
+            } else {
+                inQuotes = !inQuotes;
+            }
+        } else if (char === ',' && !inQuotes) {
+            result.push(current);
+            current = '';
+        } else {
+            current += char;
+        }
+    }
+    result.push(current);
+
+    return result;
+}

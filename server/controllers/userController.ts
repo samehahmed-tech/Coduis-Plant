@@ -1,7 +1,7 @@
 import { Request, Response } from 'express';
 import { db } from '../db';
-import { users } from '../../src/db/schema';
-import { eq, desc } from 'drizzle-orm';
+import { users, userSessions } from '../../src/db/schema';
+import { eq, desc, and } from 'drizzle-orm';
 import { getStringParam } from '../utils/request';
 import { getIO } from '../socket';
 
@@ -88,6 +88,18 @@ export const updateUser = async (req: Request, res: Response) => {
         const changedPermissions = JSON.stringify(existingUser.permissions || []) !== JSON.stringify(updatedUser[0].permissions || []);
 
         if (changedRole || changedActive || changedPermissions) {
+            // Revoke all active database sessions for this user
+            await db.update(userSessions)
+                .set({
+                    isActive: false,
+                    revokedAt: new Date(),
+                })
+                .where(and(
+                    eq(userSessions.userId, id),
+                    eq(userSessions.isActive, true)
+                ));
+
+            // Emit socket event for real-time logout
             try {
                 getIO().to(`user:${id}`).emit('security:session-revoked', {
                     userId: id,

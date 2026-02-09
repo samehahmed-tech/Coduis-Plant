@@ -126,3 +126,124 @@ export const createAuditLog = async (req: Request, res: Response) => {
         res.status(500).json({ error: error.message });
     }
 };
+
+/**
+ * Verify a single audit log signature
+ * POST /api/audit-logs/:id/verify
+ */
+export const verifyAuditLog = async (req: Request, res: Response) => {
+    try {
+        const id = parseInt(req.params.id as string, 10);
+        if (isNaN(id)) {
+            return res.status(400).json({ error: 'INVALID_ID' });
+        }
+
+        const [row] = await db.select().from(auditLogs).where(eq(auditLogs.id, id));
+        if (!row) {
+            return res.status(404).json({ error: 'NOT_FOUND' });
+        }
+
+        if (!row.signature) {
+            return res.json({ id, valid: false, reason: 'NO_SIGNATURE' });
+        }
+
+        const createdAt = row.createdAt instanceof Date ? row.createdAt : new Date(row.createdAt || Date.now());
+        const expected = computeAuditSignature({
+            eventType: row.eventType,
+            userId: row.userId,
+            branchId: row.branchId,
+            deviceId: (row as any).deviceId,
+            payload: row.payload,
+            before: row.before,
+            after: row.after,
+            reason: (row as any).reason,
+            createdAt,
+        });
+
+        const isValid = row.signature === expected;
+
+        // Update verification status in database
+        await db.update(auditLogs)
+            .set({
+                isVerified: isValid,
+                lastVerifiedAt: new Date(),
+            })
+            .where(eq(auditLogs.id, id));
+
+        res.json({
+            id,
+            valid: isValid,
+            reason: isValid ? undefined : 'SIGNATURE_MISMATCH',
+            verifiedAt: new Date().toISOString(),
+        });
+    } catch (error: any) {
+        res.status(500).json({ error: error.message });
+    }
+};
+
+/**
+ * Bulk verify audit logs
+ * POST /api/audit-logs/verify-all
+ */
+export const verifyAllAuditLogs = async (req: Request, res: Response) => {
+    try {
+        const limit = Math.min(parseInt(req.query.limit as string) || 100, 500);
+
+        const rows = await db.select()
+            .from(auditLogs)
+            .orderBy(desc(auditLogs.id))
+            .limit(limit);
+
+        let verified = 0;
+        let failed = 0;
+        const failedIds: number[] = [];
+
+        for (const row of rows) {
+            if (!row.signature) {
+                failed++;
+                failedIds.push(row.id);
+                continue;
+            }
+
+            const createdAt = row.createdAt instanceof Date ? row.createdAt : new Date(row.createdAt || Date.now());
+            const expected = computeAuditSignature({
+                eventType: row.eventType,
+                userId: row.userId,
+                branchId: row.branchId,
+                deviceId: (row as any).deviceId,
+                payload: row.payload,
+                before: row.before,
+                after: row.after,
+                reason: (row as any).reason,
+                createdAt,
+            });
+
+            const isValid = row.signature === expected;
+
+            await db.update(auditLogs)
+                .set({
+                    isVerified: isValid,
+                    lastVerifiedAt: new Date(),
+                })
+                .where(eq(auditLogs.id, row.id));
+
+            if (isValid) {
+                verified++;
+            } else {
+                failed++;
+                failedIds.push(row.id);
+            }
+        }
+
+        res.json({
+            total: rows.length,
+            verified,
+            failed,
+            failedIds: failedIds.slice(0, 10), // Only return first 10 failed IDs
+            hasTamperedEntries: failed > 0,
+            verifiedAt: new Date().toISOString(),
+        });
+    } catch (error: any) {
+        res.status(500).json({ error: error.message });
+    }
+};
