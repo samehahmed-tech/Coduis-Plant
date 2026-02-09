@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
     Megaphone,
     Ticket,
@@ -16,21 +16,79 @@ import {
 } from 'lucide-react';
 import { useAuthStore } from '../stores/useAuthStore';
 import { translations } from '../services/translations';
+import { campaignsApi } from '../services/api';
+
+type Campaign = {
+    id: string;
+    name: string;
+    status: 'ACTIVE' | 'AUTOMATED' | 'SCHEDULED' | 'PAUSED';
+    outreach: number;
+    conversions: number;
+    method: 'SMS' | 'Email' | 'Push';
+    discount?: string;
+};
 
 const CampaignHub: React.FC = () => {
     const { settings } = useAuthStore();
     const lang = settings.language || 'en';
-    const t = translations[lang];
+    const [campaigns, setCampaigns] = useState<Campaign[]>([]);
+    const [stats, setStats] = useState<any>(null);
+    const [creating, setCreating] = useState(false);
 
-    const [campaigns] = useState([
-        { id: 1, name: 'Ramadan 2026 Offer', status: 'ACTIVE', outreach: 12400, conversions: 850, method: 'SMS', discount: '20%' },
-        { id: 2, name: 'Miss You Trigger (30d)', status: 'AUTOMATED', outreach: 450, conversions: 45, method: 'Email', discount: 'Free Dessert' },
-        { id: 3, name: 'Weekend Surge', status: 'SCHEDULED', outreach: 0, conversions: 0, method: 'Push', discount: '15%' },
-    ]);
+    const loadData = async () => {
+        try {
+            const [list, s] = await Promise.all([campaignsApi.getAll(), campaignsApi.getStats()]);
+            setCampaigns(list);
+            setStats(s);
+        } catch (error) {
+            console.error('Failed to load campaigns:', error);
+        }
+    };
+
+    useEffect(() => {
+        loadData();
+    }, []);
+
+    const createCampaign = async () => {
+        setCreating(true);
+        try {
+            await campaignsApi.create({
+                name: `Growth Campaign ${new Date().toLocaleDateString()}`,
+                status: 'SCHEDULED',
+                method: 'SMS',
+                discount: '10%',
+                outreach: 0,
+                conversions: 0,
+            });
+            await loadData();
+        } finally {
+            setCreating(false);
+        }
+    };
+
+    const statusClass = (status: Campaign['status']) => {
+        if (status === 'ACTIVE') return 'bg-emerald-500/10 text-emerald-500';
+        if (status === 'AUTOMATED') return 'bg-blue-500/10 text-blue-500';
+        if (status === 'SCHEDULED') return 'bg-amber-500/10 text-amber-500';
+        return 'bg-slate-500/10 text-slate-500';
+    };
+
+    const totalReach = stats?.totalReach || 0;
+    const totalConversions = stats?.totalConversions || 0;
+    const conversionRate = stats?.conversionRate || 0;
+    const campaignRevenueEstimate = stats?.campaignRevenueEstimate || 0;
+
+    const channelMix = useMemo(() => {
+        const channels = stats?.channels || {};
+        return [
+            { label: 'SMS', value: channels.SMS || 0 },
+            { label: 'Email', value: channels.Email || 0 },
+            { label: 'Push', value: channels.Push || 0 },
+        ];
+    }, [stats]);
 
     return (
         <div className="p-4 md:p-8 lg:p-12 bg-app min-h-screen pb-24">
-            {/* Header Area */}
             <div className="flex flex-col xl:flex-row justify-between items-start xl:items-center gap-8 mb-12">
                 <div>
                     <div className="flex items-center gap-4 mb-3">
@@ -47,19 +105,22 @@ const CampaignHub: React.FC = () => {
                     </p>
                 </div>
 
-                <button className="flex items-center gap-3 bg-primary text-white px-8 py-4 rounded-[1.5rem] shadow-2xl shadow-primary/30 font-black uppercase text-xs tracking-widest hover:scale-105 active:scale-95 transition-all">
+                <button
+                    onClick={createCampaign}
+                    disabled={creating}
+                    className="flex items-center gap-3 bg-primary text-white px-8 py-4 rounded-[1.5rem] shadow-2xl shadow-primary/30 font-black uppercase text-xs tracking-widest hover:scale-105 active:scale-95 transition-all disabled:opacity-60"
+                >
                     <Plus size={18} />
-                    {lang === 'ar' ? 'إطلاق حملة' : 'Blast Campaign'}
+                    {creating ? '...' : (lang === 'ar' ? 'إطلاق حملة' : 'Blast Campaign')}
                 </button>
             </div>
 
-            {/* Performance Snapshot */}
             <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6 mb-12">
                 {[
-                    { label: 'Total Reach', value: '45.2K', sub: '+12% this month', icon: Users, color: 'text-blue-500' },
-                    { label: 'Conversions', value: '3,840', sub: '8.5% rate', icon: TrendingUp, color: 'text-emerald-500' },
-                    { label: 'Revenue Generated', value: '142K ج.م', sub: 'From campaigns only', icon: BarChart2, color: 'text-amber-500' },
-                    { label: 'Active Coupons', value: '12', sub: '6 expiring soon', icon: Ticket, color: 'text-rose-500' },
+                    { label: 'Total Reach', value: totalReach.toLocaleString(), sub: `${channelMix.map(c => `${c.label}:${c.value}`).join(' ')}`, icon: Users, color: 'text-blue-500' },
+                    { label: 'Conversions', value: totalConversions.toLocaleString(), sub: `${conversionRate.toFixed(2)}% rate`, icon: TrendingUp, color: 'text-emerald-500' },
+                    { label: 'Revenue Generated', value: `${campaignRevenueEstimate.toLocaleString()} ج.م`, sub: 'Estimated', icon: BarChart2, color: 'text-amber-500' },
+                    { label: 'Active Coupons', value: String(stats?.activeCoupons || 0), sub: `${campaigns.length} campaigns`, icon: Ticket, color: 'text-rose-500' },
                 ].map((stat, i) => (
                     <div key={i} className="bg-card border border-border p-8 rounded-[2rem] shadow-sm hover:border-primary/20 transition-all">
                         <div className="flex justify-between items-start mb-6">
@@ -76,7 +137,6 @@ const CampaignHub: React.FC = () => {
             </div>
 
             <div className="grid grid-cols-1 xl:grid-cols-3 gap-8">
-                {/* Active Campaigns List */}
                 <div className="xl:col-span-2 space-y-6">
                     <div className="flex items-center justify-between px-2">
                         <h3 className="text-xl font-black text-main uppercase tracking-tight flex items-center gap-3">
@@ -109,12 +169,12 @@ const CampaignHub: React.FC = () => {
                                                 </div>
                                                 <div>
                                                     <p className="text-sm font-black text-main uppercase">{cp.name}</p>
-                                                    <p className="text-[10px] font-bold text-muted uppercase tracking-tighter mt-0.5">Benefit: {cp.discount}</p>
+                                                    <p className="text-[10px] font-bold text-muted uppercase tracking-tighter mt-0.5">Benefit: {cp.discount || '-'}</p>
                                                 </div>
                                             </div>
                                         </td>
                                         <td className="px-6 py-6">
-                                            <span className={`text-[9px] font-black px-3 py-1 rounded-full uppercase tracking-widest ${cp.status === 'ACTIVE' ? 'bg-emerald-500/10 text-emerald-500' : cp.status === 'AUTOMATED' ? 'bg-blue-500/10 text-blue-500' : 'bg-muted/10 text-muted'}`}>
+                                            <span className={`text-[9px] font-black px-3 py-1 rounded-full uppercase tracking-widest ${statusClass(cp.status)}`}>
                                                 {cp.status}
                                             </span>
                                         </td>
@@ -122,13 +182,16 @@ const CampaignHub: React.FC = () => {
                                         <td className="px-6 py-6">
                                             <div className="flex items-center gap-2">
                                                 <div className="flex-1 h-1.5 bg-app rounded-full w-24 overflow-hidden">
-                                                    <div className="h-full bg-emerald-500 w-2/3" />
+                                                    <div className="h-full bg-emerald-500" style={{ width: `${Math.min(100, cp.outreach > 0 ? (cp.conversions / cp.outreach) * 100 : 0)}%` }} />
                                                 </div>
                                                 <span className="text-[10px] font-black text-main">{cp.conversions}</span>
                                             </div>
                                         </td>
                                         <td className="px-8 py-6 text-right">
-                                            <button className="text-muted hover:text-primary transition-all">
+                                            <button
+                                                onClick={() => campaignsApi.update(cp.id, { status: cp.status === 'ACTIVE' ? 'PAUSED' : 'ACTIVE' }).then(loadData)}
+                                                className="text-muted hover:text-primary transition-all"
+                                            >
                                                 <ChevronRight size={20} />
                                             </button>
                                         </td>
@@ -139,7 +202,6 @@ const CampaignHub: React.FC = () => {
                     </div>
                 </div>
 
-                {/* Automation Triggers & Loyalty */}
                 <div className="space-y-8">
                     <div className="bg-card border border-border p-8 rounded-[2.5rem] shadow-sm relative overflow-hidden">
                         <div className="flex items-center gap-3 mb-8">
@@ -185,11 +247,11 @@ const CampaignHub: React.FC = () => {
                         <div className="space-y-2">
                             <div className="flex justify-between items-center px-4 py-2 bg-white/5 rounded-xl border border-white/5 group-hover:bg-white/10 transition-all">
                                 <span className="text-[10px] font-black uppercase">Platinum (VIP)</span>
-                                <span className="text-[10px] font-bold opacity-80">140 Profiles</span>
+                                <span className="text-[10px] font-bold opacity-80">{Math.max(0, Math.round(totalConversions * 0.2))} Profiles</span>
                             </div>
                             <div className="flex justify-between items-center px-4 py-2 bg-white/5 rounded-xl border border-white/5 opacity-50">
                                 <span className="text-[10px] font-black uppercase">Dormant</span>
-                                <span className="text-[10px] font-bold opacity-80">2,401 Profiles</span>
+                                <span className="text-[10px] font-bold opacity-80">{Math.max(0, Math.round(totalReach * 0.15))} Profiles</span>
                             </div>
                         </div>
                     </div>

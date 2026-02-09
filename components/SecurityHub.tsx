@@ -29,37 +29,70 @@ import { useAuthStore } from '../stores/useAuthStore';
 import { translations } from '../services/translations';
 
 const SecurityHub: React.FC = () => {
-    const { users, updateUsers, branches, settings } = useAuthStore();
+    const { users, branches, settings, updateUserInDB, createUser } = useAuthStore();
     const lang = (settings.language || 'en') as 'en' | 'ar';
     const t = translations[lang] || translations['en'];
 
     const [activeTab, setActiveTab] = useState<'USERS' | 'ROLES'>('USERS');
     const [selectedUser, setSelectedUser] = useState<User | null>(null);
     const [searchQuery, setSearchQuery] = useState('');
+    const [isSaving, setIsSaving] = useState(false);
 
     const permissionsList = Object.values(AppPermission);
     const rolesList = Object.values(UserRole);
 
-    const togglePermission = (user: User, permission: AppPermission) => {
+    const togglePermission = async (user: User, permission: AppPermission) => {
+        if (isSaving) return;
+        setIsSaving(true);
         const hasPermission = user.permissions.includes(permission);
         const updatedPermissions = hasPermission
             ? user.permissions.filter(p => p !== permission)
             : [...user.permissions, permission];
 
         const updatedUser = { ...user, permissions: updatedPermissions };
-        updateUsers(users.map(u => u.id === user.id ? updatedUser : u));
-        setSelectedUser(updatedUser);
+        try {
+            await updateUserInDB(updatedUser);
+            setSelectedUser(updatedUser);
+        } finally {
+            setIsSaving(false);
+        }
     };
 
-    const handleRoleChange = (user: User, role: UserRole) => {
+    const handleRoleChange = async (user: User, role: UserRole) => {
+        if (isSaving) return;
+        setIsSaving(true);
         const defaultPerms = INITIAL_ROLE_PERMISSIONS[role] || [];
         const updatedUser = {
             ...user,
             role,
             permissions: defaultPerms
         };
-        updateUsers(users.map(u => u.id === user.id ? updatedUser : u));
-        setSelectedUser(updatedUser);
+        try {
+            await updateUserInDB(updatedUser);
+            setSelectedUser(updatedUser);
+        } finally {
+            setIsSaving(false);
+        }
+    };
+
+    const handleCreateUser = async () => {
+        if (isSaving) return;
+        setIsSaving(true);
+        const branchId = branches[0]?.id;
+        const draftUser: User = {
+            id: `u-${Date.now()}`,
+            name: 'New User',
+            email: `user.${Date.now()}@restoflow.local`,
+            role: UserRole.CASHIER,
+            permissions: INITIAL_ROLE_PERMISSIONS[UserRole.CASHIER] || [],
+            isActive: true,
+            assignedBranchId: branchId,
+        };
+        try {
+            await createUser(draftUser);
+        } finally {
+            setIsSaving(false);
+        }
     };
 
     const filteredUsers = users.filter(u =>
@@ -109,7 +142,11 @@ const SecurityHub: React.FC = () => {
                                     onChange={(e) => setSearchQuery(e.target.value)}
                                 />
                             </div>
-                            <button className="w-full md:w-auto bg-indigo-600 text-white px-8 py-3.5 rounded-2xl font-black uppercase text-xs tracking-widest shadow-xl shadow-indigo-600/20 hover:bg-indigo-700 transition-all whitespace-nowrap flex items-center justify-center gap-2">
+                            <button
+                                onClick={handleCreateUser}
+                                disabled={isSaving}
+                                className="w-full md:w-auto bg-indigo-600 text-white px-8 py-3.5 rounded-2xl font-black uppercase text-xs tracking-widest shadow-xl shadow-indigo-600/20 hover:bg-indigo-700 transition-all whitespace-nowrap flex items-center justify-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed"
+                            >
                                 <UserPlus size={18} /> Onboard Identity
                             </button>
                         </div>
@@ -196,6 +233,7 @@ const SecurityHub: React.FC = () => {
                                             <button
                                                 key={role}
                                                 onClick={() => handleRoleChange(selectedUser, role)}
+                                                disabled={isSaving}
                                                 className={`px-4 py-4 rounded-2xl border-2 text-[10px] font-black uppercase transition-all tracking-widest ${selectedUser.role === role ? 'bg-indigo-600 border-indigo-600 text-white shadow-lg' : 'bg-slate-50 dark:bg-slate-800/50 border-slate-100 dark:border-slate-800 text-slate-500 hover:border-indigo-200'}`}
                                             >
                                                 {role}

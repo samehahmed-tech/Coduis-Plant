@@ -1,8 +1,9 @@
 import { Request, Response } from 'express';
 import { db } from '../db';
-import { inventoryItems, inventoryStock, stockMovements } from '../../src/db/schema';
-import { and, asc, eq } from 'drizzle-orm';
+import { inventoryItems, inventoryStock, stockMovements, warehouses, auditLogs } from '../../src/db/schema';
+import { and, asc, desc, eq } from 'drizzle-orm';
 import { getStringParam } from '../utils/request';
+import { postInventoryAdjustmentEntry, postInventoryAdjustmentReversalEntry } from '../services/financePostingService';
 
 /**
  * Inventory Items
@@ -149,6 +150,8 @@ export const updateStock = async (req: Request, res: Response) => {
         const [existing] = await db.select().from(inventoryStock).where(
             and(eq(inventoryStock.itemId, item_id), eq(inventoryStock.warehouseId, warehouse_id))
         );
+        const [item] = await db.select().from(inventoryItems).where(eq(inventoryItems.id, item_id));
+        const [warehouse] = await db.select().from(warehouses).where(eq(warehouses.id, warehouse_id));
 
         const previousQty = Number(existing?.quantity || 0);
         const delta = newQty - previousQty;
@@ -167,6 +170,7 @@ export const updateStock = async (req: Request, res: Response) => {
         }
 
         if (delta !== 0) {
+            const value = Math.abs(delta) * Number(item?.costPrice || 0);
             await db.insert(stockMovements).values({
                 itemId: item_id,
                 fromWarehouseId: delta < 0 ? warehouse_id : undefined,
@@ -178,9 +182,187 @@ export const updateStock = async (req: Request, res: Response) => {
                 referenceId: reference_id,
                 createdAt: new Date(),
             });
+
+            await db.insert(auditLogs).values({
+                eventType: 'INVENTORY_STOCK_ADJUSTMENT',
+                userId: actor_id || null,
+                branchId: null,
+                payload: {
+                    itemId: item_id,
+                    warehouseId: warehouse_id,
+                    previousQuantity: previousQty,
+                    newQuantity: newQty,
+                    delta,
+                    type: type || 'ADJUSTMENT',
+                    reason: reason || null,
+                    referenceId: reference_id || null,
+                },
+                createdAt: new Date(),
+            });
+
+            const postingData = {
+                referenceId: reference_id || `INV-${Date.now()}`,
+                amount: value,
+                branchId: warehouse?.branchId || undefined,
+                userId: actor_id || 'system',
+                reason: reason || null,
+            };
+            if (value > 0) {
+                if (delta < 0) {
+                    postInventoryAdjustmentEntry(postingData).catch(() => undefined);
+                } else {
+                    postInventoryAdjustmentReversalEntry(postingData).catch(() => undefined);
+                }
+            }
         }
 
         res.json({ success: true, previousQuantity: previousQty, newQuantity: newQty, delta });
+    } catch (error: any) {
+        res.status(500).json({ error: error.message });
+    }
+};
+
+/**
+ * Transfer stock between warehouses (transactional)
+ */
+export const transferStock = async (req: Request, res: Response) => {
+    try {
+        const {
+            item_id,
+            from_warehouse_id,
+            to_warehouse_id,
+            quantity,
+            reason,
+            actor_id,
+            reference_id,
+        } = req.body || {};
+
+        if (!item_id || !from_warehouse_id || !to_warehouse_id || quantity === undefined) {
+            return res.status(400).json({ error: 'item_id, from_warehouse_id, to_warehouse_id, and quantity are required' });
+        }
+        if (from_warehouse_id === to_warehouse_id) {
+            return res.status(400).json({ error: 'Source and destination warehouses must be different' });
+        }
+
+        const transferQty = Number(quantity);
+        if (!Number.isFinite(transferQty) || transferQty <= 0) {
+            return res.status(400).json({ error: 'quantity must be a positive number' });
+        }
+
+        await db.transaction(async (tx) => {
+            const [sourceWarehouse] = await tx.select().from(warehouses).where(eq(warehouses.id, from_warehouse_id));
+            const [destWarehouse] = await tx.select().from(warehouses).where(eq(warehouses.id, to_warehouse_id));
+            if (!sourceWarehouse || !destWarehouse) {
+                throw new Error('Warehouse not found');
+            }
+
+            const [sourceStock] = await tx.select().from(inventoryStock).where(
+                and(eq(inventoryStock.itemId, item_id), eq(inventoryStock.warehouseId, from_warehouse_id))
+            );
+            const sourceQty = Number(sourceStock?.quantity || 0);
+            if (sourceQty < transferQty) {
+                throw new Error('Insufficient stock in source warehouse');
+            }
+
+            await tx.update(inventoryStock)
+                .set({ quantity: sourceQty - transferQty, lastUpdated: new Date() })
+                .where(eq(inventoryStock.id, sourceStock.id));
+
+            const [destStock] = await tx.select().from(inventoryStock).where(
+                and(eq(inventoryStock.itemId, item_id), eq(inventoryStock.warehouseId, to_warehouse_id))
+            );
+
+            if (destStock) {
+                await tx.update(inventoryStock)
+                    .set({ quantity: Number(destStock.quantity || 0) + transferQty, lastUpdated: new Date() })
+                    .where(eq(inventoryStock.id, destStock.id));
+            } else {
+                await tx.insert(inventoryStock).values({
+                    itemId: item_id,
+                    warehouseId: to_warehouse_id,
+                    quantity: transferQty,
+                    lastUpdated: new Date(),
+                });
+            }
+
+            await tx.insert(stockMovements).values({
+                itemId: item_id,
+                fromWarehouseId: from_warehouse_id,
+                toWarehouseId: to_warehouse_id,
+                quantity: transferQty,
+                type: 'TRANSFER',
+                reason: reason || 'Inter-warehouse transfer',
+                performedBy: actor_id,
+                referenceId: reference_id,
+                createdAt: new Date(),
+            });
+
+            const [fromWarehouse] = await tx.select({ branchId: warehouses.branchId }).from(warehouses).where(eq(warehouses.id, from_warehouse_id));
+            await tx.insert(auditLogs).values({
+                eventType: 'INVENTORY_BRANCH_TRANSFER',
+                userId: actor_id || null,
+                branchId: fromWarehouse?.branchId || null,
+                payload: {
+                    itemId: item_id,
+                    fromWarehouseId: from_warehouse_id,
+                    toWarehouseId: to_warehouse_id,
+                    quantity: transferQty,
+                    reason: reason || 'Inter-warehouse transfer',
+                    referenceId: reference_id || null,
+                },
+                createdAt: new Date(),
+            });
+        });
+
+        res.json({ success: true });
+    } catch (error: any) {
+        res.status(500).json({ error: error.message });
+    }
+};
+
+/**
+ * Get latest transfer movements
+ */
+export const getTransferMovements = async (req: Request, res: Response) => {
+    try {
+        const limit = Number(req.query.limit || 100);
+        const safeLimit = Number.isFinite(limit) ? Math.max(1, Math.min(limit, 500)) : 100;
+
+        const [movements, itemList, warehouseList] = await Promise.all([
+            db.select()
+                .from(stockMovements)
+                .where(eq(stockMovements.type, 'TRANSFER'))
+                .orderBy(desc(stockMovements.createdAt))
+                .limit(safeLimit),
+            db.select({ id: inventoryItems.id, name: inventoryItems.name }).from(inventoryItems),
+            db.select({ id: warehouses.id, name: warehouses.name, branchId: warehouses.branchId }).from(warehouses),
+        ]);
+
+        const itemMap = new Map(itemList.map((i) => [i.id, i.name]));
+        const warehouseMap = new Map(warehouseList.map((w) => [w.id, w]));
+
+        const result = movements.map((m) => {
+            const fromWh = m.fromWarehouseId ? warehouseMap.get(m.fromWarehouseId) : null;
+            const toWh = m.toWarehouseId ? warehouseMap.get(m.toWarehouseId) : null;
+            return {
+                id: m.id,
+                itemId: m.itemId,
+                itemName: itemMap.get(m.itemId) || m.itemId,
+                fromWarehouseId: m.fromWarehouseId,
+                fromWarehouseName: fromWh?.name || m.fromWarehouseId,
+                fromBranchId: fromWh?.branchId,
+                toWarehouseId: m.toWarehouseId,
+                toWarehouseName: toWh?.name || m.toWarehouseId,
+                toBranchId: toWh?.branchId,
+                quantity: Number(m.quantity || 0),
+                reason: m.reason,
+                performedBy: m.performedBy,
+                createdAt: m.createdAt,
+                referenceId: m.referenceId,
+            };
+        });
+
+        res.json(result);
     } catch (error: any) {
         res.status(500).json({ error: error.message });
     }

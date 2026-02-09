@@ -3,6 +3,7 @@ import { db } from '../db';
 import { users } from '../../src/db/schema';
 import { eq, desc } from 'drizzle-orm';
 import { getStringParam } from '../utils/request';
+import { getIO } from '../socket';
 
 export const getAllUsers = async (req: Request, res: Response) => {
     try {
@@ -58,6 +59,9 @@ export const updateUser = async (req: Request, res: Response) => {
         const body = req.body || {};
         const id = getStringParam((req.params as any).id);
         if (!id) return res.status(400).json({ error: 'USER_ID_REQUIRED' });
+        const [existingUser] = await db.select().from(users).where(eq(users.id, id));
+        if (!existingUser) return res.status(404).json({ error: 'User not found' });
+
         let passwordHash = body.password_hash || body.passwordHash;
         if (body.password) {
             const bcrypt = await import('bcryptjs');
@@ -78,6 +82,23 @@ export const updateUser = async (req: Request, res: Response) => {
             .where(eq(users.id, id))
             .returning();
         if (updatedUser.length === 0) return res.status(404).json({ error: 'User not found' });
+
+        const changedRole = existingUser.role !== updatedUser[0].role;
+        const changedActive = existingUser.isActive !== updatedUser[0].isActive;
+        const changedPermissions = JSON.stringify(existingUser.permissions || []) !== JSON.stringify(updatedUser[0].permissions || []);
+
+        if (changedRole || changedActive || changedPermissions) {
+            try {
+                getIO().to(`user:${id}`).emit('security:session-revoked', {
+                    userId: id,
+                    reason: changedActive === false ? 'USER_DISABLED' : 'ROLE_OR_PERMISSION_CHANGED',
+                    changedAt: new Date().toISOString(),
+                });
+            } catch {
+                // socket optional
+            }
+        }
+
         res.json(updatedUser[0]);
     } catch (error: any) {
         res.status(500).json({ error: error.message });

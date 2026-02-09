@@ -71,6 +71,7 @@ import { useOrderStore } from '../stores/useOrderStore';
 import { translations } from '../services/translations';
 import { printService } from '../src/services/printService';
 import { formatReceipt } from '../services/receiptFormatter';
+import { deliveryApi } from '../services/api';
 
 // POS Components
 import ItemGrid from './pos/ItemGrid';
@@ -87,16 +88,33 @@ import NoteModal from './pos/NoteModal';
 const DriverAssignmentModal: React.FC<{
     isOpen: boolean;
     onClose: () => void;
-    onAssign: (orderId: string, driverId: string) => void;
+    onAssign: (driverId: string) => Promise<void> | void;
     branchId: string;
+    orderId?: string;
     lang: 'en' | 'ar';
-}> = ({ isOpen, onClose, onAssign, branchId, lang }) => {
-    // Mock drivers for the foundation - in production these come from useOrderStore
-    const drivers = [
-        { id: 'D1', name: 'Ahmed Sameh', phone: '01012345678', status: 'AVAILABLE' },
-        { id: 'D2', name: 'Mahmoud Ali', phone: '01212345678', status: 'BUSY' },
-        { id: 'D3', name: 'Ziad Ibrahim', phone: '01112345678', status: 'AVAILABLE' },
-    ];
+}> = ({ isOpen, onClose, onAssign, branchId, orderId, lang }) => {
+    const [drivers, setDrivers] = useState<any[]>([]);
+    const [isLoading, setIsLoading] = useState(false);
+    const [assigningDriverId, setAssigningDriverId] = useState<string | null>(null);
+    const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
+    useEffect(() => {
+        const loadDrivers = async () => {
+            if (!isOpen || !branchId) return;
+            setIsLoading(true);
+            setErrorMessage(null);
+            try {
+                const data = await deliveryApi.getDrivers({ branchId });
+                setDrivers(Array.isArray(data) ? data : []);
+            } catch (error: any) {
+                setErrorMessage(error?.message || 'Failed to load drivers');
+                setDrivers([]);
+            } finally {
+                setIsLoading(false);
+            }
+        };
+        loadDrivers();
+    }, [isOpen, branchId]);
 
     if (!isOpen) return null;
 
@@ -106,26 +124,50 @@ const DriverAssignmentModal: React.FC<{
             <div className="relative w-full max-w-md bg-white dark:bg-slate-900 rounded-[2.5rem] p-8 shadow-2xl border border-white/10 animate-in zoom-in-95 duration-300">
                 <div className="text-center mb-8">
                     <h2 className="text-xl font-black text-slate-800 dark:text-white uppercase tracking-tight">Assign Dispatcher</h2>
-                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-1">Select available driver for branch: {branchId}</p>
+                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-1">Select driver for branch: {branchId} {orderId ? `| Order ${orderId}` : ''}</p>
                 </div>
 
                 <div className="space-y-3">
-                    {drivers.map(driver => (
-                        <button
-                            key={driver.id}
-                            disabled={driver.status === 'BUSY'}
-                            onClick={() => { onAssign('temp-id', driver.id); onClose(); }}
-                            className={`w-full p-6 rounded-2xl flex items-center justify-between transition-all ${driver.status === 'AVAILABLE' ? 'bg-slate-50 dark:bg-slate-800 hover:bg-indigo-600 hover:text-white group' : 'opacity-40 cursor-not-allowed bg-slate-100 dark:bg-slate-900'}`}
-                        >
-                            <div className="text-left">
-                                <p className="font-black uppercase text-xs tracking-tight">{driver.name}</p>
-                                <p className="text-[10px] font-bold opacity-60 tracking-widest">{driver.phone}</p>
-                            </div>
-                            <div className={`px-3 py-1 rounded-lg text-[9px] font-black uppercase tracking-widest ${driver.status === 'AVAILABLE' ? 'bg-emerald-500/10 text-emerald-600 group-hover:bg-white group-hover:text-indigo-600' : 'bg-slate-200 text-slate-500'}`}>
-                                {driver.status}
-                            </div>
-                        </button>
-                    ))}
+                    {isLoading && (
+                        <div className="p-6 text-center text-xs font-bold text-slate-500">Loading drivers...</div>
+                    )}
+                    {!isLoading && errorMessage && (
+                        <div className="p-4 rounded-xl bg-rose-50 text-rose-700 text-xs font-bold">{errorMessage}</div>
+                    )}
+                    {!isLoading && !errorMessage && drivers.length === 0 && (
+                        <div className="p-6 text-center text-xs font-bold text-slate-500">No drivers available for this branch.</div>
+                    )}
+                    {!isLoading && !errorMessage && drivers.map(driver => {
+                        const isAvailable = String(driver.status || '').toUpperCase() === 'AVAILABLE';
+                        const isAssigningThisDriver = assigningDriverId === driver.id;
+                        return (
+                            <button
+                                key={driver.id}
+                                disabled={!isAvailable || isAssigningThisDriver}
+                                onClick={async () => {
+                                    setAssigningDriverId(driver.id);
+                                    setErrorMessage(null);
+                                    try {
+                                        await onAssign(driver.id);
+                                        onClose();
+                                    } catch (error: any) {
+                                        setErrorMessage(error?.message || 'Failed to assign driver');
+                                    } finally {
+                                        setAssigningDriverId(null);
+                                    }
+                                }}
+                                className={`w-full p-6 rounded-2xl flex items-center justify-between transition-all ${isAvailable ? 'bg-slate-50 dark:bg-slate-800 hover:bg-indigo-600 hover:text-white group' : 'opacity-40 cursor-not-allowed bg-slate-100 dark:bg-slate-900'}`}
+                            >
+                                <div className="text-left">
+                                    <p className="font-black uppercase text-xs tracking-tight">{driver.name || driver.fullName || 'Driver'}</p>
+                                    <p className="text-[10px] font-bold opacity-60 tracking-widest">{driver.phone || '-'}</p>
+                                </div>
+                                <div className={`px-3 py-1 rounded-lg text-[9px] font-black uppercase tracking-widest ${isAvailable ? 'bg-emerald-500/10 text-emerald-600 group-hover:bg-white group-hover:text-indigo-600' : 'bg-slate-200 text-slate-500'}`}>
+                                    {isAssigningThisDriver ? 'ASSIGNING' : String(driver.status || 'UNKNOWN')}
+                                </div>
+                            </button>
+                        );
+                    })}
                 </div>
 
                 <button onClick={onClose} className="w-full mt-8 py-4 text-[10px] font-black uppercase text-slate-400 tracking-widest hover:text-slate-600 transition-colors">Cancel Dispatch</button>
@@ -270,7 +312,7 @@ const CallCenter: React.FC = () => {
     const { customers, addCustomer } = useCRMStore();
     const { branches, settings } = useAuthStore();
     const { categories } = useMenuStore();
-    const { orders, placeOrder, discount, setDiscount } = useOrderStore();
+    const { orders, placeOrder, discount, setDiscount, fetchOrders } = useOrderStore();
 
     const lang = (settings.language || 'en') as 'en' | 'ar';
     const t = translations[lang] || translations['en'];
@@ -911,11 +953,13 @@ const CallCenter: React.FC = () => {
             <DriverAssignmentModal
                 isOpen={showDriverModal}
                 onClose={() => setShowDriverModal(false)}
-                onAssign={(orderId, driverId) => {
-                    // In production: deliveryApi.assignDriver(selectedTrackingOrder.id, driverId)
-                    console.log(`Assigned driver ${driverId} to order ${selectedTrackingOrder?.id}`);
+                onAssign={async (driverId) => {
+                    if (!selectedTrackingOrder?.id) return;
+                    await deliveryApi.assign({ orderId: selectedTrackingOrder.id, driverId });
+                    await fetchOrders();
                 }}
                 branchId={selectedTrackingOrder?.branchId || ''}
+                orderId={selectedTrackingOrder?.id}
                 lang={lang}
             />
 

@@ -1,44 +1,118 @@
-import React, { useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
     Truck,
     MapPin,
     Clock,
     User,
-    CheckCircle2,
-    AlertCircle,
     PackageCheck,
     Navigation,
-    ExternalLink,
     Smartphone,
     ChevronRight,
-    Package
+    Package,
+    AlertTriangle
 } from 'lucide-react';
 import { useOrderStore } from '../stores/useOrderStore';
 import { useAuthStore } from '../stores/useAuthStore';
-import { translations } from '../services/translations';
 import { OrderStatus, OrderType, Driver } from '../types';
+import { deliveryApi } from '../services/api';
+import { socketService } from '../services/socketService';
+
+const SLA_MINUTES = 45;
 
 const DispatchHub: React.FC = () => {
     const { settings } = useAuthStore();
-    const { orders, updateOrderStatus } = useOrderStore();
+    const { orders, updateOrderStatus, fetchOrders } = useOrderStore();
     const lang = settings.language || 'en';
-    const t = translations[lang];
+    const activeBranchId = settings.activeBranchId;
 
-    // Simulated drivers (in real app, this would come from a useDriverStore)
-    const [drivers] = useState<Driver[]>([
-        { id: 'D1', name: 'Ahmed Hassan', phone: '01012345678', status: 'AVAILABLE', vehicleType: 'BIKE' },
-        { id: 'D2', name: 'Mohamed Ali', phone: '01198765432', status: 'ON_DELIVERY', vehicleType: 'SCOOTER', currentOrderId: 'ORD-552' },
-        { id: 'D3', name: 'Sayed Ibrahim', phone: '01233445566', status: 'AVAILABLE', vehicleType: 'CAR' },
-        { id: 'D4', name: 'Mahmoud Reda', phone: '01566778899', status: 'OFFLINE', vehicleType: 'BIKE' },
-    ]);
+    const [drivers, setDrivers] = useState<Driver[]>([]);
+    const [isLoadingDrivers, setIsLoadingDrivers] = useState(false);
+    const [isAssigningOrderId, setIsAssigningOrderId] = useState<string | null>(null);
+
+    const loadDrivers = async () => {
+        setIsLoadingDrivers(true);
+        try {
+            const data = await deliveryApi.getDrivers(activeBranchId ? { branchId: activeBranchId } : undefined);
+            const mapped: Driver[] = data.map((d: any) => ({
+                id: d.id,
+                name: d.name,
+                phone: d.phone,
+                status: d.status === 'BUSY' ? 'ON_DELIVERY' : (d.status || 'OFFLINE'),
+                vehicleType: 'BIKE',
+                currentOrderId: undefined,
+            }));
+            setDrivers(mapped);
+        } catch (error) {
+            console.error('Failed to load drivers:', error);
+        } finally {
+            setIsLoadingDrivers(false);
+        }
+    };
+
+    useEffect(() => {
+        loadDrivers();
+    }, [activeBranchId]);
+
+    useEffect(() => {
+        const onDriverStatus = (payload: { id: string; status: string }) => {
+            setDrivers(prev => prev.map(d => d.id === payload.id ? { ...d, status: payload.status === 'BUSY' ? 'ON_DELIVERY' : payload.status as any } : d));
+        };
+        const onDispatchAssigned = () => {
+            if (activeBranchId) fetchOrders({ branch_id: activeBranchId, limit: 100 });
+            loadDrivers();
+        };
+        socketService.on('driver:status', onDriverStatus as any);
+        socketService.on('dispatch:assigned', onDispatchAssigned);
+        return () => {
+            socketService.off('driver:status', onDriverStatus as any);
+            socketService.off('dispatch:assigned', onDispatchAssigned);
+        };
+    }, [activeBranchId, fetchOrders]);
 
     const deliveryOrders = orders.filter(o => o.type === OrderType.DELIVERY);
-    const pendingDispatch = deliveryOrders.filter(o => o.status === OrderStatus.READY || o.status === OrderStatus.PREPARING);
-    const activeDeliveries = deliveryOrders.filter(o => o.status === OrderStatus.OUT_FOR_DELIVERY);
+    const pendingDispatch = deliveryOrders.filter(o =>
+        (o.status === OrderStatus.READY || o.status === OrderStatus.PREPARING) &&
+        (!activeBranchId || o.branchId === activeBranchId)
+    );
+    const activeDeliveries = deliveryOrders.filter(o =>
+        o.status === OrderStatus.OUT_FOR_DELIVERY &&
+        (!activeBranchId || o.branchId === activeBranchId)
+    );
+    const availableDrivers = useMemo(() => drivers.filter(d => d.status === 'AVAILABLE'), [drivers]);
+
+    const delayedDeliveries = useMemo(() => {
+        const now = Date.now();
+        return activeDeliveries.filter(order => {
+            const elapsedMin = (now - new Date(order.createdAt).getTime()) / (1000 * 60);
+            return elapsedMin > SLA_MINUTES;
+        });
+    }, [activeDeliveries]);
+
+    const avgDeliveryMinutes = useMemo(() => {
+        if (activeDeliveries.length === 0) return 0;
+        const now = Date.now();
+        const total = activeDeliveries.reduce((sum, o) => {
+            return sum + ((now - new Date(o.createdAt).getTime()) / (1000 * 60));
+        }, 0);
+        return total / activeDeliveries.length;
+    }, [activeDeliveries]);
+
+    const assignDriver = async (orderId: string, driverId: string) => {
+        setIsAssigningOrderId(orderId);
+        try {
+            await deliveryApi.assign({ orderId, driverId });
+            await updateOrderStatus(orderId, OrderStatus.OUT_FOR_DELIVERY);
+            await fetchOrders(activeBranchId ? { branch_id: activeBranchId, limit: 100 } : { limit: 100 });
+            await loadDrivers();
+        } catch (error) {
+            console.error('Failed to assign driver:', error);
+        } finally {
+            setIsAssigningOrderId(null);
+        }
+    };
 
     return (
         <div className="p-4 md:p-8 lg:p-12 bg-app min-h-screen">
-            {/* Header */}
             <div className="flex flex-col xl:flex-row justify-between items-start xl:items-center gap-6 mb-12">
                 <div>
                     <div className="flex items-center gap-4 mb-3">
@@ -57,17 +131,20 @@ const DispatchHub: React.FC = () => {
                 <div className="flex items-center gap-3 bg-card p-2 rounded-2xl border border-border shadow-sm">
                     <div className="px-6 py-2 border-r border-border">
                         <p className="text-[10px] font-black text-muted uppercase tracking-widest">{lang === 'ar' ? 'سائقين متاحين' : 'Available Drivers'}</p>
-                        <p className="text-xl font-black text-main">{drivers.filter(d => d.status === 'AVAILABLE').length}</p>
+                        <p className="text-xl font-black text-main">{availableDrivers.length}</p>
                     </div>
-                    <div className="px-6 py-2">
+                    <div className="px-6 py-2 border-r border-border">
                         <p className="text-[10px] font-black text-muted uppercase tracking-widest">{lang === 'ar' ? 'تحت التوصيل' : 'In Transit'}</p>
                         <p className="text-xl font-black text-main">{activeDeliveries.length}</p>
+                    </div>
+                    <div className="px-6 py-2">
+                        <p className="text-[10px] font-black text-muted uppercase tracking-widest">Delayed</p>
+                        <p className="text-xl font-black text-rose-600">{delayedDeliveries.length}</p>
                     </div>
                 </div>
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                {/* Column 1: Pending Dispatch (Ready Orders) */}
                 <div className="lg:col-span-2 space-y-6">
                     <div className="flex items-center justify-between mb-2 px-2">
                         <h3 className="text-lg font-black text-main uppercase tracking-tight flex items-center gap-3">
@@ -87,7 +164,7 @@ const DispatchHub: React.FC = () => {
                             </div>
                         ) : (
                             pendingDispatch.map(order => (
-                                <div key={order.id} className="bg-card border border-border rounded-[2rem] p-6 hover:shadow-xl transition-all group overflow-hidden relative">
+                                <div key={order.id} className="bg-card border border-border rounded-[2rem] p-6 hover:shadow-xl transition-all relative">
                                     <div className={`absolute top-0 right-0 w-2 h-full ${order.status === OrderStatus.READY ? 'bg-success' : 'bg-amber-500'}`} />
 
                                     <div className="flex justify-between items-start mb-6">
@@ -99,7 +176,7 @@ const DispatchHub: React.FC = () => {
                                             <p className="text-xs font-black text-main">{order.total.toFixed(2)} ج.م</p>
                                             <div className="flex items-center gap-1.5 text-muted mt-1">
                                                 <Clock size={12} />
-                                                <span className="text-[10px] font-bold">12m ago</span>
+                                                <span className="text-[10px] font-bold">LIVE</span>
                                             </div>
                                         </div>
                                     </div>
@@ -114,13 +191,14 @@ const DispatchHub: React.FC = () => {
                                     <div className="space-y-3">
                                         <p className="text-[10px] font-black text-muted uppercase tracking-widest mb-2">{lang === 'ar' ? 'تخصيص سائق' : 'Assign Fleet Member'}</p>
                                         <div className="flex flex-wrap gap-2">
-                                            {drivers.filter(d => d.status === 'AVAILABLE').map(driver => (
+                                            {availableDrivers.map(driver => (
                                                 <button
                                                     key={driver.id}
-                                                    onClick={() => updateOrderStatus(order.id, OrderStatus.OUT_FOR_DELIVERY)}
-                                                    className="px-3 py-2 bg-app hover:bg-primary hover:text-white border border-border rounded-xl transition-all flex items-center gap-2 group/btn"
+                                                    onClick={() => assignDriver(order.id, driver.id)}
+                                                    disabled={isAssigningOrderId === order.id}
+                                                    className="px-3 py-2 bg-app hover:bg-primary hover:text-white border border-border rounded-xl transition-all flex items-center gap-2 disabled:opacity-60"
                                                 >
-                                                    <div className="w-6 h-6 rounded-lg bg-card flex items-center justify-center text-[10px] font-black text-primary group-hover/btn:bg-white/20 group-hover/btn:text-white uppercase">
+                                                    <div className="w-6 h-6 rounded-lg bg-card flex items-center justify-center text-[10px] font-black text-primary uppercase">
                                                         {driver.name.charAt(0)}
                                                     </div>
                                                     <span className="text-[10px] font-black uppercase tracking-tight">{driver.name}</span>
@@ -134,7 +212,6 @@ const DispatchHub: React.FC = () => {
                     </div>
                 </div>
 
-                {/* Column 2: Active Fleet & Map Ticker */}
                 <div className="space-y-6">
                     <div className="flex items-center justify-between mb-2 px-2">
                         <h3 className="text-lg font-black text-main uppercase tracking-tight flex items-center gap-3">
@@ -145,6 +222,29 @@ const DispatchHub: React.FC = () => {
                             {drivers.length} TOTAL
                         </span>
                     </div>
+
+                    {delayedDeliveries.length > 0 && (
+                        <div className="bg-rose-50 dark:bg-rose-900/10 border border-rose-200/40 rounded-3xl p-5">
+                            <h4 className="text-xs font-black uppercase tracking-widest text-rose-600 mb-3 flex items-center gap-2">
+                                <AlertTriangle size={14} />
+                                SLA Delay Alerts
+                            </h4>
+                            <div className="space-y-2 max-h-44 overflow-auto">
+                                {delayedDeliveries.map(order => {
+                                    const elapsed = Math.round((Date.now() - new Date(order.createdAt).getTime()) / (1000 * 60));
+                                    return (
+                                        <div key={order.id} className="p-2.5 rounded-xl bg-white/80 dark:bg-slate-900/30 border border-rose-200/30 flex items-center justify-between">
+                                            <div>
+                                                <p className="text-[11px] font-black text-main">#{order.id.slice(-6)} {order.customerName || 'Guest'}</p>
+                                                <p className="text-[10px] text-muted">{order.deliveryAddress || '-'}</p>
+                                            </div>
+                                            <span className="text-[10px] font-black text-rose-600">{elapsed}m</span>
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        </div>
+                    )}
 
                     <div className="space-y-4">
                         {drivers.map(driver => (
@@ -165,7 +265,7 @@ const DispatchHub: React.FC = () => {
                                     {driver.status === 'ON_DELIVERY' ? (
                                         <div className="flex items-center gap-1.5 px-3 py-1 rounded-lg bg-primary/5 text-primary">
                                             <Clock size={10} strokeWidth={3} />
-                                            <span className="text-[9px] font-black uppercase tracking-widest">15m</span>
+                                            <span className="text-[9px] font-black uppercase tracking-widest">LIVE</span>
                                         </div>
                                     ) : (
                                         <button className="p-2 text-muted hover:text-primary transition-colors">
@@ -178,7 +278,6 @@ const DispatchHub: React.FC = () => {
                         ))}
                     </div>
 
-                    {/* Quick Stats Sidebar */}
                     <div className="bg-primary p-8 rounded-[2.5rem] text-white shadow-2xl shadow-primary/30 relative overflow-hidden">
                         <div className="absolute top-0 right-0 p-8 opacity-10 rotate-12">
                             <Navigation size={120} />
@@ -188,20 +287,23 @@ const DispatchHub: React.FC = () => {
                             <div>
                                 <div className="flex justify-between text-[10px] font-black uppercase tracking-widest mb-2 opacity-80">
                                     <span>{lang === 'ar' ? 'متوسط الوقت' : 'Avg Delivery Time'}</span>
-                                    <span>24 MINS</span>
+                                    <span>{avgDeliveryMinutes > 0 ? `${Math.round(avgDeliveryMinutes)} MINS` : '--'}</span>
                                 </div>
                                 <div className="h-1.5 bg-white/20 rounded-full overflow-hidden">
-                                    <div className="h-full bg-white w-3/4 rounded-full shadow-[0_0_10px_rgba(255,255,255,1)]" />
+                                    <div
+                                        className="h-full bg-white rounded-full shadow-[0_0_10px_rgba(255,255,255,1)]"
+                                        style={{ width: `${Math.min(100, Math.max(8, (avgDeliveryMinutes / SLA_MINUTES) * 100))}%` }}
+                                    />
                                 </div>
                             </div>
                             <div className="grid grid-cols-2 gap-4">
                                 <div className="bg-white/10 p-4 rounded-2xl">
-                                    <p className="text-[8px] font-black uppercase tracking-widest opacity-60">Avg. Cost/Order</p>
-                                    <p className="text-lg font-black">18.5 ج.م</p>
+                                    <p className="text-[8px] font-black uppercase tracking-widest opacity-60">Online Drivers</p>
+                                    <p className="text-lg font-black">{isLoadingDrivers ? '...' : drivers.filter(d => d.status !== 'OFFLINE').length}</p>
                                 </div>
                                 <div className="bg-white/10 p-4 rounded-2xl">
-                                    <p className="text-[8px] font-black uppercase tracking-widest opacity-60">Driver Rating</p>
-                                    <p className="text-lg font-black">4.8/5</p>
+                                    <p className="text-[8px] font-black uppercase tracking-widest opacity-60">Available</p>
+                                    <p className="text-lg font-black">{isLoadingDrivers ? '...' : availableDrivers.length}</p>
                                 </div>
                             </div>
                         </div>

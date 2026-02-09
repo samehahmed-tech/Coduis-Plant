@@ -44,6 +44,7 @@ const App: React.FC = () => {
   const { settings } = useAuthStore();
   const isAuthenticated = useAuthStore(state => state.isAuthenticated);
   const token = useAuthStore(state => state.token);
+  const logout = useAuthStore(state => state.logout);
   const fetchOrders = useOrderStore(state => state.fetchOrders);
   const fetchTables = useOrderStore(state => state.fetchTables);
   const restoreSession = useAuthStore(state => state.restoreSession);
@@ -109,25 +110,37 @@ const App: React.FC = () => {
 
     const handleOrderCreated = () => fetchOrders({ limit: 50 });
     const handleOrderStatus = () => fetchOrders({ limit: 50 });
+    const handleDispatchAssigned = () => fetchOrders({ limit: 50 });
+    const handleDriverStatus = () => fetchOrders({ limit: 50 });
     const handleTableStatus = () => {
       if (settings.activeBranchId) fetchTables(settings.activeBranchId);
     };
     const handleTableLayout = () => {
       if (settings.activeBranchId) fetchTables(settings.activeBranchId);
     };
+    const handleSessionRevoked = () => {
+      logout();
+      window.location.href = '/login';
+    };
 
     socketService.on('order:created', handleOrderCreated);
     socketService.on('order:status', handleOrderStatus);
+    socketService.on('dispatch:assigned', handleDispatchAssigned);
+    socketService.on('driver:status', handleDriverStatus);
     socketService.on('table:status', handleTableStatus);
     socketService.on('table:layout', handleTableLayout);
+    socketService.on('security:session-revoked', handleSessionRevoked);
 
     return () => {
       socketService.off('order:created', handleOrderCreated);
       socketService.off('order:status', handleOrderStatus);
+      socketService.off('dispatch:assigned', handleDispatchAssigned);
+      socketService.off('driver:status', handleDriverStatus);
       socketService.off('table:status', handleTableStatus);
       socketService.off('table:layout', handleTableLayout);
+      socketService.off('security:session-revoked', handleSessionRevoked);
     };
-  }, [isAuthenticated, token, settings.activeBranchId, fetchOrders, fetchTables]);
+  }, [isAuthenticated, token, settings.activeBranchId, fetchOrders, fetchTables, logout]);
 
   // Show loading screen while initializing
   if (isLoading || setupStatus === 'checking') {

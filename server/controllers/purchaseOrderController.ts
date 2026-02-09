@@ -1,8 +1,9 @@
 import { Request, Response } from 'express';
 import { db } from '../db';
-import { purchaseOrders, purchaseOrderItems, inventoryStock, stockMovements, inventoryItems } from '../../src/db/schema';
+import { purchaseOrders, purchaseOrderItems, inventoryStock, stockMovements, inventoryItems, auditLogs } from '../../src/db/schema';
 import { eq, desc, sql, and } from 'drizzle-orm';
 import { getStringParam } from '../utils/request';
+import { postPurchaseReceiptEntry } from '../services/financePostingService';
 
 /**
  * Create new Purchase Order
@@ -65,13 +66,46 @@ export const receivePO = async (req: Request, res: Response) => {
             return res.status(400).json({ error: 'warehouseId and items are required' });
         }
 
+        let totalReceivedCost = 0;
+        let poBranchId: string | undefined = undefined;
         await db.transaction(async (tx) => {
+            const [poHeader] = await tx.select().from(purchaseOrders).where(eq(purchaseOrders.id, id));
+            if (!poHeader) {
+                throw new Error('Purchase Order not found');
+            }
+            const currentStatus = String(poHeader.status || 'DRAFT').toUpperCase();
+            const receivableStatuses = ['SENT', 'PARTIAL', 'ORDERED'];
+            if (!receivableStatuses.includes(currentStatus)) {
+                throw new Error(`PO status ${currentStatus} is not receivable`);
+            }
+            poBranchId = poHeader?.branchId || undefined;
             for (const item of items) {
                 const { itemId, receivedQty } = item;
+                const [line] = await tx.select().from(purchaseOrderItems).where(
+                    and(
+                        eq(purchaseOrderItems.poId, id),
+                        eq(purchaseOrderItems.itemId, itemId)
+                    )
+                );
+                if (!line) {
+                    throw new Error(`PO item ${itemId} not found`);
+                }
+                const qty = Number(receivedQty || 0);
+                if (!Number.isFinite(qty) || qty <= 0) {
+                    throw new Error(`Invalid received quantity for item ${itemId}`);
+                }
+                const orderedQty = Number(line.orderedQty || 0);
+                const alreadyReceivedQty = Number(line.receivedQty || 0);
+                const remainingQty = Math.max(0, orderedQty - alreadyReceivedQty);
+                if (qty > remainingQty) {
+                    throw new Error(`Received quantity exceeds remaining for item ${itemId}`);
+                }
+                const unitPrice = Number(line?.unitPrice || 0);
+                totalReceivedCost += qty * unitPrice;
 
                 // 1. Update PO item received quantity
                 await tx.update(purchaseOrderItems)
-                    .set({ receivedQty: sql`received_qty + ${receivedQty}` })
+                    .set({ receivedQty: sql`received_qty + ${qty}` })
                     .where(
                         and(
                             eq(purchaseOrderItems.poId, id),
@@ -92,7 +126,7 @@ export const receivePO = async (req: Request, res: Response) => {
                 if (existingStock.length > 0) {
                     await tx.update(inventoryStock)
                         .set({
-                            quantity: sql`quantity + ${receivedQty}`,
+                            quantity: sql`quantity + ${qty}`,
                             lastUpdated: new Date(),
                         })
                         .where(
@@ -105,7 +139,7 @@ export const receivePO = async (req: Request, res: Response) => {
                     await tx.insert(inventoryStock).values({
                         itemId,
                         warehouseId,
-                        quantity: receivedQty,
+                        quantity: qty,
                         lastUpdated: new Date(),
                     });
                 }
@@ -114,7 +148,7 @@ export const receivePO = async (req: Request, res: Response) => {
                 await tx.insert(stockMovements).values({
                     itemId,
                     toWarehouseId: warehouseId,
-                    quantity: receivedQty,
+                    quantity: qty,
                     type: 'PURCHASE',
                     referenceId: id,
                     reason: 'Goods Receipt from PO',
@@ -134,6 +168,29 @@ export const receivePO = async (req: Request, res: Response) => {
                     updatedAt: new Date(),
                 })
                 .where(eq(purchaseOrders.id, id));
+        });
+
+        // Finance posting: inventory receipt vs accounts payable (non-blocking)
+        postPurchaseReceiptEntry({
+            poId: id,
+            amount: totalReceivedCost,
+            branchId: poBranchId,
+            userId: receivedBy || 'system',
+        }).catch(() => {
+            // Keep PO receive flow resilient even if finance posting fails
+        });
+
+        await db.insert(auditLogs).values({
+            eventType: 'PURCHASE_ORDER_RECEIPT',
+            userId: receivedBy || null,
+            branchId: poBranchId || null,
+            payload: {
+                poId: id,
+                warehouseId,
+                receivedItems: items,
+                totalReceivedCost,
+            },
+            createdAt: new Date(),
         });
 
         res.json({ success: true, message: 'Goods received successfully' });
@@ -204,9 +261,35 @@ export const updatePOStatus = async (req: Request, res: Response) => {
         const id = getStringParam((req.params as any).id);
         if (!id) return res.status(400).json({ error: 'PO_ID_REQUIRED' });
         const { status } = req.body;
+        if (!status) return res.status(400).json({ error: 'STATUS_REQUIRED' });
+
+        const [current] = await db.select().from(purchaseOrders).where(eq(purchaseOrders.id, id));
+        if (!current) {
+            return res.status(404).json({ error: 'Purchase Order not found' });
+        }
+
+        const currentStatus = String(current.status || 'DRAFT').toUpperCase();
+        const requestedStatus = String(status).toUpperCase();
+        const allowedTransitions: Record<string, string[]> = {
+            DRAFT: ['PENDING_APPROVAL', 'CANCELLED'],
+            PENDING_APPROVAL: ['ORDERED', 'CANCELLED'],
+            ORDERED: ['SENT', 'CANCELLED'],
+            SENT: ['PARTIAL', 'RECEIVED', 'CANCELLED'],
+            PARTIAL: ['RECEIVED', 'CANCELLED'],
+            RECEIVED: ['CLOSED'],
+            CLOSED: [],
+            CANCELLED: [],
+        };
+
+        const allowed = allowedTransitions[currentStatus] || [];
+        if (!allowed.includes(requestedStatus)) {
+            return res.status(400).json({
+                error: `Invalid status transition from ${currentStatus} to ${requestedStatus}`,
+            });
+        }
 
         const [updated] = await db.update(purchaseOrders)
-            .set({ status, updatedAt: new Date() })
+            .set({ status: requestedStatus, updatedAt: new Date() })
             .where(eq(purchaseOrders.id, id))
             .returning();
 

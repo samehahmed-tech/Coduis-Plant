@@ -66,6 +66,26 @@ async function apiRequest<T>(
     }
 }
 
+async function apiRequestBlob(
+    endpoint: string,
+    options: RequestInit = {}
+): Promise<Blob> {
+    const url = endpoint.startsWith('http') ? endpoint : `${API_BASE_URL}${endpoint}`;
+    const config: RequestInit = {
+        ...options,
+        headers: {
+            ...(getAuthToken() ? { 'Authorization': `Bearer ${getAuthToken()}` } : {}),
+            ...options.headers,
+        },
+    };
+    const response = await fetch(url, config);
+    if (!response.ok) {
+        const text = await response.text().catch(() => 'Request failed');
+        throw new Error(text || `HTTP Error: ${response.status}`);
+    }
+    return response.blob();
+}
+
 // ============================================================================
 // Health Check
 // ============================================================================
@@ -90,9 +110,31 @@ export const setupApi = {
 // ============================================================================
 
 export const authApi = {
-    login: (email: string, password: string) =>
-        apiRequest<{ token: string; user: any }>('/auth/login', { method: 'POST', body: JSON.stringify({ email, password }) }),
+    login: (email: string, password: string, deviceName?: string) =>
+        apiRequest<{ token?: string; user?: any; mfaRequired?: boolean; mfaToken?: string }>('/auth/login', { method: 'POST', body: JSON.stringify({ email, password, deviceName }) }),
+    verifyMfa: (mfaToken: string, code: string, deviceName?: string) =>
+        apiRequest<{ token: string; user: any }>('/auth/mfa/verify', { method: 'POST', body: JSON.stringify({ mfaToken, code, deviceName }) }),
     me: () => apiRequest<{ user: any }>('/auth/me'),
+    logout: () => apiRequest<{ ok: boolean }>('/auth/logout', { method: 'POST' }),
+    getSessions: () => apiRequest<Array<{
+        id: string;
+        deviceName?: string | null;
+        userAgent?: string | null;
+        ipAddress?: string | null;
+        isActive: boolean;
+        createdAt: string;
+        lastSeenAt?: string | null;
+        expiresAt: string;
+        revokedAt?: string | null;
+        isCurrent: boolean;
+    }>>('/auth/sessions'),
+    revokeSession: (id: string) => apiRequest<{ ok: boolean }>(`/auth/sessions/${id}`, { method: 'DELETE' }),
+    revokeOtherSessions: () => apiRequest<{ ok: boolean }>('/auth/sessions/revoke-others', { method: 'POST' }),
+    initiateMfaSetup: () => apiRequest<{ setupToken: string; secret: string; otpAuthUrl: string }>('/auth/mfa/setup/initiate', { method: 'POST' }),
+    confirmMfaSetup: (setupToken: string, code: string) =>
+        apiRequest<{ ok: boolean }>('/auth/mfa/setup/confirm', { method: 'POST', body: JSON.stringify({ setupToken, code }) }),
+    disableMfa: (code: string) =>
+        apiRequest<{ ok: boolean }>('/auth/mfa/disable', { method: 'POST', body: JSON.stringify({ code }) }),
 };
 
 // ============================================================================
@@ -173,6 +215,16 @@ export const ordersApi = {
     create: (order: any) => apiRequest<any>('/orders', { method: 'POST', body: JSON.stringify(order) }),
     updateStatus: (id: string, data: { status: string; changed_by?: string; notes?: string; expected_updated_at?: string; expectedUpdatedAt?: string }) =>
         apiRequest<any>(`/orders/${id}/status`, { method: 'PUT', body: JSON.stringify(data) }),
+    validateCoupon: (data: { code: string; branchId?: string; orderType: string; subtotal: number; customerId?: string }) =>
+        apiRequest<{
+            valid: boolean;
+            message: string;
+            code?: string;
+            discountType?: 'PERCENT' | 'FIXED';
+            discountValue?: number;
+            discountAmount?: number;
+            discountPercent?: number;
+        }>('/orders/coupons/validate', { method: 'POST', body: JSON.stringify(data) }),
     delete: (id: string) => apiRequest<any>(`/orders/${id}`, { method: 'DELETE' }),
 };
 
@@ -193,6 +245,9 @@ export const inventoryApi = {
     // Stock
     updateStock: (data: { item_id: string; warehouse_id: string; quantity: number; type: string; reason?: string; actor_id?: string }) =>
         apiRequest<any>('/inventory/stock/update', { method: 'POST', body: JSON.stringify(data) }),
+    transferStock: (data: { item_id: string; from_warehouse_id: string; to_warehouse_id: string; quantity: number; reason?: string; actor_id?: string; reference_id?: string }) =>
+        apiRequest<any>('/inventory/stock/transfer', { method: 'POST', body: JSON.stringify(data) }),
+    getTransfers: (limit?: number) => apiRequest<any[]>(`/inventory/stock/transfers${limit ? `?limit=${limit}` : ''}`),
 };
 
 
@@ -252,6 +307,108 @@ export const approvalsApi = {
 };
 
 // ============================================================================
+// Delivery API
+// ============================================================================
+
+export const deliveryApi = {
+    getZones: (branchId?: string) => apiRequest<any[]>(`/delivery/zones${branchId ? `?branchId=${branchId}` : ''}`),
+    getAvailableDrivers: (branchId?: string) => apiRequest<any[]>(`/delivery/drivers${branchId ? `?branchId=${branchId}` : ''}`),
+    getDrivers: (params?: { branchId?: string; status?: string }) => {
+        const query = new URLSearchParams(params as any).toString();
+        return apiRequest<any[]>(`/delivery/drivers/all${query ? `?${query}` : ''}`);
+    },
+    assign: (data: { orderId: string; driverId: string }) => apiRequest<any>('/delivery/assign', { method: 'POST', body: JSON.stringify(data) }),
+    updateDriverStatus: (id: string, status: string) => apiRequest<any>(`/delivery/drivers/${id}/status`, { method: 'PUT', body: JSON.stringify({ status }) }),
+};
+
+// ============================================================================
+// Campaigns API
+// ============================================================================
+
+export const campaignsApi = {
+    getAll: () => apiRequest<any[]>('/campaigns'),
+    getStats: () => apiRequest<any>('/campaigns/stats'),
+    create: (data: any) => apiRequest<any>('/campaigns', { method: 'POST', body: JSON.stringify(data) }),
+    update: (id: string, data: any) => apiRequest<any>(`/campaigns/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+    delete: (id: string) => apiRequest<any>(`/campaigns/${id}`, { method: 'DELETE' }),
+};
+
+// ============================================================================
+// Analytics API
+// ============================================================================
+
+export const analyticsApi = {
+    getBranchPerformance: (params?: { branchId?: string; startDate?: string; endDate?: string }) => {
+        const query = new URLSearchParams(params as any).toString();
+        return apiRequest<any[]>(`/analytics/branches${query ? `?${query}` : ''}`);
+    },
+};
+
+// ============================================================================
+// HR API
+// ============================================================================
+
+export const hrApi = {
+    getEmployees: () => apiRequest<any[]>('/hr/employees'),
+    upsertEmployee: (data: any) => apiRequest<any>('/hr/employees', { method: 'POST', body: JSON.stringify(data) }),
+    getAttendance: (params?: { employeeId?: string; branchId?: string }) => {
+        const query = new URLSearchParams(params as any).toString();
+        return apiRequest<any[]>(`/hr/attendance${query ? `?${query}` : ''}`);
+    },
+    clockIn: (data: { employeeId: string; branchId?: string; deviceId?: string }) =>
+        apiRequest<any>('/hr/attendance/clock-in', { method: 'POST', body: JSON.stringify(data) }),
+    clockOut: (data: { employeeId: string }) =>
+        apiRequest<any>('/hr/attendance/clock-out', { method: 'POST', body: JSON.stringify(data) }),
+    payrollSummary: (params: { employeeId: string; startDate: string; endDate: string }) => {
+        const query = new URLSearchParams(params as any).toString();
+        return apiRequest<any>(`/hr/payroll/summary?${query}`);
+    },
+    getPayrollCycles: () => apiRequest<any[]>('/hr/payroll/cycles'),
+    getPayouts: () => apiRequest<any[]>('/hr/payroll/payouts'),
+    executePayroll: (data: { startDate: string; endDate: string; branchId?: string }) =>
+        apiRequest<any>('/hr/payroll/execute', { method: 'POST', body: JSON.stringify(data) }),
+};
+
+// ============================================================================
+// Finance Engine API
+// ============================================================================
+
+export const financeApi = {
+    getAccounts: () => apiRequest<any[]>('/finance/accounts'),
+    getJournal: (limit?: number) => apiRequest<any[]>(`/finance/journal${limit ? `?limit=${limit}` : ''}`),
+    createJournal: (data: { description: string; amount: number; debitAccountCode: string; creditAccountCode: string; referenceId?: string; source?: string; metadata?: any }) =>
+        apiRequest<any>('/finance/journal', { method: 'POST', body: JSON.stringify(data) }),
+    getTrialBalance: () => apiRequest<{ accounts: any[]; totals: { debit: number; credit: number }; balanced: boolean }>('/finance/trial-balance'),
+    getReconciliations: () => apiRequest<any[]>('/finance/reconciliations'),
+    createReconciliation: (data: { accountCode: string; statementDate: string; statementBalance: number; notes?: string }) =>
+        apiRequest<any>('/finance/reconciliations', { method: 'POST', body: JSON.stringify(data) }),
+    resolveReconciliation: (id: string, data?: { adjustWithJournal?: boolean; adjustmentAccountCode?: string; notes?: string }) =>
+        apiRequest<any>(`/finance/reconciliations/${id}/resolve`, { method: 'PUT', body: JSON.stringify(data || {}) }),
+    getPeriodCloses: () => apiRequest<any[]>('/finance/period-closes'),
+    closePeriod: (data: { periodStart: string; periodEnd: string }) =>
+        apiRequest<any>('/finance/period-close', { method: 'POST', body: JSON.stringify(data) }),
+};
+
+// ============================================================================
+// Production API
+// ============================================================================
+
+export const productionApi = {
+    getOrders: (params?: { status?: string; branchId?: string }) => {
+        const query = new URLSearchParams(params as any).toString();
+        return apiRequest<any[]>(`/production/orders${query ? `?${query}` : ''}`);
+    },
+    createOrder: (data: { targetItemId: string; quantityRequested: number; warehouseId: string; actorId?: string }) =>
+        apiRequest<any>('/production/orders', { method: 'POST', body: JSON.stringify(data) }),
+    startOrder: (id: string, data?: { actorId?: string }) =>
+        apiRequest<any>(`/production/orders/${id}/start`, { method: 'PUT', body: JSON.stringify(data || {}) }),
+    completeOrder: (id: string, data: { quantityProduced: number; actorId?: string }) =>
+        apiRequest<any>(`/production/orders/${id}/complete`, { method: 'PUT', body: JSON.stringify(data) }),
+    cancelOrder: (id: string, data?: { actorId?: string }) =>
+        apiRequest<any>(`/production/orders/${id}/cancel`, { method: 'PUT', body: JSON.stringify(data || {}) }),
+};
+
+// ============================================================================
 // Reports API
 // ============================================================================
 
@@ -271,6 +428,72 @@ export const reportsApi = {
     getDailySales: (params: { branchId?: string; startDate: string; endDate: string }) => {
         const query = new URLSearchParams(params as any).toString();
         return apiRequest<Array<{ day: string; revenue: number; net: number; tax: number; orderCount: number }>>(`/reports/daily-sales?${query}`);
+    },
+    getOverview: (params: { branchId?: string; startDate: string; endDate: string }) => {
+        const query = new URLSearchParams(params as any).toString();
+        return apiRequest<{ orderCount: number; grossSales: number; netSales: number; taxTotal: number; discountTotal: number; serviceChargeTotal: number }>(`/reports/overview?${query}`);
+    },
+    getProfitSummary: (params: { branchId?: string; startDate: string; endDate: string }) => {
+        const query = new URLSearchParams(params as any).toString();
+        return apiRequest<{ grossSales: number; netSales: number; taxTotal: number; orderCount: number; cogs: number; grossProfit: number; foodCostPercent: number }>(`/reports/profit-summary?${query}`);
+    },
+    getProfitDaily: (params: { branchId?: string; startDate: string; endDate: string }) => {
+        const query = new URLSearchParams(params as any).toString();
+        return apiRequest<Array<{ day: string; revenue: number; net: number; tax: number; orderCount: number; cogs: number; grossProfit: number }>>(`/reports/profit-daily?${query}`);
+    },
+    getFoodCost: (params: { branchId?: string; startDate: string; endDate: string }) => {
+        const query = new URLSearchParams(params as any).toString();
+        return apiRequest<Array<{ id: string; name: string; price: number; cost: number; margin: number; marginPercent: number; soldQty: number; soldRevenue: number }>>(`/reports/food-cost?${query}`);
+    },
+    getDashboardKpis: (params: { branchId?: string; startDate: string; endDate: string; scope?: 'DAILY' | 'WEEKLY' | 'MONTHLY' | 'ALL' }) => {
+        const query = new URLSearchParams(params as any).toString();
+        return apiRequest<{
+            branchId: string;
+            scope: 'DAILY' | 'WEEKLY' | 'MONTHLY' | 'ALL';
+            period: { start: string; end: string };
+            totals: {
+                revenue: number;
+                paidRevenue: number;
+                discounts: number;
+                orderCount: number;
+                avgTicket: number;
+                uniqueCustomers: number;
+                itemsSold: number;
+                cancelled: number;
+                pending: number;
+                delivered: number;
+                cancelRate: number;
+            };
+            trendData: Array<{ name: string; revenue: number }>;
+            paymentBreakdown: Array<{ name: string; value: number }>;
+            orderTypeBreakdown: Array<{ name: string; value: number }>;
+            categoryData: Array<{ name: string; value: number }>;
+            topItems: Array<{ name: string; qty: number; revenue: number }>;
+            branchPerformance: Array<{ branchId: string; branchName: string; orders: number; revenue: number; avgTicket: number }>;
+            topCustomers: Array<{ id: string; name: string; visits: number; totalSpent: number }>;
+            reportParity: {
+                overview: {
+                    orderCount: number;
+                    grossSales: number;
+                    netSales: number;
+                    taxTotal: number;
+                    discountTotal: number;
+                    serviceChargeTotal: number;
+                };
+            };
+        }>(`/reports/dashboard-kpis?${query}`);
+    },
+    getIntegrity: (params: { branchId?: string; startDate: string; endDate: string; reportType?: string }) => {
+        const query = new URLSearchParams(params as any).toString();
+        return apiRequest<any>(`/reports/integrity?${query}`);
+    },
+    exportCsv: (params: { branchId?: string; startDate: string; endDate: string; reportType?: string }) => {
+        const query = new URLSearchParams(params as any).toString();
+        return apiRequestBlob(`/reports/export/csv?${query}`);
+    },
+    exportPdf: (params: { branchId?: string; startDate: string; endDate: string; reportType?: string }) => {
+        const query = new URLSearchParams(params as any).toString();
+        return apiRequestBlob(`/reports/export/pdf?${query}`);
     },
 };
 
@@ -329,6 +552,22 @@ export const purchaseOrdersApi = {
 };
 
 // ============================================================================
+// Printers API
+// ============================================================================
+
+export const printersApi = {
+    getAll: (params?: { branchId?: string; active?: boolean }) => {
+        const query = new URLSearchParams(params as any).toString();
+        return apiRequest<any[]>(`/printers${query ? `?${query}` : ''}`);
+    },
+    getById: (id: string) => apiRequest<any>(`/printers/${id}`),
+    create: (data: any) => apiRequest<any>('/printers', { method: 'POST', body: JSON.stringify(data) }),
+    update: (id: string, data: any) => apiRequest<any>(`/printers/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+    heartbeat: (id: string) => apiRequest<{ id: string; online: boolean; printer: any }>(`/printers/${id}/heartbeat`, { method: 'POST' }),
+    delete: (id: string) => apiRequest<any>(`/printers/${id}`, { method: 'DELETE' }),
+};
+
+// ============================================================================
 // Tables API
 // ============================================================================
 
@@ -337,6 +576,12 @@ export const tablesApi = {
     getZones: (branchId: string) => apiRequest<any[]>(`/tables/zones?branchId=${branchId}`),
     saveLayout: (data: { branchId: string; zones: any[]; tables: any[] }) =>
         apiRequest<any>('/tables/layout', { method: 'POST', body: JSON.stringify(data) }),
+    transfer: (data: { sourceTableId: string; targetTableId: string }) =>
+        apiRequest<any>('/tables/transfer', { method: 'POST', body: JSON.stringify(data) }),
+    split: (data: { sourceTableId: string; targetTableId: string; items: Array<{ name: string; price: number; quantity: number }> }) =>
+        apiRequest<any>('/tables/split', { method: 'POST', body: JSON.stringify(data) }),
+    merge: (data: { sourceTableId: string; targetTableId: string; items: Array<{ name: string; price: number; quantity: number }> }) =>
+        apiRequest<any>('/tables/merge', { method: 'POST', body: JSON.stringify(data) }),
     updateStatus: (id: string, status: string, currentOrderId?: string) =>
         apiRequest<any>(`/tables/${id}/status`, { method: 'PUT', body: JSON.stringify({ status, currentOrderId }) }),
 };
@@ -359,11 +604,17 @@ export default {
     audit: auditApi,
     shifts: shiftsApi,
     approvals: approvalsApi,
+    delivery: deliveryApi,
+    campaigns: campaignsApi,
+    analytics: analyticsApi,
+    hr: hrApi,
+    financeEngine: financeApi,
     reports: reportsApi,
     fiscal: fiscalApi,
     wastage: wastageApi,
     suppliers: suppliersApi,
     purchaseOrders: purchaseOrdersApi,
+    printers: printersApi,
     tables: tablesApi,
 };
 

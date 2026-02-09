@@ -1,7 +1,8 @@
 import { Request, Response } from 'express';
 import { db } from '../db';
-import { stockMovements, inventoryStock, inventoryItems } from '../../src/db/schema';
+import { stockMovements, inventoryStock, inventoryItems, warehouses, auditLogs } from '../../src/db/schema';
 import { eq, and, sql, desc, gte, lte } from 'drizzle-orm';
+import { postWastageEntry } from '../services/financePostingService';
 
 /**
  * Record wastage (burnt, expired, damaged)
@@ -13,6 +14,9 @@ export const recordWastage = async (req: Request, res: Response) => {
         if (!itemId || !warehouseId || !quantity || !reason) {
             return res.status(400).json({ error: 'itemId, warehouseId, quantity, and reason are required' });
         }
+
+        const [item] = await db.select().from(inventoryItems).where(eq(inventoryItems.id, itemId));
+        const [warehouse] = await db.select().from(warehouses).where(eq(warehouses.id, warehouseId));
 
         // 1. Deduct from stock
         await db.update(inventoryStock)
@@ -38,6 +42,31 @@ export const recordWastage = async (req: Request, res: Response) => {
             performedBy: performedBy || 'system',
             createdAt: new Date(),
         }).returning();
+
+        await db.insert(auditLogs).values({
+            eventType: 'INVENTORY_WASTAGE',
+            userId: performedBy || null,
+            branchId: warehouse?.branchId || null,
+            payload: {
+                itemId,
+                warehouseId,
+                quantity: Number(quantity || 0),
+                reason,
+                notes: notes || null,
+            },
+            createdAt: new Date(),
+        });
+
+        const amount = Number(quantity || 0) * Number(item?.costPrice || 0);
+        if (amount > 0) {
+            postWastageEntry({
+                referenceId: String(movement.id),
+                amount,
+                branchId: warehouse?.branchId || undefined,
+                userId: performedBy || 'system',
+                reason,
+            }).catch(() => undefined);
+        }
 
         res.status(201).json({
             success: true,

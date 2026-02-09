@@ -2,9 +2,10 @@ import React, { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { setupApi } from '../services/api';
 import { useAuthStore } from '../stores/useAuthStore';
-import { CheckCircle2, ArrowRight, ArrowLeft, Globe, Loader2 } from 'lucide-react';
+import { CheckCircle2, ArrowRight, ArrowLeft, Globe, Loader2, Printer, Users, Layout, SkipForward } from 'lucide-react';
+import { nanoid } from 'nanoid';
 
-type WizardStep = 0 | 1 | 2 | 3;
+type WizardStep = 0 | 1 | 2 | 3 | 4 | 5 | 6;
 
 const SetupWizard: React.FC = () => {
     const navigate = useNavigate();
@@ -30,6 +31,18 @@ const SetupWizard: React.FC = () => {
     const [adminPassword, setAdminPassword] = useState('');
     const [adminPasswordConfirm, setAdminPasswordConfirm] = useState('');
 
+    // Optional steps configuration
+    const [printers, setPrinters] = useState<Array<{ name: string; type: string }>>([]);
+    const [printerName, setPrinterName] = useState('');
+    const [printerType, setPrinterType] = useState('RECEIPT');
+
+    const [roles, setRoles] = useState<Array<{ name: string; permissions: string[] }>>([]);
+    const [roleName, setRoleName] = useState('');
+
+    const [tables, setTables] = useState<Array<{ name: string; capacity: number }>>([]);
+    const [tableName, setTableName] = useState('');
+    const [tableCapacity, setTableCapacity] = useState(4);
+
     const t = useMemo(() => ({
         title: language === 'ar' ? 'إعداد النظام لأول مرة' : 'First-Time Setup',
         subtitle: language === 'ar' ? 'خلّينا نجهّز الأساسيات بسرعة' : 'Let’s configure the essentials quickly',
@@ -37,14 +50,21 @@ const SetupWizard: React.FC = () => {
             language === 'ar' ? 'المنشأة' : 'Business',
             language === 'ar' ? 'الفرع' : 'Branch',
             language === 'ar' ? 'الأدمن' : 'Admin',
+            language === 'ar' ? 'الطابعات' : 'Printers',
+            language === 'ar' ? 'الأدوار' : 'Roles',
+            language === 'ar' ? 'الطاولات' : 'Tables',
             language === 'ar' ? 'إنهاء' : 'Finish',
         ],
         next: language === 'ar' ? 'التالي' : 'Next',
         back: language === 'ar' ? 'رجوع' : 'Back',
+        skip: language === 'ar' ? 'تخطي' : 'Skip',
         finish: language === 'ar' ? 'إنهاء الإعداد' : 'Finish Setup',
         doneTitle: language === 'ar' ? 'تم الإعداد بنجاح' : 'Setup Complete',
         doneBody: language === 'ar' ? 'تقدر تدخل بالأدمن وتبدأ الشغل.' : 'You can now sign in with the admin account.',
         goLogin: language === 'ar' ? 'اذهب لتسجيل الدخول' : 'Go to Login',
+        addPrinter: language === 'ar' ? 'إضافة طابعة' : 'Add Printer',
+        addRole: language === 'ar' ? 'إضافة دور' : 'Add Role',
+        addTable: language === 'ar' ? 'إضافة طاولة' : 'Add Table',
     }), [language]);
 
     const validateStep = () => {
@@ -75,7 +95,12 @@ const SetupWizard: React.FC = () => {
             return;
         }
         setError(null);
-        setStep((s) => (Math.min(3, s + 1) as WizardStep));
+        setStep((s) => (Math.min(6, s + 1) as WizardStep));
+    };
+
+    const handleSkip = () => {
+        setError(null);
+        setStep((s) => (Math.min(6, s + 1) as WizardStep));
     };
 
     const handleBack = () => {
@@ -116,14 +141,39 @@ const SetupWizard: React.FC = () => {
                     phone: branchPhone.trim(),
                     branchAddress: branchAddress.trim(),
                 },
+                printers: printers.map(p => ({ id: nanoid(), name: p.name, type: p.type })),
+                roles: roles.map(r => ({ id: nanoid(), name: r.name, permissions: r.permissions })),
+                tables: tables.map(t => ({ id: nanoid(), name: t.name, capacity: t.capacity })),
             });
 
             updateSettings({ language });
-            setStep(3);
+            setStep(6);
         } catch (e: any) {
             setError(e.message || 'Setup failed');
         } finally {
             setIsSubmitting(false);
+        }
+    };
+
+    const addPrinter = () => {
+        if (printerName.trim()) {
+            setPrinters(p => [...p, { name: printerName.trim(), type: printerType }]);
+            setPrinterName('');
+        }
+    };
+
+    const addRole = () => {
+        if (roleName.trim()) {
+            setRoles(r => [...r, { name: roleName.trim(), permissions: [] }]);
+            setRoleName('');
+        }
+    };
+
+    const addTable = () => {
+        if (tableName.trim()) {
+            setTables(t => [...t, { name: tableName.trim(), capacity: tableCapacity }]);
+            setTableName('');
+            setTableCapacity(4);
         }
     };
 
@@ -283,6 +333,110 @@ const SetupWizard: React.FC = () => {
                 )}
 
                 {step === 3 && (
+                    <div className="space-y-6">
+                        <div className="flex items-center gap-3 text-slate-400 mb-4">
+                            <Printer size={20} />
+                            <span className="text-sm">{language === 'ar' ? 'اختياري - يمكنك إضافة الطابعات لاحقاً' : 'Optional - You can add printers later'}</span>
+                        </div>
+                        <div className="flex gap-3">
+                            <input
+                                value={printerName}
+                                onChange={(e) => setPrinterName(e.target.value)}
+                                className="flex-1 rounded-xl bg-slate-800/60 border border-white/10 px-4 py-3 text-white"
+                                placeholder={language === 'ar' ? 'اسم الطابعة' : 'Printer name'}
+                            />
+                            <select
+                                value={printerType}
+                                onChange={(e) => setPrinterType(e.target.value)}
+                                className="rounded-xl bg-slate-800/60 border border-white/10 px-4 py-3 text-white"
+                            >
+                                <option value="RECEIPT">{language === 'ar' ? 'فواتير' : 'Receipt'}</option>
+                                <option value="KDS">{language === 'ar' ? 'مطبخ' : 'Kitchen'}</option>
+                                <option value="LABEL">{language === 'ar' ? 'ملصقات' : 'Label'}</option>
+                            </select>
+                            <button onClick={addPrinter} className="px-4 py-3 rounded-xl bg-indigo-600 text-white font-bold">
+                                {t.addPrinter}
+                            </button>
+                        </div>
+                        {printers.length > 0 && (
+                            <div className="flex flex-wrap gap-2">
+                                {printers.map((p, i) => (
+                                    <div key={i} className="px-3 py-2 rounded-lg bg-indigo-500/20 text-indigo-200 text-sm flex items-center gap-2">
+                                        <Printer size={14} /> {p.name} ({p.type})
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+                    </div>
+                )}
+
+                {step === 4 && (
+                    <div className="space-y-6">
+                        <div className="flex items-center gap-3 text-slate-400 mb-4">
+                            <Users size={20} />
+                            <span className="text-sm">{language === 'ar' ? 'اختياري - يمكنك إضافة الأدوار لاحقاً' : 'Optional - You can add roles later'}</span>
+                        </div>
+                        <div className="flex gap-3">
+                            <input
+                                value={roleName}
+                                onChange={(e) => setRoleName(e.target.value)}
+                                className="flex-1 rounded-xl bg-slate-800/60 border border-white/10 px-4 py-3 text-white"
+                                placeholder={language === 'ar' ? 'اسم الدور' : 'Role name (e.g. Cashier)'}
+                            />
+                            <button onClick={addRole} className="px-4 py-3 rounded-xl bg-indigo-600 text-white font-bold">
+                                {t.addRole}
+                            </button>
+                        </div>
+                        {roles.length > 0 && (
+                            <div className="flex flex-wrap gap-2">
+                                {roles.map((r, i) => (
+                                    <div key={i} className="px-3 py-2 rounded-lg bg-emerald-500/20 text-emerald-200 text-sm flex items-center gap-2">
+                                        <Users size={14} /> {r.name}
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+                    </div>
+                )}
+
+                {step === 5 && (
+                    <div className="space-y-6">
+                        <div className="flex items-center gap-3 text-slate-400 mb-4">
+                            <Layout size={20} />
+                            <span className="text-sm">{language === 'ar' ? 'اختياري - يمكنك إضافة الطاولات لاحقاً' : 'Optional - You can add tables later'}</span>
+                        </div>
+                        <div className="flex gap-3">
+                            <input
+                                value={tableName}
+                                onChange={(e) => setTableName(e.target.value)}
+                                className="flex-1 rounded-xl bg-slate-800/60 border border-white/10 px-4 py-3 text-white"
+                                placeholder={language === 'ar' ? 'رقم/اسم الطاولة' : 'Table name (e.g. T1)'}
+                            />
+                            <input
+                                type="number"
+                                value={tableCapacity}
+                                onChange={(e) => setTableCapacity(Number(e.target.value))}
+                                className="w-24 rounded-xl bg-slate-800/60 border border-white/10 px-4 py-3 text-white"
+                                placeholder={language === 'ar' ? 'السعة' : 'Capacity'}
+                                min={1}
+                            />
+                            <button onClick={addTable} className="px-4 py-3 rounded-xl bg-indigo-600 text-white font-bold">
+                                {t.addTable}
+                            </button>
+                        </div>
+                        {tables.length > 0 && (
+                            <div className="flex flex-wrap gap-2">
+                                {tables.map((t, i) => (
+                                    <div key={i} className="px-3 py-2 rounded-lg bg-purple-500/20 text-purple-200 text-sm flex items-center gap-2">
+                                        <Layout size={14} /> {t.name} ({t.capacity})
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+                    </div>
+                )}
+
+                {step === 6 && (
                     <div className="text-center py-10">
                         <div className="mx-auto w-16 h-16 rounded-2xl bg-emerald-500/20 flex items-center justify-center text-emerald-200 mb-6">
                             <CheckCircle2 size={28} />
@@ -298,7 +452,7 @@ const SetupWizard: React.FC = () => {
                     </div>
                 )}
 
-                {step < 3 && (
+                {step < 6 && (
                     <div className="mt-10 flex items-center justify-between">
                         <button
                             onClick={handleBack}
@@ -308,15 +462,26 @@ const SetupWizard: React.FC = () => {
                             <ArrowLeft size={16} />
                             {t.back}
                         </button>
-                        <button
-                            onClick={step === 2 ? handleFinish : handleNext}
-                            disabled={isSubmitting}
-                            className="px-6 py-3 rounded-2xl bg-indigo-600 hover:bg-indigo-500 text-white font-black flex items-center gap-2 disabled:opacity-60"
-                        >
-                            {isSubmitting ? <Loader2 className="animate-spin" size={16} /> : null}
-                            {step === 2 ? t.finish : t.next}
-                            <ArrowRight size={16} />
-                        </button>
+                        <div className="flex items-center gap-3">
+                            {step >= 3 && step <= 5 && (
+                                <button
+                                    onClick={handleSkip}
+                                    className="px-5 py-3 rounded-2xl border border-white/10 text-slate-400 hover:text-white flex items-center gap-2"
+                                >
+                                    <SkipForward size={16} />
+                                    {t.skip}
+                                </button>
+                            )}
+                            <button
+                                onClick={step === 5 ? handleFinish : handleNext}
+                                disabled={isSubmitting}
+                                className="px-6 py-3 rounded-2xl bg-indigo-600 hover:bg-indigo-500 text-white font-black flex items-center gap-2 disabled:opacity-60"
+                            >
+                                {isSubmitting ? <Loader2 className="animate-spin" size={16} /> : null}
+                                {step === 5 ? t.finish : t.next}
+                                <ArrowRight size={16} />
+                            </button>
+                        </div>
                     </div>
                 )}
             </div>

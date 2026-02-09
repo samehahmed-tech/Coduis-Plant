@@ -4,6 +4,7 @@ import * as orderController from '../controllers/orderController';
 const router = Router();
 
 router.get('/', orderController.getAllOrders);
+router.post('/coupons/validate', orderController.validateCoupon);
 router.post('/', orderController.createOrder);
 router.put('/:id/status', orderController.updateOrderStatus);
 

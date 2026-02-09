@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import {
   AlertTriangle, Plus, Search, X, Truck, FileText, Package,
-  User, Phone, Mail, Tag, ExternalLink, Briefcase, CheckCircle, Clock,
+  Tag, Briefcase,
   ArrowRightLeft, ListChecks, Download, Calculator, Home, Layers
 } from 'lucide-react';
 import { Supplier, PurchaseOrder, Warehouse, Branch, WarehouseType, InventoryItem } from '../types';
@@ -23,11 +23,13 @@ import ReceiptModal from './inventory/ReceiptModal';
 const Inventory: React.FC = () => {
   // Global State
   const {
-    inventory, suppliers, purchaseOrders, warehouses,
-    fetchInventory, fetchWarehouses,
+    inventory, suppliers, purchaseOrders, warehouses, transferMovements,
+    fetchInventory, fetchWarehouses, fetchSuppliers, fetchPurchaseOrders, fetchTransferMovements,
     addInventoryItem, updateInventoryItem,
     addWarehouse, updateStock,
-    addPurchaseOrder, receivePurchaseOrder, addSupplier
+    createSupplierInDB, updateSupplierInDB, deactivateSupplierInDB,
+    createPurchaseOrderInDB, updatePurchaseOrderStatusInDB, receivePurchaseOrderInDB,
+    createBranchTransferInDB
   } = useInventoryStore();
 
   const { branches, settings } = useAuthStore();
@@ -48,10 +50,31 @@ const Inventory: React.FC = () => {
   const [transferModalOpen, setTransferModalOpen] = useState(false);
   const [receiptModalOpen, setReceiptModalOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<InventoryItem | null>(null);
+  const [supplierForm, setSupplierForm] = useState<Supplier>({
+    id: '',
+    name: '',
+    contactPerson: '',
+    phone: '',
+    email: '',
+    category: '',
+  });
+  const [poSupplierId, setPoSupplierId] = useState('');
+  const [poItemId, setPoItemId] = useState('');
+  const [poQty, setPoQty] = useState(1);
+  const [poPrice, setPoPrice] = useState(0);
+  const [poWarehouseId, setPoWarehouseId] = useState('');
+  const [branchTransferItemId, setBranchTransferItemId] = useState('');
+  const [branchTransferFromWh, setBranchTransferFromWh] = useState('');
+  const [branchTransferToWh, setBranchTransferToWh] = useState('');
+  const [branchTransferQty, setBranchTransferQty] = useState(1);
+  const [branchTransferReason, setBranchTransferReason] = useState('Inter-branch transfer');
 
   useEffect(() => {
     fetchInventory();
     fetchWarehouses();
+    fetchSuppliers();
+    fetchPurchaseOrders();
+    fetchTransferMovements();
   }, []);
 
   const handleSaveItem = async (item: InventoryItem) => {
@@ -231,6 +254,248 @@ const Inventory: React.FC = () => {
     </div>
   );
 
+  const handleUpsertSupplier = async () => {
+    if (!supplierForm.name.trim()) return;
+    if (supplierForm.id) {
+      await updateSupplierInDB(supplierForm);
+    } else {
+      await createSupplierInDB({ ...supplierForm, id: `sup-${Date.now()}` });
+    }
+    setSupplierForm({ id: '', name: '', contactPerson: '', phone: '', email: '', category: '' });
+    setSelectedSupplier(null);
+  };
+
+  const renderSuppliers = () => (
+    <div className="p-6 grid grid-cols-1 xl:grid-cols-3 gap-6">
+      <div className="xl:col-span-1 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-4 space-y-3">
+        <h4 className="text-sm font-black">{supplierForm.id ? 'Edit Supplier' : 'Add Supplier'}</h4>
+        <input className="w-full px-3 py-2 rounded-xl bg-slate-100 dark:bg-slate-800" placeholder="Name" value={supplierForm.name} onChange={(e) => setSupplierForm({ ...supplierForm, name: e.target.value })} />
+        <input className="w-full px-3 py-2 rounded-xl bg-slate-100 dark:bg-slate-800" placeholder="Contact Person" value={supplierForm.contactPerson} onChange={(e) => setSupplierForm({ ...supplierForm, contactPerson: e.target.value })} />
+        <input className="w-full px-3 py-2 rounded-xl bg-slate-100 dark:bg-slate-800" placeholder="Phone" value={supplierForm.phone} onChange={(e) => setSupplierForm({ ...supplierForm, phone: e.target.value })} />
+        <input className="w-full px-3 py-2 rounded-xl bg-slate-100 dark:bg-slate-800" placeholder="Email" value={supplierForm.email} onChange={(e) => setSupplierForm({ ...supplierForm, email: e.target.value })} />
+        <input className="w-full px-3 py-2 rounded-xl bg-slate-100 dark:bg-slate-800" placeholder="Category" value={supplierForm.category} onChange={(e) => setSupplierForm({ ...supplierForm, category: e.target.value })} />
+        <div className="flex gap-2">
+          <button onClick={handleUpsertSupplier} className="flex-1 px-3 py-2 rounded-xl bg-indigo-600 text-white text-xs font-black uppercase">{supplierForm.id ? 'Update' : 'Create'}</button>
+          <button onClick={() => { setSupplierForm({ id: '', name: '', contactPerson: '', phone: '', email: '', category: '' }); setSelectedSupplier(null); }} className="px-3 py-2 rounded-xl bg-slate-200 dark:bg-slate-700 text-xs font-black uppercase">Clear</button>
+        </div>
+      </div>
+      <div className="xl:col-span-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl overflow-hidden">
+        <table className="w-full text-left">
+          <thead className="bg-slate-50 dark:bg-slate-800/50 text-[10px] uppercase">
+            <tr>
+              <th className="px-4 py-3">Supplier</th>
+              <th className="px-4 py-3">Contact</th>
+              <th className="px-4 py-3">Category</th>
+              <th className="px-4 py-3">Actions</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+            {suppliers
+              .filter(s => (s.name + s.contactPerson + s.phone + s.email).toLowerCase().includes(searchQuery.toLowerCase()))
+              .map((s) => (
+                <tr key={s.id}>
+                  <td className="px-4 py-3 font-bold">{s.name}</td>
+                  <td className="px-4 py-3 text-sm">{s.contactPerson || '-'} | {s.phone || '-'}</td>
+                  <td className="px-4 py-3 text-sm">{s.category || '-'}</td>
+                  <td className="px-4 py-3">
+                    <div className="flex gap-2">
+                      <button onClick={() => { setSelectedSupplier(s); setSupplierForm(s); }} className="px-3 py-1 rounded-lg bg-slate-100 dark:bg-slate-700 text-xs font-black">Edit</button>
+                      <button onClick={() => deactivateSupplierInDB(s.id)} className="px-3 py-1 rounded-lg bg-rose-100 text-rose-700 text-xs font-black">Deactivate</button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+
+  const handleCreatePO = async () => {
+    if (!poSupplierId || !poItemId || poQty <= 0 || poPrice <= 0) return;
+    const item = inventory.find(i => i.id === poItemId);
+    if (!item) return;
+    const activeBranchId = settings.activeBranchId || branches[0]?.id;
+    if (!activeBranchId) return;
+    await createPurchaseOrderInDB({
+      id: `po-${Date.now()}`,
+      supplierId: poSupplierId,
+      status: 'DRAFT',
+      items: [{ itemId: poItemId, itemName: item.name, quantity: poQty, unitPrice: poPrice }],
+      totalCost: poQty * poPrice,
+      date: new Date(),
+      targetWarehouseId: poWarehouseId || undefined,
+      approvedById: undefined,
+    }, activeBranchId);
+    setPoQty(1);
+    setPoPrice(0);
+    setPoItemId('');
+    await fetchPurchaseOrders();
+  };
+
+  const handlePoStatusUpdate = async (poId: string, status: PurchaseOrder['status']) => {
+    await updatePurchaseOrderStatusInDB(poId, status);
+    await fetchPurchaseOrders();
+  };
+
+  const handleReceivePO = async (po: PurchaseOrder) => {
+    const wh = po.targetWarehouseId || poWarehouseId || warehouses[0]?.id;
+    if (!wh) return;
+    await receivePurchaseOrderInDB(po.id, wh, []);
+    await fetchPurchaseOrders();
+  };
+
+  const handleCreateBranchTransfer = async () => {
+    if (!branchTransferItemId || !branchTransferFromWh || !branchTransferToWh || branchTransferQty <= 0) return;
+    await createBranchTransferInDB({
+      itemId: branchTransferItemId,
+      fromWarehouseId: branchTransferFromWh,
+      toWarehouseId: branchTransferToWh,
+      quantity: branchTransferQty,
+      reason: branchTransferReason,
+      actorId: settings.currentUser?.id,
+    });
+    setBranchTransferQty(1);
+  };
+
+  const renderBranchLogistics = () => {
+    const sourceWarehouse = warehouses.find(w => w.id === branchTransferFromWh);
+    const currentSourceBranchId = sourceWarehouse?.branchId;
+    const destinationWarehouses = warehouses.filter(w => w.id !== branchTransferFromWh && (!currentSourceBranchId || w.branchId !== currentSourceBranchId));
+
+    return (
+      <div className="p-6 grid grid-cols-1 xl:grid-cols-3 gap-6">
+        <div className="xl:col-span-1 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-4 space-y-3">
+          <h4 className="text-sm font-black">Inter-Branch Transfer</h4>
+          <select className="w-full px-3 py-2 rounded-xl bg-slate-100 dark:bg-slate-800" value={branchTransferItemId} onChange={(e) => setBranchTransferItemId(e.target.value)}>
+            <option value="">Select Item</option>
+            {inventory.map(i => <option key={i.id} value={i.id}>{i.name}</option>)}
+          </select>
+          <select className="w-full px-3 py-2 rounded-xl bg-slate-100 dark:bg-slate-800" value={branchTransferFromWh} onChange={(e) => setBranchTransferFromWh(e.target.value)}>
+            <option value="">From Warehouse</option>
+            {warehouses.map(w => <option key={w.id} value={w.id}>{w.name}</option>)}
+          </select>
+          <select className="w-full px-3 py-2 rounded-xl bg-slate-100 dark:bg-slate-800" value={branchTransferToWh} onChange={(e) => setBranchTransferToWh(e.target.value)}>
+            <option value="">To Warehouse (different branch)</option>
+            {destinationWarehouses.map(w => <option key={w.id} value={w.id}>{w.name}</option>)}
+          </select>
+          <input type="number" className="w-full px-3 py-2 rounded-xl bg-slate-100 dark:bg-slate-800" placeholder="Quantity" value={branchTransferQty} onChange={(e) => setBranchTransferQty(Number(e.target.value || 0))} />
+          <input className="w-full px-3 py-2 rounded-xl bg-slate-100 dark:bg-slate-800" placeholder="Reason" value={branchTransferReason} onChange={(e) => setBranchTransferReason(e.target.value)} />
+          <button onClick={handleCreateBranchTransfer} className="w-full px-3 py-2 rounded-xl bg-indigo-600 text-white text-xs font-black uppercase">Create Transfer</button>
+        </div>
+        <div className="xl:col-span-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl overflow-hidden">
+          <table className="w-full text-left">
+            <thead className="bg-slate-50 dark:bg-slate-800/50 text-[10px] uppercase">
+              <tr>
+                <th className="px-4 py-3">Date</th>
+                <th className="px-4 py-3">Item</th>
+                <th className="px-4 py-3">From</th>
+                <th className="px-4 py-3">To</th>
+                <th className="px-4 py-3">Qty</th>
+                <th className="px-4 py-3">Reason</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+              {transferMovements.map((mv: any) => (
+                <tr key={mv.id}>
+                  <td className="px-4 py-3 text-xs">{new Date(mv.createdAt).toLocaleString()}</td>
+                  <td className="px-4 py-3 text-sm font-bold">{mv.itemName}</td>
+                  <td className="px-4 py-3 text-sm">{mv.fromWarehouseName}</td>
+                  <td className="px-4 py-3 text-sm">{mv.toWarehouseName}</td>
+                  <td className="px-4 py-3 text-sm">{Number(mv.quantity || 0).toFixed(2)}</td>
+                  <td className="px-4 py-3 text-sm">{mv.reason || '-'}</td>
+                </tr>
+              ))}
+              {transferMovements.length === 0 && (
+                <tr>
+                  <td colSpan={6} className="px-4 py-8 text-center text-sm text-slate-500">No branch transfer movements yet.</td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    );
+  };
+
+  const renderPurchaseOrders = () => (
+    <div className="p-6 grid grid-cols-1 xl:grid-cols-3 gap-6">
+      <div className="xl:col-span-1 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-4 space-y-3">
+        <h4 className="text-sm font-black">Create Purchase Order</h4>
+        <select className="w-full px-3 py-2 rounded-xl bg-slate-100 dark:bg-slate-800" value={poSupplierId} onChange={(e) => setPoSupplierId(e.target.value)}>
+          <option value="">Select Supplier</option>
+          {suppliers.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+        </select>
+        <select className="w-full px-3 py-2 rounded-xl bg-slate-100 dark:bg-slate-800" value={poItemId} onChange={(e) => setPoItemId(e.target.value)}>
+          <option value="">Select Item</option>
+          {inventory.map(i => <option key={i.id} value={i.id}>{i.name}</option>)}
+        </select>
+        <select className="w-full px-3 py-2 rounded-xl bg-slate-100 dark:bg-slate-800" value={poWarehouseId} onChange={(e) => setPoWarehouseId(e.target.value)}>
+          <option value="">Target Warehouse (optional)</option>
+          {warehouses.map(w => <option key={w.id} value={w.id}>{w.name}</option>)}
+        </select>
+        <input type="number" className="w-full px-3 py-2 rounded-xl bg-slate-100 dark:bg-slate-800" placeholder="Qty" value={poQty} onChange={(e) => setPoQty(Number(e.target.value || 0))} />
+        <input type="number" className="w-full px-3 py-2 rounded-xl bg-slate-100 dark:bg-slate-800" placeholder="Unit Price" value={poPrice} onChange={(e) => setPoPrice(Number(e.target.value || 0))} />
+        <button onClick={handleCreatePO} className="w-full px-3 py-2 rounded-xl bg-indigo-600 text-white text-xs font-black uppercase">Create PO</button>
+      </div>
+      <div className="xl:col-span-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl overflow-hidden">
+        <table className="w-full text-left">
+          <thead className="bg-slate-50 dark:bg-slate-800/50 text-[10px] uppercase">
+            <tr>
+              <th className="px-4 py-3">PO</th>
+              <th className="px-4 py-3">Supplier</th>
+              <th className="px-4 py-3">Status</th>
+              <th className="px-4 py-3">Amount</th>
+              <th className="px-4 py-3">Actions</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+            {purchaseOrders
+              .filter(po => po.id.toLowerCase().includes(searchQuery.toLowerCase()))
+              .map((po) => (
+                <tr key={po.id}>
+                  <td className="px-4 py-3 font-mono text-xs">{po.id}</td>
+                  <td className="px-4 py-3">{suppliers.find(s => s.id === po.supplierId)?.name || po.supplierId}</td>
+                  <td className="px-4 py-3">{po.status}</td>
+                  <td className="px-4 py-3">{po.totalCost.toFixed(2)}</td>
+                  <td className="px-4 py-3">
+                    <div className="flex gap-2 flex-wrap">
+                      {po.status === 'DRAFT' && (
+                        <button onClick={() => handlePoStatusUpdate(po.id, 'PENDING_APPROVAL')} className="px-2 py-1 rounded-lg bg-amber-100 text-amber-700 text-xs font-black">Submit</button>
+                      )}
+                      {po.status === 'PENDING_APPROVAL' && (
+                        <button onClick={() => handlePoStatusUpdate(po.id, 'ORDERED')} className="px-2 py-1 rounded-lg bg-emerald-100 text-emerald-700 text-xs font-black">Approve</button>
+                      )}
+                      {po.status === 'ORDERED' && (
+                        <button onClick={() => handlePoStatusUpdate(po.id, 'SENT')} className="px-2 py-1 rounded-lg bg-slate-100 dark:bg-slate-700 text-xs font-black">Send</button>
+                      )}
+                      {po.status !== 'RECEIVED' && po.status !== 'CLOSED' && po.status !== 'CANCELLED' && (
+                        <button onClick={() => handlePoStatusUpdate(po.id, 'CANCELLED')} className="px-2 py-1 rounded-lg bg-rose-100 text-rose-700 text-xs font-black">Cancel</button>
+                      )}
+                      {(po.status === 'SENT' || po.status === 'PARTIAL') && (
+                        <button
+                          onClick={() => handleReceivePO(po)}
+                          className="px-2 py-1 rounded-lg bg-emerald-100 text-emerald-700 text-xs font-black"
+                        >
+                          Receive
+                        </button>
+                      )}
+                      {po.status === 'RECEIVED' && (
+                        <button onClick={() => handlePoStatusUpdate(po.id, 'CLOSED')} className="px-2 py-1 rounded-lg bg-indigo-100 text-indigo-700 text-xs font-black">Close</button>
+                      )}
+                    </div>
+                    <div className="mt-2 text-[10px] text-slate-500">
+                      {po.items.length > 0 ? `${po.items.length} item(s)` : 'No items loaded'}
+                    </div>
+                  </td>
+                </tr>
+              ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+
   return (
     <div className="p-4 md:p-6 lg:p-10 bg-app min-h-screen transition-colors">
       <div className="flex flex-col xl:flex-row justify-between items-start xl:items-center gap-6 mb-10">
@@ -305,9 +570,9 @@ const Inventory: React.FC = () => {
       <div className="bg-card rounded-[2.5rem] shadow-2xl shadow-primary/5 border border-border/50 overflow-hidden min-h-[420px] md:min-h-[520px] lg:min-h-[600px]">
         {activeTab === 'STOCK' && renderStock()}
         {activeTab === 'WAREHOUSES' && renderWarehouses()}
-        {activeTab === 'SUPPLIERS' && <div className="p-20 text-center text-slate-400 font-bold uppercase tracking-widest">Supplier Module Integration In Progress</div>}
-        {activeTab === 'PO' && <div className="p-20 text-center text-slate-400 font-bold uppercase tracking-widest">Purchase Order Module Integration In Progress</div>}
-        {activeTab === 'BRANCHES' && <div className="p-20 text-center text-slate-400 font-bold uppercase tracking-widest">Branch Logistics Support Coming Soon</div>}
+        {activeTab === 'SUPPLIERS' && renderSuppliers()}
+        {activeTab === 'PO' && renderPurchaseOrders()}
+        {activeTab === 'BRANCHES' && renderBranchLogistics()}
       </div>
 
       {/* Modals */}

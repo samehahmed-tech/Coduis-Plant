@@ -27,6 +27,10 @@
     "noEmit": true
   },
   "exclude": [
-    "manual-seed.ts"
+    "manual-seed.ts",
+    "node_modules",
+    "dist",
+    "drizzle",
+    "vite.config.ts.timestamp-*.mjs"
   ]
 }

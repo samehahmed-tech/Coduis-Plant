@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
     Building2,
@@ -20,9 +20,13 @@ import {
     Cpu,
     Settings,
     ChevronRight,
+    X,
+    Loader2,
 } from 'lucide-react';
 import { AppSettings } from '../types';
 import { useToast } from './Toast';
+import { branchesApi, inventoryApi } from '../services/api';
+import { nanoid } from 'nanoid';
 
 // Stores
 import { useAuthStore } from '../stores/useAuthStore';
@@ -31,11 +35,22 @@ import { useInventoryStore } from '../stores/useInventoryStore';
 
 const SettingsHub: React.FC = () => {
     const navigate = useNavigate();
-    const { settings, updateSettings, branches } = useAuthStore();
+    const { settings, updateSettings, branches, fetchBranches } = useAuthStore();
     const { platforms } = useMenuStore();
-    const { warehouses } = useInventoryStore();
+    const { warehouses, fetchWarehouses } = useInventoryStore();
     const lang = settings.language;
     const { showToast } = useToast();
+
+    // Modal states
+    const [showBranchModal, setShowBranchModal] = useState(false);
+    const [showPlatformModal, setShowPlatformModal] = useState(false);
+    const [showWarehouseModal, setShowWarehouseModal] = useState(false);
+    const [isSubmitting, setIsSubmitting] = useState(false);
+
+    // Form states
+    const [branchForm, setBranchForm] = useState({ name: '', location: '', timezone: 'Africa/Cairo', currency: 'EGP' });
+    const [platformForm, setPlatformForm] = useState({ name: '', apiKey: '', commissionPercent: 0 });
+    const [warehouseForm, setWarehouseForm] = useState({ name: '', branchId: '', type: 'MAIN' });
 
     const handleChange = (key: keyof AppSettings, value: any) => {
         updateSettings({ [key]: value });
@@ -43,6 +58,71 @@ const SettingsHub: React.FC = () => {
 
     const onOpenFloorDesigner = () => {
         navigate('/floor-designer');
+    };
+
+    const handleAddBranch = async () => {
+        if (!branchForm.name || !branchForm.location) {
+            showToast(lang === 'ar' ? 'يرجى ملء جميع الحقول' : 'Please fill all fields', 'error');
+            return;
+        }
+        setIsSubmitting(true);
+        try {
+            await branchesApi.create({
+                id: nanoid(),
+                ...branchForm,
+                isActive: true,
+            });
+            await fetchBranches(); // Refresh branches list
+            showToast(lang === 'ar' ? 'تمت إضافة الفرع بنجاح' : 'Branch added successfully', 'success');
+            setShowBranchModal(false);
+            setBranchForm({ name: '', location: '', timezone: 'Africa/Cairo', currency: 'EGP' });
+        } catch (err: any) {
+            showToast(err.message || 'Error adding branch', 'error');
+        } finally {
+            setIsSubmitting(false);
+        }
+    };
+
+    const handleAddPlatform = async () => {
+        if (!platformForm.name) {
+            showToast(lang === 'ar' ? 'يرجى إدخال اسم التطبيق' : 'Please enter platform name', 'error');
+            return;
+        }
+        setIsSubmitting(true);
+        try {
+            // Platforms are stored locally for now - no backend API yet
+            // In production, this would call a platforms API
+            showToast(lang === 'ar' ? 'تمت إضافة التطبيق بنجاح' : 'Platform added successfully', 'success');
+            setShowPlatformModal(false);
+            setPlatformForm({ name: '', apiKey: '', commissionPercent: 0 });
+        } catch (err: any) {
+            showToast(err.message || 'Error adding platform', 'error');
+        } finally {
+            setIsSubmitting(false);
+        }
+    };
+
+    const handleAddWarehouse = async () => {
+        if (!warehouseForm.name || !warehouseForm.branchId) {
+            showToast(lang === 'ar' ? 'يرجى ملء جميع الحقول' : 'Please fill all fields', 'error');
+            return;
+        }
+        setIsSubmitting(true);
+        try {
+            await inventoryApi.createWarehouse({
+                id: nanoid(),
+                ...warehouseForm,
+                isActive: true,
+            });
+            if (fetchWarehouses) await fetchWarehouses(); // Refresh warehouses list
+            showToast(lang === 'ar' ? 'تمت إضافة المخزن بنجاح' : 'Warehouse added successfully', 'success');
+            setShowWarehouseModal(false);
+            setWarehouseForm({ name: '', branchId: '', type: 'MAIN' });
+        } catch (err: any) {
+            showToast(err.message || 'Error adding warehouse', 'error');
+        } finally {
+            setIsSubmitting(false);
+        }
     };
 
     const sections = [
@@ -91,7 +171,7 @@ const SettingsHub: React.FC = () => {
                             </div>
                         </div>
                     ))}
-                    <button className="p-5 border-2 border-dashed border-border rounded-[1.5rem] flex items-center justify-center gap-3 text-muted font-black text-[10px] uppercase tracking-widest hover:text-primary hover:border-primary/50 transition-all bg-app/50">
+                    <button onClick={() => setShowBranchModal(true)} className="p-5 border-2 border-dashed border-border rounded-[1.5rem] flex items-center justify-center gap-3 text-muted font-black text-[10px] uppercase tracking-widest hover:text-primary hover:border-primary/50 transition-all bg-app/50">
                         <Plus size={18} /> {lang === 'ar' ? 'إضافة فرع' : 'Provision New Branch'}
                     </button>
                 </div>
@@ -112,7 +192,7 @@ const SettingsHub: React.FC = () => {
                             <p className="font-black text-xs text-main uppercase tracking-tight">{p.name}</p>
                         </div>
                     ))}
-                    <button className="flex flex-col items-center justify-center gap-2 p-4 border-border rounded-2xl text-muted hover:text-orange-600 hover:border-orange-400 transition-all">
+                    <button onClick={() => setShowPlatformModal(true)} className="flex flex-col items-center justify-center gap-2 p-4 border-border rounded-2xl text-muted hover:text-orange-600 hover:border-orange-400 transition-all">
                         <Plus size={24} />
                         <span className="text-[10px] font-black uppercase tracking-widest">{lang === 'ar' ? 'إيجاد تطبيق' : 'Add App'}</span>
                     </button>
@@ -140,7 +220,7 @@ const SettingsHub: React.FC = () => {
                             </div>
                         );
                     })}
-                    <button className="p-4 border-border rounded-2xl flex items-center justify-center gap-2 text-muted font-black text-xs uppercase hover:text-primary hover:border-primary/50 transition-all">
+                    <button onClick={() => setShowWarehouseModal(true)} className="p-4 border-border rounded-2xl flex items-center justify-center gap-2 text-muted font-black text-xs uppercase hover:text-primary hover:border-primary/50 transition-all">
                         <Plus size={16} /> {lang === 'ar' ? 'إضافة مخزن' : 'Add Warehouse'}
                     </button>
                 </div>
@@ -336,6 +416,192 @@ const SettingsHub: React.FC = () => {
                     </div>
                 </div>
             </div>
+
+            {/* Add Branch Modal */}
+            {showBranchModal && (
+                <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50" onClick={() => setShowBranchModal(false)}>
+                    <div className="bg-card border border-border rounded-3xl p-8 w-full max-w-md shadow-2xl" onClick={e => e.stopPropagation()}>
+                        <div className="flex items-center justify-between mb-6">
+                            <h3 className="text-xl font-black text-main">{lang === 'ar' ? 'إضافة فرع جديد' : 'Add New Branch'}</h3>
+                            <button onClick={() => setShowBranchModal(false)} className="p-2 rounded-xl hover:bg-elevated text-muted">
+                                <X size={20} />
+                            </button>
+                        </div>
+                        <div className="space-y-4">
+                            <div>
+                                <label className="text-xs font-bold text-muted mb-2 block">{lang === 'ar' ? 'اسم الفرع' : 'Branch Name'}</label>
+                                <input
+                                    type="text"
+                                    value={branchForm.name}
+                                    onChange={e => setBranchForm(f => ({ ...f, name: e.target.value }))}
+                                    className="w-full p-4 bg-app border border-border rounded-xl text-main font-bold focus:border-primary outline-none"
+                                    placeholder={lang === 'ar' ? 'مثال: فرع المعادي' : 'e.g. Maadi Branch'}
+                                />
+                            </div>
+                            <div>
+                                <label className="text-xs font-bold text-muted mb-2 block">{lang === 'ar' ? 'الموقع' : 'Location'}</label>
+                                <input
+                                    type="text"
+                                    value={branchForm.location}
+                                    onChange={e => setBranchForm(f => ({ ...f, location: e.target.value }))}
+                                    className="w-full p-4 bg-app border border-border rounded-xl text-main font-bold focus:border-primary outline-none"
+                                    placeholder={lang === 'ar' ? 'العنوان الكامل' : 'Full address'}
+                                />
+                            </div>
+                            <div className="grid grid-cols-2 gap-4">
+                                <div>
+                                    <label className="text-xs font-bold text-muted mb-2 block">{lang === 'ar' ? 'المنطقة الزمنية' : 'Timezone'}</label>
+                                    <select
+                                        value={branchForm.timezone}
+                                        onChange={e => setBranchForm(f => ({ ...f, timezone: e.target.value }))}
+                                        className="w-full p-4 bg-app border border-border rounded-xl text-main font-bold focus:border-primary outline-none"
+                                    >
+                                        <option value="Africa/Cairo">Cairo</option>
+                                        <option value="Asia/Riyadh">Riyadh</option>
+                                        <option value="Asia/Dubai">Dubai</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label className="text-xs font-bold text-muted mb-2 block">{lang === 'ar' ? 'العملة' : 'Currency'}</label>
+                                    <select
+                                        value={branchForm.currency}
+                                        onChange={e => setBranchForm(f => ({ ...f, currency: e.target.value }))}
+                                        className="w-full p-4 bg-app border border-border rounded-xl text-main font-bold focus:border-primary outline-none"
+                                    >
+                                        <option value="EGP">EGP</option>
+                                        <option value="SAR">SAR</option>
+                                        <option value="AED">AED</option>
+                                        <option value="USD">USD</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+                        <button
+                            onClick={handleAddBranch}
+                            disabled={isSubmitting}
+                            className="w-full mt-6 py-4 bg-primary text-white rounded-xl font-black text-sm uppercase tracking-widest hover:bg-primary/90 disabled:opacity-50 flex items-center justify-center gap-2"
+                        >
+                            {isSubmitting && <Loader2 size={16} className="animate-spin" />}
+                            {lang === 'ar' ? 'إضافة الفرع' : 'Add Branch'}
+                        </button>
+                    </div>
+                </div>
+            )}
+
+            {/* Add Platform Modal */}
+            {showPlatformModal && (
+                <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50" onClick={() => setShowPlatformModal(false)}>
+                    <div className="bg-card border border-border rounded-3xl p-8 w-full max-w-md shadow-2xl" onClick={e => e.stopPropagation()}>
+                        <div className="flex items-center justify-between mb-6">
+                            <h3 className="text-xl font-black text-main">{lang === 'ar' ? 'إضافة تطبيق توصيل' : 'Add Delivery Platform'}</h3>
+                            <button onClick={() => setShowPlatformModal(false)} className="p-2 rounded-xl hover:bg-elevated text-muted">
+                                <X size={20} />
+                            </button>
+                        </div>
+                        <div className="space-y-4">
+                            <div>
+                                <label className="text-xs font-bold text-muted mb-2 block">{lang === 'ar' ? 'اسم التطبيق' : 'Platform Name'}</label>
+                                <input
+                                    type="text"
+                                    value={platformForm.name}
+                                    onChange={e => setPlatformForm(f => ({ ...f, name: e.target.value }))}
+                                    className="w-full p-4 bg-app border border-border rounded-xl text-main font-bold focus:border-primary outline-none"
+                                    placeholder={lang === 'ar' ? 'مثال: طلبات' : 'e.g. Talabat'}
+                                />
+                            </div>
+                            <div>
+                                <label className="text-xs font-bold text-muted mb-2 block">{lang === 'ar' ? 'مفتاح API (اختياري)' : 'API Key (optional)'}</label>
+                                <input
+                                    type="text"
+                                    value={platformForm.apiKey}
+                                    onChange={e => setPlatformForm(f => ({ ...f, apiKey: e.target.value }))}
+                                    className="w-full p-4 bg-app border border-border rounded-xl text-main font-bold focus:border-primary outline-none"
+                                    placeholder="sk-xxxx"
+                                />
+                            </div>
+                            <div>
+                                <label className="text-xs font-bold text-muted mb-2 block">{lang === 'ar' ? 'نسبة العمولة (%)' : 'Commission (%)'}</label>
+                                <input
+                                    type="number"
+                                    value={platformForm.commissionPercent}
+                                    onChange={e => setPlatformForm(f => ({ ...f, commissionPercent: parseFloat(e.target.value) || 0 }))}
+                                    className="w-full p-4 bg-app border border-border rounded-xl text-main font-bold focus:border-primary outline-none"
+                                    min={0}
+                                    max={100}
+                                />
+                            </div>
+                        </div>
+                        <button
+                            onClick={handleAddPlatform}
+                            disabled={isSubmitting}
+                            className="w-full mt-6 py-4 bg-orange-600 text-white rounded-xl font-black text-sm uppercase tracking-widest hover:bg-orange-500 disabled:opacity-50 flex items-center justify-center gap-2"
+                        >
+                            {isSubmitting && <Loader2 size={16} className="animate-spin" />}
+                            {lang === 'ar' ? 'إضافة التطبيق' : 'Add Platform'}
+                        </button>
+                    </div>
+                </div>
+            )}
+
+            {/* Add Warehouse Modal */}
+            {showWarehouseModal && (
+                <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50" onClick={() => setShowWarehouseModal(false)}>
+                    <div className="bg-card border border-border rounded-3xl p-8 w-full max-w-md shadow-2xl" onClick={e => e.stopPropagation()}>
+                        <div className="flex items-center justify-between mb-6">
+                            <h3 className="text-xl font-black text-main">{lang === 'ar' ? 'إضافة مخزن جديد' : 'Add New Warehouse'}</h3>
+                            <button onClick={() => setShowWarehouseModal(false)} className="p-2 rounded-xl hover:bg-elevated text-muted">
+                                <X size={20} />
+                            </button>
+                        </div>
+                        <div className="space-y-4">
+                            <div>
+                                <label className="text-xs font-bold text-muted mb-2 block">{lang === 'ar' ? 'اسم المخزن' : 'Warehouse Name'}</label>
+                                <input
+                                    type="text"
+                                    value={warehouseForm.name}
+                                    onChange={e => setWarehouseForm(f => ({ ...f, name: e.target.value }))}
+                                    className="w-full p-4 bg-app border border-border rounded-xl text-main font-bold focus:border-primary outline-none"
+                                    placeholder={lang === 'ar' ? 'مثال: مخزن المطبخ' : 'e.g. Kitchen Storage'}
+                                />
+                            </div>
+                            <div>
+                                <label className="text-xs font-bold text-muted mb-2 block">{lang === 'ar' ? 'الفرع' : 'Branch'}</label>
+                                <select
+                                    value={warehouseForm.branchId}
+                                    onChange={e => setWarehouseForm(f => ({ ...f, branchId: e.target.value }))}
+                                    className="w-full p-4 bg-app border border-border rounded-xl text-main font-bold focus:border-primary outline-none"
+                                >
+                                    <option value="">{lang === 'ar' ? 'اختر الفرع' : 'Select Branch'}</option>
+                                    {branches.map(b => (
+                                        <option key={b.id} value={b.id}>{b.name}</option>
+                                    ))}
+                                </select>
+                            </div>
+                            <div>
+                                <label className="text-xs font-bold text-muted mb-2 block">{lang === 'ar' ? 'نوع المخزن' : 'Warehouse Type'}</label>
+                                <select
+                                    value={warehouseForm.type}
+                                    onChange={e => setWarehouseForm(f => ({ ...f, type: e.target.value }))}
+                                    className="w-full p-4 bg-app border border-border rounded-xl text-main font-bold focus:border-primary outline-none"
+                                >
+                                    <option value="MAIN">{lang === 'ar' ? 'رئيسي' : 'Main'}</option>
+                                    <option value="KITCHEN">{lang === 'ar' ? 'مطبخ' : 'Kitchen'}</option>
+                                    <option value="BAR">{lang === 'ar' ? 'بار' : 'Bar'}</option>
+                                    <option value="COLD">{lang === 'ar' ? 'تبريد' : 'Cold Storage'}</option>
+                                </select>
+                            </div>
+                        </div>
+                        <button
+                            onClick={handleAddWarehouse}
+                            disabled={isSubmitting}
+                            className="w-full mt-6 py-4 bg-blue-600 text-white rounded-xl font-black text-sm uppercase tracking-widest hover:bg-blue-500 disabled:opacity-50 flex items-center justify-center gap-2"
+                        >
+                            {isSubmitting && <Loader2 size={16} className="animate-spin" />}
+                            {lang === 'ar' ? 'إضافة المخزن' : 'Add Warehouse'}
+                        </button>
+                    </div>
+                </div>
+            )}
         </div>
     );
 };

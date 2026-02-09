@@ -41,12 +41,15 @@ const ForensicsHub: React.FC = () => {
         fetchLogs();
     }, []);
 
+    const toSafeString = (value: unknown) => String(value ?? '');
+
     const filteredLogs = useMemo(() => {
+        const q = searchQuery.toLowerCase();
         return logs.filter(log => {
             const matchesSearch =
-                log.id.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                log.userName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                log.eventType.toLowerCase().includes(searchQuery.toLowerCase());
+                toSafeString(log.id).toLowerCase().includes(q) ||
+                toSafeString(log.userName).toLowerCase().includes(q) ||
+                toSafeString(log.eventType).toLowerCase().includes(q);
 
             const matchesFilter = filterType === 'ALL' || log.eventType === filterType;
 
@@ -54,7 +57,7 @@ const ForensicsHub: React.FC = () => {
         });
     }, [logs, searchQuery, filterType]);
 
-    const selectedLog = logs.find(l => l.id === selectedLogId);
+    const selectedLog = logs.find(l => toSafeString(l.id) === selectedLogId);
 
     const getEventIcon = (type: AuditEventType) => {
         switch (type) {
@@ -138,10 +141,10 @@ const ForensicsHub: React.FC = () => {
                                     const isUnverified = log.signatureValid == null;
                                     return (
                                         <div
-                                            onClick={() => setSelectedLogId(log.id)}
-                                            className={`w-full text-left p-6 rounded-[2rem] border-2 transition-all flex items-center gap-6 group cursor-pointer ${selectedLogId === log.id ? 'bg-white dark:bg-slate-900 border-indigo-600 shadow-2xl relative z-10' : 'bg-white/50 dark:bg-slate-900/30 border-slate-100 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700'}`}
+                                            onClick={() => setSelectedLogId(toSafeString(log.id))}
+                                            className={`w-full text-left p-6 rounded-[2rem] border-2 transition-all flex items-center gap-6 group cursor-pointer ${selectedLogId === toSafeString(log.id) ? 'bg-white dark:bg-slate-900 border-indigo-600 shadow-2xl relative z-10' : 'bg-white/50 dark:bg-slate-900/30 border-slate-100 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700'}`}
                                         >
-                                            <div className={`w-14 h-14 rounded-2xl flex items-center justify-center flex-shrink-0 transition-all ${selectedLogId === log.id ? 'bg-indigo-50 dark:bg-indigo-900/30 scale-110 shadow-lg' : 'bg-slate-100 dark:bg-slate-800'}`}>
+                                            <div className={`w-14 h-14 rounded-2xl flex items-center justify-center flex-shrink-0 transition-all ${selectedLogId === toSafeString(log.id) ? 'bg-indigo-50 dark:bg-indigo-900/30 scale-110 shadow-lg' : 'bg-slate-100 dark:bg-slate-800'}`}>
                                                 {getEventIcon(log.eventType)}
                                             </div>
                                             <div className="flex-1 overflow-hidden">
@@ -149,7 +152,7 @@ const ForensicsHub: React.FC = () => {
                                                     <span className="text-[9px] font-black text-indigo-600 uppercase tracking-[0.3em] font-mono">{log.eventType}</span>
                                                     <span className="text-[9px] font-black text-slate-400 uppercase">{log.timestamp.toLocaleTimeString()}</span>
                                                 </div>
-                                                <h4 className="text-sm font-black text-slate-800 dark:text-white uppercase truncate tracking-tight mb-1">{log.id}</h4>
+                                                <h4 className="text-sm font-black text-slate-800 dark:text-white uppercase truncate tracking-tight mb-1">{toSafeString(log.id)}</h4>
                                                 <div className="flex items-center gap-3">
                                                     <div className="flex items-center gap-1.5 grayscale opacity-60">
                                                         <UserIcon size={12} className="text-slate-400" />
@@ -167,7 +170,7 @@ const ForensicsHub: React.FC = () => {
                                                     )}
                                                 </div>
                                             </div>
-                                            <ArrowRight size={20} className={`text-indigo-600 transition-all duration-300 ${selectedLogId === log.id ? 'translate-x-0 opacity-100' : '-translate-x-4 opacity-0'}`} />
+                                            <ArrowRight size={20} className={`text-indigo-600 transition-all duration-300 ${selectedLogId === toSafeString(log.id) ? 'translate-x-0 opacity-100' : '-translate-x-4 opacity-0'}`} />
                                         </div>
                                     );
                                 }}

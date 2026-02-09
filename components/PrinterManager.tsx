@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
     Printer as PrinterIcon, Plus, Search, Edit3, Trash2,
     X, Network, Monitor, Building2,
@@ -11,10 +11,12 @@ import { Printer, Branch } from '../types';
 import { useAuthStore } from '../stores/useAuthStore';
 
 const PrinterManager: React.FC = () => {
-    const { printers, updatePrinters, branches, settings } = useAuthStore();
+    const { printers, branches, settings, fetchPrinters, createPrinterInDB, updatePrinterInDB, deletePrinterFromDB, heartbeatPrinterInDB } = useAuthStore();
     const lang = (settings.language || 'en') as 'en' | 'ar';
 
     const [searchQuery, setSearchQuery] = useState('');
+    const [isSaving, setIsSaving] = useState(false);
+    const [testingId, setTestingId] = useState<string | null>(null);
     const [printerModal, setPrinterModal] = useState<{
         isOpen: boolean;
         mode: 'ADD' | 'EDIT';
@@ -26,20 +28,33 @@ const PrinterManager: React.FC = () => {
         p.address.toLowerCase().includes(searchQuery.toLowerCase())
     );
 
-    const handleSave = () => {
+    useEffect(() => {
+        fetchPrinters();
+    }, [fetchPrinters]);
+
+    const handleSave = async () => {
         if (!printerModal) return;
-        let updatedPrinters: Printer[];
-        if (printerModal.mode === 'ADD') {
-            updatedPrinters = [...printers, { ...printerModal.printer, id: `prn-${Date.now()}` }];
-        } else {
-            updatedPrinters = printers.map(p => p.id === printerModal.printer.id ? printerModal.printer : p);
+        setIsSaving(true);
+        try {
+            if (printerModal.mode === 'ADD') {
+                await createPrinterInDB({ ...printerModal.printer, id: `prn-${Date.now()}` });
+            } else {
+                await updatePrinterInDB(printerModal.printer);
+            }
+            setPrinterModal(null);
+        } finally {
+            setIsSaving(false);
         }
-        updatePrinters(updatedPrinters);
-        setPrinterModal(null);
     };
 
-    const handleDelete = (id: string) => {
-        updatePrinters(printers.filter(p => p.id !== id));
+    const handleDelete = async (id: string) => {
+        await deletePrinterFromDB(id);
+    };
+
+    const handlePacketTest = async (id: string) => {
+        setTestingId(id);
+        await heartbeatPrinterInDB(id);
+        setTestingId(null);
     };
 
     return (
@@ -120,7 +135,13 @@ const PrinterManager: React.FC = () => {
                             </div>
 
                             <div className="mt-10 flex gap-4">
-                                <button className="flex-[2] py-4 bg-slate-900 dark:bg-slate-700 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-black transition-all shadow-lg active:scale-95">Packet Test</button>
+                                <button
+                                    onClick={() => handlePacketTest(printer.id)}
+                                    disabled={testingId === printer.id}
+                                    className="flex-[2] py-4 bg-slate-900 dark:bg-slate-700 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-black transition-all shadow-lg active:scale-95 disabled:opacity-60 disabled:cursor-not-allowed"
+                                >
+                                    {testingId === printer.id ? 'Testing...' : 'Packet Test'}
+                                </button>
                                 <div className={`flex-1 py-4 rounded-2xl flex items-center justify-center font-black text-[10px] uppercase tracking-widest border ${printer.isActive ? 'bg-emerald-50 dark:bg-emerald-900/10 text-emerald-600 border-emerald-100' : 'bg-rose-50 dark:bg-rose-900/10 text-rose-600 border-rose-100'}`}>
                                     {printer.isActive ? 'Online' : 'Offline'}
                                 </div>
@@ -217,13 +238,15 @@ const PrinterManager: React.FC = () => {
                         <div className="p-10 border-t border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-950/20 flex gap-4">
                             <button
                                 onClick={() => setPrinterModal(null)}
+                                disabled={isSaving}
                                 className="flex-1 py-5 bg-white dark:bg-slate-800 text-slate-500 rounded-2xl font-black text-[10px] uppercase tracking-widest border border-slate-200 dark:border-slate-800 hover:bg-slate-100 transition-all shadow-sm"
                             >
                                 Abort
                             </button>
                             <button
                                 onClick={handleSave}
-                                className="flex-[2] py-5 bg-indigo-600 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest shadow-2xl shadow-indigo-600/30 hover:bg-indigo-700 transition-all active:scale-95"
+                                disabled={isSaving}
+                                className="flex-[2] py-5 bg-indigo-600 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest shadow-2xl shadow-indigo-600/30 hover:bg-indigo-700 transition-all active:scale-95 disabled:opacity-60 disabled:cursor-not-allowed"
                             >
                                 Secure Registration
                             </button>

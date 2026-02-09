@@ -8,22 +8,33 @@ import { socketService } from '../services/socketService';
 import { useAuthStore } from '../stores/useAuthStore';
 import { translations } from '../services/translations';
 import VirtualList from './common/VirtualList';
+import { settingsApi } from '../services/api';
+
+type Station = 'ALL' | 'GRILL' | 'BAR' | 'DESSERT' | 'FRYER' | 'SALAD' | 'BAKERY';
 
 const KDS: React.FC = () => {
   const { orders, updateOrderStatus, fetchOrders } = useOrderStore();
   const { settings } = useAuthStore();
   const t = translations[settings.language || 'en'];
+  const activeBranchId = settings.activeBranchId;
+  const currentUser = settings.currentUser;
 
   const [lastOrderTime, setLastOrderTime] = React.useState<number>(Date.now());
   const [isFlashing, setIsFlashing] = React.useState(false);
   const [nowTick, setNowTick] = React.useState(Date.now());
   const [activeStatus, setActiveStatus] = React.useState<'ALL' | OrderStatus>('ALL');
   const [sortMode, setSortMode] = React.useState<'OLDEST' | 'NEWEST' | 'PRIORITY'>('PRIORITY');
-  const [activeStation, setActiveStation] = React.useState<'ALL' | 'GRILL' | 'BAR' | 'DESSERT' | 'FRYER' | 'SALAD' | 'BAKERY'>('ALL');
+  const [activeStation, setActiveStation] = React.useState<Station>('ALL');
   const [soundMode, setSoundMode] = React.useState<'ALL' | 'URGENT' | 'OFF'>('ALL');
   const [isFullscreen, setIsFullscreen] = React.useState(false);
   const overdueNotifiedRef = React.useRef<Set<string>>(new Set());
   const [isStationSettingsOpen, setIsStationSettingsOpen] = React.useState(false);
+  const [stationAssignmentsByUser, setStationAssignmentsByUser] = React.useState<Record<string, Station[]>>({});
+  const [slaThresholds, setSlaThresholds] = React.useState<{ warning: number; risk: number; critical: number }>({
+    warning: 7,
+    risk: 12,
+    critical: 20,
+  });
   const [stationKeywords, setStationKeywords] = React.useState<Record<string, string>>({
     GRILL: 'grill,bbq,kebab,steak,skewer,chicken,meat',
     BAR: 'coffee,espresso,latte,mocha,tea,juice,soda,drink,bar',
@@ -32,14 +43,25 @@ const KDS: React.FC = () => {
     SALAD: 'salad,green,vegan,bowl',
     BAKERY: 'bread,bakery,pastry,croissant,bun'
   });
-  const [stationLock, setStationLock] = React.useState<'ALL' | 'GRILL' | 'BAR' | 'DESSERT' | 'FRYER' | 'SALAD' | 'BAKERY' | null>(null);
+  const [stationLock, setStationLock] = React.useState<Station | null>(null);
+
+  const allStations = React.useMemo<Station[]>(() => ['ALL', 'GRILL', 'BAR', 'DESSERT', 'FRYER', 'SALAD', 'BAKERY'], []);
+
+  const allowedStations = React.useMemo<Station[]>(() => {
+    if (!currentUser) return ['ALL'];
+    if (currentUser.role === 'SUPER_ADMIN' || currentUser.role === 'BRANCH_MANAGER') return allStations;
+    const assigned = stationAssignmentsByUser[currentUser.id];
+    if (assigned && assigned.length > 0) return ['ALL', ...assigned.filter(s => s !== 'ALL')];
+    if (currentUser.role === 'KITCHEN_STAFF') return ['ALL', 'GRILL'];
+    return allStations;
+  }, [currentUser, stationAssignmentsByUser, allStations]);
 
   React.useEffect(() => {
-    fetchOrders(); // Initial fetch
+    fetchOrders(activeBranchId ? { branch_id: activeBranchId, limit: 300 } : { limit: 300 }); // Initial fetch
 
     // Listen for new orders via EventBus
     const unsubscribe = eventBus.on(AuditEventType.POS_ORDER_PLACEMENT, () => {
-      fetchOrders();
+      fetchOrders(activeBranchId ? { branch_id: activeBranchId, limit: 300 } : { limit: 300 });
       setLastOrderTime(Date.now());
       setIsFlashing(true);
       setTimeout(() => setIsFlashing(false), 3000);
@@ -56,14 +78,14 @@ const KDS: React.FC = () => {
     });
 
     const unsubscribeStatus = eventBus.on(AuditEventType.ORDER_STATUS_CHANGE, () => {
-      fetchOrders();
+      fetchOrders(activeBranchId ? { branch_id: activeBranchId, limit: 300 } : { limit: 300 });
     });
 
     return () => {
       unsubscribe();
       unsubscribeStatus();
     };
-  }, [fetchOrders, soundMode]);
+  }, [fetchOrders, soundMode, activeBranchId]);
 
   React.useEffect(() => {
     const timer = setInterval(() => setNowTick(Date.now()), 10000);
@@ -71,14 +93,14 @@ const KDS: React.FC = () => {
   }, []);
 
   React.useEffect(() => {
-    const handleOrder = () => fetchOrders();
+    const handleOrder = () => fetchOrders(activeBranchId ? { branch_id: activeBranchId, limit: 300 } : { limit: 300 });
     socketService.on('order:created', handleOrder);
     socketService.on('order:status', handleOrder);
     return () => {
       socketService.off('order:created', handleOrder);
       socketService.off('order:status', handleOrder);
     };
-  }, [fetchOrders]);
+  }, [fetchOrders, activeBranchId]);
 
   React.useEffect(() => {
     const handler = () => setIsFullscreen(Boolean(document.fullscreenElement));
@@ -102,7 +124,11 @@ const KDS: React.FC = () => {
   };
 
   const activeOrders = React.useMemo(() => {
-    const base = orders.filter(o => o.status !== OrderStatus.DELIVERED && o.status !== OrderStatus.CANCELLED);
+    const base = orders.filter(o =>
+      o.status !== OrderStatus.DELIVERED &&
+      o.status !== OrderStatus.CANCELLED &&
+      (!activeBranchId || o.branchId === activeBranchId)
+    );
     const filteredByStatus = activeStatus === 'ALL' ? base : base.filter(o => o.status === activeStatus);
     const stationToUse = stationLock && stationLock !== 'ALL' ? stationLock : activeStation;
     const filtered = stationToUse === 'ALL'
@@ -127,20 +153,20 @@ const KDS: React.FC = () => {
     });
 
     return sorted;
-  }, [orders, activeStatus, sortMode, activeStation, stationLock, stationKeywords]);
+  }, [orders, activeStatus, sortMode, activeStation, stationLock, stationKeywords, activeBranchId]);
 
   const getElapsedMins = (createdAt: any) => Math.floor((nowTick - new Date(createdAt).getTime()) / 60000);
 
   const getTimerStyle = (elapsedMins: number) => {
-    if (elapsedMins >= 20) return 'bg-rose-600 text-white';
-    if (elapsedMins >= 12) return 'bg-amber-500 text-white';
-    if (elapsedMins >= 7) return 'bg-yellow-500 text-white';
+    if (elapsedMins >= slaThresholds.critical) return 'bg-rose-600 text-white';
+    if (elapsedMins >= slaThresholds.risk) return 'bg-amber-500 text-white';
+    if (elapsedMins >= slaThresholds.warning) return 'bg-yellow-500 text-white';
     return 'bg-slate-900 text-white';
   };
 
   React.useEffect(() => {
     if (soundMode === 'OFF') return;
-    const overdue = activeOrders.filter(o => getElapsedMins(o.createdAt) >= 20);
+    const overdue = activeOrders.filter(o => getElapsedMins(o.createdAt) >= slaThresholds.critical);
     overdue.forEach(o => {
       if (overdueNotifiedRef.current.has(o.id)) return;
       overdueNotifiedRef.current.add(o.id);
@@ -153,7 +179,7 @@ const KDS: React.FC = () => {
         }
       }
     });
-  }, [activeOrders, soundMode, nowTick]);
+  }, [activeOrders, soundMode, nowTick, slaThresholds.critical]);
 
   const toggleFullscreen = async () => {
     try {
@@ -178,8 +204,38 @@ const KDS: React.FC = () => {
   };
 
   React.useEffect(() => {
-    const saved = localStorage.getItem('kds_station_keywords');
-    if (saved) {
+    const loadStationSettings = async () => {
+      try {
+        const allSettings = await settingsApi.getAll();
+        const fromDb = allSettings?.kdsStationKeywords;
+        const assignments = allSettings?.kdsStationAssignments;
+        const thresholds = allSettings?.kdsSlaThresholds;
+        if (fromDb && typeof fromDb === 'object') {
+          setStationKeywords(prev => ({ ...prev, ...fromDb }));
+          localStorage.setItem('kds_station_keywords', JSON.stringify(fromDb));
+        }
+        if (thresholds && typeof thresholds === 'object') {
+          const parsed = {
+            warning: Number(thresholds.warning ?? 7),
+            risk: Number(thresholds.risk ?? 12),
+            critical: Number(thresholds.critical ?? 20),
+          };
+          if (parsed.warning > 0 && parsed.risk > parsed.warning && parsed.critical > parsed.risk) {
+            setSlaThresholds(parsed);
+          }
+        }
+        if (assignments && typeof assignments === 'object') {
+          const forBranch = activeBranchId ? assignments[activeBranchId] : assignments;
+          if (forBranch && typeof forBranch === 'object') {
+            setStationAssignmentsByUser(forBranch as Record<string, Station[]>);
+          }
+        }
+      } catch {
+        // fallback to local cache
+      }
+
+      const saved = localStorage.getItem('kds_station_keywords');
+      if (!saved) return;
       try {
         const parsed = JSON.parse(saved);
         if (parsed && typeof parsed === 'object') {
@@ -188,7 +244,10 @@ const KDS: React.FC = () => {
       } catch {
         // ignore
       }
-    }
+    };
+
+    loadStationSettings();
+
     const params = new URLSearchParams(window.location.search);
     const stationParam = params.get('station');
     if (stationParam) {
@@ -198,7 +257,19 @@ const KDS: React.FC = () => {
         setActiveStation(normalized as any);
       }
     }
-  }, []);
+  }, [activeBranchId]);
+
+  React.useEffect(() => {
+    if (allowedStations.includes(activeStation)) return;
+    setActiveStation(allowedStations[0] || 'ALL');
+  }, [allowedStations, activeStation]);
+
+  React.useEffect(() => {
+    if (!stationLock) return;
+    if (!allowedStations.includes(stationLock)) {
+      setStationLock(null);
+    }
+  }, [stationLock, allowedStations]);
 
   const getStatusColor = (status: OrderStatus) => {
     switch (status) {
@@ -276,7 +347,7 @@ const KDS: React.FC = () => {
             <Layers size={14} />
             <span>{stationLock ? 'Station Locked' : 'Station'}</span>
           </div>
-          {[
+          {[ 
             { id: 'ALL', label: 'All' },
             { id: 'GRILL', label: 'Grill' },
             { id: 'BAR', label: 'Bar' },
@@ -288,10 +359,10 @@ const KDS: React.FC = () => {
             <button
               key={opt.id}
               onClick={() => setActiveStation(opt.id as any)}
-              disabled={Boolean(stationLock) && stationLock !== opt.id}
+              disabled={(Boolean(stationLock) && stationLock !== opt.id) || !allowedStations.includes(opt.id as Station)}
               className={`px-3 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest border transition-all ${
                 activeStation === opt.id ? 'bg-emerald-600 text-white border-emerald-600' : 'bg-card border-border/50 text-muted hover:text-primary'
-              } ${stationLock && stationLock !== opt.id ? 'opacity-40 cursor-not-allowed' : ''}`}
+              } ${(stationLock && stationLock !== opt.id) || !allowedStations.includes(opt.id as Station) ? 'opacity-40 cursor-not-allowed' : ''}`}
             >
               {opt.label}
             </button>
@@ -485,6 +556,39 @@ const KDS: React.FC = () => {
               ))}
             </div>
 
+            <div className="grid grid-cols-3 gap-3">
+              <div className="space-y-2">
+                <label className="text-[9px] font-black uppercase tracking-widest text-slate-400">Warning (min)</label>
+                <input
+                  type="number"
+                  min={1}
+                  value={slaThresholds.warning}
+                  onChange={(e) => setSlaThresholds(prev => ({ ...prev, warning: Number(e.target.value || 1) }))}
+                  className="w-full p-3 rounded-xl bg-slate-50 dark:bg-slate-800 text-xs font-black border border-slate-200 dark:border-slate-700"
+                />
+              </div>
+              <div className="space-y-2">
+                <label className="text-[9px] font-black uppercase tracking-widest text-slate-400">Risk (min)</label>
+                <input
+                  type="number"
+                  min={1}
+                  value={slaThresholds.risk}
+                  onChange={(e) => setSlaThresholds(prev => ({ ...prev, risk: Number(e.target.value || 1) }))}
+                  className="w-full p-3 rounded-xl bg-slate-50 dark:bg-slate-800 text-xs font-black border border-slate-200 dark:border-slate-700"
+                />
+              </div>
+              <div className="space-y-2">
+                <label className="text-[9px] font-black uppercase tracking-widest text-slate-400">Critical (min)</label>
+                <input
+                  type="number"
+                  min={1}
+                  value={slaThresholds.critical}
+                  onChange={(e) => setSlaThresholds(prev => ({ ...prev, critical: Number(e.target.value || 1) }))}
+                  className="w-full p-3 rounded-xl bg-slate-50 dark:bg-slate-800 text-xs font-black border border-slate-200 dark:border-slate-700"
+                />
+              </div>
+            </div>
+
             <div className="flex items-center justify-between pt-4 border-t border-slate-200 dark:border-slate-800">
               <div className="text-[10px] font-black uppercase tracking-widest text-slate-400">
                 Tip: add category names to route items correctly.
@@ -497,7 +601,18 @@ const KDS: React.FC = () => {
                   Cancel
                 </button>
                 <button
-                  onClick={() => {
+                  onClick={async () => {
+                    const warning = Math.max(1, Number(slaThresholds.warning || 1));
+                    const risk = Math.max(warning + 1, Number(slaThresholds.risk || warning + 1));
+                    const critical = Math.max(risk + 1, Number(slaThresholds.critical || risk + 1));
+                    const safeThresholds = { warning, risk, critical };
+                    setSlaThresholds(safeThresholds);
+                    try {
+                      await settingsApi.update('kdsStationKeywords', stationKeywords, 'kds');
+                      await settingsApi.update('kdsSlaThresholds', safeThresholds, 'kds');
+                    } catch {
+                      // offline or backend error; keep local cache as fallback
+                    }
                     localStorage.setItem('kds_station_keywords', JSON.stringify(stationKeywords));
                     setIsStationSettingsOpen(false);
                   }}

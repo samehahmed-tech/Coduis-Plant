@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
     Factory,
     Plus,
@@ -18,12 +18,19 @@ import { ProductionStatus, ProductionOrder } from '../types';
 
 const Production: React.FC = () => {
     const { settings } = useAuthStore();
-    const { inventory, warehouses, productionOrders, addProductionOrder, completeProductionOrder } = useInventoryStore();
+    const { inventory, warehouses, productionOrders, fetchProductionOrders, addProductionOrder, startProductionOrder, completeProductionOrder, cancelProductionOrder } = useInventoryStore();
     const lang = settings.language || 'en';
     const t = translations[lang];
 
     const [activeTab, setActiveTab] = useState<'ORDERS' | 'PLANNING' | 'HISTORY'>('ORDERS');
     const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+    const [targetItemId, setTargetItemId] = useState('');
+    const [warehouseId, setWarehouseId] = useState('');
+    const [quantityRequested, setQuantityRequested] = useState(1);
+
+    useEffect(() => {
+        fetchProductionOrders();
+    }, []);
 
     // Filter composite items for production
     const compositeItems = inventory.filter(i => i.isComposite);
@@ -148,7 +155,10 @@ const Production: React.FC = () => {
 
                                             <div className="flex gap-3 mt-auto">
                                                 {order.status === ProductionStatus.PENDING && (
-                                                    <button className="flex-1 py-3.5 bg-primary text-white rounded-xl font-black text-[10px] uppercase tracking-widest flex items-center justify-center gap-2 hover:bg-primary-hover shadow-lg shadow-primary/10">
+                                                    <button
+                                                        onClick={() => startProductionOrder(order.id)}
+                                                        className="flex-1 py-3.5 bg-primary text-white rounded-xl font-black text-[10px] uppercase tracking-widest flex items-center justify-center gap-2 hover:bg-primary-hover shadow-lg shadow-primary/10"
+                                                    >
                                                         Start <ArrowRight size={14} />
                                                     </button>
                                                 )}
@@ -160,7 +170,10 @@ const Production: React.FC = () => {
                                                         Complete <CheckCircle2 size={14} />
                                                     </button>
                                                 )}
-                                                <button className="px-4 py-3.5 bg-card border border-border text-muted rounded-xl font-black text-[10px] uppercase hover:text-rose-500 transition-colors">
+                                                <button
+                                                    onClick={() => cancelProductionOrder(order.id)}
+                                                    className="px-4 py-3.5 bg-card border border-border text-muted rounded-xl font-black text-[10px] uppercase hover:text-rose-500 transition-colors"
+                                                >
                                                     Cancel
                                                 </button>
                                             </div>
@@ -172,6 +185,56 @@ const Production: React.FC = () => {
                     </div>
                 )}
             </div>
+
+            {isCreateModalOpen && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+                    <div className="w-full max-w-lg bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 p-6 space-y-4">
+                        <h3 className="text-lg font-black">Create Production Order</h3>
+                        <select className="w-full px-3 py-2 rounded-xl bg-slate-100 dark:bg-slate-800" value={targetItemId} onChange={(e) => setTargetItemId(e.target.value)}>
+                            <option value="">Select Composite Item</option>
+                            {compositeItems.map((item) => (
+                                <option key={item.id} value={item.id}>{lang === 'ar' ? item.nameAr || item.name : item.name}</option>
+                            ))}
+                        </select>
+                        <select className="w-full px-3 py-2 rounded-xl bg-slate-100 dark:bg-slate-800" value={warehouseId} onChange={(e) => setWarehouseId(e.target.value)}>
+                            <option value="">Select Warehouse</option>
+                            {warehouses.map((w) => (
+                                <option key={w.id} value={w.id}>{w.name}</option>
+                            ))}
+                        </select>
+                        <input type="number" min={1} className="w-full px-3 py-2 rounded-xl bg-slate-100 dark:bg-slate-800" value={quantityRequested} onChange={(e) => setQuantityRequested(Number(e.target.value || 0))} />
+                        <div className="flex gap-3">
+                            <button
+                                onClick={async () => {
+                                    if (!targetItemId || !warehouseId || quantityRequested <= 0) return;
+                                    await addProductionOrder({
+                                        id: `TMP-${Date.now()}`,
+                                        targetItemId,
+                                        quantityRequested,
+                                        quantityProduced: 0,
+                                        warehouseId,
+                                        status: ProductionStatus.PENDING,
+                                        batchNumber: `B-${Date.now()}`,
+                                        createdAt: new Date(),
+                                        actorId: settings.currentUser?.id || 'system',
+                                        ingredientsConsumed: [],
+                                    });
+                                    setIsCreateModalOpen(false);
+                                    setTargetItemId('');
+                                    setWarehouseId('');
+                                    setQuantityRequested(1);
+                                }}
+                                className="flex-1 py-2 rounded-xl bg-indigo-600 text-white text-xs font-black uppercase"
+                            >
+                                Create
+                            </button>
+                            <button onClick={() => setIsCreateModalOpen(false)} className="flex-1 py-2 rounded-xl bg-slate-200 dark:bg-slate-700 text-xs font-black uppercase">
+                                Cancel
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 };

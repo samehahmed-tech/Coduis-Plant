@@ -75,7 +75,7 @@ export const submitOrderToFiscal = async (orderId: string, options?: { force?: b
     }).returning();
 
     try {
-        const response = await etaService.submitWithRetry(payload, 3);
+        const response = await etaService.submitWithRetry(payload, order.id, order.branchId);
         await db.update(fiscalLogs)
             .set({
                 status: 'SUBMITTED',

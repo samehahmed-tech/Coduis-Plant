@@ -8,9 +8,14 @@ import shiftRoutes from './routes/shiftRoutes';
 import approvalRoutes from './routes/approvalRoutes';
 import reportRoutes from './routes/reportRoutes';
 import deliveryRoutes from './routes/deliveryRoutes';
+import campaignRoutes from './routes/campaignRoutes';
+import analyticsRoutes from './routes/analyticsRoutes';
+import hrRoutes from './routes/hrRoutes';
+import financeRoutes from './routes/financeRoutes';
 import wastageRoutes from './routes/wastageRoutes';
 import supplierRoutes from './routes/supplierRoutes';
 import purchaseOrderRoutes from './routes/purchaseOrderRoutes';
+import printerRoutes from './routes/printerRoutes';
 import customerRoutes from './routes/customerRoutes';
 import settingsRoutes from './routes/settingsRoutes';
 import tableRoutes from './routes/tableRoutes';
@@ -22,13 +27,23 @@ import authRoutes from './routes/authRoutes';
 import setupRoutes from './routes/setupRoutes';
 import fiscalRoutes from './routes/fiscalRoutes';
 import opsRoutes from './routes/opsRoutes';
+import productionRoutes from './routes/productionRoutes';
 import { authenticateToken, requireRoles } from './middleware/auth';
+import { isOriginAllowed } from './config/cors';
+import { errorHandler, notFoundHandler } from './middleware/errorHandler';
 
 const app = express();
+app.set('trust proxy', 1);
 
 // Middlewares
 app.use(cors({
-    origin: ['http://localhost:5173', 'http://localhost:3000'],
+    origin: (origin, callback) => {
+        if (isOriginAllowed(origin)) {
+            callback(null, true);
+            return;
+        }
+        callback(new Error(`Origin not allowed by CORS: ${origin}`));
+    },
     credentials: true,
 }));
 app.use(express.json({ limit: '50mb' }));
@@ -54,9 +69,15 @@ app.use('/api/shifts', shiftRoutes);
 app.use('/api/approvals', requireRoles('SUPER_ADMIN', 'BRANCH_MANAGER', 'MANAGER'), approvalRoutes);
 app.use('/api/reports', requireRoles('SUPER_ADMIN', 'BRANCH_MANAGER', 'FINANCE'), reportRoutes);
 app.use('/api/delivery', deliveryRoutes);
+app.use('/api/campaigns', requireRoles('SUPER_ADMIN', 'BRANCH_MANAGER', 'MANAGER'), campaignRoutes);
+app.use('/api/analytics', requireRoles('SUPER_ADMIN', 'BRANCH_MANAGER', 'FINANCE', 'MANAGER'), analyticsRoutes);
+app.use('/api/hr', requireRoles('SUPER_ADMIN', 'BRANCH_MANAGER', 'MANAGER', 'FINANCE'), hrRoutes);
+app.use('/api/finance', requireRoles('SUPER_ADMIN', 'BRANCH_MANAGER', 'FINANCE'), financeRoutes);
 app.use('/api/wastage', requireRoles('SUPER_ADMIN', 'BRANCH_MANAGER', 'MANAGER'), wastageRoutes);
+app.use('/api/production', requireRoles('SUPER_ADMIN', 'BRANCH_MANAGER', 'MANAGER'), productionRoutes);
 app.use('/api/suppliers', requireRoles('SUPER_ADMIN', 'BRANCH_MANAGER', 'MANAGER'), supplierRoutes);
 app.use('/api/purchase-orders', requireRoles('SUPER_ADMIN', 'BRANCH_MANAGER', 'MANAGER'), purchaseOrderRoutes);
+app.use('/api/printers', requireRoles('SUPER_ADMIN', 'BRANCH_MANAGER', 'MANAGER'), printerRoutes);
 app.use('/api/customers', customerRoutes);
 app.use('/api/settings', requireRoles('SUPER_ADMIN', 'BRANCH_MANAGER'), settingsRoutes);
 app.use('/api/tables', tableRoutes);
@@ -67,6 +88,10 @@ app.use('/api/images', imageRoutes);
 app.use('/api/fiscal', requireRoles('SUPER_ADMIN', 'BRANCH_MANAGER', 'FINANCE'), fiscalRoutes);
 app.use('/api/ops', requireRoles('SUPER_ADMIN'), opsRoutes);
 
-// (health moved above)
+// 404 handler for undefined routes
+app.use('/api/*', notFoundHandler);
+
+// Global error handler (must be last)
+app.use(errorHandler);
 
 export default app;

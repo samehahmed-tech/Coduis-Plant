@@ -8,21 +8,15 @@ import {
    ChevronDown, Filter, Target, Megaphone, Zap, Scale, Info
 } from 'lucide-react';
 
-// Stores
-import { useMenuStore } from '../stores/useMenuStore';
-import { useInventoryStore } from '../stores/useInventoryStore';
 import { useAuthStore } from '../stores/useAuthStore';
 import { useNavigate } from 'react-router-dom';
 import { reportsApi } from '../services/api';
 
 const Reports: React.FC = () => {
    const navigate = useNavigate();
-   const { categories } = useMenuStore();
-   const { inventory } = useInventoryStore();
    const { settings } = useAuthStore();
    const activeBranchId = settings.activeBranchId;
 
-   const menuItems = useMemo(() => categories.flatMap(cat => cat.items), [categories]);
    const [activeTab, setActiveTab] = useState<'SALES' | 'PROFIT' | 'FOOD_COST' | 'VAT'>('SALES');
    const [dateRange, setDateRange] = useState({
       start: new Date(new Date().setDate(new Date().getDate() - 7)).toISOString().split('T')[0],
@@ -30,10 +24,54 @@ const Reports: React.FC = () => {
    });
    const [appliedRange, setAppliedRange] = useState(dateRange);
    const [dailySales, setDailySales] = useState<Array<{ day: string; revenue: number; net: number; tax: number; orderCount: number }>>([]);
+   const [profitDaily, setProfitDaily] = useState<Array<{ day: string; revenue: number; net: number; tax: number; orderCount: number; cogs: number; grossProfit: number }>>([]);
+   const [overview, setOverview] = useState<{ orderCount: number; grossSales: number; netSales: number; taxTotal: number; discountTotal: number; serviceChargeTotal: number } | null>(null);
+   const [profitSummary, setProfitSummary] = useState<{ grossSales: number; netSales: number; taxTotal: number; orderCount: number; cogs: number; grossProfit: number; foodCostPercent: number } | null>(null);
+   const [foodCostData, setFoodCostData] = useState<Array<{ id: string; name: string; price: number; cost: number; margin: number; marginPercent: number; soldQty: number; soldRevenue: number }>>([]);
    const [paymentSummary, setPaymentSummary] = useState<Array<{ method: string; total: number; count: number }>>([]);
    const [vatReport, setVatReport] = useState<any>(null);
    const [isLoadingReport, setIsLoadingReport] = useState(false);
    const [reportError, setReportError] = useState<string | null>(null);
+   const [integrity, setIntegrity] = useState<any>(null);
+
+   const downloadBlob = (blob: Blob, filename: string) => {
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+   };
+
+   const handleExportCsv = async () => {
+      try {
+         const blob = await reportsApi.exportCsv({
+            branchId: activeBranchId,
+            startDate: appliedRange.start,
+            endDate: appliedRange.end,
+            reportType: activeTab
+         });
+         downloadBlob(blob, `reports_${activeTab.toLowerCase()}_${appliedRange.start}_${appliedRange.end}.csv`);
+      } catch (error: any) {
+         setReportError(error?.message || 'Failed to export CSV');
+      }
+   };
+
+   const handleExportPdf = async (reportType: string) => {
+      try {
+         const blob = await reportsApi.exportPdf({
+            branchId: activeBranchId,
+            startDate: appliedRange.start,
+            endDate: appliedRange.end,
+            reportType,
+         });
+         downloadBlob(blob, `reports_${reportType.toLowerCase()}_${appliedRange.start}_${appliedRange.end}.pdf`);
+      } catch (error: any) {
+         setReportError(error?.message || 'Failed to export PDF');
+      }
+   };
 
    React.useEffect(() => {
       const loadReports = async () => {
@@ -41,14 +79,24 @@ const Reports: React.FC = () => {
          setReportError(null);
          try {
             const params = { branchId: activeBranchId, startDate: appliedRange.start, endDate: appliedRange.end };
-            const [vat, daily, payments] = await Promise.all([
+            const [overviewData, profitSummaryData, foodCostDataRes, profitDailyData, vatData, dailyData, paymentsData] = await Promise.all([
+               reportsApi.getOverview(params),
+               reportsApi.getProfitSummary(params),
+               reportsApi.getFoodCost(params),
+               reportsApi.getProfitDaily(params),
                reportsApi.getVat(params),
                reportsApi.getDailySales(params),
                reportsApi.getPayments(params)
             ]);
-            setVatReport(vat);
-            setDailySales(daily || []);
-            setPaymentSummary(payments || []);
+            setOverview(overviewData || null);
+            setProfitSummary(profitSummaryData || null);
+            setFoodCostData(foodCostDataRes || []);
+            setProfitDaily(profitDailyData || []);
+            setVatReport(vatData || null);
+            setDailySales(dailyData || []);
+            setPaymentSummary(paymentsData || []);
+            const integrityData = await reportsApi.getIntegrity(params);
+            setIntegrity(integrityData);
          } catch (error: any) {
             setReportError(error.message || 'Failed to load reports');
          } finally {
@@ -59,35 +107,14 @@ const Reports: React.FC = () => {
    }, [activeBranchId, appliedRange.start, appliedRange.end]);
 
    const salesSeries = useMemo(() => (
-      dailySales.map(row => ({
+      profitDaily.map(row => ({
          name: row.day,
          revenue: Number(row.revenue || 0),
-         cost: Math.max(0, Number(row.revenue || 0) - Number(row.net || 0)),
-         profit: Number(row.net || 0),
+         cost: Number(row.cogs || 0),
+         profit: Number(row.grossProfit || 0),
          tax: Number(row.tax || 0)
       }))
-   ), [dailySales]);
-
-   const foodCostData = useMemo(() => {
-      return menuItems.map(item => {
-         let cost = 0;
-         if (item.recipe) {
-            item.recipe.forEach(ri => {
-               const invItem = inventory.find(inv => inv.id === ri.itemId || inv.id === (ri as any).inventoryItemId);
-               if (invItem) cost += invItem.costPrice * ri.quantity;
-            });
-         }
-         const margin = item.price - cost;
-         const marginPercent = item.price > 0 ? (margin / item.price) * 100 : 0;
-         return {
-            name: item.name,
-            price: item.price,
-            cost: cost,
-            margin: margin,
-            marginPercent: marginPercent
-         };
-      }).sort((a, b) => b.marginPercent - a.marginPercent);
-   }, [menuItems, inventory]);
+   ), [profitDaily]);
 
    return (
       <div className="p-8 bg-slate-50 dark:bg-slate-950 min-h-screen transition-colors animate-fade-in pb-24">
@@ -140,13 +167,18 @@ const Reports: React.FC = () => {
          {reportError && (
             <div className="mb-6 text-[10px] font-black uppercase tracking-widest text-rose-500">{reportError}</div>
          )}
+         {integrity && (
+            <div className={`mb-6 text-[10px] font-black uppercase tracking-widest ${integrity.ok ? 'text-emerald-600' : 'text-rose-600'}`}>
+               Integrity Checks: {integrity.summary?.passed || 0}/{integrity.summary?.total || 0} passed
+            </div>
+         )}
 
          {activeTab === 'FOOD_COST' ? (
             <div className="space-y-8">
                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                   <div className="bg-white dark:bg-slate-900 rounded-3xl p-6 border border-slate-200 dark:border-slate-800 shadow-sm">
                      <p className="text-slate-400 text-[10px] font-black uppercase tracking-widest mb-1">Avg. Food Cost %</p>
-                     <h3 className="text-4xl font-black text-indigo-600">28.5%</h3>
+                     <h3 className="text-4xl font-black text-indigo-600">{Number(profitSummary?.foodCostPercent || 0).toFixed(1)}%</h3>
                      <p className="text-[10px] text-emerald-500 font-bold mt-2 uppercase">STABLE PERFORMANCE</p>
                   </div>
                </div>
@@ -156,7 +188,7 @@ const Reports: React.FC = () => {
                      <h3 className="text-xl font-black text-slate-800 dark:text-white flex items-center gap-3">
                         <Scale size={24} className="text-indigo-600" /> Item Profitability Matrix
                      </h3>
-                     <button className="text-xs font-black text-indigo-600 uppercase flex items-center gap-2 hover:bg-slate-200 dark:hover:bg-slate-800 px-4 py-2 rounded-xl transition-all">
+                     <button onClick={handleExportCsv} className="text-xs font-black text-indigo-600 uppercase flex items-center gap-2 hover:bg-slate-200 dark:hover:bg-slate-800 px-4 py-2 rounded-xl transition-all">
                         <Download size={16} /> Export Analysis
                      </button>
                   </div>
@@ -221,7 +253,7 @@ const Reports: React.FC = () => {
                            <Legend iconType="circle" wrapperStyle={{ paddingTop: '40px' }} />
                            <Area type="monotone" dataKey="revenue" name="Total Revenue" stroke="#6366f1" fill="url(#colorRev)" strokeWidth={4} />
                            <Area type="monotone" dataKey="cost" name="Tax + Discounts Impact" stroke="#f43f5e" fill="url(#colorCost)" strokeWidth={2} strokeDasharray="5 5" />
-                           <Line type="monotone" dataKey="profit" name="Net Sales" stroke="#10b981" strokeWidth={5} dot={{ r: 6, fill: '#10b981', strokeWidth: 4, stroke: '#fff' }} />
+                           <Line type="monotone" dataKey="profit" name="Gross Profit" stroke="#10b981" strokeWidth={5} dot={{ r: 6, fill: '#10b981', strokeWidth: 4, stroke: '#fff' }} />
                         </AreaChart>
                      </ResponsiveContainer>
                   </div>
@@ -268,7 +300,7 @@ const Reports: React.FC = () => {
                         <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mt-1">Reconciliation for {(vatReport?.summary?.count || 0)} Taxable Transactions</p>
                      </div>
                      <div className="flex gap-4">
-                        <button className="px-6 py-3 bg-indigo-600 text-white text-[10px] font-black uppercase tracking-widest rounded-2xl shadow-lg hover:shadow-indigo-500/40 transition-all active:scale-95 flex items-center gap-2">
+                        <button onClick={() => handleExportPdf('VAT')} className="px-6 py-3 bg-indigo-600 text-white text-[10px] font-black uppercase tracking-widest rounded-2xl shadow-lg hover:shadow-indigo-500/40 transition-all active:scale-95 flex items-center gap-2">
                            <Download size={16} /> Export Fiscal PDF
                         </button>
                      </div>
@@ -286,7 +318,7 @@ const Reports: React.FC = () => {
                               </div>
                               <div className="flex justify-between items-center p-4">
                                  <span className="text-[11px] font-black uppercase text-slate-500 text-rose-500">Total Discounts</span>
-                                 <span className="text-sm font-black text-rose-500">- 0.00 LE</span>
+                                 <span className="text-sm font-black text-rose-500">- {(overview?.discountTotal || 0).toLocaleString()} LE</span>
                               </div>
                               <div className="flex justify-between items-center p-4 bg-slate-100/50 dark:bg-slate-800/50 rounded-2xl">
                                  <span className="text-[11px] font-black uppercase text-slate-800 dark:text-white">Net Taxable Amount</span>

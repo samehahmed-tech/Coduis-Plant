@@ -9,9 +9,37 @@ const getSocketUrl = () => {
     }
 
     const apiUrl = import.meta.env.VITE_API_URL;
-    if (apiUrl && apiUrl.startsWith('http')) {
-        return apiUrl.replace(/\/api\/?$/, '');
+    if (!apiUrl) return window.location.origin;
+
+    // Relative API path means we should always use same-origin socket endpoint.
+    if (apiUrl.startsWith('/')) {
+        return window.location.origin;
     }
+
+    if (apiUrl.startsWith('http')) {
+        try {
+            const parsed = new URL(apiUrl);
+            const currentHost = window.location.hostname;
+            const apiHost = parsed.hostname;
+
+            // Keep same-host absolute API URLs.
+            if (apiHost === currentHost) {
+                return parsed.origin;
+            }
+
+            // If API points to localhost while app is opened via LAN IP, use same-origin.
+            const apiIsLocalhost = apiHost === 'localhost' || apiHost === '127.0.0.1';
+            const appIsLocalhost = currentHost === 'localhost' || currentHost === '127.0.0.1';
+            if (apiIsLocalhost && !appIsLocalhost) {
+                return window.location.origin;
+            }
+
+            return parsed.origin;
+        } catch {
+            return window.location.origin;
+        }
+    }
+
     return window.location.origin;
 };
 

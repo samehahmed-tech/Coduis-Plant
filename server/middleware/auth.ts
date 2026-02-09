@@ -1,12 +1,17 @@
 import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
 import { requireEnv } from '../config/env';
+import { db } from '../db';
+import { userSessions } from '../../src/db/schema';
+import { and, eq, gt } from 'drizzle-orm';
 
 export interface AuthUser {
     id: string;
     role: string;
     permissions: string[];
     branchId?: string | null;
+    sessionId?: string;
+    tokenId?: string;
 }
 
 declare global {
@@ -22,7 +27,7 @@ declare module 'express-serve-static-core' {
 
 const JWT_SECRET = requireEnv('JWT_SECRET');
 
-export const authenticateToken = (req: Request, res: Response, next: NextFunction) => {
+export const authenticateToken = async (req: Request, res: Response, next: NextFunction) => {
     const authHeader = req.headers.authorization || '';
     const token = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : '';
 
@@ -31,12 +36,36 @@ export const authenticateToken = (req: Request, res: Response, next: NextFunctio
     }
 
     try {
-        const payload = jwt.verify(token, JWT_SECRET) as AuthUser & { sub?: string };
+        const payload = jwt.verify(token, JWT_SECRET) as AuthUser & { sub?: string; sid?: string; jti?: string };
+        const sessionId = payload.sid || payload.sessionId;
+        const tokenId = payload.jti || payload.tokenId;
+        if (!sessionId || !tokenId) {
+            return res.status(401).json({ error: 'INVALID_TOKEN_SESSION' });
+        }
+
+        const [session] = await db.select().from(userSessions).where(and(
+            eq(userSessions.id, sessionId),
+            eq(userSessions.userId, payload.sub || payload.id),
+            eq(userSessions.tokenId, tokenId),
+            eq(userSessions.isActive, true),
+            gt(userSessions.expiresAt, new Date()),
+        ));
+
+        if (!session || session.revokedAt) {
+            return res.status(401).json({ error: 'SESSION_REVOKED' });
+        }
+
+        await db.update(userSessions)
+            .set({ lastSeenAt: new Date(), updatedAt: new Date() })
+            .where(eq(userSessions.id, sessionId));
+
         req.user = {
             id: payload.sub || payload.id,
             role: payload.role,
             permissions: payload.permissions || [],
             branchId: payload.branchId,
+            sessionId,
+            tokenId,
         };
         return next();
     } catch {

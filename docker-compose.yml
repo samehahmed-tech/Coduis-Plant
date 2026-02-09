@@ -24,8 +24,19 @@ services:
     environment:
       DATABASE_URL: postgresql://${DB_USER:-postgres}:${DB_PASSWORD:-password}@db:5432/${DB_NAME:-restoflow}
       API_PORT: 3001
+      REDIS_URL: redis://redis:6379
     depends_on:
       - db
+      - redis
+
+  redis:
+    image: redis:7-alpine
+    container_name: restoflow-redis
+    restart: always
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
 
   print-bridge:
     build: ./hardware-bridge
@@ -36,3 +47,4 @@ services:
 
 volumes:
   db_data:
+  redis_data:

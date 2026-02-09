@@ -19,6 +19,12 @@ interface PaymentSummaryProps {
     onQuickPay: () => void;
     onSendKitchen: () => void;
     canSubmit: boolean;
+    couponCode: string;
+    activeCoupon: string | null;
+    isApplyingCoupon: boolean;
+    onCouponCodeChange: (value: string) => void;
+    onApplyCoupon: () => void;
+    onClearCoupon: () => void;
 }
 
 const PaymentSummary: React.FC<PaymentSummaryProps> = ({
@@ -38,6 +44,12 @@ const PaymentSummary: React.FC<PaymentSummaryProps> = ({
     onQuickPay,
     onSendKitchen,
     canSubmit,
+    couponCode,
+    activeCoupon,
+    isApplyingCoupon,
+    onCouponCodeChange,
+    onApplyCoupon,
+    onClearCoupon,
 }) => {
     const paymentMethods = [
         { id: PaymentMethod.CASH, label: t.cash, icon: Banknote },
@@ -73,13 +85,37 @@ const PaymentSummary: React.FC<PaymentSummaryProps> = ({
             </div>
 
             <div className="space-y-2 md:space-y-3 bg-card/70 dark:bg-card/40 border border-border/50 rounded-2xl p-4">
+                <div className="flex items-center gap-2">
+                    <input
+                        type="text"
+                        placeholder="Coupon Code"
+                        value={couponCode}
+                        onChange={(e) => onCouponCodeChange(e.target.value)}
+                        className="flex-1 px-3 py-2 rounded-xl bg-elevated dark:bg-elevated/50 border border-border/50 text-xs font-black uppercase tracking-wider"
+                    />
+                    <button
+                        onClick={onApplyCoupon}
+                        disabled={!couponCode.trim() || isApplyingCoupon}
+                        className="px-3 py-2 rounded-xl bg-indigo-600 text-white text-[10px] font-black uppercase tracking-widest disabled:opacity-50"
+                    >
+                        {isApplyingCoupon ? '...' : 'Apply'}
+                    </button>
+                    {activeCoupon && (
+                        <button
+                            onClick={onClearCoupon}
+                            className="px-3 py-2 rounded-xl bg-slate-200 dark:bg-slate-700 text-[10px] font-black uppercase tracking-widest"
+                        >
+                            Clear
+                        </button>
+                    )}
+                </div>
                 <div className="flex justify-between text-[10px] md:text-xs font-bold text-muted uppercase tracking-wider">
                     <span>{t.subtotal}</span>
                     <span>{currencySymbol}{subtotal.toFixed(2)}</span>
                 </div>
                 {discount > 0 && (
                     <div className="flex justify-between text-[10px] md:text-xs font-bold text-green-600 uppercase tracking-wider">
-                        <span>{t.discount} ({discount}%)</span>
+                        <span>{t.discount} ({discount.toFixed(2)}%) {activeCoupon ? `- ${activeCoupon}` : ''}</span>
                         <span>-{currencySymbol}{(subtotal * discount / 100).toFixed(2)}</span>
                     </div>
                 )}

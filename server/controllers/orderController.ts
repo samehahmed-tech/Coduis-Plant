@@ -1,11 +1,130 @@
 import { Request, Response } from 'express';
 import { db } from '../db';
-import { orders, orderItems, orderStatusHistory, payments, warehouses, shifts } from '../../src/db/schema';
+import { orders, orderItems, orderStatusHistory, payments, warehouses, shifts, settings } from '../../src/db/schema';
 import { eq, and, desc, gte, lte } from 'drizzle-orm';
 import { inventoryService } from '../services/inventoryService';
 import { getStringParam } from '../utils/request';
 import { getIO } from '../socket';
 import { submitOrderToFiscal } from '../services/fiscalSubmitService';
+import { postPosOrderEntry } from '../services/financePostingService';
+
+type CouponRule = {
+    code: string;
+    type: 'PERCENT' | 'FIXED';
+    value: number;
+    active?: boolean;
+    minSubtotal?: number;
+    maxDiscount?: number;
+    branchIds?: string[];
+    orderTypes?: string[];
+    startAt?: string;
+    endAt?: string;
+};
+
+const toCouponRules = (raw: unknown): CouponRule[] => {
+    if (!Array.isArray(raw)) return [];
+    return raw
+        .map((item: any): CouponRule => {
+            const discountType: 'PERCENT' | 'FIXED' = String(item?.type || 'PERCENT').toUpperCase() === 'FIXED' ? 'FIXED' : 'PERCENT';
+            return {
+            code: String(item?.code || '').trim().toUpperCase(),
+            type: discountType,
+            value: Number(item?.value || 0),
+            active: item?.active !== false,
+            minSubtotal: item?.minSubtotal !== undefined ? Number(item.minSubtotal) : undefined,
+            maxDiscount: item?.maxDiscount !== undefined ? Number(item.maxDiscount) : undefined,
+            branchIds: Array.isArray(item?.branchIds) ? item.branchIds.map((v: any) => String(v)) : undefined,
+            orderTypes: Array.isArray(item?.orderTypes) ? item.orderTypes.map((v: any) => String(v).toUpperCase()) : undefined,
+            startAt: item?.startAt ? String(item.startAt) : undefined,
+            endAt: item?.endAt ? String(item.endAt) : undefined,
+            };
+        })
+        .filter((c) => Boolean(c.code) && Number(c.value) > 0);
+};
+
+export const validateCoupon = async (req: Request, res: Response) => {
+    try {
+        const { code, branchId, orderType, subtotal, customerId } = req.body || {};
+        const normalizedCode = String(code || '').trim().toUpperCase();
+        const orderTypeValue = String(orderType || '').trim().toUpperCase();
+        const subtotalValue = Number(subtotal || 0);
+
+        if (!normalizedCode) {
+            return res.status(400).json({ valid: false, message: 'COUPON_CODE_REQUIRED' });
+        }
+        if (!orderTypeValue) {
+            return res.status(400).json({ valid: false, message: 'ORDER_TYPE_REQUIRED' });
+        }
+        if (subtotalValue <= 0) {
+            return res.status(400).json({ valid: false, message: 'SUBTOTAL_REQUIRED' });
+        }
+
+        const [couponSetting] = await db
+            .select()
+            .from(settings)
+            .where(eq(settings.key, 'posCoupons'))
+            .limit(1);
+
+        const coupons = toCouponRules(couponSetting?.value);
+        if (coupons.length === 0) {
+            return res.status(404).json({ valid: false, message: 'NO_COUPONS_CONFIGURED' });
+        }
+
+        const coupon = coupons.find((c) => c.code === normalizedCode);
+        if (!coupon) {
+            return res.status(404).json({ valid: false, message: 'COUPON_NOT_FOUND' });
+        }
+        if (coupon.active === false) {
+            return res.status(400).json({ valid: false, message: 'COUPON_INACTIVE' });
+        }
+        if (coupon.minSubtotal !== undefined && subtotalValue < coupon.minSubtotal) {
+            return res.status(400).json({ valid: false, message: 'MIN_SUBTOTAL_NOT_MET' });
+        }
+        if (coupon.branchIds && coupon.branchIds.length > 0 && branchId && !coupon.branchIds.includes(String(branchId))) {
+            return res.status(400).json({ valid: false, message: 'COUPON_NOT_ALLOWED_FOR_BRANCH' });
+        }
+        if (coupon.orderTypes && coupon.orderTypes.length > 0 && !coupon.orderTypes.includes(orderTypeValue)) {
+            return res.status(400).json({ valid: false, message: 'COUPON_NOT_ALLOWED_FOR_ORDER_TYPE' });
+        }
+
+        const now = Date.now();
+        if (coupon.startAt) {
+            const start = new Date(coupon.startAt).getTime();
+            if (!Number.isNaN(start) && now < start) {
+                return res.status(400).json({ valid: false, message: 'COUPON_NOT_STARTED' });
+            }
+        }
+        if (coupon.endAt) {
+            const end = new Date(coupon.endAt).getTime();
+            if (!Number.isNaN(end) && now > end) {
+                return res.status(400).json({ valid: false, message: 'COUPON_EXPIRED' });
+            }
+        }
+
+        let discountAmount = coupon.type === 'PERCENT'
+            ? (subtotalValue * coupon.value) / 100
+            : coupon.value;
+        if (coupon.maxDiscount !== undefined) {
+            discountAmount = Math.min(discountAmount, coupon.maxDiscount);
+        }
+        discountAmount = Math.max(0, Math.min(discountAmount, subtotalValue));
+
+        const discountPercent = subtotalValue > 0 ? (discountAmount / subtotalValue) * 100 : 0;
+
+        return res.json({
+            valid: true,
+            code: normalizedCode,
+            customerId: customerId || null,
+            discountType: coupon.type,
+            discountValue: coupon.value,
+            discountAmount: Number(discountAmount.toFixed(2)),
+            discountPercent: Number(discountPercent.toFixed(4)),
+            message: 'COUPON_VALID',
+        });
+    } catch (error: any) {
+        return res.status(500).json({ valid: false, message: error.message || 'COUPON_VALIDATION_FAILED' });
+    }
+};
 
 export const getAllOrders = async (req: Request, res: Response) => {
     try {
@@ -207,6 +326,16 @@ export const createOrder = async (req: Request, res: Response) => {
         } catch {
             // socket is optional
         }
+
+        // Finance posting: POS sale journal entry (non-blocking)
+        postPosOrderEntry({
+            orderId: savedOrder.id,
+            amount: Number(savedOrder.total || 0),
+            branchId: savedOrder.branchId,
+            userId: userId || savedOrder.callCenterAgentId || 'system',
+        }).catch(() => {
+            // Keep order flow resilient even if finance posting fails
+        });
 
         if (paidNow) {
             setTimeout(() => {

@@ -50,7 +50,8 @@ interface OrderState {
     loadTableDraft: (tableId: string) => void;
     clearTableDraft: (tableId: string) => void;
     setDiscount: (amount: number) => void;
-    applyCoupon: (code: string) => void;
+    applyCoupon: (payload: { code: string; branchId?: string; orderType: OrderType; subtotal: number; customerId?: string }) => Promise<void>;
+    clearCoupon: () => void;
     holdOrder: (order: HeldOrder) => void;
     recallOrder: (index: number) => void;
     clearRecalledOrder: () => void;
@@ -61,8 +62,8 @@ interface OrderState {
 
     // Advanced Table Management
     transferTable: (sourceTableId: string, targetTableId: string) => Promise<void>;
-    transferItems: (sourceTableId: string, targetTableId: string, itemCartIds: string[]) => void;
-    splitTable: (originalTableId: string, targetTableId: string, itemCartIds: string[]) => void;
+    transferItems: (sourceTableId: string, targetTableId: string, itemCartIds: string[]) => Promise<void>;
+    splitTable: (originalTableId: string, targetTableId: string, itemCartIds: string[]) => Promise<void>;
     loadTableOrder: (tableId: string) => void;
 }
 
@@ -352,17 +353,29 @@ export const useOrderStore = create<OrderState>()(
                 return { tableDrafts: next };
             }),
 
-            setDiscount: (d) => set({ discount: d }),
+            setDiscount: (d) => set({ discount: d, activeCoupon: null }),
 
-            applyCoupon: (code) => {
-                // In production, this would call an API
-                const validCoupons = ['SAVE50', 'ZEN2026', 'WELCOME'];
-                if (validCoupons.includes(code.toUpperCase())) {
-                    set({ activeCoupon: code.toUpperCase(), discount: 10 }); // Fixed 10% for simulation
-                } else {
-                    throw new Error('Invalid coupon code');
+            applyCoupon: async ({ code, branchId, orderType, subtotal, customerId }) => {
+                if (!navigator.onLine) {
+                    throw new Error('COUPON_REQUIRES_ONLINE');
                 }
+                const result = await ordersApi.validateCoupon({
+                    code,
+                    branchId,
+                    orderType,
+                    subtotal,
+                    customerId,
+                });
+                if (!result?.valid) {
+                    throw new Error(result?.message || 'COUPON_INVALID');
+                }
+                set({
+                    activeCoupon: String(result.code || code).toUpperCase(),
+                    discount: Number(result.discountPercent || 0),
+                });
             },
+
+            clearCoupon: () => set({ activeCoupon: null, discount: 0 }),
 
             holdOrder: (order) => set((state) => ({
                 heldOrders: [...state.heldOrders, order],
@@ -429,37 +442,32 @@ export const useOrderStore = create<OrderState>()(
                     orders: state.orders.map(o => (o.tableId === sourceId && o.status !== OrderStatus.DELIVERED) ? { ...o, tableId: targetId } : o)
                 }));
 
-                // API Calls
+                // API Call (transactional on backend)
                 try {
-                    await tablesApi.updateStatus(sourceId, TableStatus.AVAILABLE);
-                    await tablesApi.updateStatus(targetId, TableStatus.OCCUPIED);
-                    // Note: We should also update the order's tableId in the backend via ordersApi if we had that endpoint exposed specifically,
-                    // but for now we assume order sync handles it or we'd need a specific 'transfer' endpoint.
-                    // Ideally: await ordersApi.transferTable(sourceId, targetId);
+                    if (navigator.onLine) {
+                        await tablesApi.transfer({ sourceTableId: sourceId, targetTableId: targetId });
+                    } else {
+                        await tablesApi.updateStatus(sourceId, TableStatus.AVAILABLE);
+                        await tablesApi.updateStatus(targetId, TableStatus.OCCUPIED);
+                    }
                 } catch (error) {
                     console.error('Failed to transfer table in backend:', error);
                 }
             },
 
-            transferItems: (sourceId, targetId, itemIds) => set((state) => {
-                const sourceOrder = state.orders.find(o => o.tableId === sourceId && o.status !== OrderStatus.DELIVERED);
-                const targetOrder = state.orders.find(o => o.tableId === targetId && o.status !== OrderStatus.DELIVERED);
-
-                if (!sourceOrder) return state;
+            transferItems: async (sourceId, targetId, itemIds) => {
+                const snapshot = get();
+                const sourceOrder = snapshot.orders.find(o => o.tableId === sourceId && o.status !== OrderStatus.DELIVERED);
+                const targetOrder = snapshot.orders.find(o => o.tableId === targetId && o.status !== OrderStatus.DELIVERED);
+                if (!sourceOrder) return;
 
                 const itemsToMove = sourceOrder.items.filter(i => itemIds.includes(i.cartId));
+                if (itemsToMove.length === 0) return;
                 const remainingItems = sourceOrder.items.filter(i => !itemIds.includes(i.cartId));
 
-                let newOrders = state.orders.map(o => {
-                    if (o.id === sourceOrder.id) return { ...o, items: remainingItems };
-                    return o;
-                });
-
+                let newOrders = snapshot.orders.map(o => (o.id === sourceOrder.id ? { ...o, items: remainingItems } : o));
                 if (targetOrder) {
-                    newOrders = newOrders.map(o => {
-                        if (o.id === targetOrder.id) return { ...o, items: [...o.items, ...itemsToMove] };
-                        return o;
-                    });
+                    newOrders = newOrders.map(o => (o.id === targetOrder.id ? { ...o, items: [...o.items, ...itemsToMove] } : o));
                 } else {
                     const newOrder: Order = {
                         ...sourceOrder,
@@ -472,13 +480,26 @@ export const useOrderStore = create<OrderState>()(
                     };
                     newOrders = [newOrder, ...newOrders];
                 }
+                set({ orders: newOrders });
 
-                return { orders: newOrders };
-            }),
+                try {
+                    if (navigator.onLine) {
+                        const payloadItems = itemsToMove.map(i => ({ name: i.name, price: Number(i.price || 0), quantity: Number(i.quantity || 1) }));
+                        if (targetOrder) {
+                            await tablesApi.merge({ sourceTableId: sourceId, targetTableId: targetId, items: payloadItems });
+                        } else {
+                            await tablesApi.split({ sourceTableId: sourceId, targetTableId: targetId, items: payloadItems });
+                        }
+                    }
+                } catch (error) {
+                    console.error('Failed to transfer/merge items in backend:', error);
+                }
+            },
 
-            splitTable: (sourceId, targetId, itemIds) => set((state) => {
+            splitTable: async (sourceId, targetId, itemIds) => {
+                const state = get();
                 const sourceOrder = state.orders.find(o => o.tableId === sourceId && o.status !== OrderStatus.DELIVERED);
-                if (!sourceOrder) return state;
+                if (!sourceOrder) return;
 
                 const itemsToMove = sourceOrder.items.filter(i => itemIds.includes(i.cartId));
                 const remainingItems = sourceOrder.items.filter(i => !itemIds.includes(i.cartId));
@@ -491,11 +512,20 @@ export const useOrderStore = create<OrderState>()(
                     createdAt: new Date(),
                 };
 
-                return {
+                set({
                     orders: [newOrder, ...state.orders.map(o => o.id === sourceOrder.id ? { ...o, items: remainingItems } : o)],
                     tables: state.tables.map(t => t.id === targetId ? { ...t, status: TableStatus.OCCUPIED } : t)
-                };
-            }),
+                });
+
+                try {
+                    if (navigator.onLine) {
+                        const payloadItems = itemsToMove.map(i => ({ name: i.name, price: Number(i.price || 0), quantity: Number(i.quantity || 1) }));
+                        await tablesApi.split({ sourceTableId: sourceId, targetTableId: targetId, items: payloadItems });
+                    }
+                } catch (error) {
+                    console.error('Failed to split table in backend:', error);
+                }
+            },
 
             loadTableOrder: (tableId) => set((state) => {
                 const activeOrder = state.orders.find(o => o.tableId === tableId && o.status !== OrderStatus.DELIVERED);

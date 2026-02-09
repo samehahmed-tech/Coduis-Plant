@@ -28,7 +28,24 @@ export const users = pgTable('users', {
     assignedBranchId: text('assigned_branch_id'),
     isActive: boolean('is_active').default(true),
     managerPin: text('manager_pin'), // 4-digit PIN for manager overrides
+    mfaEnabled: boolean('mfa_enabled').default(false),
+    mfaSecret: text('mfa_secret'),
     lastLoginAt: timestamp('last_login_at'),
+    createdAt: timestamp('created_at').defaultNow(),
+    updatedAt: timestamp('updated_at').defaultNow(),
+});
+
+export const userSessions = pgTable('user_sessions', {
+    id: text('id').primaryKey(),
+    userId: text('user_id').references(() => users.id).notNull(),
+    tokenId: text('token_id').notNull().unique(),
+    deviceName: text('device_name'),
+    userAgent: text('user_agent'),
+    ipAddress: text('ip_address'),
+    isActive: boolean('is_active').default(true),
+    revokedAt: timestamp('revoked_at'),
+    expiresAt: timestamp('expires_at').notNull(),
+    lastSeenAt: timestamp('last_seen_at').defaultNow(),
     createdAt: timestamp('created_at').defaultNow(),
     updatedAt: timestamp('updated_at').defaultNow(),
 });
@@ -456,6 +473,21 @@ export const fiscalLogs = pgTable('fiscal_logs', {
     lastError: text('last_error'),
     payload: json('payload'),
     response: json('response'),
+    createdAt: timestamp('created_at').defaultNow(),
+    updatedAt: timestamp('updated_at').defaultNow(),
+});
+
+export const etaDeadLetters = pgTable('eta_dead_letters', {
+    id: serial('id').primaryKey(),
+    orderId: text('order_id'),
+    branchId: text('branch_id'),
+    payload: json('payload').notNull(),
+    attempts: integer('attempts').default(0),
+    lastError: text('last_error'),
+    status: text('status').default('PENDING'), // PENDING, RETRYING, DISMISSED, RESOLVED
+    dismissedBy: text('dismissed_by'),
+    dismissedAt: timestamp('dismissed_at'),
+    resolvedAt: timestamp('resolved_at'),
     createdAt: timestamp('created_at').defaultNow(),
     updatedAt: timestamp('updated_at').defaultNow(),
 });

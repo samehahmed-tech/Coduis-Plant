@@ -2,7 +2,7 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { User, AppSettings, AppPermission, UserRole, INITIAL_ROLE_PERMISSIONS, Branch, Printer } from '../types';
-import { usersApi, branchesApi, settingsApi, authApi } from '../services/api';
+import { usersApi, branchesApi, settingsApi, authApi, printersApi } from '../services/api';
 import { localDb } from '../db/localDb';
 import { syncService } from '../services/syncService';
 
@@ -23,9 +23,14 @@ interface AuthState {
     fetchUsers: () => Promise<void>;
     fetchBranches: () => Promise<void>;
     fetchSettings: () => Promise<void>;
+    fetchPrinters: () => Promise<void>;
     createUser: (user: User) => Promise<void>;
     updateUserInDB: (user: User) => Promise<void>;
     deleteUserFromDB: (id: string) => Promise<void>;
+    createPrinterInDB: (printer: Printer) => Promise<void>;
+    updatePrinterInDB: (printer: Printer) => Promise<void>;
+    deletePrinterFromDB: (id: string) => Promise<void>;
+    heartbeatPrinterInDB: (id: string) => Promise<boolean>;
     createBranch: (branch: Branch) => Promise<void>;
     syncToDatabase: () => Promise<void>;
 
@@ -89,7 +94,17 @@ export const useAuthStore = create<AuthState>()(
             loginWithPassword: async (email, password) => {
                 set({ isLoading: true, error: null });
                 try {
-                    const result = await authApi.login(email, password);
+                    const deviceName = typeof navigator !== 'undefined' ? navigator.userAgent : 'unknown-device';
+                    const result = await authApi.login(email, password, deviceName);
+                    if (result.mfaRequired && result.mfaToken) {
+                        const mfaErr: any = new Error('MFA_REQUIRED');
+                        mfaErr.code = 'MFA_REQUIRED';
+                        mfaErr.mfaToken = result.mfaToken;
+                        throw mfaErr;
+                    }
+                    if (!result.token || !result.user) {
+                        throw new Error('INVALID_AUTH_RESPONSE');
+                    }
                     const { token, user } = result;
 
                     if (token) {
@@ -104,6 +119,7 @@ export const useAuthStore = create<AuthState>()(
                         permissions: user.permissions || INITIAL_ROLE_PERMISSIONS[user.role as UserRole] || [],
                         isActive: user.isActive !== false,
                         assignedBranchId: user.assignedBranchId,
+                        mfaEnabled: user.mfaEnabled === true,
                     };
 
                     set((state) => ({
@@ -133,6 +149,7 @@ export const useAuthStore = create<AuthState>()(
                         permissions: user.permissions || INITIAL_ROLE_PERMISSIONS[user.role as UserRole] || [],
                         isActive: user.isActive !== false,
                         assignedBranchId: user.assignedBranchId,
+                        mfaEnabled: user.mfaEnabled === true,
                     };
                     set((state) => ({
                         token,
@@ -167,6 +184,7 @@ export const useAuthStore = create<AuthState>()(
                                 permissions: u.permissions || INITIAL_ROLE_PERMISSIONS[u.role as UserRole] || [],
                                 isActive: u.is_active !== false,
                                 assignedBranchId: u.assigned_branch_id,
+                                mfaEnabled: u.mfa_enabled === true,
                             }));
                             set({ users, isLoading: false });
                             await localDb.users.bulkPut(users);
@@ -265,6 +283,24 @@ export const useAuthStore = create<AuthState>()(
                 }
             },
 
+            fetchPrinters: async () => {
+                try {
+                    if (!navigator.onLine) return;
+                    const data = await printersApi.getAll();
+                    const printers = data.map((p: any) => ({
+                        id: p.id,
+                        name: p.name,
+                        type: p.type,
+                        address: p.address || '',
+                        isActive: p.is_active !== false,
+                        branchId: p.branch_id || '',
+                    }));
+                    set({ printers });
+                } catch (error) {
+                    console.error('Failed to fetch printers:', error);
+                }
+            },
+
             createUser: async (user) => {
                 set({ isLoading: true });
                 try {
@@ -315,6 +351,90 @@ export const useAuthStore = create<AuthState>()(
                 }
             },
 
+            createPrinterInDB: async (printer) => {
+                try {
+                    const created = await printersApi.create({
+                        id: printer.id,
+                        name: printer.name,
+                        type: printer.type,
+                        address: printer.address,
+                        branch_id: printer.branchId,
+                        is_active: printer.isActive,
+                    });
+                    const mapped: Printer = {
+                        id: created.id,
+                        name: created.name,
+                        type: created.type,
+                        address: created.address || '',
+                        isActive: created.is_active !== false,
+                        branchId: created.branch_id || '',
+                    };
+                    set((state) => ({ printers: [mapped, ...state.printers] }));
+                } catch (error: any) {
+                    console.error('Failed to create printer:', error);
+                    throw error;
+                }
+            },
+
+            updatePrinterInDB: async (printer) => {
+                try {
+                    const updated = await printersApi.update(printer.id, {
+                        name: printer.name,
+                        type: printer.type,
+                        address: printer.address,
+                        branch_id: printer.branchId,
+                        is_active: printer.isActive,
+                    });
+                    const mapped: Printer = {
+                        id: updated.id,
+                        name: updated.name,
+                        type: updated.type,
+                        address: updated.address || '',
+                        isActive: updated.is_active !== false,
+                        branchId: updated.branch_id || '',
+                    };
+                    set((state) => ({
+                        printers: state.printers.map(p => p.id === mapped.id ? mapped : p)
+                    }));
+                } catch (error: any) {
+                    console.error('Failed to update printer:', error);
+                    throw error;
+                }
+            },
+
+            deletePrinterFromDB: async (id) => {
+                try {
+                    await printersApi.delete(id);
+                    set((state) => ({
+                        printers: state.printers.filter(p => p.id !== id)
+                    }));
+                } catch (error: any) {
+                    console.error('Failed to delete printer:', error);
+                    throw error;
+                }
+            },
+
+            heartbeatPrinterInDB: async (id) => {
+                try {
+                    const res = await printersApi.heartbeat(id);
+                    const mapped: Printer = {
+                        id: res.printer.id,
+                        name: res.printer.name,
+                        type: res.printer.type,
+                        address: res.printer.address || '',
+                        isActive: res.printer.is_active !== false,
+                        branchId: res.printer.branch_id || '',
+                    };
+                    set((state) => ({
+                        printers: state.printers.map(p => p.id === mapped.id ? mapped : p)
+                    }));
+                    return Boolean(res.online);
+                } catch (error: any) {
+                    console.error('Failed to heartbeat printer:', error);
+                    return false;
+                }
+            },
+
             createBranch: async (branch) => {
                 set({ isLoading: true });
                 try {
@@ -357,6 +477,7 @@ export const useAuthStore = create<AuthState>()(
             })),
 
             logout: () => {
+                authApi.logout().catch(() => undefined);
                 localStorage.removeItem('auth_token');
                 set((state) => ({
                     settings: { ...state.settings, currentUser: undefined, activeBranchId: undefined },

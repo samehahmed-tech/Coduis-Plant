@@ -77,12 +77,28 @@ The project envisions a wide array of integrated modules:
 
     Common optional variables:
     -   `API_PORT` - backend port (default `3001`)
+    -   `CORS_ORIGINS` - comma-separated allowed origins (e.g. `http://localhost:3000,http://10.127.244.91:3000`)
     -   `JWT_EXPIRES_IN` - token expiration (default `12h`)
+    -   `AUTH_LOGIN_WINDOW_MS` - login throttle window in ms (default `900000`)
+    -   `AUTH_LOGIN_MAX_IP_ATTEMPTS` - max failed logins per IP in window (default `40`)
+    -   `AUTH_LOGIN_MAX_EMAIL_ATTEMPTS` - max failed logins per email in window (default `8`)
+    -   `AUTH_LOGIN_BLOCK_MS` - temporary login block duration in ms (default `900000`)
+    -   `AUTH_SESSION_TTL_HOURS` - maximum active session lifetime in hours (default `12`)
+    -   `AUTH_MFA_ISSUER` - TOTP issuer name shown in authenticator apps (default `RestoFlow ERP`)
+    -   `AUTH_MFA_ENFORCE_ADMIN_FINANCE` - force MFA challenge for `SUPER_ADMIN` and `FINANCE` roles (`true|false`)
     -   `S3_*` - enable image uploads to object storage
     -   `VITE_API_URL` - frontend API base URL
+    -   `VITE_SOCKET_URL` - optional explicit socket URL (leave empty to use same origin)
     -   `VITE_OPENROUTER_API_KEY`, `VITE_GEMINI_API_KEY` - AI providers
     -   `VITE_FIREBASE_*` - Firebase integration
     -   `ETA_*` - Egyptian Tax Authority integration (receipts, signatures, branch data)
+    -   For production deployments, use `.env.production.example` as the baseline.
+
+### CI Verification (Local)
+Run the same quality gate used in CI:
+```bash
+npm run ci:verify
+```
 
 ### ETA Test Flow (Quick)
 1.  Ensure ETA environment variables are set in `.env` (all `ETA_*` keys).
@@ -98,6 +114,12 @@ npx tsx scripts/eta-e2e-smoke.ts
 Expected output:
 - `fiscalLogStatus: "SUBMITTED"` when ETA is configured and reachable.
 - `fiscalLogStatus: "FAILED"` with `lastError` when required ETA config is missing.
+
+### ETA Config Preflight
+Validate ETA environment keys before smoke test:
+```bash
+npm run eta:check
+```
 
 ### Online / Offline Production Model
 - Architectural decision document: `docs/ONLINE_OFFLINE_ARCHITECTURE.md`
@@ -124,12 +146,30 @@ Optional env:
 - `WS_BASE=ws://localhost:3001/socket.io/?EIO=4&transport=websocket`
 - `AUTH_TOKEN=<jwt>`
 
+Fallback without k6 (Node-based smoke load):
+```bash
+npm run load:realtime:node
+```
+Optional env:
+- `API_BASE=http://localhost:3001`
+- `SOCKET_BASE=http://localhost:3001`
+- `AUTH_TOKEN=<jwt>`
+- `WS_CLIENTS=200`
+
 4.  **Run Database Migrations:**
     The project uses Drizzle ORM for schema management. Apply the migrations to your database:
     ```bash
-    npm run db:push
+    npm run db:push:force
     ```
     *Note: As the project evolves, a more robust migration strategy using `npm run db:generate` and `npm run db:migrate` should be adopted.*
+
+### Existing Data Fix (zones/table FK)
+If your database had legacy tables before `floor_zones` constraints were added, run:
+```bash
+npm run db:fix:zones
+npm run db:inspect:zones
+npm run db:push:force
+```
 
 ### Running the Application
 

@@ -62,6 +62,9 @@ const POS: React.FC = () => {
    const setOrderMode = useOrderStore(state => state.setOrderMode);
    const discount = useOrderStore(state => state.discount);
    const setDiscount = useOrderStore(state => state.setDiscount);
+   const activeCoupon = useOrderStore(state => state.activeCoupon);
+   const applyCoupon = useOrderStore(state => state.applyCoupon);
+   const clearCoupon = useOrderStore(state => state.clearCoupon);
    const heldOrders = useOrderStore(state => state.heldOrders);
    const recallOrder = useOrderStore(state => state.recallOrder);
    const recalledOrder = useOrderStore(state => state.recalledOrder);
@@ -109,6 +112,8 @@ const POS: React.FC = () => {
    const [showCalculator, setShowCalculator] = useState(false);
    const [showApprovalModal, setShowApprovalModal] = useState(false);
    const [isCartOpenMobile, setIsCartOpenMobile] = useState(false);
+   const [couponCode, setCouponCode] = useState('');
+   const [isApplyingCoupon, setIsApplyingCoupon] = useState(false);
    const [approvalCallback, setApprovalCallback] = useState<{ fn: () => void; action: string } | null>(null);
    const activeShift = useFinanceStore(state => state.activeShift);
    const setShift = useFinanceStore(state => state.setShift);
@@ -119,6 +124,21 @@ const POS: React.FC = () => {
    const [nowTick, setNowTick] = useState(Date.now());
    const { showToast } = useToast();
    const { showModal } = useModal();
+   const requestManagerApproval = useCallback((action: string, fn: () => void | Promise<void>) => {
+      setApprovalCallback({
+         action,
+         fn: async () => {
+            try {
+               await fn();
+            } catch (error: any) {
+               showToast(error?.message || (settings.language === 'ar' ? 'فشل تنفيذ العملية' : 'Action failed'), 'error');
+            } finally {
+               setApprovalCallback(null);
+            }
+         }
+      });
+      setShowApprovalModal(true);
+   }, [showToast, settings.language]);
 
    // 🔄 Fetch menu data from database on POS mount
    useEffect(() => {
@@ -531,7 +551,7 @@ const POS: React.FC = () => {
       }
    };
 
-   const handleCloseTable = async (tableId: string) => {
+   const performCloseTable = async (tableId: string) => {
       const activeOrder = orders.find(o => o.tableId === tableId && o.status !== OrderStatus.DELIVERED);
       if (activeOrder) {
          await updateOrderStatus(activeOrder.id, OrderStatus.DELIVERED);
@@ -552,6 +572,10 @@ const POS: React.FC = () => {
       clearTableDraft(tableId);
       setManagedTableId(null);
       showToast(t.table_closed || (lang === 'ar' ? 'تم إغلاق الترابيزة' : 'Table closed'), 'success');
+   };
+
+   const handleCloseTable = async (tableId: string) => {
+      requestManagerApproval('CLOSE_TABLE', () => performCloseTable(tableId));
    };
 
    const handleMergeTables = async (sourceTableId: string, targetTableId: string, itemCartIds: string[]) => {
@@ -580,7 +604,7 @@ const POS: React.FC = () => {
       }
 
       // Partial merge: move selected items to the target table order.
-      transferItems(sourceTableId, targetTableId, idsToMove);
+      await transferItems(sourceTableId, targetTableId, idsToMove);
       await updateTableStatus(targetTableId, TableStatus.OCCUPIED);
 
       const remainingCount = (sourceOrder.items || []).filter(i => !idsToMove.includes(i.cartId)).length;
@@ -639,6 +663,8 @@ const POS: React.FC = () => {
       setDeliveryCustomer(null);
       setSplitPayments([]);
       setPaymentMethod(PaymentMethod.CASH);
+      setCouponCode('');
+      clearCoupon();
 
       await printService.print({
          type: 'KITCHEN',
@@ -708,6 +734,8 @@ const POS: React.FC = () => {
       setDeliveryCustomer(null);
       setSplitPayments([]);
       setPaymentMethod(PaymentMethod.CASH);
+      setCouponCode('');
+      clearCoupon();
 
       // 3. Trigger Kitchen + Customer Receipts
       await printService.print({
@@ -749,11 +777,41 @@ const POS: React.FC = () => {
          confirmText: t.confirm,
          cancelText: t.cancel,
          onConfirm: () => {
-            clearCart();
-            setDeliveryCustomer(null);
-            setSplitPayments([]);
-            setPaymentMethod(PaymentMethod.CASH);
-            setSelectedTableId(null);
+            requestManagerApproval('VOID_ORDER', () => {
+               clearCart();
+               setDeliveryCustomer(null);
+               setSplitPayments([]);
+               setPaymentMethod(PaymentMethod.CASH);
+               setCouponCode('');
+               clearCoupon();
+               setSelectedTableId(null);
+            });
+         }
+      });
+   };
+
+   const handleApplyCoupon = async () => {
+      const code = couponCode.trim();
+      if (!code) return;
+      if (cartSubtotal <= 0) {
+         showToast(lang === 'ar' ? 'أضف أصناف أولاً' : 'Add items first', 'error');
+         return;
+      }
+      requestManagerApproval('APPLY_DISCOUNT', async () => {
+         try {
+            setIsApplyingCoupon(true);
+            await applyCoupon({
+               code,
+               branchId,
+               orderType: activeOrderType,
+               subtotal: cartSubtotal,
+               customerId: deliveryCustomer?.id,
+            });
+            showToast(lang === 'ar' ? 'تم تطبيق الكوبون' : 'Coupon applied', 'success');
+         } catch (error: any) {
+            showToast(error?.message || (lang === 'ar' ? 'كوبون غير صالح' : 'Invalid coupon'), 'error');
+         } finally {
+            setIsApplyingCoupon(false);
          }
       });
    };
@@ -807,7 +865,7 @@ const POS: React.FC = () => {
 
          <ManagerApprovalModal
             isOpen={showApprovalModal}
-            onClose={() => setShowApprovalModal(false)}
+            onClose={() => { setShowApprovalModal(false); setApprovalCallback(null); }}
             onApproved={() => approvalCallback?.fn()}
             actionName={approvalCallback?.action || 'Operation Authorization'}
          />
@@ -1057,6 +1115,12 @@ const POS: React.FC = () => {
                            onSubmit={handleSubmitOrder}
                            onQuickPay={handleQuickPay}
                            canSubmit={safeActiveCart.length > 0}
+                           couponCode={couponCode}
+                           activeCoupon={activeCoupon}
+                           isApplyingCoupon={isApplyingCoupon}
+                           onCouponCodeChange={setCouponCode}
+                           onApplyCoupon={handleApplyCoupon}
+                           onClearCoupon={() => { setCouponCode(''); clearCoupon(); }}
                         />
                      </div>
                   </>
@@ -1098,12 +1162,12 @@ const POS: React.FC = () => {
                      transferTable(managedTableId, targetId);
                      setManagedTableId(null);
                   }}
-                  onTransferItems={(targetId, itemIds) => {
-                     transferItems(managedTableId, targetId, itemIds);
+                  onTransferItems={async (targetId, itemIds) => {
+                     await transferItems(managedTableId, targetId, itemIds);
                      setManagedTableId(null);
                   }}
-                  onSplitTable={(targetId, itemIds) => {
-                     splitTable(managedTableId, targetId, itemIds);
+                  onSplitTable={async (targetId, itemIds) => {
+                     await splitTable(managedTableId, targetId, itemIds);
                      setManagedTableId(null);
                   }}
                />

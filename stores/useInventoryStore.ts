@@ -1,7 +1,7 @@
 // Inventory Store - Connected to Database API (Production Ready)
 import { create } from 'zustand';
 import { InventoryItem, Supplier, PurchaseOrder, Warehouse, WarehouseType, ProductionOrder, PurchaseRequest } from '../types';
-import { inventoryApi } from '../services/api';
+import { inventoryApi, suppliersApi, purchaseOrdersApi, productionApi } from '../services/api';
 import { localDb } from '../db/localDb';
 import { syncService } from '../services/syncService';
 
@@ -12,22 +12,36 @@ interface InventoryState {
     productionOrders: ProductionOrder[];
     purchaseRequests: PurchaseRequest[];
     warehouses: Warehouse[];
+    transferMovements: any[];
     isLoading: boolean;
     error: string | null;
 
     // Async Actions (API)
     fetchInventory: () => Promise<void>;
     fetchWarehouses: () => Promise<void>;
+    fetchSuppliers: () => Promise<void>;
+    fetchPurchaseOrders: () => Promise<void>;
+    fetchTransferMovements: (limit?: number) => Promise<void>;
+    fetchProductionOrders: (params?: { status?: string; branchId?: string }) => Promise<void>;
     addInventoryItem: (item: InventoryItem) => Promise<void>;
     updateInventoryItem: (id: string, item: Partial<InventoryItem>) => Promise<void>;
     addWarehouse: (warehouse: Warehouse) => Promise<void>;
     updateStock: (itemId: string, warehouseId: string, quantity: number, type: string, reason?: string) => Promise<void>;
+    createSupplierInDB: (supplier: Supplier) => Promise<void>;
+    updateSupplierInDB: (supplier: Supplier) => Promise<void>;
+    deactivateSupplierInDB: (id: string) => Promise<void>;
+    createPurchaseOrderInDB: (po: PurchaseOrder, branchId: string) => Promise<void>;
+    updatePurchaseOrderStatusInDB: (id: string, status: PurchaseOrder['status']) => Promise<void>;
+    receivePurchaseOrderInDB: (id: string, warehouseId: string, items: { itemId: string; receivedQty: number }[]) => Promise<void>;
+    createBranchTransferInDB: (payload: { itemId: string; fromWarehouseId: string; toWarehouseId: string; quantity: number; reason?: string; actorId?: string }) => Promise<void>;
 
     // Local Actions
     addPurchaseOrder: (po: PurchaseOrder) => void;
     receivePurchaseOrder: (poId: string, receivedAt: Date) => void;
-    addProductionOrder: (po: ProductionOrder) => void;
-    completeProductionOrder: (poId: string, actualQuantity: number) => void;
+    addProductionOrder: (po: ProductionOrder) => Promise<void>;
+    startProductionOrder: (poId: string) => Promise<void>;
+    completeProductionOrder: (poId: string, actualQuantity: number) => Promise<void>;
+    cancelProductionOrder: (poId: string) => Promise<void>;
     addSupplier: (supplier: Supplier) => void;
     clearError: () => void;
 }
@@ -39,6 +53,7 @@ export const useInventoryStore = create<InventoryState>((set, get) => ({
     productionOrders: [],
     purchaseRequests: [],
     warehouses: [],
+    transferMovements: [],
     isLoading: false,
     error: null,
 
@@ -98,6 +113,87 @@ export const useInventoryStore = create<InventoryState>((set, get) => ({
             }
         } catch (error: any) {
             console.error('Failed to fetch warehouses:', error);
+        }
+    },
+
+    fetchSuppliers: async () => {
+        try {
+            const data = await suppliersApi.getAll();
+            const suppliers = data.map((s: any) => ({
+                id: s.id,
+                name: s.name,
+                contactPerson: s.contactPerson || '',
+                phone: s.phone || '',
+                email: s.email || '',
+                category: s.category || '',
+            }));
+            set({ suppliers });
+        } catch (error: any) {
+            set({ error: error.message });
+        }
+    },
+
+    fetchPurchaseOrders: async () => {
+        try {
+            const data = await purchaseOrdersApi.getAll();
+            const detailResults = await Promise.allSettled(
+                data.map((po: any) => purchaseOrdersApi.getById(po.id))
+            );
+            const purchaseOrders = data.map((po: any, idx: number) => {
+                const details =
+                    detailResults[idx].status === 'fulfilled'
+                        ? (detailResults[idx] as PromiseFulfilledResult<any>).value
+                        : null;
+                return {
+                    id: po.id,
+                    supplierId: po.supplierId,
+                    status: po.status,
+                    items: (details?.items || []).map((item: any) => ({
+                        itemId: item.itemId,
+                        itemName: item.itemName || item.itemId,
+                        quantity: Number(item.orderedQty || 0),
+                        unitPrice: Number(item.unitPrice || 0),
+                        receivedQuantity: Number(item.receivedQty || 0),
+                    })),
+                    totalCost: Number(po.subtotal || 0),
+                    date: new Date(po.createdAt || Date.now()),
+                    receivedDate: po.updatedAt ? new Date(po.updatedAt) : undefined,
+                };
+            });
+            set({ purchaseOrders });
+        } catch (error: any) {
+            set({ error: error.message });
+        }
+    },
+
+    fetchTransferMovements: async (limit = 100) => {
+        try {
+            const data = await inventoryApi.getTransfers(limit);
+            set({ transferMovements: Array.isArray(data) ? data : [] });
+        } catch (error: any) {
+            set({ error: error.message });
+        }
+    },
+
+    fetchProductionOrders: async (params) => {
+        try {
+            const data = await productionApi.getOrders(params);
+            const productionOrders: ProductionOrder[] = (Array.isArray(data) ? data : []).map((o: any) => ({
+                id: o.id,
+                targetItemId: o.targetItemId,
+                quantityRequested: Number(o.quantityRequested || 0),
+                quantityProduced: Number(o.quantityProduced || 0),
+                warehouseId: o.warehouseId,
+                status: o.status,
+                batchNumber: o.batchNumber,
+                createdAt: new Date(o.createdAt || Date.now()),
+                completedAt: o.completedAt ? new Date(o.completedAt) : undefined,
+                actorId: o.actorId || 'system',
+                ingredientsConsumed: Array.isArray(o.ingredientsConsumed) ? o.ingredientsConsumed : [],
+            }));
+            set({ productionOrders });
+        } catch (error: any) {
+            set({ error: error.message });
         }
     },
 
@@ -198,6 +294,145 @@ export const useInventoryStore = create<InventoryState>((set, get) => ({
         }
     },
 
+    createSupplierInDB: async (supplier) => {
+        try {
+            const created = await suppliersApi.create({
+                id: supplier.id,
+                name: supplier.name,
+                contactPerson: supplier.contactPerson,
+                phone: supplier.phone,
+                email: supplier.email,
+                category: supplier.category,
+            });
+            const mapped: Supplier = {
+                id: created.id,
+                name: created.name,
+                contactPerson: created.contactPerson || '',
+                phone: created.phone || '',
+                email: created.email || '',
+                category: created.category || '',
+            };
+            set((state) => ({ suppliers: [mapped, ...state.suppliers] }));
+        } catch (error: any) {
+            set({ error: error.message });
+            throw error;
+        }
+    },
+
+    updateSupplierInDB: async (supplier) => {
+        try {
+            const updated = await suppliersApi.update(supplier.id, {
+                name: supplier.name,
+                contactPerson: supplier.contactPerson,
+                phone: supplier.phone,
+                email: supplier.email,
+                category: supplier.category,
+            });
+            const mapped: Supplier = {
+                id: updated.id,
+                name: updated.name,
+                contactPerson: updated.contactPerson || '',
+                phone: updated.phone || '',
+                email: updated.email || '',
+                category: updated.category || '',
+            };
+            set((state) => ({
+                suppliers: state.suppliers.map(s => s.id === mapped.id ? mapped : s)
+            }));
+        } catch (error: any) {
+            set({ error: error.message });
+            throw error;
+        }
+    },
+
+    deactivateSupplierInDB: async (id) => {
+        try {
+            await suppliersApi.delete(id);
+            set((state) => ({ suppliers: state.suppliers.filter(s => s.id !== id) }));
+        } catch (error: any) {
+            set({ error: error.message });
+            throw error;
+        }
+    },
+
+    createPurchaseOrderInDB: async (po, branchId) => {
+        try {
+            const created = await purchaseOrdersApi.create({
+                id: po.id,
+                supplierId: po.supplierId,
+                branchId,
+                items: po.items.map(i => ({ itemId: i.itemId, orderedQty: i.quantity, unitPrice: i.unitPrice })),
+            });
+            const mapped: PurchaseOrder = {
+                id: created.id,
+                supplierId: created.supplierId,
+                status: created.status,
+                items: po.items,
+                totalCost: Number(created.subtotal || po.totalCost || 0),
+                date: new Date(created.createdAt || Date.now()),
+            };
+            set((state) => ({ purchaseOrders: [mapped, ...state.purchaseOrders] }));
+        } catch (error: any) {
+            set({ error: error.message });
+            throw error;
+        }
+    },
+
+    updatePurchaseOrderStatusInDB: async (id, status) => {
+        try {
+            await purchaseOrdersApi.updateStatus(id, status);
+            set((state) => ({
+                purchaseOrders: state.purchaseOrders.map(po => po.id === id ? { ...po, status } : po)
+            }));
+        } catch (error: any) {
+            set({ error: error.message });
+            throw error;
+        }
+    },
+
+    receivePurchaseOrderInDB: async (id, warehouseId, items) => {
+        try {
+            let payloadItems = items;
+            if (!payloadItems || payloadItems.length === 0) {
+                const poDetails = await purchaseOrdersApi.getById(id);
+                payloadItems = (poDetails.items || []).map((i: any) => ({
+                    itemId: i.itemId,
+                    receivedQty: Math.max(0, Number(i.orderedQty || 0) - Number(i.receivedQty || 0)),
+                })).filter((i: any) => i.receivedQty > 0);
+            }
+            if (!payloadItems || payloadItems.length === 0) {
+                throw new Error('No remaining quantity available for receiving');
+            }
+
+            await purchaseOrdersApi.receive(id, { warehouseId, items: payloadItems });
+            await get().fetchPurchaseOrders();
+        } catch (error: any) {
+            set({ error: error.message });
+            throw error;
+        }
+    },
+
+    createBranchTransferInDB: async ({ itemId, fromWarehouseId, toWarehouseId, quantity, reason, actorId }) => {
+        try {
+            await inventoryApi.transferStock({
+                item_id: itemId,
+                from_warehouse_id: fromWarehouseId,
+                to_warehouse_id: toWarehouseId,
+                quantity,
+                reason,
+                actor_id: actorId,
+                reference_id: `TR-${Date.now()}`,
+            });
+            await Promise.all([
+                get().fetchInventory(),
+                get().fetchTransferMovements(100),
+            ]);
+        } catch (error: any) {
+            set({ error: error.message });
+            throw error;
+        }
+    },
+
     updateStock: async (itemId, warehouseId, quantity, type, reason) => {
         try {
             const payload = {
@@ -249,22 +484,53 @@ export const useInventoryStore = create<InventoryState>((set, get) => ({
         })
     })),
 
-    addProductionOrder: (po) => set((state) => ({ productionOrders: [...state.productionOrders, po] })),
+    addProductionOrder: async (po) => {
+        try {
+            await productionApi.createOrder({
+                targetItemId: po.targetItemId,
+                quantityRequested: po.quantityRequested,
+                warehouseId: po.warehouseId,
+                actorId: po.actorId,
+            });
+            await get().fetchProductionOrders();
+        } catch (error: any) {
+            set({ error: error.message });
+            throw error;
+        }
+    },
 
-    completeProductionOrder: (poId, actualQuantity) => set((state) => {
-        const order = state.productionOrders.find(o => o.id === poId);
-        if (!order) return state;
+    startProductionOrder: async (poId) => {
+        try {
+            await productionApi.startOrder(poId);
+            await get().fetchProductionOrders();
+        } catch (error: any) {
+            set({ error: error.message });
+            throw error;
+        }
+    },
 
-        // In a real app, this would deduct ingredients from the inventory
-        // and add the finished product to the warehouse stock.
+    completeProductionOrder: async (poId, actualQuantity) => {
+        try {
+            await productionApi.completeOrder(poId, { quantityProduced: actualQuantity });
+            await Promise.all([
+                get().fetchProductionOrders(),
+                get().fetchInventory(),
+            ]);
+        } catch (error: any) {
+            set({ error: error.message });
+            throw error;
+        }
+    },
 
-        return {
-            productionOrders: state.productionOrders.map(po => {
-                if (po.id !== poId) return po;
-                return { ...po, status: 'COMPLETED' as any, quantityProduced: actualQuantity, completedAt: new Date() };
-            })
-        };
-    }),
+    cancelProductionOrder: async (poId) => {
+        try {
+            await productionApi.cancelOrder(poId);
+            await get().fetchProductionOrders();
+        } catch (error: any) {
+            set({ error: error.message });
+            throw error;
+        }
+    },
 
     addSupplier: (supplier) => set((state) => ({ suppliers: [...state.suppliers, supplier] })),
 

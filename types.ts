@@ -273,7 +273,7 @@ export interface Supplier {
 export interface PurchaseOrder {
   id: string;
   supplierId: string;
-  status: 'DRAFT' | 'ORDERED' | 'RECEIVED' | 'CANCELLED' | 'PENDING_APPROVAL';
+  status: 'DRAFT' | 'ORDERED' | 'SENT' | 'PARTIAL' | 'RECEIVED' | 'CANCELLED' | 'CLOSED' | 'PENDING_APPROVAL';
   items: {
     itemId: string; // Link to InventoryItem
     itemName: string;
@@ -495,6 +495,7 @@ export interface User {
   password?: string; // For simulation
   assignedBranchId?: string;
   isActive: boolean;
+  mfaEnabled?: boolean;
   permissions: AppPermission[]; // Final effective permissions
   customOverrides?: {
     added: AppPermission[];

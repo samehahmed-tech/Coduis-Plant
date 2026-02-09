@@ -23,6 +23,7 @@ export const useDataInit = (): InitResult => {
     const fetchUsers = useAuthStore(state => state.fetchUsers);
     const fetchBranches = useAuthStore(state => state.fetchBranches);
     const fetchSettings = useAuthStore(state => state.fetchSettings);
+    const fetchPrinters = useAuthStore(state => state.fetchPrinters);
     const isAuthenticated = useAuthStore(state => state.isAuthenticated);
     const fetchMenu = useMenuStore(state => state.fetchMenu);
     const fetchOrders = useOrderStore(state => state.fetchOrders);
@@ -51,6 +52,7 @@ export const useDataInit = (): InitResult => {
                     fetchUsers(),
                     fetchBranches(),
                     fetchSettings(),
+                    fetchPrinters(),
                     fetchMenu(),
                     fetchOrders({ limit: 50 }),
                     fetchCustomers(),

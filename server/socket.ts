@@ -4,6 +4,7 @@ import jwt from 'jsonwebtoken';
 import { requireEnv } from './config/env';
 import { createAdapter } from '@socket.io/redis-adapter';
 import { createClient, RedisClientType } from 'redis';
+import { isOriginAllowed } from './config/cors';
 
 let io: Server | null = null;
 let redisPubClient: RedisClientType | null = null;
@@ -60,7 +61,13 @@ const enableRedisAdapterIfConfigured = async (server: Server) => {
 export const initSocket = async (httpServer: HttpServer) => {
     io = new Server(httpServer, {
         cors: {
-            origin: ['http://localhost:5173', 'http://localhost:3000'],
+            origin: (origin, callback) => {
+                if (isOriginAllowed(origin)) {
+                    callback(null, true);
+                    return;
+                }
+                callback(new Error(`Origin not allowed by Socket CORS: ${origin}`));
+            },
             credentials: true,
         },
     });
@@ -80,6 +87,11 @@ export const initSocket = async (httpServer: HttpServer) => {
     });
 
     io.on('connection', (socket) => {
+        const user = (socket as Socket & { user?: AuthPayload }).user;
+        if (user?.id) {
+            socket.join(`user:${user.id}`);
+        }
+
         socket.on('join', (branchId: string) => {
             if (branchId) {
                 socket.join(`branch:${branchId}`);
