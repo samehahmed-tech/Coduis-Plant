@@ -46,9 +46,19 @@ const VirtualGrid: React.FC<VirtualGridProps> = ({
     useEffect(() => {
         const node = containerRef.current;
         if (!node) return;
-        const handleScroll = () => setScrollTop(node.scrollTop);
+        let rafId = 0;
+        const handleScroll = () => {
+            if (rafId) return;
+            rafId = window.requestAnimationFrame(() => {
+                setScrollTop(node.scrollTop);
+                rafId = 0;
+            });
+        };
         node.addEventListener('scroll', handleScroll, { passive: true });
-        return () => node.removeEventListener('scroll', handleScroll);
+        return () => {
+            node.removeEventListener('scroll', handleScroll);
+            if (rafId) window.cancelAnimationFrame(rafId);
+        };
     }, []);
 
     const { columns, startRow, endRow, totalRows } = useMemo(() => {
@@ -65,7 +75,9 @@ const VirtualGrid: React.FC<VirtualGridProps> = ({
         return { columns: cols, startRow: start, endRow: end, totalRows: rows };
     }, [viewportWidth, itemCount, scrollTop, viewportHeight, columnWidth, rowHeight, gap, overscan]);
 
-    const totalHeight = totalRows * (rowHeight + gap) - gap;
+    const totalHeight = Math.max(0, totalRows * (rowHeight + gap) - gap);
+    const contentWidth = columns > 0 ? (columns * columnWidth) + ((columns - 1) * gap) : 0;
+    const horizontalOffset = Math.max(0, Math.floor((viewportWidth - contentWidth) / 2));
     const items: React.ReactNode[] = [];
 
     for (let row = startRow; row <= endRow; row += 1) {
@@ -73,7 +85,7 @@ const VirtualGrid: React.FC<VirtualGridProps> = ({
             const index = row * columns + col;
             if (index >= itemCount) break;
             const top = row * (rowHeight + gap);
-            const left = col * (columnWidth + gap);
+            const left = horizontalOffset + (col * (columnWidth + gap));
             items.push(
                 <div
                     key={getKey ? getKey(index) : index}
@@ -95,7 +107,7 @@ const VirtualGrid: React.FC<VirtualGridProps> = ({
         <div
             ref={containerRef}
             className={className}
-            style={{ overflowY: 'auto', height: '100%', ...style }}
+            style={{ overflowY: 'auto', overflowX: 'hidden', height: '100%', ...style }}
         >
             <div style={{ height: totalHeight, position: 'relative' }}>
                 {items}

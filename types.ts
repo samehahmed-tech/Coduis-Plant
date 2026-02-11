@@ -235,6 +235,7 @@ export interface OrderItem extends MenuItem {
 
 export interface Order {
   id: string;
+  orderNumber?: number;
   type: OrderType;
   branchId: string; // The branch handling this order
   tableId?: string;
@@ -257,6 +258,7 @@ export interface Order {
   payments?: PaymentRecord[];
   notes?: string;
   kitchenNotes?: string; // Notes for kitchen staff
+  deliveryNotes?: string;
   driverId?: string; // Link to the assigned driver
   updatedAt?: Date;
 }
@@ -389,6 +391,7 @@ export interface MenuCategory {
   isActive?: boolean;
   items: MenuItem[];
   menuIds: string[]; // Linked to these menu IDs
+  printerIds?: string[]; // Default printers for all items in this category
   image?: string;
   targetOrderTypes?: OrderType[]; // Which modes (Dine-in, Takeaway, etc.)
 }
@@ -576,6 +579,8 @@ export interface AppSettings {
   phone: string;
   receiptLogoUrl?: string;
   receiptQrUrl?: string;
+  autoPrintReceipt?: boolean;
+  maxKitchenPrinters?: number;
   activeBranchId?: string; // Current operating branch context
   currentUser?: User;
   geminiApiKey?: string;

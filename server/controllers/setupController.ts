@@ -1,10 +1,25 @@
 import { Request, Response } from 'express';
-import { db } from '../db';
-import { branches, settings, users } from '../../src/db/schema';
+import { db, pool } from '../db';
+import { branches, floorZones, printers, roles, settings, tables, users } from '../../src/db/schema';
 import bcrypt from 'bcryptjs';
 import crypto from 'crypto';
 
+const tableExists = async (tableName: string) => {
+    const result = await pool.query<{ exists: boolean }>(
+        `select exists(
+            select 1
+            from information_schema.tables
+            where table_schema = 'public'
+              and table_name = $1
+        )`,
+        [tableName.toLowerCase()],
+    );
+    return Boolean(result.rows[0]?.exists);
+};
+
 const hasAnyUsers = async () => {
+    const usersTableExists = await tableExists('users');
+    if (!usersTableExists) return false;
     const existing = await db.select({ id: users.id }).from(users).limit(1);
     return existing.length > 0;
 };
@@ -28,6 +43,9 @@ export const bootstrapSetup = async (req: Request, res: Response) => {
         const admin = body.admin || {};
         const branch = body.branch || {};
         const appSettings = body.settings || {};
+        const setupPrinters = Array.isArray(body.printers) ? body.printers : [];
+        const setupRoles = Array.isArray(body.roles) ? body.roles : [];
+        const setupTables = Array.isArray(body.tables) ? body.tables : [];
 
         if (!admin.name || !admin.email || !admin.password) {
             return res.status(400).json({ error: 'ADMIN_FIELDS_REQUIRED' });
@@ -42,6 +60,7 @@ export const bootstrapSetup = async (req: Request, res: Response) => {
         const branchId = branch.id || `branch-${crypto.randomUUID()}`;
         const userId = admin.id || `user-${crypto.randomUUID()}`;
         const passwordHash = await bcrypt.hash(String(admin.password), 10);
+        const defaultZoneId = `zone-${branchId}-main`;
 
         await db.transaction(async (tx) => {
             await tx.insert(branches).values({
@@ -100,6 +119,102 @@ export const bootstrapSetup = async (req: Request, res: Response) => {
                         target: settings.key,
                         set: { value: entry.value, updatedAt: new Date() }
                     });
+            }
+
+            if (setupPrinters.length > 0) {
+                for (const rawPrinter of setupPrinters) {
+                    const name = String(rawPrinter?.name || '').trim();
+                    if (!name) continue;
+                    const type = String(rawPrinter?.type || 'RECEIPT').trim().toUpperCase();
+                    const printerId = rawPrinter?.id || `PRN-${crypto.randomUUID()}`;
+
+                    await tx.insert(printers)
+                        .values({
+                            id: printerId,
+                            name,
+                            type,
+                            address: rawPrinter?.address || '',
+                            location: rawPrinter?.location || '',
+                            branchId,
+                            isActive: rawPrinter?.isActive !== false,
+                            paperWidth: Number(rawPrinter?.paperWidth || 80),
+                            createdAt: new Date(),
+                        })
+                        .onConflictDoNothing({ target: printers.id });
+                }
+            }
+
+            if (setupRoles.length > 0) {
+                for (const rawRole of setupRoles) {
+                    const roleName = String(rawRole?.name || '').trim();
+                    if (!roleName) continue;
+                    const roleId = rawRole?.id || `role-${crypto.randomUUID()}`;
+                    const rolePermissions = Array.isArray(rawRole?.permissions) ? rawRole.permissions : [];
+
+                    await tx.insert(roles)
+                        .values({
+                            id: roleId,
+                            name: roleName,
+                            nameAr: rawRole?.nameAr || null,
+                            description: rawRole?.description || 'Custom role from setup wizard',
+                            descriptionAr: rawRole?.descriptionAr || null,
+                            permissions: rolePermissions,
+                            isSystem: false,
+                            isActive: true,
+                            priority: Number(rawRole?.priority || 0),
+                            color: rawRole?.color || '#6366f1',
+                            icon: rawRole?.icon || 'user',
+                            createdAt: new Date(),
+                            updatedAt: new Date(),
+                        })
+                        .onConflictDoNothing({ target: roles.name });
+                }
+            }
+
+            if (setupTables.length > 0) {
+                await tx.insert(floorZones)
+                    .values({
+                        id: defaultZoneId,
+                        name: branch.zoneName || 'Main Hall',
+                        branchId,
+                        width: 1600,
+                        height: 1200,
+                        createdAt: new Date(),
+                        updatedAt: new Date(),
+                    })
+                    .onConflictDoUpdate({
+                        target: floorZones.id,
+                        set: {
+                            name: branch.zoneName || 'Main Hall',
+                            branchId,
+                            updatedAt: new Date(),
+                        },
+                    });
+
+                for (const rawTable of setupTables) {
+                    const tableName = String(rawTable?.name || '').trim();
+                    if (!tableName) continue;
+                    const tableId = rawTable?.id || `TBL-${crypto.randomUUID()}`;
+                    const seats = Math.max(1, Number(rawTable?.capacity || rawTable?.seats || 4));
+
+                    await tx.insert(tables)
+                        .values({
+                            id: tableId,
+                            name: tableName,
+                            branchId,
+                            zoneId: rawTable?.zoneId || defaultZoneId,
+                            x: Number(rawTable?.x || 0),
+                            y: Number(rawTable?.y || 0),
+                            width: Number(rawTable?.width || 100),
+                            height: Number(rawTable?.height || 100),
+                            shape: rawTable?.shape || 'rectangle',
+                            seats,
+                            status: 'AVAILABLE',
+                            createdAt: new Date(),
+                            updatedAt: new Date(),
+                        })
+                        .onConflictDoNothing({ target: tables.id });
+                }
             }
         });
 

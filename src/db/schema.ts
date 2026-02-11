@@ -175,6 +175,7 @@ export const menuCategories = pgTable('menu_categories', {
     isActive: boolean('is_active').default(true),
     targetOrderTypes: json('target_order_types').$type<string[]>().default([]),
     menuIds: json('menu_ids').$type<string[]>().default(['menu-1']),
+    printerIds: json('printer_ids').$type<string[]>().default([]),
     createdAt: timestamp('created_at').defaultNow(),
     updatedAt: timestamp('updated_at').defaultNow(),
 });

@@ -22,6 +22,7 @@ async function migrate() {
             ALTER TABLE menu_categories ADD COLUMN IF NOT EXISTS is_active BOOLEAN DEFAULT true;
             ALTER TABLE menu_categories ADD COLUMN IF NOT EXISTS target_order_types JSONB DEFAULT '[]';
             ALTER TABLE menu_categories ADD COLUMN IF NOT EXISTS menu_ids JSONB DEFAULT '[]';
+            ALTER TABLE menu_categories ADD COLUMN IF NOT EXISTS printer_ids JSONB DEFAULT '[]';
         `);
 
         // Ensure all columns exist in menu_items

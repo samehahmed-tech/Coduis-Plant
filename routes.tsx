@@ -1,15 +1,19 @@
 
-import { createBrowserRouter } from 'react-router-dom';
+import { createBrowserRouter, Navigate } from 'react-router-dom';
 import MainLayout from './components/MainLayout';
 import React, { Suspense } from 'react';
 import Login from './components/Login';
+import { useAuthStore } from './stores/useAuthStore';
+import { AppPermission } from './types';
 
 // Lazy load components for better performance
 // Export loaders for preloading
 export const loaders = {
     Dashboard: () => import('./components/Dashboard'),
+    AdminDashboardPage: () => import('./components/AdminDashboardPage'),
     POS: () => import('./components/POS'),
     CallCenter: () => import('./components/CallCenter'),
+    CallCenterManager: () => import('./components/CallCenterManager'),
     KDS: () => import('./components/KDS'),
     MenuManager: () => import('./components/MenuManager'),
     PrinterManager: () => import('./components/PrinterManager'),
@@ -29,14 +33,17 @@ export const loaders = {
     CampaignHub: () => import('./components/CampaignHub'),
     ZenPeople: () => import('./components/ZenPeople'),
     FiscalHub: () => import('./components/FiscalHub'),
+    DayCloseHub: () => import('./components/DayCloseHub'),
     FranchiseManager: () => import('./components/FranchiseManager'),
     SetupWizard: () => import('./components/SetupWizard'),
 };
 
 // Lazy load components using exported loaders
 const Dashboard = React.lazy(loaders.Dashboard);
+const AdminDashboardPage = React.lazy(loaders.AdminDashboardPage);
 const POS = React.lazy(loaders.POS);
 const CallCenter = React.lazy(loaders.CallCenter);
+const CallCenterManager = React.lazy(loaders.CallCenterManager);
 const KDS = React.lazy(loaders.KDS);
 const MenuManager = React.lazy(loaders.MenuManager);
 const PrinterManager = React.lazy(loaders.PrinterManager);
@@ -56,10 +63,34 @@ const DispatchHub = React.lazy(loaders.DispatchHub);
 const CampaignHub = React.lazy(loaders.CampaignHub);
 const ZenPeople = React.lazy(loaders.ZenPeople);
 const FiscalHub = React.lazy(loaders.FiscalHub);
+const DayCloseHub = React.lazy(loaders.DayCloseHub);
 const FranchiseManager = React.lazy(loaders.FranchiseManager);
 const LazySetupWizard = React.lazy(loaders.SetupWizard);
 
 const Loading = () => <div className="p-8 text-center text-slate-400 font-black uppercase tracking-widest text-[8px] opacity-40">Initializing Module...</div>;
+
+const RequirePermission: React.FC<{ permission: AppPermission; children: React.ReactNode }> = ({ permission, children }) => {
+    const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
+    const hasPermission = useAuthStore((state) => state.hasPermission);
+    const fallbackPath = hasPermission(AppPermission.NAV_DASHBOARD)
+        ? '/'
+        : hasPermission(AppPermission.NAV_POS)
+            ? '/pos'
+            : hasPermission(AppPermission.NAV_CALL_CENTER)
+                ? '/call-center'
+                : hasPermission(AppPermission.NAV_KDS)
+                    ? '/kds'
+                    : hasPermission(AppPermission.NAV_REPORTS)
+                        ? '/reports'
+                        : '/login';
+    if (!isAuthenticated) return <Navigate to="/login" replace />;
+    if (!hasPermission(permission)) return <Navigate to={fallbackPath} replace />;
+    return <>{children}</>;
+};
+
+const withPermission = (permission: AppPermission, element: React.ReactNode) => (
+    <RequirePermission permission={permission}>{element}</RequirePermission>
+);
 
 export const router = createBrowserRouter([
     {
@@ -68,188 +99,214 @@ export const router = createBrowserRouter([
         children: [
             {
                 index: true,
-                element: (
+                element: withPermission(AppPermission.NAV_DASHBOARD, (
                     <Suspense fallback={<Loading />}>
                         <Dashboard />
                     </Suspense>
-                ),
+                )),
+            },
+            {
+                path: 'admin-dashboard',
+                element: withPermission(AppPermission.NAV_ADMIN_DASHBOARD, (
+                    <Suspense fallback={<Loading />}>
+                        <AdminDashboardPage />
+                    </Suspense>
+                )),
             },
             {
                 path: 'pos',
-                element: (
+                element: withPermission(AppPermission.NAV_POS, (
                     <Suspense fallback={<Loading />}>
                         <POS />
                     </Suspense>
-                ),
+                )),
             },
             {
                 path: 'call-center',
-                element: (
+                element: withPermission(AppPermission.NAV_CALL_CENTER, (
                     <Suspense fallback={<Loading />}>
                         <CallCenter />
                     </Suspense>
-                ),
+                )),
+            },
+            {
+                path: 'call-center-manager',
+                element: withPermission(AppPermission.NAV_CALL_CENTER, (
+                    <Suspense fallback={<Loading />}>
+                        <CallCenterManager />
+                    </Suspense>
+                )),
             },
             {
                 path: 'kds',
-                element: (
+                element: withPermission(AppPermission.NAV_KDS, (
                     <Suspense fallback={<Loading />}>
                         <KDS />
                     </Suspense>
-                ),
+                )),
             },
             {
                 path: 'menu',
-                element: (
+                element: withPermission(AppPermission.NAV_MENU_MANAGER, (
                     <Suspense fallback={<Loading />}>
                         <MenuManager />
                     </Suspense>
-                ),
+                )),
             },
             {
                 path: 'printers',
-                element: (
+                element: withPermission(AppPermission.NAV_PRINTERS, (
                     <Suspense fallback={<Loading />}>
                         <PrinterManager />
                     </Suspense>
-                ),
+                )),
             },
             {
                 path: 'recipes',
-                element: (
+                element: withPermission(AppPermission.NAV_RECIPES, (
                     <Suspense fallback={<Loading />}>
                         <RecipeManager />
                     </Suspense>
-                ),
+                )),
             },
             {
                 path: 'inventory',
-                element: (
+                element: withPermission(AppPermission.NAV_INVENTORY, (
                     <Suspense fallback={<Loading />}>
                         <Inventory />
                     </Suspense>
-                ),
+                )),
             },
             {
                 path: 'crm',
-                element: (
+                element: withPermission(AppPermission.NAV_CRM, (
                     <Suspense fallback={<Loading />}>
                         <CRM />
                     </Suspense>
-                ),
+                )),
             },
             {
                 path: 'finance',
-                element: (
+                element: withPermission(AppPermission.NAV_FINANCE, (
                     <Suspense fallback={<Loading />}>
                         <Finance />
                     </Suspense>
-                ),
+                )),
             },
             {
                 path: 'reports',
-                element: (
+                element: withPermission(AppPermission.NAV_REPORTS, (
                     <Suspense fallback={<Loading />}>
                         <Reports />
                     </Suspense>
-                ),
+                )),
             },
             {
                 path: 'ai-insights',
-                element: (
+                element: withPermission(AppPermission.NAV_AI_ASSISTANT, (
                     <Suspense fallback={<Loading />}>
                         <AIInsights />
                     </Suspense>
-                ),
+                )),
             },
             {
                 path: 'ai-assistant',
-                element: (
+                element: withPermission(AppPermission.NAV_AI_ASSISTANT, (
                     <Suspense fallback={<Loading />}>
                         <AIAssistant />
                     </Suspense>
-                ),
+                )),
             },
             {
                 path: 'security',
-                element: (
+                element: withPermission(AppPermission.NAV_SECURITY, (
                     <Suspense fallback={<Loading />}>
                         <SecurityHub />
                     </Suspense>
-                ),
+                )),
             },
             {
                 path: 'forensics',
-                element: (
+                element: withPermission(AppPermission.NAV_FORENSICS, (
                     <Suspense fallback={<Loading />}>
                         <ForensicsHub />
                     </Suspense>
-                ),
+                )),
             },
             {
                 path: 'settings',
-                element: (
+                element: withPermission(AppPermission.NAV_SETTINGS, (
                     <Suspense fallback={<Loading />}>
                         <SettingsHub />
                     </Suspense>
-                ),
+                )),
             },
             {
                 path: 'production',
-                element: (
+                element: withPermission(AppPermission.NAV_PRODUCTION, (
                     <Suspense fallback={<Loading />}>
                         <Production />
                     </Suspense>
-                ),
+                )),
             },
             {
                 path: 'dispatch',
-                element: (
+                element: withPermission(AppPermission.NAV_DASHBOARD, (
                     <Suspense fallback={<Loading />}>
                         <DispatchHub />
                     </Suspense>
-                ),
+                )),
             },
             {
                 path: 'marketing',
-                element: (
+                element: withPermission(AppPermission.NAV_REPORTS, (
                     <Suspense fallback={<Loading />}>
                         <CampaignHub />
                     </Suspense>
-                ),
+                )),
             },
             {
                 path: 'people',
-                element: (
+                element: withPermission(AppPermission.NAV_PEOPLE, (
                     <Suspense fallback={<Loading />}>
                         <ZenPeople />
                     </Suspense>
-                ),
+                )),
             },
             {
                 path: 'fiscal',
-                element: (
+                element: withPermission(AppPermission.NAV_FINANCE, (
                     <Suspense fallback={<Loading />}>
                         <FiscalHub />
                     </Suspense>
-                ),
+                )),
+            },
+            {
+                path: 'day-close',
+                element: withPermission(AppPermission.NAV_REPORTS, (
+                    <Suspense fallback={<Loading />}>
+                        <DayCloseHub />
+                    </Suspense>
+                )),
             },
             {
                 path: 'franchise',
-                element: (
+                element: withPermission(AppPermission.NAV_REPORTS, (
                     <Suspense fallback={<Loading />}>
                         <FranchiseManager />
                     </Suspense>
-                ),
+                )),
             },
         ],
     },
     {
         path: 'floor-designer',
         element: (
-            <Suspense fallback={<Loading />}>
-                <FloorDesigner />
-            </Suspense>
+            <RequirePermission permission={AppPermission.NAV_FLOOR_PLAN}>
+                <Suspense fallback={<Loading />}>
+                    <FloorDesigner />
+                </Suspense>
+            </RequirePermission>
         ),
     },
     {

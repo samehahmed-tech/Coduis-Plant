@@ -144,6 +144,15 @@ const MenuManager: React.FC = () => {
     setItemModal({ ...itemModal, item: { ...itemModal.item, printerIds: nextPrinters } });
   };
 
+  const toggleCategoryPrinter = (printerId: string) => {
+    if (!categoryModal) return;
+    const currentPrinters = categoryModal.category.printerIds || [];
+    const nextPrinters = currentPrinters.includes(printerId)
+      ? currentPrinters.filter(id => id !== printerId)
+      : [...currentPrinters, printerId];
+    setCategoryModal({ ...categoryModal, category: { ...categoryModal.category, printerIds: nextPrinters } });
+  };
+
   const dayOptions = [
     { id: 'mon', en: 'Mon', ar: 'الاثنين' },
     { id: 'tue', en: 'Tue', ar: 'الثلاثاء' },
@@ -285,7 +294,7 @@ const MenuManager: React.FC = () => {
             onClick={() => setCategoryModal({
               isOpen: true,
               mode: 'ADD',
-              category: { id: '', name: '', items: [], menuIds: [selectedMenuId], targetOrderTypes: [] }
+              category: { id: '', name: '', items: [], menuIds: [selectedMenuId], targetOrderTypes: [], printerIds: [] }
             })}
             className="flex-1 sm:flex-none flex items-center justify-center gap-2 bg-primary text-white px-6 py-4 rounded-[1.5rem] font-black text-xs uppercase tracking-widest hover:bg-elevated transition-all border border-primary"
           >
@@ -386,6 +395,11 @@ const MenuManager: React.FC = () => {
                     <h4 className="text-2xl font-black text-main uppercase tracking-tight">{lang === 'ar' ? (category.nameAr || category.name) : category.name}</h4>
                     <div className="flex items-center gap-2 mt-1">
                       <p className="text-[10px] font-bold text-muted uppercase tracking-widest">{category.items.length} {lang === 'ar' ? 'أصناف' : 'Items'}</p>
+                      {category.printerIds && category.printerIds.length > 0 && (
+                        <span className="px-2 py-1 bg-elevated/70 dark:bg-elevated text-muted text-[9px] font-black rounded-full flex items-center gap-1">
+                          <PrinterIcon size={8} /> {category.printerIds.length}
+                        </span>
+                      )}
                       {category.targetOrderTypes && category.targetOrderTypes.length > 0 && (
                         <div className="flex gap-1">
                           {category.targetOrderTypes.includes('DINE_IN' as any) && <span className="p-1 rounded bg-orange-100 text-orange-600" title="Dine In"><UtensilsCrossed size={10} /></span>}
@@ -927,6 +941,25 @@ const MenuManager: React.FC = () => {
                       </button>
                     );
                   })}
+                </div>
+              </div>
+
+              <div className="space-y-3">
+                <label className="text-[10px] font-black text-muted uppercase tracking-widest ml-1">{lang === 'ar' ? 'طابعات القسم الافتراضية' : 'Default Section Printers'}</label>
+                <div className="flex flex-wrap gap-2">
+                  {printers.map(p => (
+                    <button
+                      key={p.id}
+                      onClick={() => toggleCategoryPrinter(p.id)}
+                      className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-wider border transition-all flex items-center gap-2 ${categoryModal.category.printerIds?.includes(p.id) ? 'bg-primary border-primary text-white' : 'bg-transparent border-border text-muted'}`}
+                    >
+                      <PrinterIcon size={12} />
+                      {p.name}
+                    </button>
+                  ))}
+                  {printers.length === 0 && (
+                    <p className="text-[11px] text-muted italic">{lang === 'ar' ? 'لا توجد طابعات مضافة' : 'No printers configured yet.'}</p>
+                  )}
                 </div>
               </div>
             </div>

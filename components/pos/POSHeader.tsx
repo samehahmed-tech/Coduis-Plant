@@ -11,7 +11,6 @@ interface POSHeaderProps {
     onClearTable: () => void;
     deliveryCustomer: Customer | null;
     onClearCustomer: () => void;
-    isSidebarCollapsed: boolean;
     isTouchMode: boolean;
     onRecall?: () => void;
     activePriceListId: string | null;
@@ -27,7 +26,6 @@ const POSHeader: React.FC<POSHeaderProps> = React.memo(({
     onClearTable,
     deliveryCustomer,
     onClearCustomer,
-    isSidebarCollapsed,
     isTouchMode,
     onRecall,
     activePriceListId,

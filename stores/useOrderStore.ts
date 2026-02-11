@@ -100,6 +100,7 @@ export const useOrderStore = create<OrderState>()(
                         const data = await ordersApi.getAll(params);
                         const orders = data.map((o: any) => ({
                             id: o.id,
+                            orderNumber: o.order_number || o.orderNumber,
                             type: o.type as OrderType,
                             branchId: o.branch_id || o.branchId,
                             tableId: o.table_id || o.tableId,
@@ -108,7 +109,11 @@ export const useOrderStore = create<OrderState>()(
                             customerPhone: o.customer_phone || o.customerPhone,
                             deliveryAddress: o.delivery_address || o.deliveryAddress,
                             isCallCenterOrder: o.is_call_center_order || o.isCallCenterOrder,
-                            items: o.items || [],
+                            items: (o.items || []).map((item: any, index: number) => ({
+                                ...item,
+                                cartId: item.cartId || item.id || `${o.id}-${index}`,
+                                selectedModifiers: item.selectedModifiers || item.modifiers || [],
+                            })),
                             status: o.status as OrderStatus,
                             subtotal: o.subtotal,
                             tax: o.tax,
@@ -118,6 +123,8 @@ export const useOrderStore = create<OrderState>()(
                             isUrgent: o.is_urgent,
                             paymentMethod: o.payment_method,
                             notes: o.notes,
+                            kitchenNotes: o.kitchen_notes || o.kitchenNotes,
+                            deliveryNotes: o.delivery_notes || o.deliveryNotes,
                             createdAt: new Date(o.created_at || o.createdAt),
                             updatedAt: o.updated_at ? new Date(o.updated_at) : (o.updatedAt ? new Date(o.updatedAt) : undefined),
                             syncStatus: o.sync_status || 'SYNCED'
@@ -226,6 +233,7 @@ export const useOrderStore = create<OrderState>()(
 
                     const normalizedOrder: Order = {
                         id: savedOrder.id,
+                        orderNumber: savedOrder.order_number || savedOrder.orderNumber || order.orderNumber,
                         type: savedOrder.type || order.type,
                         branchId: savedOrder.branch_id || savedOrder.branchId || order.branchId,
                         tableId: savedOrder.table_id || savedOrder.tableId || order.tableId,
@@ -245,6 +253,8 @@ export const useOrderStore = create<OrderState>()(
                         paymentMethod: savedOrder.payment_method ?? order.paymentMethod,
                         payments: savedOrder.payments ?? order.payments,
                         notes: savedOrder.notes ?? order.notes,
+                        kitchenNotes: savedOrder.kitchen_notes ?? savedOrder.kitchenNotes ?? order.kitchenNotes,
+                        deliveryNotes: savedOrder.delivery_notes ?? savedOrder.deliveryNotes ?? order.deliveryNotes,
                         createdAt: new Date(savedOrder.created_at || savedOrder.createdAt || new Date()),
                         updatedAt: savedOrder.updated_at ? new Date(savedOrder.updated_at) : (savedOrder.updatedAt ? new Date(savedOrder.updatedAt) : undefined),
                         syncStatus: savedOrder.sync_status || savedOrder.syncStatus || 'SYNCED'

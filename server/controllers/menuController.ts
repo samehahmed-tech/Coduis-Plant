@@ -3,13 +3,85 @@ import { db } from '../db';
 import { menuCategories, menuItems } from '../../src/db/schema';
 import { and, eq } from 'drizzle-orm';
 import { getStringParam } from '../utils/request';
+import { pool } from '../db';
+
+const tableColumnsCache = new Map<string, Set<string>>();
+
+const getTableColumns = async (tableName: string): Promise<Set<string>> => {
+    const cacheKey = tableName.toLowerCase();
+    const cached = tableColumnsCache.get(cacheKey);
+    if (cached) return cached;
+
+    const result = await pool.query<{ column_name: string }>(
+        `select column_name
+         from information_schema.columns
+         where table_schema = 'public'
+           and table_name = $1`,
+        [cacheKey],
+    );
+
+    const columns = new Set(result.rows.map((r) => r.column_name));
+    tableColumnsCache.set(cacheKey, columns);
+    return columns;
+};
+
+const hasAnyColumn = (columns: Set<string>) => columns.size > 0;
+
+const readCategoriesCompat = async () => {
+    const columns = await getTableColumns('menu_categories');
+    if (!hasAnyColumn(columns)) {
+        return [];
+    }
+
+    const selectParts = [
+        `id`,
+        `name`,
+        `name_ar as "nameAr"`,
+        `description`,
+        `icon`,
+        `image`,
+        `color`,
+        `sort_order as "sortOrder"`,
+        `is_active as "isActive"`,
+        columns.has('target_order_types')
+            ? `target_order_types as "targetOrderTypes"`
+            : `'[]'::json as "targetOrderTypes"`,
+        columns.has('menu_ids')
+            ? `menu_ids as "menuIds"`
+            : `'[]'::json as "menuIds"`,
+        columns.has('printer_ids')
+            ? `printer_ids as "printerIds"`
+            : `'[]'::json as "printerIds"`,
+        `created_at as "createdAt"`,
+        `updated_at as "updatedAt"`,
+    ];
+
+    const query = `
+        select ${selectParts.join(', ')}
+        from menu_categories
+        order by sort_order, name
+    `;
+
+    const result = await pool.query(query);
+    return result.rows;
+};
+
+const sanitizeCategoryPayload = async (payload: Record<string, any>) => {
+    const columns = await getTableColumns('menu_categories');
+    const sanitized = { ...payload };
+
+    if (!columns.has('target_order_types')) delete sanitized.targetOrderTypes;
+    if (!columns.has('menu_ids')) delete sanitized.menuIds;
+    if (!columns.has('printer_ids')) delete sanitized.printerIds;
+
+    return sanitized;
+};
 
 // --- Categories ---
 export const getAllCategories = async (req: Request, res: Response) => {
     try {
-        // Get all categories - don't filter by isActive to allow viewing inactive items in admin
-        const categories = await db.select().from(menuCategories)
-            .orderBy(menuCategories.sortOrder, menuCategories.name);
+        // Read categories with backward-compat fallback for databases missing newer columns.
+        const categories = await readCategoriesCompat();
         res.json(categories);
     } catch (error: any) {
         res.status(500).json({ error: error.message });
@@ -18,12 +90,13 @@ export const getAllCategories = async (req: Request, res: Response) => {
 
 export const createCategory = async (req: Request, res: Response) => {
     try {
+        const safePayload = await sanitizeCategoryPayload(req.body || {});
         const category = await db.insert(menuCategories).values({
-            ...req.body,
+            ...(safePayload as any),
             isActive: req.body.isActive !== false, // Default to true if not specified
             createdAt: new Date(),
             updatedAt: new Date(),
-        }).returning();
+        } as any).returning();
         res.status(201).json(category[0]);
     } catch (error: any) {
         res.status(500).json({ error: error.message });
@@ -34,9 +107,10 @@ export const updateCategory = async (req: Request, res: Response) => {
     try {
         const id = getStringParam((req.params as any).id);
         if (!id) return res.status(400).json({ error: 'CATEGORY_ID_REQUIRED' });
-        const { id: _, ...updateData } = req.body; // Prevent updating ID
+        const { id: _, ...rawUpdateData } = req.body; // Prevent updating ID
+        const updateData = await sanitizeCategoryPayload(rawUpdateData);
         const updated = await db.update(menuCategories)
-            .set({ ...updateData, updatedAt: new Date() })
+            .set({ ...(updateData as any), updatedAt: new Date() } as any)
             .where(eq(menuCategories.id, id))
             .returning();
 
@@ -131,8 +205,7 @@ export const getFullMenu = async (req: Request, res: Response) => {
         const available_only = getStringParam(req.query.available_only);
 
         // Get all categories
-        const categories = await db.select().from(menuCategories)
-            .orderBy(menuCategories.sortOrder);
+        const categories = await readCategoriesCompat();
 
         // Get items - filter by availability and published status for POS
         let items;

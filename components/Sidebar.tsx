@@ -31,6 +31,7 @@ import {
   Megaphone,
   Truck,
   ShieldCheck,
+  ClipboardCheck,
   Map as MapIcon,
   Wifi,
   WifiOff
@@ -125,6 +126,7 @@ const Sidebar: React.FC = () => {
           title: lang === 'ar' ? 'الرئيسية' : 'Home',
           items: [
             { path: '/', label: t.dashboard, icon: LayoutDashboard, permission: AppPermission.NAV_DASHBOARD, loaderKey: 'Dashboard' },
+            { path: '/admin-dashboard', label: lang === 'ar' ? 'لوحة تحكم الإدارة' : 'Admin Dashboard', icon: Building2, permission: AppPermission.NAV_ADMIN_DASHBOARD, loaderKey: 'AdminDashboardPage' },
           ]
         },
         // 🛒 العمليات التشغيلية - POS, KDS, Call Center
@@ -134,6 +136,7 @@ const Sidebar: React.FC = () => {
             { path: '/pos', label: t.pos, icon: UtensilsCrossed, permission: AppPermission.NAV_POS, loaderKey: 'POS' },
             { path: '/kds', label: t.kds, icon: ChefHat, permission: AppPermission.NAV_KDS, loaderKey: 'KDS' },
             { path: '/call-center', label: t.call_center, icon: Headset, permission: AppPermission.NAV_CALL_CENTER, loaderKey: 'CallCenter' },
+            { path: '/call-center-manager', label: lang === 'ar' ? 'إدارة الكول سنتر' : 'Call Center Control', icon: Headset, permission: AppPermission.NAV_CALL_CENTER, loaderKey: 'CallCenterManager' },
           ]
         },
         // 📦 المخازن والإمداد - Inventory, Production, Recipes
@@ -151,6 +154,7 @@ const Sidebar: React.FC = () => {
           items: [
             { path: '/finance', label: t.finance, icon: Landmark, permission: AppPermission.NAV_FINANCE, loaderKey: 'Finance' },
             { path: '/fiscal', label: lang === 'ar' ? 'الامتثال الضريبي' : 'Fiscal Compliance', icon: ShieldCheck, permission: AppPermission.NAV_FINANCE, loaderKey: 'FiscalHub' },
+            { path: '/day-close', label: lang === 'ar' ? 'إغلاق اليوم' : 'Day Close', icon: ClipboardCheck, permission: AppPermission.NAV_REPORTS, loaderKey: 'DayCloseHub' },
           ]
         },
         // 📊 التقارير والذكاء - Reports, AI Insights, Analytics
@@ -185,6 +189,7 @@ const Sidebar: React.FC = () => {
           title: lang === 'ar' ? 'إدارة النظام' : 'System Settings',
           items: [
             { path: '/menu', label: t.menu, icon: BookOpen, permission: AppPermission.NAV_MENU_MANAGER, loaderKey: 'MenuManager' },
+            { path: '/floor-designer', label: lang === 'ar' ? 'مصمم الصالة' : 'Floor Designer', icon: MapIcon, permission: AppPermission.NAV_FLOOR_PLAN, loaderKey: 'FloorDesigner' },
             { path: '/settings', label: t.settings, icon: Settings, permission: AppPermission.NAV_SETTINGS, loaderKey: 'SettingsHub' },
             { path: '/security', label: t.security, icon: Shield, permission: AppPermission.NAV_SECURITY, loaderKey: 'SecurityHub' },
             { path: '/printers', label: t.printers, icon: PrinterIcon, permission: AppPermission.NAV_PRINTERS, loaderKey: 'PrinterManager' },
@@ -209,6 +214,7 @@ const Sidebar: React.FC = () => {
           { path: '/pos', label: t.pos, icon: UtensilsCrossed, permission: AppPermission.NAV_POS, loaderKey: 'POS' },
           { path: '/kds', label: t.kds, icon: ChefHat, permission: AppPermission.NAV_KDS, loaderKey: 'KDS' },
           { path: '/call-center', label: t.call_center, icon: Headset, permission: AppPermission.NAV_CALL_CENTER, loaderKey: 'CallCenter' },
+          { path: '/call-center-manager', label: lang === 'ar' ? 'إدارة الكول سنتر' : 'Call Center Control', icon: Headset, permission: AppPermission.NAV_CALL_CENTER, loaderKey: 'CallCenterManager' },
         ]
       },
       // 📦 المخازن
@@ -216,6 +222,7 @@ const Sidebar: React.FC = () => {
         title: lang === 'ar' ? 'المخازن' : 'Inventory',
         items: [
           { path: '/inventory', label: t.inventory, icon: Package, permission: AppPermission.NAV_INVENTORY, loaderKey: 'Inventory' },
+          { path: '/floor-designer', label: lang === 'ar' ? 'مصمم الصالة' : 'Floor Designer', icon: MapIcon, permission: AppPermission.NAV_FLOOR_PLAN, loaderKey: 'FloorDesigner' },
         ]
       },
       // 👥 العملاء والذكاء
@@ -224,6 +231,13 @@ const Sidebar: React.FC = () => {
         items: [
           { path: '/crm', label: t.crm, icon: Users, permission: AppPermission.NAV_CRM, loaderKey: 'CRM' },
           { path: '/ai-assistant', label: t.ai_assistant, icon: Sparkles, permission: AppPermission.NAV_AI_ASSISTANT, loaderKey: 'AIAssistant' },
+        ]
+      },
+      {
+        title: lang === 'ar' ? 'Reports & Compliance' : 'Reports & Compliance',
+        items: [
+          { path: '/reports', label: lang === 'ar' ? 'Reports' : 'Reports', icon: BarChart3, permission: AppPermission.NAV_REPORTS, loaderKey: 'Reports' },
+          { path: '/day-close', label: lang === 'ar' ? 'إغلاق اليوم' : 'Day Close', icon: ClipboardCheck, permission: AppPermission.NAV_REPORTS, loaderKey: 'DayCloseHub' },
         ]
       }
     ];
@@ -427,17 +441,10 @@ const Sidebar: React.FC = () => {
                   <div className="flex gap-2">
                     <button
                       onClick={() => setDiscount(discount === 0 ? 10 : 0)}
-                      className={`flex-1 flex flex-col items-center justify-center py-3 rounded-2xl border transition-all group ${discount > 0 ? 'bg-indigo-500/10 border-indigo-500/30 text-indigo-600' : 'bg-card/70 border-border/50 hover:border-indigo-500/30'}`}
+                      className={`w-full flex flex-col items-center justify-center py-3 rounded-2xl border transition-all group ${discount > 0 ? 'bg-indigo-500/10 border-indigo-500/30 text-indigo-600' : 'bg-card/70 border-border/50 hover:border-indigo-500/30'}`}
                     >
                       <span className="text-[9px] font-black uppercase opacity-70 mb-0.5">{lang === 'ar' ? 'خصم' : 'Discount'}</span>
                       <span className="text-base font-black tracking-tighter">{discount}%</span>
-                    </button>
-                    <button
-                      disabled
-                      className="flex-1 flex flex-col items-center justify-center py-3 rounded-2xl border border-border/50 bg-card/40 opacity-40 cursor-not-allowed"
-                    >
-                      <span className="text-[9px] font-black uppercase opacity-70 mb-0.5">{lang === 'ar' ? 'نقاط' : 'Points'}</span>
-                      <span className="text-base font-black tracking-tighter">0</span>
                     </button>
                   </div>
 
@@ -784,3 +791,4 @@ const Sidebar: React.FC = () => {
 };
 
 export default React.memo(Sidebar);
+

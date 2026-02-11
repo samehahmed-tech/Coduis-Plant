@@ -1,13 +1,12 @@
 
 import React from 'react';
-import { Clock, CheckCircle, Flame, Filter, Timer, RefreshCw, MonitorPlay, Volume2, VolumeX, Layers, Settings2 } from 'lucide-react';
+import { Clock, CheckCircle, Flame, Filter, Timer, RefreshCw, MonitorPlay, Volume2, VolumeX, Layers, Settings2, Zap } from 'lucide-react';
 import { OrderStatus, AuditEventType } from '../types';
 import { useOrderStore } from '../stores/useOrderStore';
 import { eventBus } from '../services/eventBus';
 import { socketService } from '../services/socketService';
 import { useAuthStore } from '../stores/useAuthStore';
 import { translations } from '../services/translations';
-import VirtualList from './common/VirtualList';
 import { settingsApi } from '../services/api';
 
 type Station = 'ALL' | 'GRILL' | 'BAR' | 'DESSERT' | 'FRYER' | 'SALAD' | 'BAKERY';
@@ -16,6 +15,7 @@ const KDS: React.FC = () => {
   const { orders, updateOrderStatus, fetchOrders } = useOrderStore();
   const { settings } = useAuthStore();
   const t = translations[settings.language || 'en'];
+  const isArabic = settings.language === 'ar';
   const activeBranchId = settings.activeBranchId;
   const currentUser = settings.currentUser;
 
@@ -44,6 +44,7 @@ const KDS: React.FC = () => {
     BAKERY: 'bread,bakery,pastry,croissant,bun'
   });
   const [stationLock, setStationLock] = React.useState<Station | null>(null);
+  const [isCompactLayout, setIsCompactLayout] = React.useState(false);
 
   const allStations = React.useMemo<Station[]>(() => ['ALL', 'GRILL', 'BAR', 'DESSERT', 'FRYER', 'SALAD', 'BAKERY'], []);
 
@@ -90,6 +91,13 @@ const KDS: React.FC = () => {
   React.useEffect(() => {
     const timer = setInterval(() => setNowTick(Date.now()), 10000);
     return () => clearInterval(timer);
+  }, []);
+
+  React.useEffect(() => {
+    const updateLayoutMode = () => setIsCompactLayout(window.innerWidth <= 1024);
+    updateLayoutMode();
+    window.addEventListener('resize', updateLayoutMode);
+    return () => window.removeEventListener('resize', updateLayoutMode);
   }, []);
 
   React.useEffect(() => {
@@ -164,6 +172,14 @@ const KDS: React.FC = () => {
     return 'bg-slate-900 text-white';
   };
 
+  const formatOrderRef = (order: any) => {
+    const numberValue = Number(order?.orderNumber);
+    if (Number.isFinite(numberValue) && numberValue > 0) {
+      return `#${String(numberValue).padStart(6, '0')}`;
+    }
+    return `#${order.id}`;
+  };
+
   React.useEffect(() => {
     if (soundMode === 'OFF') return;
     const overdue = activeOrders.filter(o => getElapsedMins(o.createdAt) >= slaThresholds.critical);
@@ -195,6 +211,35 @@ const KDS: React.FC = () => {
 
   const groupByStatus = (status: OrderStatus) =>
     activeOrders.filter(o => o.status === status);
+
+  const getNextStatus = (status: OrderStatus) => {
+    if (status === OrderStatus.PENDING) return OrderStatus.PREPARING;
+    if (status === OrderStatus.PREPARING) return OrderStatus.READY;
+    if (status === OrderStatus.READY) return OrderStatus.DELIVERED;
+    return status;
+  };
+
+  const advanceOrder = async (order: any) => {
+    const next = getNextStatus(order.status);
+    if (next !== order.status) {
+      await updateOrderStatus(order.id, next);
+    }
+  };
+
+  const nextPendingOrder = React.useMemo(() => {
+    const pending = groupByStatus(OrderStatus.PENDING);
+    return [...pending].sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime())[0];
+  }, [activeOrders]);
+
+  const nextPreparingOrder = React.useMemo(() => {
+    const preparing = groupByStatus(OrderStatus.PREPARING);
+    return [...preparing].sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime())[0];
+  }, [activeOrders]);
+
+  const nextReadyOrder = React.useMemo(() => {
+    const ready = groupByStatus(OrderStatus.READY);
+    return [...ready].sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime())[0];
+  }, [activeOrders]);
 
   const completeReadyBatch = async () => {
     const readyOrders = groupByStatus(OrderStatus.READY);
@@ -290,42 +335,69 @@ const KDS: React.FC = () => {
   }
 
   return (
-    <div className="p-8 min-h-screen bg-app transition-colors pb-24">
-      <div className={`flex justify-between items-center mb-6 p-6 rounded-[2rem] transition-all duration-700 ${isFlashing ? 'bg-primary shadow-2xl shadow-primary/40' : 'bg-transparent'}`}>
+    <div className="p-3 md:p-5 xl:p-8 min-h-screen bg-app transition-colors pb-24">
+      <div className={`sticky top-2 z-20 backdrop-blur-md flex justify-between items-center mb-4 md:mb-6 p-4 md:p-6 rounded-[1.5rem] md:rounded-[2rem] transition-all duration-700 ${isFlashing ? 'bg-primary shadow-2xl shadow-primary/40' : 'bg-card/90 border border-border/40'}`}>
         <div>
-          <h2 className={`text-3xl font-black uppercase tracking-tight transition-colors ${isFlashing ? 'text-white' : 'text-main'}`}>
+          <h2 className={`text-xl md:text-3xl font-black uppercase tracking-tight transition-colors ${isFlashing ? 'text-white' : 'text-main'}`}>
             {isFlashing ? '🚨 NEW ORDER RECEIVED 🚨' : 'Kitchen Module'}
           </h2>
-          <p className={`font-semibold text-sm transition-colors ${isFlashing ? 'text-indigo-100' : 'text-muted'}`}>
+          <p className={`font-semibold text-xs md:text-sm transition-colors ${isFlashing ? 'text-indigo-100' : 'text-muted'}`}>
             {isFlashing ? 'Immediate attention required for incoming ticket.' : 'Real-time order tracking and kitchen efficiency.'}
           </p>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2 md:gap-3">
           <button
             onClick={toggleFullscreen}
-            className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest border transition-all ${isFullscreen ? 'bg-indigo-600 text-white border-indigo-600' : 'bg-card border-border/50 text-muted hover:text-primary'}`}
+            className={`px-3 md:px-4 py-2.5 min-h-11 rounded-xl text-[10px] font-black uppercase tracking-widest border transition-all ${isFullscreen ? 'bg-indigo-600 text-white border-indigo-600' : 'bg-card border-border/50 text-muted hover:text-primary'}`}
           >
             <MonitorPlay size={14} className="inline mr-2" />
             {isFullscreen ? 'Exit Fullscreen' : 'Fullscreen'}
           </button>
           <button
             onClick={() => setIsStationSettingsOpen(true)}
-            className="px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest border transition-all bg-card border-border/50 text-muted hover:text-primary"
+            className="hidden md:inline-flex px-4 py-2.5 min-h-11 rounded-xl text-[10px] font-black uppercase tracking-widest border transition-all bg-card border-border/50 text-muted hover:text-primary"
           >
             <Settings2 size={14} className="inline mr-2" />
             Stations
           </button>
           <button
             onClick={() => setSoundMode(soundMode === 'OFF' ? 'ALL' : 'OFF')}
-            className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest border transition-all ${soundMode === 'OFF' ? 'bg-slate-200 text-slate-500 border-slate-200' : 'bg-card border-border/50 text-muted hover:text-primary'}`}
+            className={`px-3 md:px-4 py-2.5 min-h-11 rounded-xl text-[10px] font-black uppercase tracking-widest border transition-all ${soundMode === 'OFF' ? 'bg-slate-200 text-slate-500 border-slate-200' : 'bg-card border-border/50 text-muted hover:text-primary'}`}
           >
             {soundMode === 'OFF' ? <VolumeX size={14} className="inline mr-2" /> : <Volume2 size={14} className="inline mr-2" />}
             {soundMode === 'OFF' ? 'Muted' : 'Sound'}
           </button>
-          <div className={`text-sm font-black px-6 py-2.5 rounded-2xl shadow-sm border uppercase tracking-widest transition-all ${isFlashing ? 'bg-white text-indigo-600 border-white scale-110' : 'bg-card dark:text-primary border-border/50'}`}>
+          <div className={`text-xs md:text-sm font-black px-3 md:px-6 py-2.5 rounded-2xl shadow-sm border uppercase tracking-widest transition-all ${isFlashing ? 'bg-white text-indigo-600 border-white scale-110' : 'bg-card dark:text-primary border-border/50'}`}>
             {activeOrders.length} Active Tickets
           </div>
         </div>
+      </div>
+
+      <div className="mb-4 md:mb-5 grid grid-cols-1 md:grid-cols-3 gap-2.5">
+        <button
+          disabled={!nextPendingOrder}
+          onClick={() => nextPendingOrder && advanceOrder(nextPendingOrder)}
+          className="min-h-12 px-4 rounded-2xl bg-amber-500 text-white disabled:opacity-40 disabled:cursor-not-allowed text-[11px] font-black uppercase tracking-widest flex items-center justify-center gap-2"
+        >
+          <Zap size={14} />
+          {isArabic ? 'ابدأ أقدم طلب' : 'Start Oldest Pending'}
+        </button>
+        <button
+          disabled={!nextPreparingOrder}
+          onClick={() => nextPreparingOrder && advanceOrder(nextPreparingOrder)}
+          className="min-h-12 px-4 rounded-2xl bg-blue-600 text-white disabled:opacity-40 disabled:cursor-not-allowed text-[11px] font-black uppercase tracking-widest flex items-center justify-center gap-2"
+        >
+          <Zap size={14} />
+          {isArabic ? 'حوّل أقدم تجهيز إلى جاهز' : 'Ready Oldest Preparing'}
+        </button>
+        <button
+          disabled={!nextReadyOrder}
+          onClick={() => nextReadyOrder && advanceOrder(nextReadyOrder)}
+          className="min-h-12 px-4 rounded-2xl bg-emerald-600 text-white disabled:opacity-40 disabled:cursor-not-allowed text-[11px] font-black uppercase tracking-widest flex items-center justify-center gap-2"
+        >
+          <Zap size={14} />
+          {isArabic ? 'سلّم أقدم طلب جاهز' : 'Deliver Oldest Ready'}
+        </button>
       </div>
 
       <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
@@ -334,7 +406,7 @@ const KDS: React.FC = () => {
             <button
               key={status}
               onClick={() => setActiveStatus(status as any)}
-              className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest border transition-all ${
+              className={`px-4 py-2.5 min-h-11 rounded-xl text-[10px] font-black uppercase tracking-widest border transition-all ${
                 activeStatus === status ? 'bg-primary text-white border-primary shadow-lg shadow-primary/20' : 'bg-card border-border/50 text-muted hover:text-primary'
               }`}
             >
@@ -360,7 +432,7 @@ const KDS: React.FC = () => {
               key={opt.id}
               onClick={() => setActiveStation(opt.id as any)}
               disabled={(Boolean(stationLock) && stationLock !== opt.id) || !allowedStations.includes(opt.id as Station)}
-              className={`px-3 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest border transition-all ${
+              className={`px-3 py-2.5 min-h-11 rounded-xl text-[10px] font-black uppercase tracking-widest border transition-all ${
                 activeStation === opt.id ? 'bg-emerald-600 text-white border-emerald-600' : 'bg-card border-border/50 text-muted hover:text-primary'
               } ${(stationLock && stationLock !== opt.id) || !allowedStations.includes(opt.id as Station) ? 'opacity-40 cursor-not-allowed' : ''}`}
             >
@@ -368,6 +440,7 @@ const KDS: React.FC = () => {
             </button>
           ))}
         </div>
+        {!isCompactLayout && (
         <div className="flex items-center gap-2">
           <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-card border border-border/50 text-[10px] font-black uppercase tracking-widest text-muted">
             <Filter size={14} />
@@ -381,7 +454,7 @@ const KDS: React.FC = () => {
             <button
               key={opt.id}
               onClick={() => setSortMode(opt.id as any)}
-              className={`px-3 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest border transition-all flex items-center gap-2 ${
+              className={`px-3 py-2.5 min-h-11 rounded-xl text-[10px] font-black uppercase tracking-widest border transition-all flex items-center gap-2 ${
                 sortMode === opt.id ? 'bg-slate-900 text-white border-slate-900' : 'bg-card border-border/50 text-muted hover:text-primary'
               }`}
             >
@@ -390,9 +463,10 @@ const KDS: React.FC = () => {
             </button>
           ))}
         </div>
+        )}
       </div>
 
-      <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 md:gap-6">
         {[OrderStatus.PENDING, OrderStatus.PREPARING, OrderStatus.READY].map(status => {
           const ordersForStatus = groupByStatus(status);
           return (
@@ -414,26 +488,25 @@ const KDS: React.FC = () => {
                 )}
               </div>
             </div>
-            <div className="h-[70vh] overflow-hidden">
-              <VirtualList
-                itemCount={ordersForStatus.length}
-                itemHeight={420}
-                className="h-full no-scrollbar"
-                getKey={(index) => ordersForStatus[index]?.id || index}
-                renderItem={(index) => {
-                  const order = ordersForStatus[index];
-                  if (!order) return null;
-                  return (
-          <div className="bg-card rounded-[2rem] shadow-sm border border-border/50 overflow-hidden flex flex-col animate-fade-in transition-colors">
+            <div className="h-[68vh] md:h-[72vh] overflow-hidden">
+              <div className="h-full no-scrollbar overflow-y-auto pr-1 space-y-4">
+                {ordersForStatus.map((order) => (
+          <div key={order.id} className="bg-card rounded-[2rem] shadow-sm border border-border/50 overflow-hidden flex flex-col animate-fade-in transition-colors">
             {/* Ticket Header */}
             <div className={`p-6 border-b dark:border-slate-800 flex justify-between items-center ${getHeaderColor(order.status)}`}>
               <div>
-                <span className="text-[10px] font-black uppercase text-muted block mb-1 tracking-widest">Order ID</span>
-                <span className="font-mono font-black text-main font-black">#{order.id}</span>
+                <span className="text-[10px] font-black uppercase text-muted block mb-1 tracking-widest">Order</span>
+                <span className="font-mono font-black text-main text-lg">{formatOrderRef(order)}</span>
+                {order.id && (
+                  <p className="text-[10px] text-muted mt-1 font-bold">ID: {order.id}</p>
+                )}
               </div>
               <div className="text-right">
                 <span className="text-[10px] font-black uppercase text-muted block mb-1 tracking-widest">Table / Mode</span>
-                <span className="font-mono font-black text-main font-black">{order.tableId || order.type}</span>
+                <span className="font-mono font-black text-main">{order.tableId || order.type}</span>
+                {order.customerName && (
+                  <p className="text-[10px] text-muted mt-1 font-bold">{order.customerName}</p>
+                )}
               </div>
             </div>
 
@@ -449,9 +522,32 @@ const KDS: React.FC = () => {
             </div>
 
             {/* Items List */}
-            <div className="p-6 flex-1">
+            <div className="p-6 flex-1 space-y-4">
+              {(order.kitchenNotes || order.notes || order.deliveryNotes) && (
+                <div className="rounded-2xl border border-amber-200/60 dark:border-amber-800/40 bg-amber-50/70 dark:bg-amber-900/10 p-3">
+                  {order.kitchenNotes && (
+                    <p className="text-[11px] font-black text-amber-800 dark:text-amber-300">
+                      Kitchen Note: <span className="font-bold">{order.kitchenNotes}</span>
+                    </p>
+                  )}
+                  {order.notes && (
+                    <p className="text-[11px] font-black text-amber-800 dark:text-amber-300 mt-1">
+                      Order Note: <span className="font-bold">{order.notes}</span>
+                    </p>
+                  )}
+                  {order.deliveryNotes && (
+                    <p className="text-[11px] font-black text-amber-800 dark:text-amber-300 mt-1">
+                      Delivery Note: <span className="font-bold">{order.deliveryNotes}</span>
+                    </p>
+                  )}
+                </div>
+              )}
+
               <ul className="space-y-4">
                 {order.items.map((item, idx) => (
+                  (() => {
+                    const rawModifiers = (item as any).modifiers as any[] | undefined;
+                    return (
                   <li key={idx} className="flex gap-4 text-slate-700 dark:text-slate-300">
                     <span className="font-black w-8 h-8 flex items-center justify-center bg-slate-100 dark:bg-slate-800 rounded-xl text-xs shrink-0 border border-slate-200 dark:border-slate-700">
                       {item.quantity}
@@ -463,9 +559,35 @@ const KDS: React.FC = () => {
                           {getStationForItem(item)}
                         </span>
                       </div>
+                      {Array.isArray(item.selectedModifiers) && item.selectedModifiers.length > 0 && (
+                        <div className="mt-1 flex flex-wrap gap-1.5">
+                          {item.selectedModifiers.map((m: any, modifierIndex: number) => (
+                            <span
+                              key={`${item.name}-mod-${modifierIndex}`}
+                              className="text-[9px] px-2 py-0.5 rounded-full bg-indigo-50 dark:bg-indigo-900/20 border border-indigo-200/70 dark:border-indigo-800/60 text-indigo-700 dark:text-indigo-300 font-bold"
+                            >
+                              {m.optionName || m.name || m.groupName}
+                            </span>
+                          ))}
+                        </div>
+                      )}
+                      {Array.isArray(rawModifiers) && rawModifiers.length > 0 && (!item.selectedModifiers || item.selectedModifiers.length === 0) && (
+                        <div className="mt-1 flex flex-wrap gap-1.5">
+                          {rawModifiers.map((m: any, modifierIndex: number) => (
+                            <span
+                              key={`${item.name}-raw-mod-${modifierIndex}`}
+                              className="text-[9px] px-2 py-0.5 rounded-full bg-indigo-50 dark:bg-indigo-900/20 border border-indigo-200/70 dark:border-indigo-800/60 text-indigo-700 dark:text-indigo-300 font-bold"
+                            >
+                              {m.optionName || m.name || m.groupName}
+                            </span>
+                          ))}
+                        </div>
+                      )}
                       {item.notes && <p className="text-[10px] text-rose-500 font-bold mt-1 italic">Note: {item.notes}</p>}
                     </div>
                   </li>
+                    );
+                  })()
                 ))}
               </ul>
             </div>
@@ -478,36 +600,35 @@ const KDS: React.FC = () => {
 
               {order.status === OrderStatus.PENDING && (
                 <button
-                  onClick={() => updateOrderStatus(order.id, OrderStatus.PREPARING)}
-                  className="w-full py-3 bg-primary text-white rounded-2xl font-black uppercase text-xs hover:bg-primary-hover transition-all shadow-lg shadow-primary/20"
+                  onClick={() => advanceOrder(order)}
+                  className="w-full py-3.5 min-h-12 bg-primary text-white rounded-2xl font-black uppercase text-xs hover:bg-primary-hover transition-all shadow-lg shadow-primary/20"
                 >
-                  Start Preparation
+                  {isArabic ? 'ابدأ التحضير' : 'Start Preparation'}
                 </button>
               )}
 
               {order.status === OrderStatus.PREPARING && (
                 <button
-                  onClick={() => updateOrderStatus(order.id, OrderStatus.READY)}
-                  className="w-full py-3 bg-emerald-600 text-white rounded-2xl font-black uppercase text-xs hover:bg-emerald-700 transition-all flex items-center justify-center gap-2 shadow-lg shadow-emerald-600/20"
+                  onClick={() => advanceOrder(order)}
+                  className="w-full py-3.5 min-h-12 bg-emerald-600 text-white rounded-2xl font-black uppercase text-xs hover:bg-emerald-700 transition-all flex items-center justify-center gap-2 shadow-lg shadow-emerald-600/20"
                 >
                   <CheckCircle size={18} />
-                  Mark as Ready
+                  {isArabic ? 'تم التجهيز - جاهز' : 'Mark as Ready'}
                 </button>
               )}
 
               {order.status === OrderStatus.READY && (
                 <button
-                  onClick={() => updateOrderStatus(order.id, OrderStatus.DELIVERED)}
-                  className="w-full py-3 bg-slate-800 text-white dark:bg-slate-700 dark:hover:bg-slate-600 rounded-2xl font-black uppercase text-xs hover:bg-slate-900 transition-all shadow-lg"
+                  onClick={() => advanceOrder(order)}
+                  className="w-full py-3.5 min-h-12 bg-slate-800 text-white dark:bg-slate-700 dark:hover:bg-slate-600 rounded-2xl font-black uppercase text-xs hover:bg-slate-900 transition-all shadow-lg"
                 >
-                  Complete Order
+                  {isArabic ? 'تسليم الطلب' : 'Complete Order'}
                 </button>
               )}
             </div>
           </div>
-                  );
-                }}
-              />
+                ))}
+              </div>
               {ordersForStatus.length === 0 && (
                 <div className="p-6 rounded-2xl border-2 border-dashed border-slate-200 dark:border-slate-800 text-center text-slate-400 text-xs font-black uppercase tracking-widest">
                   No tickets

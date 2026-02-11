@@ -65,12 +65,7 @@ export const useHRStore = create<HRState>((set, get) => ({
             }));
             set({ employees, attendance, payrollCycles, payoutLedger, isLoading: false });
         } catch (error: any) {
-            // Dev-safe fallback until HR bootstrap is done
-            const mockEmployees: Employee[] = [
-                { id: 'E1', userId: 'U1', nationalId: '123456789', joinDate: new Date('2025-01-01'), salary: 12000, salaryType: 'MONTHLY', emergencyContact: '01011111111' },
-                { id: 'E2', userId: 'U2', nationalId: '987654321', joinDate: new Date('2025-02-15'), salary: 65, salaryType: 'HOURLY', emergencyContact: '01122222222' },
-            ];
-            set({ employees: mockEmployees, isLoading: false, error: error.message });
+            set({ isLoading: false, error: error.message });
         }
     },
 

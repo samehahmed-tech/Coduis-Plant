@@ -3,8 +3,8 @@
  * This file is under the Seal of Perfection. DO NOT MODIFY.
  * Manual Unlock Required: "INITIATE POS PROTOCOL UNLOCK"
  */
-import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
-import { Search, ShoppingBag, X, LogOut } from 'lucide-react';
+import React, { useState, useEffect, useRef, useMemo, useCallback, useDeferredValue } from 'react';
+import { Search, ShoppingBag, X, LogOut, SlidersHorizontal, ArrowUpDown, LayoutGrid, Grid2x2, PanelRightOpen, PanelRightClose, Plus, UtensilsCrossed, Truck, MapPin, Keyboard } from 'lucide-react';
 import {
    Order, OrderItem, OrderStatus, Table, PaymentMethod,
    OrderType, Customer, PaymentRecord, RestaurantMenu,
@@ -14,7 +14,6 @@ import {
 import TableMap from './TableMap';
 import POSHeader from './pos/POSHeader';
 import CategoryTabs from './pos/CategoryTabs';
-import CategorySidebar from './pos/CategorySidebar';
 import ItemGrid from './pos/ItemGrid';
 import CartItem from './pos/CartItem';
 import PaymentSummary from './pos/PaymentSummary';
@@ -27,6 +26,7 @@ import { ManagerApprovalModal } from './pos/ManagerApprovalModal';
 import TableManagementModal from './pos/TableManagementModal';
 import { printService } from '../src/services/printService';
 import { formatReceipt } from '../services/receiptFormatter';
+import { printKitchenTicketsByRouting, printOrderReceipt } from '../services/posPrintOrchestrator';
 import { useToast } from './Toast';
 import { useModal } from './Modal';
 
@@ -43,13 +43,14 @@ import { useInventoryStore } from '../stores/useInventoryStore';
 import { useFinanceStore } from '../stores/useFinanceStore';
 
 const POS: React.FC = () => {
+   const POS_UI_PREFS_KEY = 'restoflow_pos_ui_prefs_v1';
+   const POS_ITEM_USAGE_KEY = 'restoflow_pos_item_usage_v1';
    // --- Global State (Selective Picking for Performance) ---
    const settings = useAuthStore(state => state.settings);
    const branches = useAuthStore(state => state.branches);
+   const printers = useAuthStore(state => state.printers);
    const hasPermission = useAuthStore(state => state.hasPermission);
    const updateSettings = useAuthStore(state => state.updateSettings);
-   const isSidebarCollapsed = useAuthStore(state => state.isSidebarCollapsed);
-   const setSidebarCollapsed = useAuthStore(state => state.setSidebarCollapsed);
 
    const orders = useOrderStore(state => state.orders);
    const activeCart = useOrderStore(state => state.activeCart);
@@ -105,6 +106,9 @@ const POS: React.FC = () => {
    // cart is now activeCart from store
    const [activeCategory, setActiveCategory] = useState<string>('all');
    const [searchQuery, setSearchQuery] = useState('');
+   const [itemFilter, setItemFilter] = useState<'all' | 'available' | 'popular'>('all');
+   const [itemSort, setItemSort] = useState<'smart' | 'name' | 'price_asc' | 'price_desc'>('smart');
+   const [itemDensity, setItemDensity] = useState<'comfortable' | 'compact' | 'ultra'>('compact');
    const [editingItemId, setEditingItemId] = useState<string | null>(null);
    const [noteInput, setNoteInput] = useState('');
    const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>(PaymentMethod.CASH);
@@ -113,6 +117,7 @@ const POS: React.FC = () => {
    const [showCalculator, setShowCalculator] = useState(false);
    const [showApprovalModal, setShowApprovalModal] = useState(false);
    const [isCartOpenMobile, setIsCartOpenMobile] = useState(false);
+   const [cartPanelWidth, setCartPanelWidth] = useState<'compact' | 'normal' | 'wide'>('normal');
    const [couponCode, setCouponCode] = useState('');
    const [isApplyingCoupon, setIsApplyingCoupon] = useState(false);
    const [approvalCallback, setApprovalCallback] = useState<{ fn: () => void; action: string } | null>(null);
@@ -123,6 +128,8 @@ const POS: React.FC = () => {
 
    const [isOnline, setIsOnline] = useState(navigator.onLine);
    const [nowTick, setNowTick] = useState(Date.now());
+   const [itemUsageMap, setItemUsageMap] = useState<Record<string, number>>({});
+   const [lastAddedItemId, setLastAddedItemId] = useState<string | null>(null);
    const { showToast } = useToast();
    const { showModal } = useModal();
    const requestManagerApproval = useCallback((action: string, fn: () => void | Promise<void>) => {
@@ -163,12 +170,65 @@ const POS: React.FC = () => {
       return () => clearInterval(timer);
    }, []);
 
+   useEffect(() => {
+      try {
+         const raw = localStorage.getItem(POS_UI_PREFS_KEY);
+         if (!raw) return;
+         const parsed = JSON.parse(raw);
+         if (parsed?.itemFilter && ['all', 'available', 'popular'].includes(parsed.itemFilter)) {
+            setItemFilter(parsed.itemFilter);
+         }
+         if (parsed?.itemSort && ['smart', 'name', 'price_asc', 'price_desc'].includes(parsed.itemSort)) {
+            setItemSort(parsed.itemSort);
+         }
+         if (parsed?.itemDensity && ['comfortable', 'compact', 'ultra'].includes(parsed.itemDensity)) {
+            setItemDensity(parsed.itemDensity);
+         }
+         if (parsed?.cartPanelWidth && ['compact', 'normal', 'wide'].includes(parsed.cartPanelWidth)) {
+            setCartPanelWidth(parsed.cartPanelWidth);
+         }
+      } catch {
+         // ignore malformed local prefs
+      }
+   }, []);
+
+   useEffect(() => {
+      try {
+         localStorage.setItem(POS_UI_PREFS_KEY, JSON.stringify({
+            itemFilter,
+            itemSort,
+            itemDensity,
+            cartPanelWidth
+         }));
+      } catch {
+         // ignore storage errors
+      }
+   }, [itemFilter, itemSort, itemDensity, cartPanelWidth]);
+
+   useEffect(() => {
+      try {
+         const raw = localStorage.getItem(POS_ITEM_USAGE_KEY);
+         if (!raw) return;
+         const parsed = JSON.parse(raw);
+         if (parsed && typeof parsed === 'object') setItemUsageMap(parsed);
+      } catch {
+         // ignore malformed usage data
+      }
+   }, []);
+
+   useEffect(() => {
+      if (!lastAddedItemId) return;
+      const timer = window.setTimeout(() => setLastAddedItemId(null), 700);
+      return () => window.clearTimeout(timer);
+   }, [lastAddedItemId]);
+
    // Default menu
    const activeMenuId = (menus || []).find(m => m.isDefault)?.id || (menus || [])[0]?.id;
 
    const searchInputRef = useRef<HTMLInputElement>(null);
    const tableNumberBufferRef = useRef('');
    const tableNumberTimerRef = useRef<number | null>(null);
+   const deferredSearchQuery = useDeferredValue(searchQuery);
 
    // --- Derived Data ---
    const lang = settings.language;
@@ -183,8 +243,8 @@ const POS: React.FC = () => {
       ),
       [categories]);
 
-   const dynamicCategories = useMemo(() =>
-      ['All', ...currentCategories.map(c => c.name)],
+   const categoryHotkeys = useMemo(() =>
+      ['all', ...currentCategories.map(c => c.id)],
       [currentCategories]);
 
    const normalizePriceListName = useCallback((value: string) =>
@@ -254,38 +314,144 @@ const POS: React.FC = () => {
       return true;
    }, []);
 
-   const filteredItems = useMemo(() => {
+   const indexedItems = useMemo(() => {
       const now = new Date(nowTick);
-      const allItems = currentCategories.flatMap(c =>
-         (c.items || []).map(item => ({
-            ...item,
-            displayCategory: lang === 'ar' ? (c.nameAr || c.name) : c.name,
-         }))
+      return currentCategories.flatMap((category) =>
+         (category.items || []).map((item) => {
+            const displayName = lang === 'ar' ? (item.nameAr || item.name) : item.name;
+            const resolvedPrice = resolveItemPrice(item);
+            const isAvailable = isItemAvailableNow(item, now);
+            return {
+               ...item,
+               displayCategory: lang === 'ar' ? (category.nameAr || category.name) : category.name,
+               displayName,
+               resolvedPrice,
+               isAvailable,
+               searchBlob: [
+                  item.name,
+                  item.nameAr,
+                  item.description,
+                  item.descriptionAr,
+                  category.name,
+                  category.nameAr
+               ].filter(Boolean).join(' ').toLowerCase()
+            };
+         })
       );
-      const q = searchQuery.toLowerCase();
+   }, [currentCategories, lang, nowTick, resolveItemPrice, isItemAvailableNow]);
 
-      return allItems.filter(item => {
-         // Matches category ID or 'all'
-         const matchesCategory = activeCategory === 'all' || item.categoryId === activeCategory;
+   const normalizedSearchQuery = useMemo(
+      () => deferredSearchQuery.trim().toLowerCase(),
+      [deferredSearchQuery]
+   );
 
-         const matchesSearch = !q ||
-            item.name.toLowerCase().includes(q) ||
-            (item.nameAr || '').toLowerCase().includes(q);
+   const filteredItems = useMemo(() => {
+      return indexedItems
+         .filter((item) => {
+            const matchesCategory = activeCategory === 'all' || item.categoryId === activeCategory;
+            const matchesSearch = !normalizedSearchQuery || item.searchBlob.includes(normalizedSearchQuery);
+            const matchesFilter =
+               itemFilter === 'all' ||
+               (itemFilter === 'available' && item.isAvailable) ||
+               (itemFilter === 'popular' && !!item.isPopular);
+            return matchesCategory && matchesSearch && matchesFilter;
+         })
+         .sort((a, b) => {
+            if (itemSort === 'name') {
+               return a.displayName.toLowerCase().localeCompare(b.displayName.toLowerCase());
+            }
+            if (itemSort === 'price_asc') return a.resolvedPrice - b.resolvedPrice;
+            if (itemSort === 'price_desc') return b.resolvedPrice - a.resolvedPrice;
 
-         return matchesCategory && matchesSearch && isItemAvailableNow(item, now);
-      });
-   }, [currentCategories, activeCategory, searchQuery, isItemAvailableNow, nowTick, lang]);
+            if (a.isAvailable && !b.isAvailable) return -1;
+            if (!a.isAvailable && b.isAvailable) return 1;
+            if (a.isPopular && !b.isPopular) return -1;
+            if (!a.isPopular && b.isPopular) return 1;
+            return a.displayName.localeCompare(b.displayName);
+         });
+   }, [indexedItems, activeCategory, normalizedSearchQuery, itemFilter, itemSort]);
 
    const pricedItems = useMemo(() =>
       filteredItems.map(item => ({
          ...item,
-         displayName: lang === 'ar' ? (item.nameAr || item.name) : item.name,
          displayDescription: lang === 'ar' ? (item.descriptionAr || item.description) : item.description,
-         price: resolveItemPrice(item)
+         price: item.resolvedPrice,
+         isActuallyAvailable: item.isAvailable
       })),
-      [filteredItems, resolveItemPrice, lang]);
+      [filteredItems, lang]);
+
+   const categoryResultCounts = useMemo(() => {
+      const counts: Record<string, number> = {};
+      for (const c of currentCategories) counts[c.id] = 0;
+
+      for (const item of indexedItems) {
+         const matchesSearch = !normalizedSearchQuery || item.searchBlob.includes(normalizedSearchQuery);
+         const matchesFilter =
+            itemFilter === 'all' ||
+            (itemFilter === 'available' && item.isAvailable) ||
+            (itemFilter === 'popular' && Boolean(item.isPopular));
+         if (!matchesSearch || !matchesFilter) continue;
+         counts[item.categoryId] = (counts[item.categoryId] || 0) + 1;
+      }
+      return counts;
+   }, [currentCategories, indexedItems, normalizedSearchQuery, itemFilter]);
+
+   const totalMatchedAcrossCategories = useMemo(
+      () => Object.values(categoryResultCounts).reduce((sum, count) => sum + count, 0),
+      [categoryResultCounts]
+   );
+
+   useEffect(() => {
+      if (activeCategory === 'all') return;
+      const currentCount = categoryResultCounts[activeCategory] || 0;
+      if (currentCount > 0) return;
+
+      const firstAvailableCategory = currentCategories.find(c => (categoryResultCounts[c.id] || 0) > 0);
+      setActiveCategory(firstAvailableCategory?.id || 'all');
+   }, [activeCategory, categoryResultCounts, currentCategories]);
+
+   const availableVisibleCount = useMemo(
+      () => pricedItems.filter(item => (item as any).isActuallyAvailable !== false).length,
+      [pricedItems]
+   );
+
+   const popularVisibleCount = useMemo(
+      () => pricedItems.filter(item => !!item.isPopular).length,
+      [pricedItems]
+   );
+
+   const quickPickItems = useMemo(() => {
+      const available = pricedItems.filter(item => (item as any).isActuallyAvailable !== false);
+      if (available.length === 0) return [];
+      const sortedByUsage = [...available].sort((a, b) => {
+         const usageDiff = (itemUsageMap[b.id] || 0) - (itemUsageMap[a.id] || 0);
+         if (usageDiff !== 0) return usageDiff;
+         if (a.isPopular && !b.isPopular) return -1;
+         if (!a.isPopular && b.isPopular) return 1;
+         return (a.name || '').localeCompare(b.name || '');
+      });
+      return sortedByUsage.slice(0, 10);
+   }, [pricedItems, itemUsageMap]);
 
    const safeActiveCart = activeCart || [];
+
+   const upsellSuggestions = useMemo(() => {
+      if (safeActiveCart.length === 0) return [];
+      const inCart = new Set(safeActiveCart.map(item => item.id));
+      const anchorItem = safeActiveCart[safeActiveCart.length - 1];
+      const sameCategoryCandidates = pricedItems.filter(item =>
+         item.categoryId === anchorItem.categoryId &&
+         !inCart.has(item.id) &&
+         (item as any).isActuallyAvailable !== false
+      );
+      const fallbackCandidates = pricedItems.filter(item =>
+         !inCart.has(item.id) &&
+         !!item.isPopular &&
+         (item as any).isActuallyAvailable !== false
+      );
+      const pool = sameCategoryCandidates.length > 0 ? sameCategoryCandidates : fallbackCandidates;
+      return pool.slice(0, 6);
+   }, [safeActiveCart, pricedItems]);
 
    const { cartSubtotal, cartTotal } = useMemo(() => {
       const subtotal = safeActiveCart.reduce((acc, item) => {
@@ -438,7 +604,7 @@ const POS: React.FC = () => {
          }
          if (!isInput && e.key >= '1' && e.key <= '9') {
             const catIndex = parseInt(e.key) - 1;
-            if (catIndex < dynamicCategories.length) setActiveCategory(dynamicCategories[catIndex]);
+            if (catIndex < categoryHotkeys.length) setActiveCategory(categoryHotkeys[catIndex]);
          }
          if (!isInput && showMap && activeOrderType === OrderType.DINE_IN) {
             const isDigit = e.key >= '0' && e.key <= '9';
@@ -482,6 +648,25 @@ const POS: React.FC = () => {
          if (e.key === 'Enter' && safeActiveCart.length > 0 && !showSplitModal) handleSubmitOrder();
          if (e.key === 'Delete' && safeActiveCart.length > 0) handleVoidOrder();
 
+         if (e.altKey && !isInput) {
+            if (e.key === '1') {
+               e.preventDefault();
+               setOrderMode(OrderType.DINE_IN);
+            }
+            if (e.key === '2') {
+               e.preventDefault();
+               setOrderMode(OrderType.TAKEAWAY);
+            }
+            if (e.key === '3') {
+               e.preventDefault();
+               setOrderMode(OrderType.PICKUP);
+            }
+            if (e.key === '4') {
+               e.preventDefault();
+               setOrderMode(OrderType.DELIVERY);
+            }
+         }
+
          if (activeOrderType === OrderType.DINE_IN && e.altKey && !isInput) {
             if (e.key === 'ArrowRight' && sortedTables.length > 0) {
                e.preventDefault();
@@ -493,7 +678,7 @@ const POS: React.FC = () => {
                const prevIndex = currentTableIndex <= 0 ? sortedTables.length - 1 : currentTableIndex - 1;
                switchToTable(sortedTables[prevIndex].id);
             }
-            if (e.key >= '1' && e.key <= '9') {
+            if (e.key >= '5' && e.key <= '9') {
                const idx = parseInt(e.key, 10) - 1;
                if (idx >= 0 && idx < sortedTables.length) {
                   e.preventDefault();
@@ -515,10 +700,11 @@ const POS: React.FC = () => {
       editingItemId,
       activeOrderType,
       showMap,
-      dynamicCategories,
+      categoryHotkeys,
       clearCart,
       sortedTables,
       currentTableIndex,
+      setOrderMode,
       switchToTable,
       leaveTable,
       findTableByNumber
@@ -535,12 +721,30 @@ const POS: React.FC = () => {
       } else {
          addToCart({ ...item, cartId: Math.random().toString(36).substr(2, 9), quantity: 1, selectedModifiers: [] });
       }
+      setLastAddedItemId(item.id);
+      setItemUsageMap(prev => {
+         const next = { ...prev, [item.id]: (prev[item.id] || 0) + 1 };
+         try {
+            localStorage.setItem(POS_ITEM_USAGE_KEY, JSON.stringify(next));
+         } catch {
+            // ignore storage errors
+         }
+         return next;
+      });
       setIsCartOpenMobile(true);
    }, [safeActiveCart, addToCart, updateCartItemQuantity]);
 
    const handleUpdateQuantity = useCallback((cartId: string, delta: number) => {
       updateCartItemQuantity(cartId, delta);
    }, [updateCartItemQuantity]);
+
+   const handleRemoveOneFromCart = useCallback((itemId: string) => {
+      const itemsOfThisType = safeActiveCart.filter(ci => ci.id === itemId);
+      if (itemsOfThisType.length > 0) {
+         const itemToUpdate = itemsOfThisType[itemsOfThisType.length - 1];
+         handleUpdateQuantity(itemToUpdate.cartId, -1);
+      }
+   }, [safeActiveCart, handleUpdateQuantity]);
 
    const handleQuickPay = () => {
       setPaymentMethod(PaymentMethod.CASH);
@@ -678,18 +882,28 @@ const POS: React.FC = () => {
       setCouponCode('');
       clearCoupon();
 
-      await printService.print({
-         type: 'KITCHEN',
-         content: formatReceipt({
+      await printKitchenTicketsByRouting({
+         order: newOrder,
+         categories: currentCategories,
+         printers,
+         branchId,
+         maxKitchenPrinters: settings.maxKitchenPrinters,
+         settings,
+         currencySymbol,
+         lang,
+         t,
+         branch: activeBranch
+      });
+      if (settings.autoPrintReceipt !== false) {
+         await printOrderReceipt({
             order: newOrder,
-            title: t.kitchen_ticket || (lang === 'ar' ? 'شيك المطبخ' : 'Kitchen Ticket'),
             settings,
             currencySymbol,
             lang,
             t,
             branch: activeBranch
-         })
-      });
+         });
+      }
       showToast(t.send_kitchen || (lang === 'ar' ? 'تم إرسال الطلب للمطبخ' : 'Sent to kitchen'), 'success');
    };
 
@@ -750,30 +964,28 @@ const POS: React.FC = () => {
       clearCoupon();
 
       // 3. Trigger Kitchen + Customer Receipts
-      await printService.print({
-         type: 'KITCHEN',
-         content: formatReceipt({
+      await printKitchenTicketsByRouting({
+         order: newOrder,
+         categories: currentCategories,
+         printers,
+         branchId,
+         maxKitchenPrinters: settings.maxKitchenPrinters,
+         settings,
+         currencySymbol,
+         lang,
+         t,
+         branch: activeBranch
+      });
+      if (settings.autoPrintReceipt !== false) {
+         await printOrderReceipt({
             order: newOrder,
-            title: t.kitchen_ticket || (lang === 'ar' ? 'شيك المطبخ' : 'Kitchen Ticket'),
             settings,
             currencySymbol,
             lang,
             t,
             branch: activeBranch
-         })
-      });
-      await printService.print({
-         type: 'RECEIPT',
-         content: formatReceipt({
-            order: newOrder,
-            title: t.order_receipt || 'Order Receipt',
-            settings,
-            currencySymbol,
-            lang,
-            t,
-            branch: activeBranch
-         })
-      });
+         });
+      }
       if (paymentMethod === PaymentMethod.CASH) {
          await printService.triggerCashDrawer();
       }
@@ -828,18 +1040,13 @@ const POS: React.FC = () => {
       });
    };
 
-   // Auto-expand sidebar on POS entry to show icons + titles
-   useEffect(() => {
-      const wasCollapsed = isSidebarCollapsed;
-      if (wasCollapsed) {
-         setSidebarCollapsed(false);
-      }
-      return () => {
-         if (wasCollapsed) {
-            setSidebarCollapsed(true);
-         }
-      };
-   }, []);
+   const modeShortcuts = useMemo(() => ([
+      { mode: OrderType.DINE_IN, icon: UtensilsCrossed, label: t.dine_in, keyHint: 'Alt+1', activeClass: 'bg-primary text-white border-primary' },
+      { mode: OrderType.TAKEAWAY, icon: ShoppingBag, label: t.takeaway, keyHint: 'Alt+2', activeClass: 'bg-emerald-600 text-white border-emerald-600' },
+      { mode: OrderType.PICKUP, icon: MapPin, label: t.pickup || (lang === 'ar' ? 'استلام' : 'Pickup'), keyHint: 'Alt+3', activeClass: 'bg-teal-600 text-white border-teal-600' },
+      { mode: OrderType.DELIVERY, icon: Truck, label: t.delivery, keyHint: 'Alt+4', activeClass: 'bg-orange-600 text-white border-orange-600' },
+   ]), [t, lang]);
+
    const orderTypeLabel =
       activeOrderType === OrderType.DINE_IN
          ? t.dine_in
@@ -857,6 +1064,21 @@ const POS: React.FC = () => {
                ? (t.pickup || 'Pickup')
                : t.quick_order;
    const shouldShowCart = (safeActiveCart.length > 0 || selectedTableId) && !showMap && !showCustomerSelect;
+   const shouldRenderCartPanel = !showMap && !showCustomerSelect;
+   const hasCartItems = safeActiveCart.length > 0;
+   const cartPanelWidthClass =
+      cartPanelWidth === 'compact'
+         ? 'sm:w-[360px] xl:w-[400px]'
+         : cartPanelWidth === 'wide'
+            ? 'sm:w-[460px] xl:w-[540px]'
+            : 'sm:w-[420px] xl:w-[480px]';
+   const desktopWorkspaceClass = shouldRenderCartPanel
+      ? (cartPanelWidth === 'compact'
+         ? 'lg:grid-cols-[minmax(0,1fr)_360px] xl:grid-cols-[minmax(0,1fr)_400px]'
+         : cartPanelWidth === 'wide'
+            ? 'lg:grid-cols-[minmax(0,1fr)_500px] xl:grid-cols-[minmax(0,1fr)_560px]'
+            : 'lg:grid-cols-[minmax(0,1fr)_430px] xl:grid-cols-[minmax(0,1fr)_500px]')
+      : 'lg:grid-cols-1';
 
    useEffect(() => {
       if (showMap || showCustomerSelect) setIsCartOpenMobile(false);
@@ -900,13 +1122,82 @@ const POS: React.FC = () => {
                onClearTable={leaveTable}
                deliveryCustomer={deliveryCustomer}
                onClearCustomer={() => setDeliveryCustomer(null)}
-               isSidebarCollapsed={isSidebarCollapsed}
                isTouchMode={isTouchMode}
                onRecall={handleRecallLastOrder}
                activePriceListId={activePriceListId}
                onSetPriceList={setPriceList}
                isOnline={isOnline}
             />
+            <div className="shrink-0 border-b border-slate-200 dark:border-slate-800 bg-white/95 dark:bg-slate-900/95 backdrop-blur px-3 md:px-6 py-2.5">
+               <div className="flex flex-wrap items-center gap-2">
+                  {modeShortcuts.map((entry) => (
+                     <button
+                        key={entry.mode}
+                        onClick={() => setOrderMode(entry.mode)}
+                        className={`inline-flex items-center gap-2 px-3 py-2 rounded-xl border text-xs font-black uppercase tracking-wider transition-colors ${activeOrderType === entry.mode ? entry.activeClass : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-200 border-transparent hover:border-primary/40'}`}
+                     >
+                        <entry.icon size={14} />
+                        <span>{entry.label}</span>
+                        <span className={`text-[9px] px-1.5 py-0.5 rounded-md ${activeOrderType === entry.mode ? 'bg-white/20' : 'bg-slate-200 dark:bg-slate-700'}`}>{entry.keyHint}</span>
+                     </button>
+                  ))}
+
+                  <div className="h-6 w-px bg-slate-200 dark:bg-slate-700 mx-1 hidden md:block" />
+
+                  <button
+                     onClick={() => searchInputRef.current?.focus()}
+                     className="inline-flex items-center gap-2 px-3 py-2 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 text-xs font-black uppercase tracking-wider hover:text-primary"
+                  >
+                     <Search size={14} />
+                     {lang === 'ar' ? 'بحث' : 'Search'}
+                     <span className="text-[9px] px-1.5 py-0.5 rounded-md bg-slate-200 dark:bg-slate-700">/</span>
+                  </button>
+
+                  <button
+                     onClick={() => setIsCartOpenMobile((prev) => !prev)}
+                     className="inline-flex items-center gap-2 px-3 py-2 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 text-xs font-black uppercase tracking-wider hover:text-primary"
+                  >
+                     <ShoppingBag size={14} />
+                     {lang === 'ar' ? 'السلة' : 'Cart'}
+                     <span className="text-[9px] px-1.5 py-0.5 rounded-md bg-slate-200 dark:bg-slate-700">{safeActiveCart.length}</span>
+                  </button>
+
+                  {activeOrderType === OrderType.DINE_IN && (
+                     <button
+                        onClick={() => setSelectedTableId(null)}
+                        className="inline-flex items-center gap-2 px-3 py-2 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 text-xs font-black uppercase tracking-wider hover:text-primary"
+                     >
+                        <LayoutGrid size={14} />
+                        {lang === 'ar' ? 'الطاولات' : 'Tables'}
+                     </button>
+                  )}
+
+                  {activeOrderType === OrderType.DELIVERY && (
+                     <button
+                        onClick={() => setDeliveryCustomer(null)}
+                        className="inline-flex items-center gap-2 px-3 py-2 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 text-xs font-black uppercase tracking-wider hover:text-primary"
+                     >
+                        <Truck size={14} />
+                        {lang === 'ar' ? 'العملاء' : 'Customers'}
+                     </button>
+                  )}
+
+                  {safeActiveCart.length > 0 && (
+                     <button
+                        onClick={handleQuickPay}
+                        className="inline-flex items-center gap-2 px-3 py-2 rounded-xl bg-emerald-600 text-white text-xs font-black uppercase tracking-wider hover:bg-emerald-700"
+                     >
+                        <Plus size={14} />
+                        {lang === 'ar' ? 'دفع سريع' : 'Quick Pay'}
+                     </button>
+                  )}
+
+                  <div className="ml-auto inline-flex items-center gap-1.5 text-[10px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-400">
+                     <Keyboard size={12} />
+                     {lang === 'ar' ? 'اختصارات لوحة المفاتيح مفعلة' : 'Keyboard shortcuts enabled'}
+                  </div>
+               </div>
+            </div>
 
 
             <NoteModal
@@ -922,7 +1213,7 @@ const POS: React.FC = () => {
                t={t}
             />
 
-            <div className="flex-1 flex overflow-hidden relative min-h-0">
+            <div className="flex-1 flex overflow-hidden relative min-h-0 bg-slate-100/70 dark:bg-slate-950">
                {/* Cart Mobile Overlay */}
                {shouldShowCart && isCartOpenMobile && (
                   <div className="lg:hidden fixed inset-0 bg-black/40 backdrop-blur-sm z-30 animate-in fade-in" onClick={() => setIsCartOpenMobile(false)} />
@@ -973,60 +1264,193 @@ const POS: React.FC = () => {
                   />
                ) : (
                   <>
-                     <div className="flex-1 flex flex-row h-full overflow-hidden min-h-0">
-                        {/* Professionl Category Sidebar (Desktop/Tablet) */}
-                        <div className="hidden sm:block">
-                           <CategorySidebar
+                     <div className={`flex-1 min-h-0 grid grid-cols-1 ${desktopWorkspaceClass} gap-0 lg:gap-2`}>
+                        <div className={`min-w-0 flex flex-col h-full overflow-hidden min-h-0 bg-slate-50 dark:bg-slate-950 transition-all duration-300 ${shouldRenderCartPanel ? 'lg:rounded-2xl lg:border lg:border-slate-200/70 lg:dark:border-slate-800 lg:shadow-sm lg:mx-2 lg:my-2' : ''}`}>
+                        {/* Professional Categories Bar At Top */}
+                        <div className="shrink-0 flex-col flex overflow-hidden">
+                           <CategoryTabs
                               categories={currentCategories}
                               activeCategory={activeCategory}
                               onSetCategory={setActiveCategory}
-                              lang={lang}
+                              isTouchMode={isTouchMode}
+                              lang={lang as any}
+                              counts={categoryResultCounts}
+                              totalCount={totalMatchedAcrossCategories}
+                              hasActiveFiltering={Boolean(normalizedSearchQuery || itemFilter !== 'all')}
                            />
                         </div>
 
                         <div className="flex-1 flex flex-col h-full overflow-hidden min-h-0">
-                           <div className="bg-card dark:bg-card p-3 md:p-5 border-b border-border/50 flex flex-col sm:flex-row justify-between items-stretch sm:items-center gap-4 shadow-sm">
-                              <div className="sm:hidden">
-                                 <CategoryTabs
-                                    categories={currentCategories}
-                                    activeCategory={activeCategory}
-                                    onSetCategory={setActiveCategory}
-                                    isTouchMode={isTouchMode}
-                                    lang={lang as any}
-                                 />
+                           {/* Search & Actions Bar (Clean & Flexible) */}
+                           <div className="px-3 md:px-5 xl:px-6 py-3 md:py-4 flex flex-col gap-3 border-b border-slate-200 dark:border-slate-800 bg-white/95 dark:bg-slate-900 shadow-sm">
+                              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                                 <div className="flex items-center gap-3">
+                                    <div className="w-1.5 h-6 bg-primary rounded-full shadow-[0_0_10px_rgba(var(--primary),0.5)]" />
+                                    <h2 className="text-sm font-black uppercase tracking-widest text-slate-500">
+                                       {activeCategory === 'all' ? (lang === 'ar' ? 'جميع الأصناف' : 'All Items') :
+                                          (currentCategories.find(c => c.id === activeCategory)?.nameAr ||
+                                             currentCategories.find(c => c.id === activeCategory)?.name || (lang === 'ar' ? 'القسم' : 'Category'))}
+                                    </h2>
+                                 </div>
+
+                                 <div className="flex items-center gap-2 text-[11px] font-black uppercase tracking-wider">
+                                    <span className="px-2.5 py-1.5 rounded-full bg-primary/10 text-primary">
+                                       {pricedItems.length} {lang === 'ar' ? 'صنف' : 'items'}
+                                    </span>
+                                    <span className="px-2.5 py-1.5 rounded-full bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 dark:text-emerald-300">
+                                       {availableVisibleCount} {lang === 'ar' ? 'متاح' : 'available'}
+                                    </span>
+                                    <span className="px-2.5 py-1.5 rounded-full bg-amber-50 dark:bg-amber-900/20 text-amber-600 dark:text-amber-300">
+                                       {popularVisibleCount} {lang === 'ar' ? 'رائج' : 'popular'}
+                                    </span>
+                                    {(searchQuery || itemFilter !== 'all' || itemSort !== 'smart') && (
+                                       <button
+                                          onClick={() => {
+                                             setSearchQuery('');
+                                             setItemFilter('all');
+                                             setItemSort('smart');
+                                          }}
+                                          className="px-2.5 py-1.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:text-primary transition-colors"
+                                       >
+                                          {lang === 'ar' ? 'إعادة ضبط' : 'Reset'}
+                                       </button>
+                                    )}
+                                 </div>
                               </div>
 
-                              <div className="hidden sm:flex items-center gap-3">
-                                 <div className="w-1.5 h-6 bg-primary rounded-full shadow-[0_0_10px_rgba(var(--primary),0.5)]" />
-                                 <h2 className="text-sm font-black uppercase tracking-widest text-slate-500">
-                                    {activeCategory === 'all' ? (lang === 'ar' ? 'جميع الأصناف' : 'All Items') :
-                                       (currentCategories.find(c => c.id === activeCategory)?.nameAr ||
-                                          currentCategories.find(c => c.id === activeCategory)?.name || (lang === 'ar' ? 'القسم' : 'Category'))}
-                                 </h2>
+                              <div className="grid grid-cols-1 xl:grid-cols-[minmax(320px,1fr)_auto] gap-3 items-center">
+                                 <div className="relative w-full xl:max-w-2xl">
+                                    <Search className={`absolute top-1/2 -translate-y-1/2 text-primary/30 w-4 h-4 ${lang === 'ar' ? 'right-4' : 'left-4'}`} />
+                                    <input
+                                       ref={searchInputRef}
+                                       type="text"
+                                       placeholder={t.search_placeholder}
+                                       value={searchQuery}
+                                       onChange={(e) => setSearchQuery(e.target.value)}
+                                       className={`w-full py-2.5 md:py-3 text-sm pr-12 pl-12 bg-slate-50 dark:bg-slate-800/50 border-none rounded-2xl focus:ring-2 focus:ring-primary font-bold ${lang === 'ar' ? 'text-right' : 'text-left'} `}
+                                    />
+                                    {searchQuery && (
+                                       <button
+                                          onClick={() => setSearchQuery('')}
+                                          className={`absolute top-1/2 -translate-y-1/2 text-slate-400 hover:text-primary ${lang === 'ar' ? 'left-3' : 'right-3'}`}
+                                       >
+                                          <X size={16} />
+                                       </button>
+                                    )}
+                                 </div>
+
+                                 <div className="flex flex-wrap items-center gap-2 xl:justify-end">
+                                    <div className="inline-flex bg-slate-100 dark:bg-slate-800 rounded-xl p-1">
+                                       {[
+                                          { id: 'all', label: lang === 'ar' ? 'الكل' : 'All' },
+                                          { id: 'available', label: lang === 'ar' ? 'متاح' : 'Available' },
+                                          { id: 'popular', label: lang === 'ar' ? 'الأكثر طلباً' : 'Popular' }
+                                       ].map((filter) => (
+                                          <button
+                                             key={filter.id}
+                                             onClick={() => setItemFilter(filter.id as 'all' | 'available' | 'popular')}
+                                             className={`px-2.5 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider transition-colors ${itemFilter === filter.id ? 'bg-white dark:bg-slate-700 text-primary shadow-sm' : 'text-slate-500 dark:text-slate-300'}`}
+                                          >
+                                             {filter.label}
+                                          </button>
+                                       ))}
+                                    </div>
+
+                                    <div className="relative">
+                                       <ArrowUpDown size={14} className={`absolute top-1/2 -translate-y-1/2 text-slate-400 ${lang === 'ar' ? 'right-2.5' : 'left-2.5'}`} />
+                                       <select
+                                          value={itemSort}
+                                          onChange={(e) => setItemSort(e.target.value as 'smart' | 'name' | 'price_asc' | 'price_desc')}
+                                          className={`h-9 rounded-xl bg-slate-100 dark:bg-slate-800 border-0 text-xs font-black uppercase tracking-wider text-slate-600 dark:text-slate-200 ${lang === 'ar' ? 'pr-8 pl-3' : 'pl-8 pr-3'}`}
+                                       >
+                                          <option value="smart">{lang === 'ar' ? 'ترتيب ذكي' : 'Smart'}</option>
+                                          <option value="name">{lang === 'ar' ? 'الاسم' : 'Name'}</option>
+                                          <option value="price_asc">{lang === 'ar' ? 'السعر: الأقل' : 'Price: Low'}</option>
+                                          <option value="price_desc">{lang === 'ar' ? 'السعر: الأعلى' : 'Price: High'}</option>
+                                       </select>
+                                    </div>
+
+                                    <div className="inline-flex bg-slate-100 dark:bg-slate-800 rounded-xl p-1">
+                                       <button
+                                          onClick={() => setItemDensity('comfortable')}
+                                          title={lang === 'ar' ? 'عرض مريح' : 'Comfortable view'}
+                                          className={`w-8 h-8 rounded-lg flex items-center justify-center ${itemDensity === 'comfortable' ? 'bg-white dark:bg-slate-700 text-primary shadow-sm' : 'text-slate-500 dark:text-slate-300'}`}
+                                       >
+                                          <LayoutGrid size={15} />
+                                       </button>
+                                       <button
+                                          onClick={() => setItemDensity('compact')}
+                                          title={lang === 'ar' ? 'عرض مضغوط' : 'Compact view'}
+                                          className={`w-8 h-8 rounded-lg flex items-center justify-center ${itemDensity === 'compact' ? 'bg-white dark:bg-slate-700 text-primary shadow-sm' : 'text-slate-500 dark:text-slate-300'}`}
+                                       >
+                                          <Grid2x2 size={15} />
+                                       </button>
+                                       <button
+                                          onClick={() => setItemDensity('ultra')}
+                                          title={lang === 'ar' ? 'عرض فائق الكثافة' : 'Ultra compact view'}
+                                          className={`w-8 h-8 rounded-lg flex items-center justify-center ${itemDensity === 'ultra' ? 'bg-white dark:bg-slate-700 text-primary shadow-sm' : 'text-slate-500 dark:text-slate-300'}`}
+                                       >
+                                          <span className="text-[9px] font-black">UL</span>
+                                       </button>
+                                    </div>
+                                 </div>
                               </div>
 
-                              <div className="relative w-full sm:w-64 xl:w-96">
-                                 <Search className={`absolute top-1/2 -translate-y-1/2 text-primary/40 w-4 h-4 ${lang === 'ar' ? 'right-4' : 'left-4'}`} />
-                                 <input
-                                    ref={searchInputRef}
-                                    type="text"
-                                    placeholder={t.search_placeholder}
-                                    value={searchQuery}
-                                    onChange={(e) => setSearchQuery(e.target.value)}
-                                    className={`w-full py-2.5 md:py-3.5 text-sm pr-11 pl-11 bg-elevated dark:bg-elevated/50 border-none rounded-2xl focus:ring-2 focus:ring-primary font-bold ${lang === 'ar' ? 'text-right' : 'text-left'} `}
-                                 />
-                              </div>
+                              {quickPickItems.length > 0 && (
+                                 <div className="flex md:flex-wrap items-center gap-2 overflow-x-auto md:overflow-visible no-scrollbar py-1.5 px-0.5">
+                                    <span className="shrink-0 text-[10px] font-black uppercase tracking-wider text-slate-500">
+                                       {lang === 'ar' ? 'اختيارات ذكية' : 'Smart picks'}
+                                    </span>
+                                    {quickPickItems.map((item) => (
+                                       <button
+                                          key={item.id}
+                                          onClick={() => handleAddItem(item)}
+                                          className="shrink-0 inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 hover:bg-primary hover:text-white transition-colors"
+                                       >
+                                          <Plus size={12} />
+                                          <span className="text-[11px] font-black">
+                                             {(item as any).displayName || item.name}
+                                          </span>
+                                          <span className="text-[10px] font-bold opacity-80">
+                                             {item.price.toFixed(2)} {currencySymbol}
+                                          </span>
+                                       </button>
+                                    ))}
+                                 </div>
+                              )}
+                              {upsellSuggestions.length > 0 && (
+                                 <div className="flex md:flex-wrap items-center gap-2 overflow-x-auto md:overflow-visible no-scrollbar py-1 px-0.5">
+                                    <span className="shrink-0 text-[10px] font-black uppercase tracking-wider text-emerald-600 dark:text-emerald-300">
+                                       {lang === 'ar' ? 'مقترحات إضافة' : 'Upsell'}
+                                    </span>
+                                    {upsellSuggestions.map((item) => (
+                                       <button
+                                          key={`upsell-${item.id}`}
+                                          onClick={() => handleAddItem(item)}
+                                          className="shrink-0 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-600 hover:text-white transition-colors"
+                                       >
+                                          <Plus size={11} />
+                                          <span className="text-[11px] font-black">{(item as any).displayName || item.name}</span>
+                                       </button>
+                                    ))}
+                                 </div>
+                              )}
                            </div>
-                           <div className="flex-1 overflow-y-auto p-4 md:p-8 min-h-0 bg-slate-50/30 dark:bg-slate-950/20">
+                           <div className="flex-1 overflow-y-auto p-3 md:p-4 xl:p-5 min-h-0 bg-slate-50/30 dark:bg-slate-950/20">
                               <ItemGrid
                                  items={pricedItems}
                                  onAddItem={handleAddItem}
+                                 onRemoveItem={handleRemoveOneFromCart}
+                                 cartItems={safeActiveCart}
                                  currencySymbol={currencySymbol}
                                  isTouchMode={isTouchMode}
+                                 density={itemDensity}
+                                 lang={lang as any}
+                                 highlightedItemId={lastAddedItemId}
                               />
                            </div>
                         </div>
-                     </div>
+                        </div>
 
                      {shouldShowCart && !isCartOpenMobile && (
                         <button
@@ -1038,14 +1462,16 @@ const POS: React.FC = () => {
                      )}
 
                      {/* Cart Sidebar */}
-                     <div className={`
-                     fixed lg:relative inset-y-0 w-[92%] max-w-[94vw] sm:w-[420px] xl:w-[480px] bg-card dark:bg-card flex flex-col h-full shadow-2xl z-40 transition-transform duration-300
+                     {shouldRenderCartPanel && (
+                        <div className={`
+                     fixed lg:static inset-y-0 w-[92%] max-w-[94vw] lg:w-full ${cartPanelWidthClass} bg-card dark:bg-card flex flex-col h-full lg:h-[calc(100%-1rem)] shadow-2xl z-40 transition-transform duration-300
                      ${lang === 'ar' ? 'border-r left-0' : 'border-l right-0'} border-slate-200 dark:border-slate-800
                      ${shouldShowCart && isCartOpenMobile ? 'translate-x-0' : (lang === 'ar' ? '-translate-x-full' : 'translate-x-full')} lg:translate-x-0
+                     lg:mx-2 lg:my-2 lg:self-center lg:rounded-2xl lg:border lg:shadow-xl lg:overflow-hidden
                   `}>
-                        <div className="p-4 md:p-8 border-b border-slate-200 dark:border-slate-800 bg-elevated dark:bg-elevated/50 flex justify-between items-center shrink-0">
+                        <div className="p-3 md:p-4 border-b border-slate-200 dark:border-slate-800 bg-elevated dark:bg-elevated/50 flex justify-between items-center shrink-0">
                            <div className="min-w-0">
-                              <h2 className="text-xl md:text-2xl font-black text-slate-800 dark:text-white uppercase tracking-tight truncate">
+                              <h2 className="text-lg md:text-xl font-black text-slate-800 dark:text-white uppercase tracking-tight truncate">
                                  {orderTypeLabel}
                               </h2>
                               <p className="text-[10px] font-black text-primary uppercase tracking-widest mt-0.5 md:mt-1 truncate">
@@ -1053,6 +1479,29 @@ const POS: React.FC = () => {
                               </p>
                            </div>
                            <div className="flex items-center gap-2">
+                              <div className="hidden lg:flex items-center gap-1 rounded-xl bg-slate-100 dark:bg-slate-800 p-1">
+                                 <button
+                                    onClick={() => setCartPanelWidth('compact')}
+                                    title={lang === 'ar' ? 'سلة أصغر' : 'Compact cart'}
+                                    className={`w-7 h-7 rounded-lg flex items-center justify-center transition-colors ${cartPanelWidth === 'compact' ? 'bg-white dark:bg-slate-700 text-primary shadow-sm' : 'text-slate-500 dark:text-slate-300'}`}
+                                 >
+                                    <PanelRightClose size={15} />
+                                 </button>
+                                 <button
+                                    onClick={() => setCartPanelWidth('normal')}
+                                    title={lang === 'ar' ? 'سلة متوسطة' : 'Normal cart'}
+                                    className={`w-7 h-7 rounded-lg flex items-center justify-center transition-colors ${cartPanelWidth === 'normal' ? 'bg-white dark:bg-slate-700 text-primary shadow-sm' : 'text-slate-500 dark:text-slate-300'}`}
+                                 >
+                                    <SlidersHorizontal size={15} />
+                                 </button>
+                                 <button
+                                    onClick={() => setCartPanelWidth('wide')}
+                                    title={lang === 'ar' ? 'سلة أوسع' : 'Wide cart'}
+                                    className={`w-7 h-7 rounded-lg flex items-center justify-center transition-colors ${cartPanelWidth === 'wide' ? 'bg-white dark:bg-slate-700 text-primary shadow-sm' : 'text-slate-500 dark:text-slate-300'}`}
+                                 >
+                                    <PanelRightOpen size={15} />
+                                 </button>
+                              </div>
                               {activeOrderType === OrderType.DINE_IN && selectedTableId && (
                                  <button
                                     onClick={leaveTable}
@@ -1064,7 +1513,7 @@ const POS: React.FC = () => {
                               )}
                               <button
                                  onClick={() => { if (activeOrderType === OrderType.DINE_IN) leaveTable(); setIsCartOpenMobile(false); }}
-                                 className="p-2 md:p-3 text-muted hover:text-primary transition-all bg-card dark:bg-elevated rounded-full shadow-sm flex-shrink-0"
+                                 className="p-2 text-muted hover:text-primary transition-all bg-card dark:bg-elevated rounded-full shadow-sm flex-shrink-0 lg:hidden"
                               >
                                  <X size={20} className="md:w-6 md:h-6" />
                               </button>
@@ -1113,7 +1562,7 @@ const POS: React.FC = () => {
                            </div>
                         )}
 
-                        <div className="flex-1 overflow-y-auto p-4 space-y-3 no-scrollbar min-h-0">
+                        <div className="flex-1 overflow-y-auto p-2.5 md:p-3 space-y-2 no-scrollbar min-h-0">
                            {safeActiveCart.map(item => (
                               <CartItem
                                  key={item.cartId}
@@ -1130,9 +1579,30 @@ const POS: React.FC = () => {
                               />
                            ))}
                            {safeActiveCart.length === 0 && (
-                              <div className="h-full flex flex-col items-center justify-center text-slate-400 py-20 opacity-30">
-                                 <ShoppingBag size={60} className="mb-4" />
-                                 <p className="font-black uppercase tracking-widest">{t.empty_cart}</p>
+                              <div className="h-full flex flex-col items-center justify-center text-slate-400 py-10 md:py-16 px-4">
+                                 <div className="w-16 h-16 rounded-2xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center mb-4 opacity-70">
+                                    <ShoppingBag size={28} />
+                                 </div>
+                                 <p className="font-black uppercase tracking-widest opacity-70">{t.empty_cart}</p>
+                                 <p className="text-xs font-bold mt-2 opacity-50 text-center">
+                                    {lang === 'ar' ? 'ابدأ بإضافة أصناف أو استخدم البحث السريع' : 'Start adding items or use quick search'}
+                                 </p>
+                                 <div className="flex items-center gap-2 mt-4">
+                                    <button
+                                       onClick={() => searchInputRef.current?.focus()}
+                                       className="px-3 py-2 rounded-xl bg-slate-100 dark:bg-slate-800 text-xs font-black uppercase tracking-wider hover:text-primary"
+                                    >
+                                       {lang === 'ar' ? 'بحث' : 'Search'}
+                                    </button>
+                                    {!hasCartItems && (
+                                       <button
+                                          onClick={() => setItemFilter('popular')}
+                                          className="px-3 py-2 rounded-xl bg-amber-50 dark:bg-amber-900/20 text-amber-600 dark:text-amber-300 text-xs font-black uppercase tracking-wider"
+                                       >
+                                          {lang === 'ar' ? 'الأكثر طلباً' : 'Popular'}
+                                       </button>
+                                    )}
+                                 </div>
                               </div>
                            )}
                         </div>
@@ -1161,6 +1631,8 @@ const POS: React.FC = () => {
                            onApplyCoupon={handleApplyCoupon}
                            onClearCoupon={() => { setCouponCode(''); clearCoupon(); }}
                         />
+                        </div>
+                     )}
                      </div>
                   </>
                )}

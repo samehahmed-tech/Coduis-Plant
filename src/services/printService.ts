@@ -2,6 +2,8 @@ export interface PrintJob {
     content: string;
     type: 'RECEIPT' | 'KITCHEN';
     printerId?: string;
+    printerAddress?: string;
+    printerType?: 'LOCAL' | 'NETWORK';
 }
 
 export const printService = {

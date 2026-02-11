@@ -38,6 +38,13 @@ import { socketService } from '../services/socketService';
 const COLORS = ['#6366f1', '#8b5cf6', '#ec4899', '#10b981', '#f59e0b', '#0ea5e9'];
 type Scope = 'DAILY' | 'WEEKLY' | 'MONTHLY' | 'ALL';
 
+const formatLocalDate = (date: Date) => {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
+
 type DashboardPayload = {
   totals: {
     revenue: number;
@@ -132,8 +139,8 @@ const Dashboard: React.FC = () => {
       start.setHours(0, 0, 0, 0);
     }
     return {
-      startDate: start.toISOString().slice(0, 10),
-      endDate: end.toISOString().slice(0, 10),
+      startDate: formatLocalDate(start),
+      endDate: formatLocalDate(end),
     };
   }, [viewScope]);
 

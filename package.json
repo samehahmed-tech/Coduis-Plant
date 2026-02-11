@@ -17,6 +17,7 @@
     "db:migrate": "drizzle-kit migrate",
     "db:inspect:zones": "tsx scripts/db-inspect-zones.ts",
     "db:fix:zones": "tsx scripts/fix-floor-zones.ts",
+    "go-live:preflight": "tsx scripts/go-live-preflight.ts",
     "eta:check": "tsx scripts/eta-config-check.ts",
     "eta:smoke": "tsx scripts/eta-e2e-smoke.ts",
     "load:realtime:node": "tsx scripts/load/realtime-node-load.ts",

@@ -75,6 +75,7 @@ export const useMenuStore = create<MenuState>()(
                             nameAr: cat.nameAr || cat.name_ar,
                             image: cat.image || cat.image_url,
                             icon: cat.icon,
+                            printerIds: cat.printerIds || cat.printer_ids || [],
                             targetOrderTypes: cat.targetOrderTypes || cat.target_order_types || [],
                             menuIds: cat.menuIds || cat.menu_ids || ['menu-1'],
                             isActive: cat.isActive !== false && cat.is_active !== false,
@@ -136,6 +137,7 @@ export const useMenuStore = create<MenuState>()(
                         nameAr: category.nameAr,
                         image: category.image,
                         icon: category.icon,
+                        printerIds: category.printerIds || [],
                         menuIds: category.menuIds,
                         targetOrderTypes: category.targetOrderTypes,
                         isActive: true
@@ -167,6 +169,7 @@ export const useMenuStore = create<MenuState>()(
                         nameAr: category.nameAr,
                         image: category.image,
                         icon: category.icon,
+                        printerIds: category.printerIds || [],
                         menuIds: category.menuIds,
                         targetOrderTypes: category.targetOrderTypes,
                     };
@@ -377,4 +380,3 @@ export const useMenuStore = create<MenuState>()(
         }
     )
 );
-

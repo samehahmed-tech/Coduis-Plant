@@ -512,6 +512,25 @@ export const fiscalApi = {
 };
 
 // ============================================================================
+// Day Close API
+// ============================================================================
+
+export const dayCloseApi = {
+    getReport: (branchId: string, date: string) => apiRequest<any>(`/day-close/${branchId}/${date}`),
+    getHistory: (branchId: string, limit = 30) => apiRequest<any[]>(`/day-close/${branchId}/history?limit=${limit}`),
+    close: (branchId: string, date: string, payload?: { notes?: string; enforceFiscalClean?: boolean; emailConfig?: any }) =>
+        apiRequest<{ success: boolean; message: string; report: any }>(`/day-close/${branchId}/${date}/close`, {
+            method: 'POST',
+            body: JSON.stringify(payload || {}),
+        }),
+    sendEmail: (branchId: string, date: string, emailConfig: { to: string[]; cc?: string[]; subject: string; includeReports: Array<'sales' | 'payments' | 'audit'> }) =>
+        apiRequest<{ success: boolean; message: string }>(`/day-close/${branchId}/${date}/send-email`, {
+            method: 'POST',
+            body: JSON.stringify({ emailConfig }),
+        }),
+};
+
+// ============================================================================
 // Wastage API
 // ============================================================================
 
@@ -587,6 +606,36 @@ export const tablesApi = {
 };
 
 // ============================================================================
+// AI API
+// ============================================================================
+
+export const aiApi = {
+    getInsights: (branchId?: string) => {
+        const query = branchId ? `?branchId=${encodeURIComponent(branchId)}` : '';
+        return apiRequest<{ insight: string }>(`/ai/insights${query}`);
+    },
+    executeAction: (data: { actionType: string; parameters?: Record<string, any>; explanation?: string }) =>
+        apiRequest<{ success: boolean; message: string; actionId: string }>('/ai/execute', {
+            method: 'POST',
+            body: JSON.stringify(data),
+        }),
+};
+
+// ============================================================================
+// Ops API
+// ============================================================================
+
+export const opsApi = {
+    getRealtimeHealth: () =>
+        apiRequest<{
+            ok: boolean;
+            timestamp: string;
+            database: { ok: boolean; latencyMs: number };
+            socket: Record<string, any>;
+        }>('/ops/realtime-health'),
+};
+
+// ============================================================================
 // Export all
 // ============================================================================
 
@@ -611,11 +660,14 @@ export default {
     financeEngine: financeApi,
     reports: reportsApi,
     fiscal: fiscalApi,
+    dayClose: dayCloseApi,
     wastage: wastageApi,
     suppliers: suppliersApi,
     purchaseOrders: purchaseOrdersApi,
     printers: printersApi,
     tables: tablesApi,
+    ai: aiApi,
+    ops: opsApi,
 };
 
 

@@ -4,6 +4,17 @@ import { orders, payments, orderItems, menuItems, menuCategories, recipes, recip
 import { eq, and, sql, gte, lte, inArray, desc } from 'drizzle-orm';
 import PDFDocument from 'pdfkit';
 
+const parseLocalDateRange = (startDate: string, endDate: string) => {
+    const start = new Date(`${startDate}T00:00:00`);
+    const end = new Date(`${endDate}T00:00:00`);
+    if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) {
+        throw new Error('INVALID_DATE_RANGE');
+    }
+    start.setHours(0, 0, 0, 0);
+    end.setHours(23, 59, 59, 999);
+    return { start, end };
+};
+
 export const getVatReport = async (req: Request, res: Response) => {
     try {
         const { branchId, startDate, endDate } = req.query;
@@ -12,9 +23,7 @@ export const getVatReport = async (req: Request, res: Response) => {
             return res.status(400).json({ error: 'Start date and end date are required' });
         }
 
-        const start = new Date(startDate as string);
-        const end = new Date(endDate as string);
-        end.setHours(23, 59, 59, 999);
+        const { start, end } = parseLocalDateRange(startDate as string, endDate as string);
 
         const report = await db.select({
             count: sql<number>`count(*)`,
@@ -49,9 +58,7 @@ export const getPaymentMethodSummary = async (req: Request, res: Response) => {
             return res.status(400).json({ error: 'Start date and end date are required' });
         }
 
-        const start = new Date(startDate as string);
-        const end = new Date(endDate as string);
-        end.setHours(23, 59, 59, 999);
+        const { start, end } = parseLocalDateRange(startDate as string, endDate as string);
 
         const summary = await db.select({
             method: payments.method,
@@ -78,9 +85,7 @@ export const getPaymentMethodSummary = async (req: Request, res: Response) => {
 export const getFiscalSummary = async (req: Request, res: Response) => {
     try {
         const { startDate, endDate } = req.query;
-        const start = new Date(startDate as string);
-        const end = new Date(endDate as string);
-        end.setHours(23, 59, 59, 999);
+        const { start, end } = parseLocalDateRange(startDate as string, endDate as string);
 
         const summary = await db.select({
             totalSales: sql<number>`sum(total)`,
@@ -117,9 +122,7 @@ export const getDailySales = async (req: Request, res: Response) => {
             return res.status(400).json({ error: 'Start date and end date are required' });
         }
 
-        const start = new Date(startDate as string);
-        const end = new Date(endDate as string);
-        end.setHours(23, 59, 59, 999);
+        const { start, end } = parseLocalDateRange(startDate as string, endDate as string);
 
         const rows = await db.select({
             day: sql<string>`to_char(${orders.createdAt}, 'YYYY-MM-DD')`,
@@ -151,9 +154,7 @@ export const getOverview = async (req: Request, res: Response) => {
         if (!startDate || !endDate) {
             return res.status(400).json({ error: 'Start date and end date are required' });
         }
-        const start = new Date(startDate as string);
-        const end = new Date(endDate as string);
-        end.setHours(23, 59, 59, 999);
+        const { start, end } = parseLocalDateRange(startDate as string, endDate as string);
         const deliveredStatuses = ['DELIVERED', 'COMPLETED'];
 
         const [summary] = await db.select({
@@ -191,9 +192,7 @@ export const getProfitSummary = async (req: Request, res: Response) => {
         if (!startDate || !endDate) {
             return res.status(400).json({ error: 'Start date and end date are required' });
         }
-        const start = new Date(startDate as string);
-        const end = new Date(endDate as string);
-        end.setHours(23, 59, 59, 999);
+        const { start, end } = parseLocalDateRange(startDate as string, endDate as string);
         const deliveredStatuses = ['DELIVERED', 'COMPLETED'];
 
         const [sales] = await db.select({
@@ -251,9 +250,7 @@ export const getProfitDaily = async (req: Request, res: Response) => {
         if (!startDate || !endDate) {
             return res.status(400).json({ error: 'Start date and end date are required' });
         }
-        const start = new Date(startDate as string);
-        const end = new Date(endDate as string);
-        end.setHours(23, 59, 59, 999);
+        const { start, end } = parseLocalDateRange(startDate as string, endDate as string);
         const deliveredStatuses = ['DELIVERED', 'COMPLETED'];
 
         const salesRows = await db.select({
@@ -319,9 +316,7 @@ export const getFoodCostReport = async (req: Request, res: Response) => {
         if (!startDate || !endDate) {
             return res.status(400).json({ error: 'Start date and end date are required' });
         }
-        const start = new Date(startDate as string);
-        const end = new Date(endDate as string);
-        end.setHours(23, 59, 59, 999);
+        const { start, end } = parseLocalDateRange(startDate as string, endDate as string);
         const deliveredStatuses = ['DELIVERED', 'COMPLETED'];
 
         const [menu, recs, recIngredients, inv, soldRows] = await Promise.all([
@@ -389,9 +384,7 @@ type ReportGranularity = 'DAILY' | 'WEEKLY' | 'MONTHLY';
 const parseReportFilters = (req: Request) => {
     const { branchId, startDate, endDate, reportType, granularity } = req.query;
     if (!startDate || !endDate) throw new Error('Start date and end date are required');
-    const start = new Date(startDate as string);
-    const end = new Date(endDate as string);
-    end.setHours(23, 59, 59, 999);
+    const { start, end } = parseLocalDateRange(startDate as string, endDate as string);
     return {
         branchId: branchId ? String(branchId) : undefined,
         start,
@@ -436,9 +429,7 @@ export const getDashboardKpis = async (req: Request, res: Response) => {
         }
 
         const branchId = resolveScopedBranchId(req, rawBranchId);
-        const start = new Date(startDate);
-        const end = new Date(endDate);
-        end.setHours(23, 59, 59, 999);
+        const { start, end } = parseLocalDateRange(startDate, endDate);
         const scopeValue: DashboardScope = (scope || 'DAILY') as DashboardScope;
 
         const [overviewRows, paymentsMix, paidRevenueRows, uniqueCustomersRows, itemsSoldRows, opsStatusRows, orderTypeRows, trendRows, topItemsRows, categoryRows, branchRows, topCustomerRows] = await Promise.all([

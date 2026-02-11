@@ -1,4 +1,4 @@
-
+﻿
 import React, { useState, useMemo, useEffect } from 'react';
 import {
     Phone,
@@ -69,8 +69,7 @@ import { useOrderStore } from '../stores/useOrderStore';
 
 // Services
 import { translations } from '../services/translations';
-import { printService } from '../src/services/printService';
-import { formatReceipt } from '../services/receiptFormatter';
+import { printKitchenTicketsByRouting, printOrderReceipt } from '../services/posPrintOrchestrator';
 import { deliveryApi } from '../services/api';
 
 // POS Components
@@ -310,7 +309,7 @@ const OrderStatusBadge: React.FC<{ status: OrderStatus; lang: 'en' | 'ar' }> = (
 const CallCenter: React.FC = () => {
     // --- Global State ---
     const { customers, addCustomer } = useCRMStore();
-    const { branches, settings } = useAuthStore();
+    const { branches, settings, printers } = useAuthStore();
     const { categories } = useMenuStore();
     const { orders, placeOrder, discount, setDiscount, fetchOrders } = useOrderStore();
 
@@ -492,30 +491,29 @@ const CallCenter: React.FC = () => {
 
         const savedOrder = await placeOrder(newOrder);
         const activeBranch = branches.find(b => b.id === selectedBranchId);
-        await printService.print({
-            type: 'KITCHEN',
-            content: formatReceipt({
+        await printKitchenTicketsByRouting({
+            order: savedOrder,
+            categories,
+            printers,
+            branchId: selectedBranchId,
+            maxKitchenPrinters: settings.maxKitchenPrinters,
+            settings,
+            currencySymbol: settings.currencySymbol,
+            lang,
+            t,
+            branch: activeBranch
+        });
+        if (settings.autoPrintReceipt !== false) {
+            await printOrderReceipt({
                 order: savedOrder,
-                title: t.kitchen_ticket || (lang === 'ar' ? 'شيك المطبخ' : 'Kitchen Ticket'),
                 settings,
                 currencySymbol: settings.currencySymbol,
                 lang,
                 t,
-                branch: activeBranch
-            })
-        });
-        await printService.print({
-            type: 'RECEIPT',
-            content: formatReceipt({
-                order: savedOrder,
-                title: t.order_receipt || (lang === 'ar' ? 'إيصال الطلب' : 'Order Receipt'),
-                settings,
-                currencySymbol: settings.currencySymbol,
-                lang,
-                t,
-                branch: activeBranch
-            })
-        });
+                branch: activeBranch,
+                title: t.order_receipt || (lang === 'ar' ? 'إيصال الطلب' : 'Order Receipt')
+            });
+        }
         resetOrder();
     };
 
@@ -763,7 +761,7 @@ const CallCenter: React.FC = () => {
                                             <p className="text-xs font-black uppercase opacity-50">{t.empty_cart}</p>
                                         </div>
                                     ) : cart.map(item => (
-                                        <CartItem key={item.cartId} item={item} currencySymbol={currencySymbol} isTouchMode={false} onEditNote={(id, note) => { setEditingItemId(id); setNoteInput(note); }} onRemove={removeFromCart} onUpdateQuantity={updateQuantity} />
+                                        <CartItem key={item.cartId} item={item} currencySymbol={currencySymbol} isTouchMode={false} lang={lang} onEditNote={(id, note) => { setEditingItemId(id); setNoteInput(note); }} onRemove={removeFromCart} onUpdateQuantity={updateQuantity} />
                                     ))}
                                 </div>
 
@@ -977,3 +975,4 @@ const CallCenter: React.FC = () => {
 };
 
 export default CallCenter;
+

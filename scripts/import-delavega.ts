@@ -2,6 +2,7 @@ import { db } from '../server/db';
 import { menuCategories, menuItems } from '../src/db/schema';
 import * as fs from 'fs';
 import * as path from 'path';
+import { pathToFileURL } from 'url';
 
 // Define the source data structure since we can't easily import from an external path with different types
 interface SourceItem {
@@ -27,6 +28,7 @@ interface SourceCategory {
 const DEFAULT_ITEM_IMAGE = 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?q=80&w=1000&auto=format&fit=crop';
 
 async function importData() {
+    const tempSourcePath = path.resolve('./scripts/temp_data.ts');
     try {
         console.log('--- De La Vega Menu Import Started ---');
 
@@ -56,11 +58,11 @@ async function importData() {
 
         // I'll use a hacky but effective way to get the data: 
         // Copy the data.ts to a temp file in the project, fix imports, and import it.
-        const tempSourcePath = path.resolve('./scripts/temp_data.ts');
         let refinedContent = fileContent.replace(/import { MenuCategory } from '.\/types';/, 'export interface MenuItem { id: string; nameEn: string; nameAr: string; price: number; descriptionEn?: string; descriptionAr?: string; } export interface MenuCategory { id: string; titleEn: string; titleAr: string; icon?: string; themeColor?: string; type?: string; coverImage?: string; items: MenuItem[]; }');
         fs.writeFileSync(tempSourcePath, refinedContent);
 
-        const { MENU_DATA } = await import('./temp_data.ts');
+        const tempUrl = `${pathToFileURL(tempSourcePath).href}?v=${Date.now()}`;
+        const { MENU_DATA } = await import(tempUrl);
         const sourceData = MENU_DATA as SourceCategory[];
 
         console.log(`Found ${sourceData.length} categories to import.`);
@@ -106,7 +108,6 @@ async function importData() {
                     price: item.price,
                     image: DEFAULT_ITEM_IMAGE, // Default image as requested
                     isAvailable: true,
-                    isActive: true,
                     sortOrder: itemCount++,
                 }).onConflictDoUpdate({
                     target: menuItems.id,
@@ -122,13 +123,14 @@ async function importData() {
         }
 
         console.log(`Successfully imported ${categoryCount} categories and ${itemCount} items.`);
-
-        // Clean up
-        fs.unlinkSync(tempSourcePath);
         process.exit(0);
     } catch (error) {
         console.error('Import failed:', error);
         process.exit(1);
+    } finally {
+        if (fs.existsSync(tempSourcePath)) {
+            fs.unlinkSync(tempSourcePath);
+        }
     }
 }
 

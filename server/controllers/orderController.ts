@@ -1,7 +1,7 @@
 import { Request, Response } from 'express';
 import { db } from '../db';
 import { orders, orderItems, orderStatusHistory, payments, warehouses, shifts, settings } from '../../src/db/schema';
-import { eq, and, desc, gte, lte } from 'drizzle-orm';
+import { eq, and, desc, gte, lte, inArray } from 'drizzle-orm';
 import { inventoryService } from '../services/inventoryService';
 import { getStringParam } from '../utils/request';
 import { getIO } from '../socket';
@@ -151,7 +151,35 @@ export const getAllOrders = async (req: Request, res: Response) => {
         }
 
         const allOrders = await query.orderBy(desc(orders.createdAt)).limit(max);
-        res.json(allOrders);
+
+        if (allOrders.length === 0) {
+            return res.json([]);
+        }
+
+        const orderIds = allOrders.map((o) => o.id);
+        const allOrderItems = await db.select().from(orderItems).where(inArray(orderItems.orderId, orderIds));
+        const itemsByOrderId = new Map<string, any[]>();
+        for (const item of allOrderItems) {
+            const bucket = itemsByOrderId.get(item.orderId) || [];
+            bucket.push({
+                id: item.menuItemId,
+                menu_item_id: item.menuItemId,
+                menuItemId: item.menuItemId,
+                name: item.name,
+                price: item.price,
+                quantity: item.quantity,
+                notes: item.notes,
+                modifiers: item.modifiers,
+                selectedModifiers: item.modifiers || [],
+            });
+            itemsByOrderId.set(item.orderId, bucket);
+        }
+
+        const enrichedOrders = allOrders.map((order) => ({
+            ...order,
+            items: itemsByOrderId.get(order.id) || [],
+        }));
+        res.json(enrichedOrders);
     } catch (error: any) {
         res.status(500).json({ error: error.message });
     }
