@@ -323,27 +323,36 @@ const Dashboard: React.FC = () => {
 
       {!loading && hasData && (
         <>
-          <div className="grid grid-cols-2 lg:grid-cols-4 xl:grid-cols-6 gap-4">
+          <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
             {[
-              { label: 'Revenue', value: `${totals.revenue.toLocaleString()} ${currencySymbol}`, icon: DollarSign, color: 'text-emerald-500', bg: 'bg-emerald-500/10', perm: AppPermission.DATA_VIEW_REVENUE },
-              { label: 'Paid Revenue', value: `${totals.paidRevenue.toLocaleString()} ${currencySymbol}`, icon: Wallet, color: 'text-blue-500', bg: 'bg-blue-500/10', perm: AppPermission.DATA_VIEW_REVENUE },
-              { label: 'Orders', value: String(totals.orderCount), icon: ShoppingBag, color: 'text-primary', bg: 'bg-primary/10', perm: AppPermission.DATA_VIEW_REVENUE },
-              { label: 'Avg Ticket', value: `${totals.avgTicket.toFixed(1)} ${currencySymbol}`, icon: TrendingUp, color: 'text-violet-500', bg: 'bg-violet-500/10', perm: AppPermission.DATA_VIEW_REVENUE },
-              { label: 'Unique Guests', value: String(totals.uniqueCustomers), icon: Users, color: 'text-cyan-500', bg: 'bg-cyan-500/10', perm: AppPermission.DATA_VIEW_CUSTOMER_SENSITIVE },
-              { label: 'Items Sold', value: String(totals.itemsSold), icon: Package, color: 'text-amber-500', bg: 'bg-amber-500/10', perm: AppPermission.DATA_VIEW_REVENUE },
+              { label: lang === 'ar' ? 'الإيرادات' : 'Revenue', value: `${totals.revenue.toLocaleString()} ${currencySymbol}`, icon: DollarSign, color: 'text-emerald-500', bg: 'bg-emerald-500/10', accent: 'from-emerald-500 to-emerald-600', perm: AppPermission.DATA_VIEW_REVENUE },
+              { label: lang === 'ar' ? 'المحصّل' : 'Collected', value: `${totals.paidRevenue.toLocaleString()} ${currencySymbol}`, icon: Wallet, color: 'text-blue-500', bg: 'bg-blue-500/10', accent: 'from-blue-500 to-blue-600', perm: AppPermission.DATA_VIEW_REVENUE },
+              { label: lang === 'ar' ? 'الطلبات' : 'Orders', value: String(totals.orderCount), icon: ShoppingBag, color: 'text-indigo-500', bg: 'bg-indigo-500/10', accent: 'from-indigo-500 to-indigo-600', perm: AppPermission.DATA_VIEW_REVENUE },
+              { label: lang === 'ar' ? 'متوسط الفاتورة' : 'Avg Ticket', value: `${totals.avgTicket.toFixed(1)} ${currencySymbol}`, icon: TrendingUp, color: 'text-violet-500', bg: 'bg-violet-500/10', accent: 'from-violet-500 to-violet-600', perm: AppPermission.DATA_VIEW_REVENUE },
+              { label: lang === 'ar' ? 'الضيوف' : 'Guests', value: String(totals.uniqueCustomers), icon: Users, color: 'text-cyan-500', bg: 'bg-cyan-500/10', accent: 'from-cyan-500 to-cyan-600', perm: AppPermission.DATA_VIEW_CUSTOMER_SENSITIVE },
+              { label: lang === 'ar' ? 'الأصناف المباعة' : 'Items Sold', value: String(totals.itemsSold), icon: Package, color: 'text-amber-500', bg: 'bg-amber-500/10', accent: 'from-amber-500 to-amber-600', perm: AppPermission.DATA_VIEW_REVENUE },
             ].map((stat, index) => (
-              <div key={index} className="card-primary p-5 rounded-2xl hover:-translate-y-1 transition-transform">
-                <div className="flex justify-between items-start gap-3">
-                  <div>
-                    <p className="text-[10px] font-black uppercase tracking-[0.15em] text-muted">{stat.label}</p>
-                    <h3 className="text-xl font-black text-main mt-1">
+              <div
+                key={index}
+                className="relative overflow-hidden bg-card border border-border/50 rounded-2xl p-5 hover:-translate-y-1 hover:shadow-xl transition-all duration-300 group"
+                style={{ animationDelay: `${index * 60}ms` }}
+              >
+                {/* Gradient accent strip */}
+                <div className={`absolute top-0 ${lang === 'ar' ? 'right-0' : 'left-0'} w-1 h-full bg-gradient-to-b ${stat.accent} rounded-full`} />
+                {/* Hover shine */}
+                <div className="absolute inset-0 bg-gradient-to-br from-white/[0.02] to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+
+                <div className="flex justify-between items-start gap-2 relative">
+                  <div className="min-w-0">
+                    <p className="text-[10px] font-black uppercase tracking-[0.15em] text-muted truncate">{stat.label}</p>
+                    <h3 className="text-lg xl:text-xl font-black text-main mt-1.5" style={{ fontVariantNumeric: 'tabular-nums' }}>
                       <SensitiveData permission={stat.perm} hasPermission={hasPermission} lang={lang}>
                         {stat.value}
                       </SensitiveData>
                     </h3>
                   </div>
-                  <div className={`p-3 rounded-xl ${stat.bg}`}>
-                    <stat.icon size={18} className={stat.color} />
+                  <div className={`p-2.5 rounded-xl ${stat.bg} shrink-0 group-hover:scale-110 transition-transform duration-300`}>
+                    <stat.icon size={20} className={stat.color} />
                   </div>
                 </div>
               </div>

@@ -1,7 +1,7 @@
 ﻿/**
- * 🔒 POS VESSEL PROTOCOL - LOCKED AS PERFECTION 🔒
- * This file is under the Seal of Perfection. DO NOT MODIFY.
- * Manual Unlock Required: "INITIATE POS PROTOCOL UNLOCK"
+ * POS — Main Point of Sale Orchestrator
+ * State management + layout composition only.
+ * UI is delegated to: POSToolbar, POSItemsPanel, POSCartSidebar
  */
 import React, { useState, useEffect, useRef, useMemo, useCallback, useDeferredValue } from 'react';
 import { Search, ShoppingBag, X, LogOut, SlidersHorizontal, ArrowUpDown, LayoutGrid, Grid2x2, Plus, UtensilsCrossed, Truck, MapPin, Keyboard } from 'lucide-react';
@@ -24,6 +24,9 @@ import CalculatorWidget from './common/CalculatorWidget';
 import { ShiftOverlays, CloseShiftModal } from './pos/ShiftOverlays';
 import { ManagerApprovalModal } from './pos/ManagerApprovalModal';
 import TableManagementModal from './pos/TableManagementModal';
+import POSToolbar from './pos/POSToolbar';
+import POSItemsPanel from './pos/POSItemsPanel';
+import POSCartSidebar from './pos/POSCartSidebar';
 import { printService } from '../src/services/printService';
 import { formatReceipt } from '../services/receiptFormatter';
 import { printKitchenTicketsByRouting, printOrderReceipt } from '../services/posPrintOrchestrator';
@@ -1385,77 +1388,21 @@ const POS: React.FC = () => {
                onSetPriceList={setPriceList}
                isOnline={isOnline}
             />
-            <div className="shrink-0 border-b border-slate-200 dark:border-slate-800 bg-white/95 dark:bg-slate-900/95 backdrop-blur px-3 md:px-6 py-2.5">
-               <div className="flex flex-wrap items-center gap-2">
-                  {modeShortcuts.map((entry) => (
-                     <button
-                        key={entry.mode}
-                        onClick={() => setOrderMode(entry.mode)}
-                        className={`inline-flex items-center gap-2 px-2.5 sm:px-3 py-2 rounded-xl border text-xs font-black uppercase tracking-wider transition-colors min-h-11 ${activeOrderType === entry.mode ? entry.activeClass : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-200 border-transparent hover:border-primary/40'}`}
-                     >
-                        <entry.icon size={14} />
-                        <span className="hidden sm:inline">{entry.label}</span>
-                        <span className={`hidden md:inline text-[9px] px-1.5 py-0.5 rounded-md ${activeOrderType === entry.mode ? 'bg-white/20' : 'bg-slate-200 dark:bg-slate-700'}`}>{entry.keyHint}</span>
-                     </button>
-                  ))}
 
-                  <div className="h-6 w-px bg-slate-200 dark:bg-slate-700 mx-1 hidden md:block" />
-
-                  <button
-                     onClick={() => searchInputRef.current?.focus()}
-                     className="inline-flex items-center gap-2 px-2.5 sm:px-3 py-2 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 text-xs font-black uppercase tracking-wider hover:text-primary min-h-11"
-                  >
-                     <Search size={14} />
-                     <span className="hidden sm:inline">{lang === 'ar' ? 'بحث' : 'Search'}</span>
-                     <span className="hidden md:inline text-[9px] px-1.5 py-0.5 rounded-md bg-slate-200 dark:bg-slate-700">/</span>
-                  </button>
-
-                  <button
-                     onClick={() => setIsCartOpenMobile((prev) => !prev)}
-                     className="inline-flex items-center gap-2 px-2.5 sm:px-3 py-2 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 text-xs font-black uppercase tracking-wider hover:text-primary min-h-11"
-                  >
-                     <ShoppingBag size={14} />
-                     <span className="hidden sm:inline">{lang === 'ar' ? 'السلة' : 'Cart'}</span>
-                     <span className="text-[9px] px-1.5 py-0.5 rounded-md bg-slate-200 dark:bg-slate-700">{safeActiveCart.length}</span>
-                  </button>
-
-                  {activeOrderType === OrderType.DINE_IN && (
-                     <button
-                        onClick={() => setSelectedTableId(null)}
-                        className="inline-flex items-center gap-2 px-2.5 sm:px-3 py-2 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 text-xs font-black uppercase tracking-wider hover:text-primary min-h-11"
-                     >
-                        <LayoutGrid size={14} />
-                        <span className="hidden sm:inline">{lang === 'ar' ? 'الطاولات' : 'Tables'}</span>
-                     </button>
-                  )}
-
-                  {activeOrderType === OrderType.DELIVERY && (
-                     <button
-                        onClick={() => setDeliveryCustomer(null)}
-                        className="inline-flex items-center gap-2 px-2.5 sm:px-3 py-2 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 text-xs font-black uppercase tracking-wider hover:text-primary min-h-11"
-                     >
-                        <Truck size={14} />
-                        <span className="hidden sm:inline">{lang === 'ar' ? 'العملاء' : 'Customers'}</span>
-                     </button>
-                  )}
-
-                  {safeActiveCart.length > 0 && (
-                     <button
-                        onClick={handleQuickPay}
-                        className="hidden sm:inline-flex items-center gap-2 px-3 py-2 rounded-xl bg-emerald-600 text-white text-xs font-black uppercase tracking-wider hover:bg-emerald-700 min-h-11"
-                     >
-                        <Plus size={14} />
-                        {lang === 'ar' ? 'دفع سريع' : 'Quick Pay'}
-                     </button>
-                  )}
-
-                  <div className="ml-auto hidden 2xl:inline-flex items-center gap-1.5 text-[10px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-400">
-                     <Keyboard size={12} />
-                     {lang === 'ar' ? 'اختصارات لوحة المفاتيح مفعلة' : 'Keyboard shortcuts enabled'}
-                  </div>
-               </div>
-            </div>
-
+            {/* ═══ Compact Toolbar ═══ */}
+            <POSToolbar
+               activeOrderType={activeOrderType}
+               onSetOrderMode={setOrderMode}
+               lang={lang}
+               t={t}
+               cartCount={safeActiveCart.length}
+               onToggleCart={() => setIsCartOpenMobile(prev => !prev)}
+               onShowTables={() => setSelectedTableId(null)}
+               onShowCustomers={() => setDeliveryCustomer(null)}
+               onQuickPay={handleQuickPay}
+               onFocusSearch={() => searchInputRef.current?.focus()}
+               hasCartItems={safeActiveCart.length > 0}
+            />
 
             <NoteModal
                isOpen={!!editingItemId}
@@ -1470,14 +1417,14 @@ const POS: React.FC = () => {
                t={t}
             />
 
-            <div className="flex-1 flex overflow-hidden relative min-h-0 bg-slate-100/70 dark:bg-slate-950">
+            <div className="flex-1 flex overflow-hidden relative min-h-0 bg-app">
                {/* Cart Mobile Overlay */}
                {shouldShowCart && isCartOpenMobile && (
                   <div className="xl:hidden fixed inset-0 bg-black/40 backdrop-blur-sm z-30 animate-in fade-in" onClick={() => setIsCartOpenMobile(false)} />
                )}
 
                {showMap ? (
-                  <div className="flex-1 p-3 md:p-5 lg:p-8 bg-app dark:bg-app overflow-y-auto min-h-0">
+                  <div className="flex-1 p-3 md:p-5 lg:p-8 bg-app overflow-y-auto min-h-0">
                      <TableMap
                         tables={tables}
                         zones={zones}
@@ -1525,478 +1472,128 @@ const POS: React.FC = () => {
                   />
                ) : (
                   <>
-                     <div className={`flex-1 min-h-0 h-full overflow-hidden grid grid-cols-1 ${desktopWorkspaceClass} gap-0 xl:gap-2`}>
-                        <div className={`min-w-0 flex flex-col h-full overflow-hidden min-h-0 bg-slate-50 dark:bg-slate-950 transition-all duration-300 ${shouldRenderCartPanel ? 'lg:rounded-2xl lg:border lg:border-slate-200/70 lg:dark:border-slate-800 lg:shadow-sm lg:mx-2 lg:my-2' : ''}`}>
-                        {/* Professional Categories Bar At Top */}
-                        {(!isTabletViewport || showCategoryStrip) && (
-                           <div className="shrink-0 flex-col flex overflow-hidden">
-                              <CategoryTabs
-                                 categories={currentCategories}
-                                 activeCategory={activeCategory}
-                                 onSetCategory={setActiveCategory}
-                                 isTouchMode={isTouchMode}
-                                 lang={lang as any}
-                                 counts={categoryResultCounts}
-                                 totalCount={totalMatchedAcrossCategories}
-                                 hasActiveFiltering={Boolean(normalizedSearchQuery || itemFilter !== 'all')}
-                              />
+                     <div className={`flex-1 min-h-0 h-full overflow-hidden grid grid-cols-1 ${desktopWorkspaceClass} gap-0`}>
+                        {/* ═══ Items Panel (Left) ═══ */}
+                        <POSItemsPanel
+                           categories={currentCategories}
+                           activeCategory={activeCategory}
+                           onSetCategory={setActiveCategory}
+                           categoryResultCounts={categoryResultCounts}
+                           totalMatchedCount={totalMatchedAcrossCategories}
+                           hasActiveFiltering={Boolean(normalizedSearchQuery || itemFilter !== 'all')}
+                           pricedItems={pricedItems}
+                           cartItems={safeActiveCart}
+                           onAddItem={handleAddItem}
+                           onRemoveItem={handleRemoveOneFromCart}
+                           highlightedItemId={lastAddedItemId}
+                           searchQuery={searchQuery}
+                           onSearchChange={setSearchQuery}
+                           searchInputRef={searchInputRef}
+                           itemFilter={itemFilter}
+                           onSetFilter={setItemFilter}
+                           itemSort={itemSort}
+                           onSetSort={setItemSort}
+                           itemDensity={itemDensity}
+                           onSetDensity={setItemDensity}
+                           showMobileFilters={showMobileFilters}
+                           onToggleFilters={() => setShowMobileFilters(prev => !prev)}
+                           onResetFilters={() => { setSearchQuery(''); setItemFilter('all'); setItemSort('smart'); }}
+                           quickPickItems={quickPickItems}
+                           upsellSuggestions={upsellSuggestions}
+                           showCategoryStrip={showCategoryStrip}
+                           onToggleCategoryStrip={() => setShowCategoryStrip(prev => !prev)}
+                           isTabletViewport={isTabletViewport}
+                           quickCategoryNav={quickCategoryNav}
+                           isTouchMode={isTouchMode}
+                           lang={lang}
+                           t={t}
+                           currencySymbol={currencySymbol}
+                           isCartVisible={shouldRenderCartPanel}
+                           cartStats={cartStats}
+                           cartTotal={cartTotal}
+                           currentOrderPreview={currentOrderPreview}
+                           isCartOpenMobile={isCartOpenMobile}
+                           onOpenCart={() => setIsCartOpenMobile(true)}
+                           selectedTableId={selectedTableId}
+                           hasCartItems={hasCartItems}
+                        />
+
+                        {/* ═══ Mobile FAB (fixed bottom cart button) ═══ */}
+                        {shouldRenderCartPanel && !isCartOpenMobile && !showMap && !showCustomerSelect && (
+                           <div className={`md:hidden fixed bottom-[max(1rem,var(--safe-bottom))] ${lang === 'ar' ? 'right-4 left-4' : 'left-4 right-4'} z-40`}>
+                              <button
+                                 onClick={() => setIsCartOpenMobile(true)}
+                                 className="w-full h-12 px-4 rounded-xl bg-slate-900/90 backdrop-blur-md text-white shadow-2xl border border-slate-700/50 flex items-center justify-between"
+                              >
+                                 <div className="min-w-0 flex items-center gap-3">
+                                    <div className="w-8 h-8 rounded-lg bg-primary/20 flex items-center justify-center">
+                                       <ShoppingBag size={14} className="text-primary" />
+                                    </div>
+                                    <div className="text-left min-w-0">
+                                       <p className="text-[9px] font-black uppercase tracking-widest text-white/60">
+                                          {lang === 'ar' ? 'الطلب الحالي' : 'Current Order'}
+                                       </p>
+                                       <p className="text-xs font-black truncate">
+                                          {safeActiveCart.length > 0
+                                             ? `${safeActiveCart.length} ${lang === 'ar' ? 'بنود' : 'lines'} • ${currencySymbol}${cartTotal.toFixed(2)}`
+                                             : (lang === 'ar' ? 'السلة فارغة' : 'Cart empty')}
+                                       </p>
+                                    </div>
+                                 </div>
+                                 <span className="text-[9px] font-black uppercase tracking-widest text-primary">
+                                    {lang === 'ar' ? 'فتح' : 'Open'}
+                                 </span>
+                              </button>
                            </div>
                         )}
 
-                        <div className="flex-1 flex flex-col h-full overflow-hidden min-h-0">
-                           {/* Search & Actions Bar (Clean & Flexible) */}
-                           <div className="px-3 md:px-5 xl:px-6 py-3 md:py-4 flex flex-col gap-3 border-b border-slate-200 dark:border-slate-800 bg-white/95 dark:bg-slate-900 shadow-sm">
-                              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-                                 <div className="flex items-center gap-3">
-                                    <div className="w-1.5 h-6 bg-primary rounded-full shadow-[0_0_10px_rgba(var(--primary),0.5)]" />
-                                    <h2 className="text-sm font-black uppercase tracking-widest text-slate-500">
-                                       {activeCategory === 'all' ? (lang === 'ar' ? 'جميع الأصناف' : 'All Items') :
-                                          (currentCategories.find(c => c.id === activeCategory)?.nameAr ||
-                                             currentCategories.find(c => c.id === activeCategory)?.name || (lang === 'ar' ? 'القسم' : 'Category'))}
-                                    </h2>
-                                 </div>
-
-                                 <div className="flex items-center gap-2 text-[11px] font-black uppercase tracking-wider">
-                                    <span className="px-2.5 py-1.5 rounded-full bg-primary/10 text-primary">
-                                       {pricedItems.length} {lang === 'ar' ? 'صنف' : 'items'}
-                                    </span>
-                                    {isTabletViewport && (
-                                       <button
-                                          onClick={() => setShowCategoryStrip((prev) => !prev)}
-                                          className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-full bg-indigo-50 dark:bg-indigo-900/20 text-indigo-700 dark:text-indigo-300"
-                                       >
-                                          <LayoutGrid size={12} />
-                                          {showCategoryStrip
-                                             ? (lang === 'ar' ? 'إخفاء الأقسام' : 'Hide Categories')
-                                             : (lang === 'ar' ? 'الأقسام' : 'Categories')}
-                                          </button>
-                                    )}
-                                    <button
-                                       onClick={() => setShowMobileFilters((prev) => !prev)}
-                                       className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-200"
-                                    >
-                                       <SlidersHorizontal size={12} />
-                                       {lang === 'ar' ? 'فلاتر' : 'Filters'}
-                                    </button>
-                                    {showMobileFilters && (searchQuery || itemFilter !== 'all' || itemSort !== 'smart') && (
-                                       <button
-                                          onClick={() => {
-                                             setSearchQuery('');
-                                             setItemFilter('all');
-                                             setItemSort('smart');
-                                          }}
-                                          className="px-2.5 py-1.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:text-primary transition-colors"
-                                       >
-                                          {lang === 'ar' ? 'إعادة ضبط' : 'Reset'}
-                                       </button>
-                                    )}
-                                 </div>
-                              </div>
-
-                              <div className="grid grid-cols-1 gap-3 items-center">
-                                 <div className="relative w-full xl:max-w-2xl">
-                                    <Search className={`absolute top-1/2 -translate-y-1/2 text-primary/30 w-4 h-4 ${lang === 'ar' ? 'right-4' : 'left-4'}`} />
-                                    <input
-                                       ref={searchInputRef}
-                                       type="text"
-                                       placeholder={t.search_placeholder}
-                                       value={searchQuery}
-                                       onChange={(e) => setSearchQuery(e.target.value)}
-                                       className={`w-full py-2.5 md:py-3 text-sm pr-12 pl-12 bg-slate-50 dark:bg-slate-800/50 border-none rounded-2xl focus:ring-2 focus:ring-primary font-bold ${lang === 'ar' ? 'text-right' : 'text-left'} `}
-                                    />
-                                    {searchQuery && (
-                                       <button
-                                          onClick={() => setSearchQuery('')}
-                                          className={`absolute top-1/2 -translate-y-1/2 text-slate-400 hover:text-primary ${lang === 'ar' ? 'left-3' : 'right-3'}`}
-                                       >
-                                          <X size={16} />
-                                       </button>
-                                    )}
-                                 </div>
-
-                                 {shouldRenderCartPanel && !isCartOpenMobile && (hasCartItems || selectedTableId) && (
-                                    <div className="lg:hidden rounded-2xl border border-slate-200 dark:border-slate-800 bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 text-white px-3 py-2.5 shadow-lg">
-                                       <div className="flex items-center justify-between gap-2">
-                                          <div className="min-w-0">
-                                             <p className="text-[10px] font-black uppercase tracking-widest text-white/70">
-                                                {lang === 'ar' ? 'الأوردر الحالي' : 'Current Order'}
-                                             </p>
-                                             <p className="text-xs font-black truncate">
-                                                {hasCartItems
-                                                   ? `${cartStats.lines} ${lang === 'ar' ? 'بنود' : 'lines'} • ${cartStats.qty} ${lang === 'ar' ? 'قطعة' : 'items'} • ${currencySymbol}${cartTotal.toFixed(2)}`
-                                                   : (lang === 'ar' ? 'لا توجد بنود بعد' : 'No items yet')}
-                                             </p>
-                                          </div>
-                                          <button
-                                             onClick={() => setIsCartOpenMobile(true)}
-                                             className="shrink-0 px-3 py-2 rounded-xl bg-primary text-white text-[10px] font-black uppercase tracking-wider"
-                                          >
-                                             {lang === 'ar' ? 'مراجعة' : 'Review'}
-                                          </button>
-                                       </div>
-                                       {currentOrderPreview.length > 0 && (
-                                          <div className="mt-2 flex items-center gap-1.5 overflow-x-auto no-scrollbar">
-                                             {currentOrderPreview.map((entry) => (
-                                                <span
-                                                   key={`order-preview-${entry.id}`}
-                                                   className="shrink-0 inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-white/10 border border-white/15 text-[10px] font-bold"
-                                                >
-                                                   <span className="text-primary font-black">{entry.quantity}x</span>
-                                                   <span className="max-w-[140px] truncate">{entry.name}</span>
-                                                </span>
-                                             ))}
-                                             {safeActiveCart.length > 3 && (
-                                                <span className="shrink-0 text-[10px] font-black uppercase tracking-wider text-white/70">
-                                                   +{safeActiveCart.length - 3} {lang === 'ar' ? 'أكثر' : 'more'}
-                                                </span>
-                                             )}
-                                          </div>
-                                       )}
-                                    </div>
-                                 )}
-
-                                 <div className="flex items-center gap-2 overflow-x-auto no-scrollbar py-0.5">
-                                    <button
-                                       onClick={() => setActiveCategory('all')}
-                                       className={`shrink-0 px-3 py-1.5 rounded-full text-[10px] font-black uppercase tracking-wider transition-colors ${
-                                          activeCategory === 'all'
-                                             ? 'bg-primary text-white'
-                                             : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:text-primary'
-                                       }`}
-                                    >
-                                       {lang === 'ar' ? 'الكل' : 'All'}
-                                    </button>
-                                    {quickCategoryNav.map((cat) => (
-                                       <button
-                                          key={`quick-cat-${cat.id}`}
-                                          onClick={() => setActiveCategory(cat.id)}
-                                          className={`shrink-0 px-3 py-1.5 rounded-full text-[10px] font-black uppercase tracking-wider transition-colors ${
-                                             activeCategory === cat.id
-                                                ? 'bg-primary text-white'
-                                                : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:text-primary'
-                                          }`}
-                                       >
-                                          {(lang === 'ar' ? (cat.nameAr || cat.name) : cat.name)}
-                                          <span className={`ml-1.5 text-[9px] ${activeCategory === cat.id ? 'text-white/90' : 'text-slate-400'}`}>
-                                             {cat.count}
-                                          </span>
-                                       </button>
-                                    ))}
-                                 </div>
-
-                                 <div className={`${showMobileFilters ? 'flex' : 'hidden'} flex-wrap items-center gap-2`}>
-                                    <div className="inline-flex bg-slate-100 dark:bg-slate-800 rounded-xl p-1">
-                                       {[
-                                          { id: 'all', label: lang === 'ar' ? 'الكل' : 'All' },
-                                          { id: 'available', label: lang === 'ar' ? 'متاح' : 'Available' },
-                                          { id: 'popular', label: lang === 'ar' ? 'الأكثر طلباً' : 'Popular' }
-                                       ].map((filter) => (
-                                          <button
-                                             key={filter.id}
-                                             onClick={() => setItemFilter(filter.id as 'all' | 'available' | 'popular')}
-                                             className={`px-2.5 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider transition-colors ${itemFilter === filter.id ? 'bg-white dark:bg-slate-700 text-primary shadow-sm' : 'text-slate-500 dark:text-slate-300'}`}
-                                          >
-                                             {filter.label}
-                                          </button>
-                                       ))}
-                                    </div>
-
-                                    <div className="relative">
-                                       <ArrowUpDown size={14} className={`absolute top-1/2 -translate-y-1/2 text-slate-400 ${lang === 'ar' ? 'right-2.5' : 'left-2.5'}`} />
-                                       <select
-                                          value={itemSort}
-                                          onChange={(e) => setItemSort(e.target.value as 'smart' | 'name' | 'price_asc' | 'price_desc')}
-                                          className={`h-9 rounded-xl bg-slate-100 dark:bg-slate-800 border-0 text-xs font-black uppercase tracking-wider text-slate-600 dark:text-slate-200 ${lang === 'ar' ? 'pr-8 pl-3' : 'pl-8 pr-3'}`}
-                                       >
-                                          <option value="smart">{lang === 'ar' ? 'ترتيب ذكي' : 'Smart'}</option>
-                                          <option value="name">{lang === 'ar' ? 'الاسم' : 'Name'}</option>
-                                          <option value="price_asc">{lang === 'ar' ? 'السعر: الأقل' : 'Price: Low'}</option>
-                                          <option value="price_desc">{lang === 'ar' ? 'السعر: الأعلى' : 'Price: High'}</option>
-                                       </select>
-                                    </div>
-
-                                    <div className="inline-flex bg-slate-100 dark:bg-slate-800 rounded-xl p-1">
-                                       <button
-                                          onClick={() => setItemDensity('comfortable')}
-                                          title={lang === 'ar' ? 'عرض مريح' : 'Comfortable view'}
-                                          className={`w-8 h-8 rounded-lg flex items-center justify-center ${itemDensity === 'comfortable' ? 'bg-white dark:bg-slate-700 text-primary shadow-sm' : 'text-slate-500 dark:text-slate-300'}`}
-                                       >
-                                          <LayoutGrid size={15} />
-                                       </button>
-                                       <button
-                                          onClick={() => setItemDensity('compact')}
-                                          title={lang === 'ar' ? 'عرض مضغوط' : 'Compact view'}
-                                          className={`w-8 h-8 rounded-lg flex items-center justify-center ${itemDensity === 'compact' ? 'bg-white dark:bg-slate-700 text-primary shadow-sm' : 'text-slate-500 dark:text-slate-300'}`}
-                                       >
-                                          <Grid2x2 size={15} />
-                                       </button>
-                                       <button
-                                          onClick={() => setItemDensity('ultra')}
-                                          title={lang === 'ar' ? 'عرض فائق الكثافة' : 'Ultra compact view'}
-                                          className={`w-8 h-8 rounded-lg flex items-center justify-center ${itemDensity === 'ultra' ? 'bg-white dark:bg-slate-700 text-primary shadow-sm' : 'text-slate-500 dark:text-slate-300'}`}
-                                       >
-                                          <span className="text-[9px] font-black">UL</span>
-                                       </button>
-                                    </div>
-                                 </div>
-                              </div>
-
-                              {showMobileFilters && quickPickItems.length > 0 && (
-                                 <div className="flex flex-wrap items-center gap-2 overflow-x-auto md:overflow-visible no-scrollbar py-1.5 px-0.5">
-                                    <span className="shrink-0 text-[10px] font-black uppercase tracking-wider text-slate-500">
-                                       {lang === 'ar' ? 'اختيارات ذكية' : 'Smart picks'}
-                                    </span>
-                                    {quickPickItems.map((item) => (
-                                       <button
-                                          key={item.id}
-                                          onClick={() => handleAddItem(item)}
-                                          className="shrink-0 inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 hover:bg-primary hover:text-white transition-colors"
-                                       >
-                                          <Plus size={12} />
-                                          <span className="text-[11px] font-black">
-                                             {(item as any).displayName || item.name}
-                                          </span>
-                                          <span className="text-[10px] font-bold opacity-80">
-                                             {item.price.toFixed(2)} {currencySymbol}
-                                          </span>
-                                       </button>
-                                    ))}
-                                 </div>
-                              )}
-                              {showMobileFilters && upsellSuggestions.length > 0 && (
-                                 <div className="flex flex-wrap items-center gap-2 overflow-x-auto md:overflow-visible no-scrollbar py-1 px-0.5">
-                                    <span className="shrink-0 text-[10px] font-black uppercase tracking-wider text-emerald-600 dark:text-emerald-300">
-                                       {lang === 'ar' ? 'مقترحات إضافة' : 'Upsell'}
-                                    </span>
-                                    {upsellSuggestions.map((item) => (
-                                       <button
-                                          key={`upsell-${item.id}`}
-                                          onClick={() => handleAddItem(item)}
-                                          className="shrink-0 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-600 hover:text-white transition-colors"
-                                       >
-                                          <Plus size={11} />
-                                          <span className="text-[11px] font-black">{(item as any).displayName || item.name}</span>
-                                       </button>
-                                    ))}
-                                 </div>
-                              )}
-                           </div>
-                           <div className="flex-1 overflow-y-auto p-3 md:p-4 xl:p-5 min-h-0 bg-slate-50/30 dark:bg-slate-950/20">
-                              <ItemGrid
-                                 items={pricedItems}
-                                 onAddItem={handleAddItem}
-                                 onRemoveItem={handleRemoveOneFromCart}
-                                 cartItems={safeActiveCart}
-                                 currencySymbol={currencySymbol}
-                                 isTouchMode={isTouchMode}
-                                 density={itemDensity}
-                                 lang={lang as any}
-                                 highlightedItemId={lastAddedItemId}
-                              />
-                           </div>
-                        </div>
-                        </div>
-
-                    {shouldRenderCartPanel && !isCartOpenMobile && !showMap && !showCustomerSelect && (
-                        <div className={`md:hidden fixed bottom-[max(1rem,var(--safe-bottom))] ${lang === 'ar' ? 'right-4 left-4' : 'left-4 right-4'} z-40`}>
-                           <button
-                              onClick={() => setIsCartOpenMobile(true)}
-                              className="w-full h-14 px-4 rounded-2xl bg-slate-900/90 backdrop-blur-md text-white shadow-2xl border border-slate-700 flex items-center justify-between"
-                           >
-                              <div className="min-w-0 flex items-center gap-3">
-                                 <div className="w-9 h-9 rounded-xl bg-primary/20 flex items-center justify-center">
-                                    <ShoppingBag size={16} className="text-primary" />
-                                 </div>
-                                 <div className="text-left min-w-0">
-                                    <p className="text-[10px] font-black uppercase tracking-widest text-white/70">
-                                       {lang === 'ar' ? 'الطلب الحالي' : 'Current Order'}
-                                    </p>
-                                    <p className="text-xs font-black truncate">
-                                       {safeActiveCart.length > 0
-                                          ? `${safeActiveCart.length} ${lang === 'ar' ? 'بنود' : 'lines'} • ${currencySymbol}${cartTotal.toFixed(2)}`
-                                          : (lang === 'ar' ? 'السلة فارغة' : 'Cart empty')}
-                                    </p>
-                                 </div>
-                              </div>
-                              <span className="text-[10px] font-black uppercase tracking-widest text-primary">
-                                 {lang === 'ar' ? 'فتح' : 'Open'}
-                              </span>
-                           </button>
-                        </div>
-                     )}
-
-                     {/* Cart Sidebar */}
-                     {shouldRenderCartPanel && (
-                        <div className={`
-                     fixed lg:sticky lg:top-2 inset-y-0 w-[92%] max-w-[94vw] lg:w-full ${cartPanelWidthClass} bg-card dark:bg-card flex flex-col h-full lg:h-[calc(100dvh-6.5rem)] lg:max-h-[calc(100dvh-6.5rem)] shadow-2xl z-40 transition-transform duration-300
-                     ${lang === 'ar' ? 'border-r left-0' : 'border-l right-0'} border-slate-200 dark:border-slate-800
-                     ${shouldShowCart && isCartOpenMobile ? 'translate-x-0' : (lang === 'ar' ? '-translate-x-full' : 'translate-x-full')} lg:translate-x-0
-                     lg:mx-2 lg:self-start lg:rounded-2xl lg:border lg:shadow-xl lg:overflow-hidden
-                  `}>
-                        <div className="p-3 md:p-4 border-b border-slate-200 dark:border-slate-800 bg-elevated dark:bg-elevated/50 shrink-0 space-y-2.5">
-                           <div className="flex justify-between items-center gap-2">
-                              <div className="min-w-0">
-                                 <h2 className="text-lg md:text-xl font-black text-slate-800 dark:text-white uppercase tracking-tight truncate">
-                                    {orderTypeLabel}
-                                 </h2>
-                                 <p className="text-[10px] font-black text-primary uppercase tracking-widest mt-0.5 md:mt-1 truncate">
-                                    {orderTypeSubLabel}
-                                 </p>
-                              </div>
-                              <div className="flex items-center gap-2">
-                                 {activeOrderType === OrderType.DINE_IN && selectedTableId && (
-                                    <button
-                                       onClick={leaveTable}
-                                       title={t.back_to_tables}
-                                       className="p-2 md:p-3 text-muted hover:text-primary transition-all bg-card dark:bg-elevated rounded-full shadow-sm flex-shrink-0"
-                                    >
-                                       <LogOut size={20} className="md:w-6 md:h-6" />
-                                    </button>
-                                 )}
-                                 <button
-                                    onClick={() => { if (activeOrderType === OrderType.DINE_IN) leaveTable(); setIsCartOpenMobile(false); }}
-                                    className="p-2 text-muted hover:text-primary transition-all bg-card dark:bg-elevated rounded-full shadow-sm flex-shrink-0 lg:hidden"
-                                 >
-                                    <X size={20} className="md:w-6 md:h-6" />
-                                 </button>
-                              </div>
-                           </div>
-
-                           <div className="flex flex-wrap items-center gap-2">
-                              <span className="px-2.5 py-1 rounded-full bg-primary/10 text-primary text-[10px] font-black uppercase tracking-wider">
-                                 {cartStats.lines} {lang === 'ar' ? 'بنود' : 'lines'}
-                              </span>
-                              <span className="px-2.5 py-1 rounded-full bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 dark:text-emerald-300 text-[10px] font-black uppercase tracking-wider">
-                                 {currencySymbol}{cartTotal.toFixed(2)}
-                              </span>
-                              <div className="hidden lg:inline-flex ml-auto bg-card dark:bg-elevated rounded-xl p-1 border border-border/50">
-                                 {(['compact', 'normal', 'wide'] as const).map((mode) => (
-                                    <button
-                                       key={mode}
-                                       onClick={() => setCartPanelWidth(mode)}
-                                       className={`px-2.5 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider transition-colors ${
-                                          cartPanelWidth === mode ? 'bg-primary text-white' : 'text-slate-500 dark:text-slate-300 hover:text-primary'
-                                       }`}
-                                    >
-                                       {mode === 'compact' ? 'C' : mode === 'normal' ? 'M' : 'W'}
-                                    </button>
-                                 ))}
-                              </div>
-                           </div>
-
-                           <div className="relative">
-                              <Search className={`absolute top-1/2 -translate-y-1/2 text-slate-400 w-4 h-4 ${lang === 'ar' ? 'right-3' : 'left-3'}`} />
-                              <input
-                                 type="text"
-                                 value={cartSearchQuery}
-                                 onChange={(e) => setCartSearchQuery(e.target.value)}
-                                 placeholder={lang === 'ar' ? 'بحث داخل السلة' : 'Search cart'}
-                                 className={`w-full h-9 rounded-xl bg-card dark:bg-slate-900 border border-border/50 text-xs font-bold outline-none focus:border-primary/40 ${
-                                    lang === 'ar' ? 'pr-9 pl-3 text-right' : 'pl-9 pr-3 text-left'
-                                 }`}
-                              />
-                           </div>
-                        </div>
-                        <div className="flex-1 min-h-0 flex flex-col">
-                           <div className="min-h-0 flex flex-col border-b border-slate-200/70 dark:border-slate-800/70 bg-card/30 dark:bg-card/10">
-                              <div className="shrink-0 px-3 py-2 border-b border-slate-200/60 dark:border-slate-800/60 flex items-center justify-between gap-2">
-                                 <p className="text-[10px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-300">
-                                    {lang === 'ar' ? 'تفاصيل الأوردر' : 'Order Details'}
-                                 </p>
-                                 <p className="text-[10px] font-black uppercase tracking-widest text-primary">
-                                    {filteredCartItems.length}/{safeActiveCart.length}
-                                 </p>
-                              </div>
-
-                              <div className="flex-1 overflow-y-auto p-2 md:p-2.5 pb-3 space-y-2 no-scrollbar min-h-0">
-                                 {filteredCartItems.map(item => (
-                                    <CartItem
-                                       key={item.cartId}
-                                       item={item}
-                                       currencySymbol={currencySymbol}
-                                       isTouchMode={isTouchMode}
-                                       lang={lang}
-                                       onEditNote={(cartId, note) => {
-                                          setEditingItemId(cartId);
-                                          setNoteInput(note);
-                                       }}
-                                       onUpdateQuantity={handleUpdateQuantity}
-                                       onRemove={(cartId) => removeFromCart(cartId)}
-                                    />
-                                 ))}
-                                 {safeActiveCart.length > 0 && filteredCartItems.length === 0 && (
-                                    <div className="py-8 text-center text-slate-400">
-                                       <p className="text-xs font-black uppercase tracking-widest">{lang === 'ar' ? 'لا نتائج في السلة' : 'No cart matches'}</p>
-                                    </div>
-                                 )}
-                                 {safeActiveCart.length === 0 && (
-                                    <div className="h-full flex flex-col items-center justify-center text-slate-400 py-10 md:py-16 px-4">
-                                       <div className="w-16 h-16 rounded-2xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center mb-4 opacity-70">
-                                          <ShoppingBag size={28} />
-                                       </div>
-                                       <p className="font-black uppercase tracking-widest opacity-70">{t.empty_cart}</p>
-                                       <p className="text-xs font-bold mt-2 opacity-50 text-center">
-                                          {lang === 'ar' ? 'ابدأ بإضافة أصناف أو استخدم البحث السريع' : 'Start adding items or use quick search'}
-                                       </p>
-                                       <div className="flex items-center gap-2 mt-4">
-                                          <button
-                                             onClick={() => searchInputRef.current?.focus()}
-                                             className="px-3 py-2 rounded-xl bg-slate-100 dark:bg-slate-800 text-xs font-black uppercase tracking-wider hover:text-primary"
-                                          >
-                                             {lang === 'ar' ? 'بحث' : 'Search'}
-                                          </button>
-                                          {!hasCartItems && (
-                                             <button
-                                                onClick={() => setItemFilter('popular')}
-                                                className="px-3 py-2 rounded-xl bg-amber-50 dark:bg-amber-900/20 text-amber-600 dark:text-amber-300 text-xs font-black uppercase tracking-wider"
-                                             >
-                                                {lang === 'ar' ? 'الأكثر طلباً' : 'Popular'}
-                                             </button>
-                                          )}
-                                       </div>
-                                    </div>
-                                 )}
-                              </div>
-                           </div>
-
-                           <div
-                              className={`shrink-0 border-t border-slate-200/70 dark:border-slate-800/70 overflow-y-auto no-scrollbar bg-elevated/35 dark:bg-elevated/15 ${
-                                 isPaymentPanelCollapsed
-                                    ? ''
-                                    : 'max-h-[38dvh] lg:max-h-[42%]'
-                              }`}
-                           >
-                              <PaymentSummary
-                                 subtotal={cartSubtotal}
-                                 discount={discount}
-                                 tax={cartTotal - (cartTotal / 1.1)}
-                                 total={cartTotal}
-                                 currencySymbol={currencySymbol}
-                                 paymentMethod={paymentMethod}
-                                 onSetPaymentMethod={handleSetPaymentMethod}
-                                 onShowSplitModal={() => setShowSplitModal(true)}
-                                 isTouchMode={isTouchMode}
-                                 lang={lang}
-                                 t={t}
-                                 onVoid={handleVoidOrder}
-                                 onSendKitchen={handleSendKitchen}
-                                 onSubmit={handleSubmitOrder}
-                                 onQuickPay={handleQuickPay}
-                                 canSubmit={safeActiveCart.length > 0}
-                                 couponCode={couponCode}
-                                 activeCoupon={activeCoupon}
-                                 isApplyingCoupon={isApplyingCoupon}
-                                 onCouponCodeChange={setCouponCode}
-                                 onApplyCoupon={handleApplyCoupon}
-                                 onClearCoupon={() => { setCouponCode(''); clearCoupon(); }}
-                                 collapsed={isPaymentPanelCollapsed}
-                                 onToggleCollapsed={() => setIsPaymentPanelCollapsed((prev) => !prev)}
-                                 itemCount={cartStats.qty}
-                              />
-                           </div>
-                        </div>
-                        </div>
-                     )}
+                        {/* ═══ Cart Sidebar (Right) ═══ */}
+                        {shouldRenderCartPanel && (
+                           <POSCartSidebar
+                              activeCart={safeActiveCart}
+                              filteredCartItems={filteredCartItems}
+                              cartSubtotal={cartSubtotal}
+                              cartTotal={cartTotal}
+                              cartStats={cartStats}
+                              discount={discount}
+                              orderTypeLabel={orderTypeLabel}
+                              orderTypeSubLabel={orderTypeSubLabel}
+                              activeOrderType={activeOrderType}
+                              selectedTableId={selectedTableId}
+                              cartSearchQuery={cartSearchQuery}
+                              onCartSearchChange={setCartSearchQuery}
+                              cartPanelWidth={cartPanelWidth}
+                              onSetCartWidth={setCartPanelWidth}
+                              paymentMethod={paymentMethod}
+                              onSetPaymentMethod={handleSetPaymentMethod}
+                              isPaymentPanelCollapsed={isPaymentPanelCollapsed}
+                              onTogglePaymentCollapsed={() => setIsPaymentPanelCollapsed(prev => !prev)}
+                              couponCode={couponCode}
+                              activeCoupon={activeCoupon}
+                              isApplyingCoupon={isApplyingCoupon}
+                              onCouponCodeChange={setCouponCode}
+                              onApplyCoupon={handleApplyCoupon}
+                              onClearCoupon={() => { setCouponCode(''); clearCoupon(); }}
+                              onEditNote={(cartId, note) => { setEditingItemId(cartId); setNoteInput(note); }}
+                              onUpdateQuantity={handleUpdateQuantity}
+                              onRemoveItem={(cartId) => removeFromCart(cartId)}
+                              onVoid={handleVoidOrder}
+                              onSendKitchen={handleSendKitchen}
+                              onSubmit={handleSubmitOrder}
+                              onQuickPay={handleQuickPay}
+                              onShowSplitModal={() => setShowSplitModal(true)}
+                              onLeaveTable={leaveTable}
+                              onCloseCart={() => { if (activeOrderType === OrderType.DINE_IN) leaveTable(); setIsCartOpenMobile(false); }}
+                              onFocusSearch={() => searchInputRef.current?.focus()}
+                              currencySymbol={currencySymbol}
+                              isTouchMode={isTouchMode}
+                              lang={lang}
+                              t={t}
+                              isCartOpenMobile={isCartOpenMobile}
+                              shouldShowCart={shouldShowCart}
+                              cartPanelWidthClass={cartPanelWidthClass}
+                           />
+                        )}
                      </div>
                   </>
                )}

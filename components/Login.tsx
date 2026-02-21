@@ -1,11 +1,9 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef, useCallback } from 'react';
 import { useAuthStore } from '../stores/useAuthStore';
-import { AtSign, ArrowRight, Globe, Lock, ShieldCheck, KeyRound, Hash } from 'lucide-react';
+import { AtSign, ArrowRight, Globe, Lock, ShieldCheck, KeyRound, Fingerprint, Sparkles, Eye, EyeOff } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { authApi } from '../services/api';
 import { INITIAL_ROLE_PERMISSIONS, User, UserRole } from '../types';
-
-const backgrounds = ['/BG/1.png', '/BG/2.png', '/BG/3.png', '/BG/4.png', '/BG/5.png'];
 
 const Login: React.FC = () => {
     const { loginWithPassword, settings, updateSettings } = useAuthStore();
@@ -14,54 +12,77 @@ const Login: React.FC = () => {
     const [loginMode, setLoginMode] = useState<'password' | 'pin'>('pin');
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
+    const [showPassword, setShowPassword] = useState(false);
     const [pin, setPin] = useState('');
     const [mfaCode, setMfaCode] = useState('');
     const [mfaRequired, setMfaRequired] = useState(false);
     const [mfaToken, setMfaToken] = useState<string | null>(null);
     const [isSubmitting, setIsSubmitting] = useState(false);
-    const [bgIndex, setBgIndex] = useState(0);
     const [error, setError] = useState<string | undefined>();
+    const [pressedKey, setPressedKey] = useState<string | null>(null);
+    const [timeStr, setTimeStr] = useState('');
 
+    const pinInputRef = useRef<HTMLInputElement>(null);
     const isArabic = settings.language === 'ar';
+
+    // Live clock
+    useEffect(() => {
+        const tick = () => {
+            const now = new Date();
+            setTimeStr(now.toLocaleTimeString(isArabic ? 'ar-EG' : 'en-US', { hour: '2-digit', minute: '2-digit' }));
+        };
+        tick();
+        const id = setInterval(tick, 30000);
+        return () => clearInterval(id);
+    }, [isArabic]);
+
+    // Auto-focus PIN input
+    useEffect(() => {
+        if (loginMode === 'pin' && !mfaRequired) {
+            setTimeout(() => pinInputRef.current?.focus(), 100);
+        }
+    }, [loginMode, mfaRequired]);
 
     const t = {
         en: {
-            title: 'Restaurant ERP',
+            welcome: 'Welcome Back',
+            subtitle: 'Sign in to your workspace',
             email: 'Email Address',
             password: 'Password',
             login: 'Sign In',
-            verify: 'Verify',
+            verify: 'Verify Code',
             forgot: 'Forgot Password?',
-            footer: '© 2026 Restaurant Management System. v3.0',
-            switch: 'Arabic',
+            footer: 'Coduis Zen ERP • v3.0',
+            switch: 'العربية',
             invalidCredentials: 'Invalid credentials',
             invalidMfaCode: 'Invalid verification code',
             invalidPin: 'Invalid PIN code',
             remember: 'Remember me',
             mfaCode: '6-digit verification code',
-            pinLogin: 'PIN Code',
-            emailLogin: 'Email & Password',
-            enterPin: 'Enter your PIN',
-            pinPlaceholder: 'Enter 4-6 digit PIN',
+            pinLogin: 'Quick PIN',
+            emailLogin: 'Email Login',
+            enterPin: 'Enter your PIN code',
+            pinHint: 'Type on keyboard or tap the pad',
         },
         ar: {
-            title: 'نظام إدارة المطاعم',
+            welcome: 'مرحباً بعودتك',
+            subtitle: 'سجل دخولك إلى نظامك',
             email: 'البريد الإلكتروني',
             password: 'كلمة المرور',
             login: 'تسجيل الدخول',
-            verify: 'تحقق',
+            verify: 'تحقق من الكود',
             forgot: 'نسيت كلمة المرور؟',
-            footer: '© 2026 نظام إدارة المطاعم. v3.0',
+            footer: 'Coduis Zen ERP • v3.0',
             switch: 'English',
             invalidCredentials: 'بيانات الدخول غير صحيحة',
             invalidMfaCode: 'كود التحقق غير صحيح',
             invalidPin: 'كود PIN غير صحيح',
             remember: 'تذكرني',
             mfaCode: 'كود التحقق 6 أرقام',
-            pinLogin: 'كود PIN',
-            emailLogin: 'الإيميل وكلمة المرور',
-            enterPin: 'أدخل كود PIN',
-            pinPlaceholder: 'أدخل 4-6 أرقام',
+            pinLogin: 'كود سريع',
+            emailLogin: 'إيميل وباسوورد',
+            enterPin: 'أدخل كود PIN الخاص بك',
+            pinHint: 'اكتب من الكيبورد أو اضغط الأزرار',
         },
     }[settings.language];
 
@@ -74,29 +95,18 @@ const Login: React.FC = () => {
     const handleLoginSuccess = (token: string, refreshToken: string | undefined, user: any) => {
         localStorage.setItem('auth_token', token);
         if (refreshToken) localStorage.setItem('auth_refresh_token', refreshToken);
-
         const mappedUser: User = {
-            id: user.id,
-            name: user.name,
-            email: user.email,
+            id: user.id, name: user.name, email: user.email,
             role: user.role as UserRole,
             permissions: user.permissions || INITIAL_ROLE_PERMISSIONS[user.role as UserRole] || [],
             isActive: user.isActive !== false,
             assignedBranchId: user.assignedBranchId,
             mfaEnabled: user.mfaEnabled === true,
         };
-
         useAuthStore.setState((state) => ({
-            token,
-            settings: {
-                ...state.settings,
-                currentUser: mappedUser,
-                activeBranchId: mappedUser.assignedBranchId || state.branches[0]?.id,
-            },
-            isAuthenticated: true,
-            isLoading: false,
+            token, settings: { ...state.settings, currentUser: mappedUser, activeBranchId: mappedUser.assignedBranchId || state.branches[0]?.id },
+            isAuthenticated: true, isLoading: false,
         }));
-
         navigateByRole(mappedUser.role);
     };
 
@@ -106,17 +116,9 @@ const Login: React.FC = () => {
             const user = await loginWithPassword(email, password);
             navigateByRole(user.role);
         } catch (err: any) {
-            if (err?.code === 'MFA_REQUIRED' && err?.mfaToken) {
-                setMfaToken(err.mfaToken);
-                setMfaRequired(true);
-                return;
-            }
-            // Show detailed password policy errors if available
-            if (err?.details && Array.isArray(err.details)) {
-                setError(err.details.map((d: any) => d.message || d).join('\n'));
-            } else {
-                setError(t.invalidCredentials);
-            }
+            if (err?.code === 'MFA_REQUIRED' && err?.mfaToken) { setMfaToken(err.mfaToken); setMfaRequired(true); return; }
+            if (err?.details && Array.isArray(err.details)) { setError(err.details.map((d: any) => d.message || d).join('\n')); }
+            else { setError(t.invalidCredentials); }
         }
     };
 
@@ -124,17 +126,10 @@ const Login: React.FC = () => {
         try {
             setError(undefined);
             const result = await authApi.pinLogin(pin);
-            if (result.token && result.user) {
-                handleLoginSuccess(result.token, result.refreshToken, result.user);
-            } else {
-                setError(t.invalidPin);
-            }
+            if (result.token && result.user) { handleLoginSuccess(result.token, result.refreshToken, result.user); }
+            else { setError(t.invalidPin); }
         } catch (err: any) {
-            if (err?.code === 'MFA_REQUIRED' && err?.mfaToken) {
-                setMfaToken(err.mfaToken);
-                setMfaRequired(true);
-                return;
-            }
+            if (err?.code === 'MFA_REQUIRED' && err?.mfaToken) { setMfaToken(err.mfaToken); setMfaRequired(true); return; }
             setError(t.invalidPin);
         }
     };
@@ -146,16 +141,8 @@ const Login: React.FC = () => {
             const deviceName = typeof navigator !== 'undefined' ? navigator.userAgent : 'unknown-device';
             const result = await authApi.verifyMfa(mfaToken, mfaCode, deviceName);
             handleLoginSuccess(result.token, result.refreshToken, result.user);
-        } catch {
-            setError(t.invalidMfaCode);
-        }
+        } catch { setError(t.invalidMfaCode); }
     };
-
-    useEffect(() => {
-        setBgIndex(Math.floor(Math.random() * backgrounds.length));
-        const interval = setInterval(() => setBgIndex((prev) => (prev + 1) % backgrounds.length), 10000);
-        return () => clearInterval(interval);
-    }, []);
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
@@ -168,277 +155,303 @@ const Login: React.FC = () => {
         }, 300);
     };
 
-    // PIN input pad for touch-friendly experience + keyboard support
-    const pinInputRef = React.useRef<HTMLInputElement>(null);
+    const handlePinDigit = useCallback((digit: string) => {
+        setPressedKey(digit);
+        setTimeout(() => setPressedKey(null), 150);
+        setPin(prev => prev.length < 6 ? prev + digit : prev);
+        pinInputRef.current?.focus();
+    }, []);
 
-    // Auto-focus the hidden PIN input when in PIN mode
-    React.useEffect(() => {
-        if (loginMode === 'pin' && !mfaRequired && pinInputRef.current) {
-            pinInputRef.current.focus();
-        }
-    }, [loginMode, mfaRequired]);
+    const handlePinBackspace = useCallback(() => {
+        setPressedKey('back');
+        setTimeout(() => setPressedKey(null), 150);
+        setPin(prev => prev.slice(0, -1));
+        pinInputRef.current?.focus();
+    }, []);
 
-    const PinPad = () => {
-        const handlePinDigit = (digit: string) => {
-            if (pin.length < 6) setPin(prev => prev + digit);
-        };
-        const handlePinBackspace = () => setPin(prev => prev.slice(0, -1));
-        const handlePinClear = () => setPin('');
+    // ═══════════════════════════════════════════════════════════
+    // RENDER
+    // ═══════════════════════════════════════════════════════════
+    return (
+        <div className={`fixed inset-0 flex items-center justify-center overflow-hidden ${isArabic ? 'rtl' : 'ltr'}`}>
+            {/* === Animated Background === */}
+            <div className="absolute inset-0 bg-[#0a0e1a]">
+                {/* Gradient orbs */}
+                <div className="absolute top-[-20%] left-[-10%] w-[600px] h-[600px] rounded-full bg-indigo-600/20 blur-[120px] animate-pulse" style={{ animationDuration: '8s' }} />
+                <div className="absolute bottom-[-15%] right-[-5%] w-[500px] h-[500px] rounded-full bg-cyan-500/15 blur-[100px] animate-pulse" style={{ animationDuration: '6s', animationDelay: '2s' }} />
+                <div className="absolute top-[40%] right-[20%] w-[300px] h-[300px] rounded-full bg-violet-600/10 blur-[80px] animate-pulse" style={{ animationDuration: '10s', animationDelay: '4s' }} />
+                {/* Grid pattern overlay */}
+                <div className="absolute inset-0 opacity-[0.03]" style={{
+                    backgroundImage: 'linear-gradient(rgba(255,255,255,0.1) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.1) 1px, transparent 1px)',
+                    backgroundSize: '60px 60px',
+                }} />
+            </div>
 
-        return (
-            <div className="space-y-5">
-                {/* Hidden input for keyboard typing */}
-                <input
-                    ref={pinInputRef}
-                    type="text"
-                    inputMode="numeric"
-                    maxLength={6}
-                    value={pin}
-                    autoFocus
-                    onChange={(e) => {
-                        const val = e.target.value.replace(/\D/g, '').slice(0, 6);
-                        setPin(val);
-                    }}
-                    onKeyDown={(e) => {
-                        if (e.key === 'Enter' && pin.length >= 4) {
-                            handleSubmit(e as any);
-                        }
-                    }}
-                    className="sr-only"
-                    aria-label="PIN input"
-                />
-
-                {/* PIN dots display — click to focus keyboard input */}
-                <div
-                    className="flex items-center justify-center gap-3 py-4 cursor-text"
-                    onClick={() => pinInputRef.current?.focus()}
-                >
-                    {[0, 1, 2, 3, 4, 5].map((i) => (
-                        <div
-                            key={i}
-                            className={`w-4 h-4 rounded-full transition-all duration-200 ${i < pin.length
-                                ? 'bg-indigo-500 scale-110 shadow-lg shadow-indigo-500/40'
-                                : i < 4
-                                    ? 'bg-slate-700 border-2 border-slate-600'
-                                    : 'bg-slate-800/40 border border-slate-700/50'
-                                }`}
-                        />
-                    ))}
+            {/* === Top Bar === */}
+            <div className="absolute top-0 left-0 right-0 flex items-center justify-between p-6 z-50">
+                <div className="flex items-center gap-3">
+                    <img src="/logo.png" alt="Logo" className="h-8 w-8 object-contain" />
+                    <span className="text-white/30 text-xs font-bold tracking-[0.3em] uppercase hidden sm:inline">{t.footer}</span>
                 </div>
-                <p className="text-center text-slate-400 text-xs font-bold tracking-wide">
-                    {isArabic ? 'أدخل 4-6 أرقام (من الكيبورد أو الأزرار)' : 'Enter 4-6 digit PIN (keyboard or buttons)'}
-                </p>
-
-                {/* Number pad */}
-                <div className="grid grid-cols-3 gap-2.5 max-w-[280px] mx-auto">
-                    {['1', '2', '3', '4', '5', '6', '7', '8', '9'].map((digit) => (
-                        <button
-                            key={digit}
-                            type="button"
-                            onClick={() => { handlePinDigit(digit); pinInputRef.current?.focus(); }}
-                            className="h-14 rounded-2xl bg-slate-800/50 hover:bg-slate-700/60 active:bg-indigo-600/30 border border-white/5 text-white text-xl font-black transition-all active:scale-95"
-                        >
-                            {digit}
-                        </button>
-                    ))}
+                <div className="flex items-center gap-3">
+                    <span className="text-white/20 text-sm font-mono font-bold">{timeStr}</span>
                     <button
-                        type="button"
-                        onClick={() => { handlePinClear(); pinInputRef.current?.focus(); }}
-                        className="h-14 rounded-2xl bg-slate-800/30 hover:bg-rose-500/20 border border-white/5 text-rose-400 text-xs font-black uppercase tracking-widest transition-all active:scale-95"
+                        onClick={() => updateSettings({ language: settings.language === 'en' ? 'ar' : 'en' })}
+                        className="px-4 py-2 bg-white/5 backdrop-blur-md border border-white/10 rounded-xl flex items-center gap-2 text-white/50 hover:text-white hover:bg-white/10 transition-all text-xs font-black tracking-widest uppercase"
                     >
-                        {isArabic ? 'مسح' : 'CLR'}
-                    </button>
-                    <button
-                        type="button"
-                        onClick={() => { handlePinDigit('0'); pinInputRef.current?.focus(); }}
-                        className="h-14 rounded-2xl bg-slate-800/50 hover:bg-slate-700/60 active:bg-indigo-600/30 border border-white/5 text-white text-xl font-black transition-all active:scale-95"
-                    >
-                        0
-                    </button>
-                    <button
-                        type="button"
-                        onClick={() => { handlePinBackspace(); pinInputRef.current?.focus(); }}
-                        className="h-14 rounded-2xl bg-slate-800/30 hover:bg-amber-500/20 border border-white/5 text-amber-400 text-xs font-black uppercase tracking-widest transition-all active:scale-95"
-                    >
-                        ←
+                        <Globe size={14} />
+                        {t.switch}
                     </button>
                 </div>
             </div>
-        );
-    };
 
-    return (
-        <div className="fixed inset-0 app-viewport safe-area flex items-center justify-center p-4 overflow-hidden font-outfit">
-            {backgrounds.map((bg, index) => (
-                <div
-                    key={bg}
-                    className={`absolute inset-0 transition-opacity duration-1000 ease-in-out ${bgIndex === index ? 'opacity-100 scale-105' : 'opacity-0 scale-100'}`}
-                    style={{
-                        backgroundImage: `url(${bg})`,
-                        backgroundSize: 'cover',
-                        backgroundPosition: 'center',
-                        transition: 'opacity 2000ms ease-in-out, transform 15000ms linear',
-                    }}
-                />
-            ))}
+            {/* === Main Card === */}
+            <div className="relative z-10 w-full max-w-[420px] mx-4">
+                {/* Glow behind card */}
+                <div className="absolute -inset-1 bg-gradient-to-r from-indigo-500/20 via-cyan-500/10 to-violet-500/20 rounded-[2.5rem] blur-xl opacity-60" />
 
-            <div className="absolute inset-0 bg-slate-950/40 backdrop-blur-[2px]" />
+                <div className="relative bg-white/[0.04] backdrop-blur-2xl rounded-[2.5rem] border border-white/[0.08] shadow-[0_40px_80px_-20px_rgba(0,0,0,0.8)] overflow-hidden">
+                    {/* Top accent line */}
+                    <div className="h-[2px] bg-gradient-to-r from-transparent via-indigo-500 to-transparent" />
 
-            <button
-                onClick={() => updateSettings({ language: settings.language === 'en' ? 'ar' : 'en' })}
-                className="absolute top-8 right-8 z-50 px-6 py-3 bg-black/20 backdrop-blur-md border border-white/10 rounded-2xl flex items-center gap-2 text-white/70 hover:text-white hover:bg-black/40 transition-all text-sm font-black tracking-widest uppercase"
-            >
-                <Globe size={18} />
-                {t.switch}
-            </button>
-
-            <div className={`relative z-10 w-full max-w-md ${isArabic ? 'rtl' : 'ltr'}`}>
-                <div className="flex flex-col items-center mb-10 text-center">
-                    <div className="relative group mb-6">
-                        <div className="absolute -inset-4 bg-cyan-500/20 rounded-full blur-2xl group-hover:bg-cyan-500/40 transition-all duration-500" />
-                        <img
-                            src="/logo.png"
-                            alt={t.title}
-                            className="relative h-32 w-auto drop-shadow-[0_0_30px_rgba(6,182,212,0.3)] group-hover:scale-110 transition-transform duration-500"
-                        />
-                    </div>
-                </div>
-
-                <div className="bg-slate-900/60 backdrop-blur-2xl p-10 rounded-[2.5rem] border border-white/10 shadow-[0_32px_64px_-16px_rgba(0,0,0,0.6)]">
-                    <div className="mb-8 text-center">
-                        <h2 className="text-3xl font-black text-white mb-3 tracking-tight">
-                            {mfaRequired ? t.verify : t.login}
-                        </h2>
-                        <div className="h-1.5 w-12 bg-indigo-500 rounded-full mx-auto" />
-                    </div>
-
-                    {/* Login mode switcher */}
-                    {!mfaRequired && (
-                        <div className="flex bg-slate-800/50 rounded-2xl p-1 mb-8 border border-white/5">
-                            <button
-                                type="button"
-                                onClick={() => { setLoginMode('pin'); setError(undefined); }}
-                                className={`flex-1 py-3 rounded-xl text-sm font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2 ${loginMode === 'pin'
-                                    ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-500/20'
-                                    : 'text-slate-400 hover:text-white'
-                                    }`}
-                            >
-                                <KeyRound size={16} />
-                                {t.pinLogin}
-                            </button>
-                            <button
-                                type="button"
-                                onClick={() => { setLoginMode('password'); setError(undefined); }}
-                                className={`flex-1 py-3 rounded-xl text-sm font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2 ${loginMode === 'password'
-                                    ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-500/20'
-                                    : 'text-slate-400 hover:text-white'
-                                    }`}
-                            >
-                                <AtSign size={16} />
-                                {t.emailLogin}
-                            </button>
+                    <div className="p-8 sm:p-10">
+                        {/* Header */}
+                        <div className="text-center mb-8">
+                            <div className="relative inline-flex mb-5">
+                                <div className="absolute -inset-3 bg-indigo-500/20 rounded-2xl blur-lg" />
+                                <div className="relative w-16 h-16 rounded-2xl bg-gradient-to-br from-indigo-500 to-cyan-500 flex items-center justify-center shadow-lg shadow-indigo-500/30">
+                                    <Fingerprint size={32} className="text-white" />
+                                </div>
+                            </div>
+                            <h1 className="text-2xl sm:text-3xl font-black text-white tracking-tight mb-1.5">
+                                {mfaRequired ? t.verify : t.welcome}
+                            </h1>
+                            <p className="text-white/30 text-sm font-medium">
+                                {mfaRequired ? t.mfaCode : t.subtitle}
+                            </p>
                         </div>
-                    )}
 
-                    <form onSubmit={handleSubmit} className="space-y-6">
-                        {/* PIN Login Mode */}
-                        {loginMode === 'pin' && !mfaRequired && (
-                            <PinPad />
+                        {/* Mode Switcher */}
+                        {!mfaRequired && (
+                            <div className="flex bg-white/[0.04] rounded-2xl p-1 mb-7 border border-white/[0.06]">
+                                {([
+                                    { mode: 'pin' as const, icon: KeyRound, label: t.pinLogin },
+                                    { mode: 'password' as const, icon: AtSign, label: t.emailLogin },
+                                ]).map(item => (
+                                    <button
+                                        key={item.mode}
+                                        type="button"
+                                        onClick={() => { setLoginMode(item.mode); setError(undefined); }}
+                                        className={`flex-1 py-3 rounded-xl text-xs font-black uppercase tracking-[0.15em] transition-all duration-300 flex items-center justify-center gap-2
+                                            ${loginMode === item.mode
+                                                ? 'bg-indigo-500/90 text-white shadow-lg shadow-indigo-500/25'
+                                                : 'text-white/30 hover:text-white/60'
+                                            }`}
+                                    >
+                                        <item.icon size={14} />
+                                        {item.label}
+                                    </button>
+                                ))}
+                            </div>
                         )}
 
-                        {/* Password Login Mode */}
-                        {loginMode === 'password' && !mfaRequired && (
-                            <div className="space-y-4">
-                                <div className="relative group">
-                                    <AtSign className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-indigo-400 transition-colors" size={20} />
+                        <form onSubmit={handleSubmit}>
+                            {/* ─── PIN Mode ─── */}
+                            {loginMode === 'pin' && !mfaRequired && (
+                                <div className="space-y-5">
+                                    {/* Hidden keyboard input */}
                                     <input
-                                        type="email"
-                                        required
-                                        value={email}
-                                        onChange={(e) => setEmail(e.target.value)}
-                                        placeholder={t.email}
-                                        className="w-full bg-slate-800/40 border border-white/5 rounded-2xl py-5 pl-14 pr-6 text-white placeholder:text-slate-500 focus:ring-4 focus:ring-indigo-500/20 focus:border-indigo-500/50 outline-none transition-all text-base font-semibold backdrop-blur-sm"
+                                        ref={pinInputRef}
+                                        type="text"
+                                        inputMode="numeric"
+                                        maxLength={6}
+                                        value={pin}
+                                        autoFocus
+                                        onChange={(e) => setPin(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                                        onKeyDown={(e) => { if (e.key === 'Enter' && pin.length >= 4) handleSubmit(e as any); }}
+                                        className="sr-only"
+                                        aria-label="PIN input"
                                     />
-                                </div>
 
-                                <div className="relative group">
-                                    <Lock className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-indigo-400 transition-colors" size={20} />
-                                    <input
-                                        type="password"
-                                        required
-                                        value={password}
-                                        onChange={(e) => setPassword(e.target.value)}
-                                        placeholder={t.password}
-                                        className="w-full bg-slate-800/40 border border-white/5 rounded-2xl py-5 pl-14 pr-6 text-white placeholder:text-slate-500 focus:ring-4 focus:ring-indigo-500/20 focus:border-indigo-500/50 outline-none transition-all text-base font-semibold backdrop-blur-sm"
-                                    />
-                                </div>
-                            </div>
-                        )}
-
-                        {/* MFA Input */}
-                        {mfaRequired && (
-                            <div className="relative group">
-                                <ShieldCheck className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-indigo-400 transition-colors" size={20} />
-                                <input
-                                    type="text"
-                                    inputMode="numeric"
-                                    maxLength={6}
-                                    value={mfaCode}
-                                    onChange={(e) => setMfaCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
-                                    placeholder={t.mfaCode}
-                                    className="w-full bg-slate-800/40 border border-white/5 rounded-2xl py-5 pl-14 pr-6 text-white placeholder:text-slate-500 focus:ring-4 focus:ring-indigo-500/20 focus:border-indigo-500/50 outline-none transition-all text-base font-semibold backdrop-blur-sm"
-                                />
-                            </div>
-                        )}
-
-                        {error && (
-                            <div className="p-4 bg-rose-500/10 border border-rose-500/20 rounded-2xl text-rose-400 text-sm font-bold text-center whitespace-pre-line">
-                                {error}
-                            </div>
-                        )}
-
-                        {loginMode === 'password' && !mfaRequired && (
-                            <div className="flex items-center justify-between px-1">
-                                <label className="flex items-center gap-3 cursor-pointer group">
-                                    <div className="relative flex items-center">
-                                        <input type="checkbox" className="peer appearance-none w-5 h-5 rounded-lg border-2 border-slate-700 bg-slate-800 checked:bg-indigo-500 checked:border-indigo-500 transition-all cursor-pointer" />
-                                        <ShieldCheck className="absolute opacity-0 peer-checked:opacity-100 left-0.5 top-0.5 text-white transition-opacity pointer-events-none" size={16} />
+                                    {/* PIN dots */}
+                                    <div
+                                        className="flex items-center justify-center gap-3 py-3 cursor-text"
+                                        onClick={() => pinInputRef.current?.focus()}
+                                    >
+                                        {[0, 1, 2, 3, 4, 5].map((i) => (
+                                            <div key={i} className="relative">
+                                                <div className={`w-4 h-4 rounded-full transition-all duration-300 ${i < pin.length
+                                                        ? 'bg-indigo-400 scale-125 shadow-[0_0_12px_rgba(99,102,241,0.6)]'
+                                                        : i < 4
+                                                            ? 'bg-white/10 border border-white/20'
+                                                            : 'bg-white/5 border border-white/10'
+                                                    }`} />
+                                                {i === pin.length && (
+                                                    <div className="absolute inset-0 rounded-full border-2 border-indigo-400/50 animate-pulse" />
+                                                )}
+                                            </div>
+                                        ))}
                                     </div>
-                                    <span className="text-slate-400 text-sm font-bold">{t.remember}</span>
-                                </label>
-                                <button type="button" className="text-slate-300 text-sm font-bold hover:text-white transition-colors">
-                                    {t.forgot}
-                                </button>
-                            </div>
-                        )}
 
-                        <button
-                            type="submit"
-                            disabled={
-                                isSubmitting ||
-                                (mfaRequired && mfaCode.length !== 6) ||
-                                (loginMode === 'pin' && !mfaRequired && pin.length < 4)
-                            }
-                            className="w-full py-5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-2xl font-black text-lg flex items-center justify-center gap-3 shadow-2xl shadow-indigo-500/20 hover:shadow-indigo-500/40 disabled:opacity-50 transition-all group active:scale-[0.98]"
-                        >
-                            {isSubmitting ? (
-                                <div className="flex gap-1.5">
-                                    <div className="w-2.5 h-2.5 rounded-full bg-white animate-bounce" />
-                                    <div className="w-2.5 h-2.5 rounded-full bg-white animate-bounce" style={{ animationDelay: '0.1s' }} />
-                                    <div className="w-2.5 h-2.5 rounded-full bg-white animate-bounce" style={{ animationDelay: '0.2s' }} />
+                                    <p className="text-center text-white/20 text-[11px] font-bold tracking-wider">
+                                        {t.pinHint}
+                                    </p>
+
+                                    {/* Number Pad */}
+                                    <div className="grid grid-cols-3 gap-2 max-w-[260px] mx-auto">
+                                        {['1', '2', '3', '4', '5', '6', '7', '8', '9'].map((digit) => (
+                                            <button
+                                                key={digit}
+                                                type="button"
+                                                onClick={() => handlePinDigit(digit)}
+                                                className={`h-14 rounded-2xl font-black text-xl transition-all duration-150 border
+                                                    ${pressedKey === digit
+                                                        ? 'bg-indigo-500/30 border-indigo-500/50 text-white scale-90'
+                                                        : 'bg-white/[0.03] border-white/[0.06] text-white/80 hover:bg-white/[0.08] hover:text-white active:scale-90'
+                                                    }`}
+                                            >
+                                                {digit}
+                                            </button>
+                                        ))}
+                                        <button
+                                            type="button"
+                                            onClick={() => { setPin(''); pinInputRef.current?.focus(); }}
+                                            className="h-14 rounded-2xl text-rose-400/60 hover:text-rose-400 hover:bg-rose-500/10 text-[10px] font-black uppercase tracking-widest transition-all border border-transparent"
+                                        >
+                                            {isArabic ? 'مسح' : 'CLR'}
+                                        </button>
+                                        <button
+                                            type="button"
+                                            onClick={() => handlePinDigit('0')}
+                                            className={`h-14 rounded-2xl font-black text-xl transition-all duration-150 border
+                                                ${pressedKey === '0'
+                                                    ? 'bg-indigo-500/30 border-indigo-500/50 text-white scale-90'
+                                                    : 'bg-white/[0.03] border-white/[0.06] text-white/80 hover:bg-white/[0.08] hover:text-white active:scale-90'
+                                                }`}
+                                        >
+                                            0
+                                        </button>
+                                        <button
+                                            type="button"
+                                            onClick={handlePinBackspace}
+                                            className={`h-14 rounded-2xl text-amber-400/60 hover:text-amber-400 hover:bg-amber-500/10 text-lg font-black transition-all border border-transparent
+                                                ${pressedKey === 'back' ? 'scale-90' : ''}`}
+                                        >
+                                            ←
+                                        </button>
+                                    </div>
                                 </div>
-                            ) : (
-                                <>
-                                    {mfaRequired ? t.verify : t.login}
-                                    <ArrowRight size={22} className="group-hover:translate-x-1.5 transition-transform" />
-                                </>
                             )}
-                        </button>
-                    </form>
+
+                            {/* ─── Password Mode ─── */}
+                            {loginMode === 'password' && !mfaRequired && (
+                                <div className="space-y-4">
+                                    <div className="relative group">
+                                        <div className="absolute inset-0 bg-indigo-500/5 rounded-2xl opacity-0 group-focus-within:opacity-100 transition-opacity -m-0.5" />
+                                        <AtSign className="absolute left-4 top-1/2 -translate-y-1/2 text-white/20 group-focus-within:text-indigo-400 transition-colors z-10" size={18} />
+                                        <input
+                                            type="email"
+                                            required
+                                            value={email}
+                                            onChange={(e) => setEmail(e.target.value)}
+                                            placeholder={t.email}
+                                            className="relative w-full bg-white/[0.04] border border-white/[0.08] rounded-2xl py-4 pl-12 pr-5 text-white placeholder:text-white/20 focus:ring-2 focus:ring-indigo-500/30 focus:border-indigo-500/40 outline-none transition-all text-sm font-semibold"
+                                        />
+                                    </div>
+
+                                    <div className="relative group">
+                                        <div className="absolute inset-0 bg-indigo-500/5 rounded-2xl opacity-0 group-focus-within:opacity-100 transition-opacity -m-0.5" />
+                                        <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-white/20 group-focus-within:text-indigo-400 transition-colors z-10" size={18} />
+                                        <input
+                                            type={showPassword ? 'text' : 'password'}
+                                            required
+                                            value={password}
+                                            onChange={(e) => setPassword(e.target.value)}
+                                            placeholder={t.password}
+                                            className="relative w-full bg-white/[0.04] border border-white/[0.08] rounded-2xl py-4 pl-12 pr-12 text-white placeholder:text-white/20 focus:ring-2 focus:ring-indigo-500/30 focus:border-indigo-500/40 outline-none transition-all text-sm font-semibold"
+                                        />
+                                        <button
+                                            type="button"
+                                            onClick={() => setShowPassword(!showPassword)}
+                                            className="absolute right-4 top-1/2 -translate-y-1/2 text-white/20 hover:text-white/50 transition-colors z-10"
+                                        >
+                                            {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                                        </button>
+                                    </div>
+
+                                    <div className="flex items-center justify-between px-1 pt-1">
+                                        <label className="flex items-center gap-2.5 cursor-pointer group">
+                                            <div className="relative flex items-center">
+                                                <input type="checkbox" className="peer appearance-none w-4 h-4 rounded-md border border-white/20 bg-white/5 checked:bg-indigo-500 checked:border-indigo-500 transition-all cursor-pointer" />
+                                                <ShieldCheck className="absolute opacity-0 peer-checked:opacity-100 left-0 top-0 text-white transition-opacity pointer-events-none" size={16} />
+                                            </div>
+                                            <span className="text-white/30 text-xs font-bold">{t.remember}</span>
+                                        </label>
+                                        <button type="button" className="text-white/30 text-xs font-bold hover:text-indigo-400 transition-colors">
+                                            {t.forgot}
+                                        </button>
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* ─── MFA ─── */}
+                            {mfaRequired && (
+                                <div className="relative group">
+                                    <ShieldCheck className="absolute left-4 top-1/2 -translate-y-1/2 text-white/20 group-focus-within:text-indigo-400 transition-colors" size={18} />
+                                    <input
+                                        type="text"
+                                        inputMode="numeric"
+                                        maxLength={6}
+                                        value={mfaCode}
+                                        onChange={(e) => setMfaCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                                        placeholder={t.mfaCode}
+                                        autoFocus
+                                        className="w-full bg-white/[0.04] border border-white/[0.08] rounded-2xl py-4 pl-12 pr-5 text-white placeholder:text-white/20 focus:ring-2 focus:ring-indigo-500/30 focus:border-indigo-500/40 outline-none transition-all text-sm font-semibold tracking-[0.5em] text-center"
+                                    />
+                                </div>
+                            )}
+
+                            {/* Error */}
+                            {error && (
+                                <div className="mt-4 p-3.5 bg-rose-500/10 border border-rose-500/20 rounded-2xl text-rose-400 text-xs font-bold text-center whitespace-pre-line flex items-center justify-center gap-2">
+                                    <Sparkles size={14} className="text-rose-400/60 shrink-0" />
+                                    {error}
+                                </div>
+                            )}
+
+                            {/* Submit */}
+                            <button
+                                type="submit"
+                                disabled={
+                                    isSubmitting ||
+                                    (mfaRequired && mfaCode.length !== 6) ||
+                                    (loginMode === 'pin' && !mfaRequired && pin.length < 4)
+                                }
+                                className="w-full mt-6 py-4 bg-gradient-to-r from-indigo-600 to-indigo-500 hover:from-indigo-500 hover:to-indigo-400 text-white rounded-2xl font-black text-sm tracking-wider flex items-center justify-center gap-3 shadow-[0_8px_32px_-4px_rgba(99,102,241,0.4)] hover:shadow-[0_8px_40px_-4px_rgba(99,102,241,0.6)] disabled:opacity-40 disabled:shadow-none transition-all duration-300 group active:scale-[0.98] uppercase"
+                            >
+                                {isSubmitting ? (
+                                    <div className="flex gap-1.5">
+                                        <div className="w-2 h-2 rounded-full bg-white animate-bounce" />
+                                        <div className="w-2 h-2 rounded-full bg-white animate-bounce" style={{ animationDelay: '0.1s' }} />
+                                        <div className="w-2 h-2 rounded-full bg-white animate-bounce" style={{ animationDelay: '0.2s' }} />
+                                    </div>
+                                ) : (
+                                    <>
+                                        {mfaRequired ? t.verify : t.login}
+                                        <ArrowRight size={18} className="group-hover:translate-x-1 transition-transform" />
+                                    </>
+                                )}
+                            </button>
+                        </form>
+                    </div>
+
+                    {/* Bottom accent */}
+                    <div className="h-[1px] bg-gradient-to-r from-transparent via-white/5 to-transparent" />
                 </div>
 
-                <div className="mt-12 text-center">
-                    <p className="text-white/40 text-sm font-bold tracking-widest uppercase">{t.footer}</p>
+                {/* Footer */}
+                <div className="mt-8 text-center">
+                    <p className="text-white/15 text-[10px] font-bold tracking-[0.3em] uppercase">{t.footer}</p>
                 </div>
             </div>
         </div>
