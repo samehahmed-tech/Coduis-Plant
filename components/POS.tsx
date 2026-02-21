@@ -651,7 +651,6 @@ const POS: React.FC = () => {
       }
 
       setSelectedTableId(tableId);
-      setIsCartOpenMobile(true);
    }, [
       activeOrderType,
       selectedTableId,

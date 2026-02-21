@@ -30,20 +30,16 @@ const ItemGrid: React.FC<ItemGridProps> = React.memo(({
     const isUltra = density === 'ultra';
     const isCompact = density === 'compact';
 
-    // Tighter dimensions for better space usage
-    const columnWidth = isUltra
-        ? (isTouchMode ? 160 : 144)
-        : isCompact
-            ? (isTouchMode ? 185 : 170)
-            : (isTouchMode ? 210 : 190);
+    // Grid dimensions for image cards
+    const columnWidth = isCompact
+        ? (isTouchMode ? 185 : 170)
+        : (isTouchMode ? 210 : 190);
 
-    const rowHeight = isUltra
-        ? (isTouchMode ? 180 : 168)
-        : isCompact
-            ? (isTouchMode ? 210 : 195)
-            : (isTouchMode ? 250 : 230);
+    const rowHeight = isCompact
+        ? (isTouchMode ? 215 : 200)
+        : (isTouchMode ? 260 : 240);
 
-    const gap = isUltra ? 6 : (isCompact ? 8 : 10);
+    const gap = isCompact ? 8 : 10;
 
     const quantityByItemId = useMemo(() => {
         const map: Record<string, number> = {};
@@ -64,6 +60,31 @@ const ItemGrid: React.FC<ItemGridProps> = React.memo(({
         );
     }
 
+    // Ultra mode: simple scrollable list (no grid, no virtualization needed for rows)
+    if (isUltra) {
+        return (
+            <div className="h-full overflow-y-auto custom-scrollbar">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-1.5 p-0.5">
+                    {items.map(item => (
+                        <MenuItemCard
+                            key={item.id}
+                            item={item}
+                            onAddItem={onAddItem}
+                            onRemoveItem={onRemoveItem}
+                            quantity={quantityByItemId[item.id] || 0}
+                            currencySymbol={currencySymbol}
+                            isTouchMode={isTouchMode}
+                            density={density}
+                            lang={lang}
+                            highlighted={highlightedItemId === item.id}
+                        />
+                    ))}
+                </div>
+            </div>
+        );
+    }
+
+    // Image card modes: virtualized grid
     return (
         <VirtualGrid
             itemCount={items.length}
