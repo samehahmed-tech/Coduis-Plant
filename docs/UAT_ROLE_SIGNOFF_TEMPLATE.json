@@ -1,0 +1,82 @@
+{
+  "generatedAt": "2026-02-12T00:00:00.000Z",
+  "branchId": "b1",
+  "executionWindow": {
+    "startAt": "",
+    "endAt": "",
+    "environment": "PILOT",
+    "version": ""
+  },
+  "roles": [
+    {
+      "role": "Cashier",
+      "owner": "",
+      "status": "PENDING",
+      "notes": "",
+      "startedAt": "",
+      "completedAt": "",
+      "testCases": [
+        { "id": "CASH-01", "name": "Create takeaway order + payment + print", "result": "PENDING", "evidence": "" },
+        { "id": "CASH-02", "name": "Dine-in order + send kitchen delta updates", "result": "PENDING", "evidence": "" },
+        { "id": "CASH-03", "name": "Order cancel/void with reason + manager approval", "result": "PENDING", "evidence": "" }
+      ]
+    },
+    {
+      "role": "Kitchen",
+      "owner": "",
+      "status": "PENDING",
+      "notes": "",
+      "startedAt": "",
+      "completedAt": "",
+      "testCases": [
+        { "id": "KIT-01", "name": "KDS receives tickets by station routing", "result": "PENDING", "evidence": "" },
+        { "id": "KIT-02", "name": "Prep -> Ready transitions reflected in POS", "result": "PENDING", "evidence": "" },
+        { "id": "KIT-03", "name": "Kitchen print fallback on offline printer", "result": "PENDING", "evidence": "" }
+      ]
+    },
+    {
+      "role": "Supervisor",
+      "owner": "",
+      "status": "PENDING",
+      "notes": "",
+      "startedAt": "",
+      "completedAt": "",
+      "testCases": [
+        { "id": "SUP-01", "name": "Call center escalation queue scan + resolve", "result": "PENDING", "evidence": "" },
+        { "id": "SUP-02", "name": "Discount abuse detect + approve/reject", "result": "PENDING", "evidence": "" },
+        { "id": "SUP-03", "name": "Dispatch SLA alerts + escalation", "result": "PENDING", "evidence": "" }
+      ]
+    },
+    {
+      "role": "Finance",
+      "owner": "",
+      "status": "PENDING",
+      "notes": "",
+      "startedAt": "",
+      "completedAt": "",
+      "testCases": [
+        { "id": "FIN-01", "name": "Dashboard/Reports parity vs source totals", "result": "PENDING", "evidence": "" },
+        { "id": "FIN-02", "name": "Day close report + print/export", "result": "PENDING", "evidence": "" },
+        { "id": "FIN-03", "name": "Fiscal queue/readiness health monitoring", "result": "PENDING", "evidence": "" }
+      ]
+    },
+    {
+      "role": "BranchManager",
+      "owner": "",
+      "status": "PENDING",
+      "notes": "",
+      "startedAt": "",
+      "completedAt": "",
+      "testCases": [
+        { "id": "MGR-01", "name": "Platform health gate + launch blockers review", "result": "PENDING", "evidence": "" },
+        { "id": "MGR-02", "name": "Pilot daily log completion and approvals", "result": "PENDING", "evidence": "" },
+        { "id": "MGR-03", "name": "Rollback drill review and signoff", "result": "PENDING", "evidence": "" }
+      ]
+    }
+  ],
+  "approvals": {
+    "opsLead": "",
+    "productLead": "",
+    "approvedAt": ""
+  }
+}

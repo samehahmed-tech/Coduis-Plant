@@ -1,0 +1,33 @@
+{
+  "api": {
+    "total": 500,
+    "ok": 0,
+    "failed": 500,
+    "elapsedMs": 232,
+    "rps": 2155
+  },
+  "ws": {
+    "skipped": true,
+    "reason": "AUTH_TOKEN missing (auto-login failed: fetch failed)",
+    "hint": "Backend not reachable at http://localhost:3001. Start it with: `npm run server` (or `npm run dev:full`)."
+  },
+  "result": {
+    "apiFailureRate": 1,
+    "wsFailureRate": 0,
+    "wsRequired": true,
+    "wsPassed": false,
+    "maxAllowedFailureRate": 0.01,
+    "passed": false
+  },
+  "config": {
+    "API_BASE": "http://localhost:3001",
+    "SOCKET_BASE": "http://localhost:3001",
+    "BRANCH_ID": "b1",
+    "API_REQUESTS": 500,
+    "WS_CLIENTS": 500,
+    "WS_HOLD_MS": 12000,
+    "hasToken": false,
+    "tokenSource": "missing",
+    "authError": "fetch failed"
+  }
+}

@@ -1,5 +1,8 @@
 import express from 'express';
+import path from 'path';
 import cors from 'cors';
+import { helmetMiddleware, generalRateLimit, authRateLimit, inputSanitizer, hideErrorDetails } from './middleware/security';
+import logger from './utils/logger';
 import userRoutes from './routes/userRoutes';
 import branchRoutes from './routes/branchRoutes';
 import menuRoutes from './routes/menuRoutes';
@@ -30,30 +33,55 @@ import opsRoutes from './routes/opsRoutes';
 import productionRoutes from './routes/productionRoutes';
 import dayCloseRoutes from './routes/dayCloseRoutes';
 import aiRoutes from './routes/aiRoutes';
+import callCenterSupervisorRoutes from './routes/callCenterSupervisorRoutes';
+import printGatewayRoutes from './routes/printGatewayRoutes';
+import printGatewayGatewayRoutes from './routes/printGatewayGatewayRoutes';
+import whatsappWebhookRoutes from './routes/whatsappWebhookRoutes';
+import whatsappRoutes from './routes/whatsappRoutes';
+import inventoryIntelligenceRoutes from './routes/inventoryIntelligenceRoutes';
+import refundRoutes from './routes/refundRoutes';
+import hrExtendedRoutes from './routes/hrExtendedRoutes';
 import { authenticateToken, requireRoles } from './middleware/auth';
 import { isOriginAllowed } from './config/cors';
 import { errorHandler, notFoundHandler } from './middleware/errorHandler';
+import { attachRequestId, requestLogger } from './middleware/requestContext';
+import { errorContractMiddleware } from './middleware/errorContract';
+import { errorTrackingMiddleware, getRecentErrors, getErrorStats } from './services/errorTrackingService';
 
 const app = express();
 app.set('trust proxy', 1);
 
-// Middlewares
+// ── Security Middlewares ──
+app.use(helmetMiddleware);
 app.use(cors({
     origin: (origin, callback) => {
         if (isOriginAllowed(origin)) {
             callback(null, true);
             return;
         }
-        callback(new Error(`Origin not allowed by CORS: ${origin}`));
+        if (process.env.NODE_ENV !== 'production') {
+            callback(null, true);
+            return;
+        }
+        callback(null, false);
     },
     credentials: true,
 }));
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ limit: '50mb', extended: true }));
+app.use(inputSanitizer);
+app.use(generalRateLimit);
+app.use(attachRequestId);
+app.use(requestLogger);
+app.use(errorContractMiddleware);
 
-// Public Routes
-app.use('/api/auth', authRoutes);
+logger.info({ port: process.env.API_PORT || 3001, env: process.env.NODE_ENV || 'development' }, 'RestoFlow ERP server initializing');
+
+// Public Routes (with auth-specific rate limit)
+app.use('/api/auth', authRateLimit, authRoutes);
 app.use('/api/setup', setupRoutes);
+app.use('/api/print-gateway/gateway', printGatewayGatewayRoutes);
+app.use('/api/whatsapp', whatsappWebhookRoutes);
 
 // Health check
 app.get('/api/health', (req, res) => {
@@ -72,6 +100,7 @@ app.use('/api/approvals', requireRoles('SUPER_ADMIN', 'BRANCH_MANAGER', 'MANAGER
 app.use('/api/reports', requireRoles('SUPER_ADMIN', 'BRANCH_MANAGER', 'FINANCE', 'MANAGER'), reportRoutes);
 app.use('/api/delivery', deliveryRoutes);
 app.use('/api/campaigns', requireRoles('SUPER_ADMIN', 'BRANCH_MANAGER', 'MANAGER'), campaignRoutes);
+app.use('/api/call-center', requireRoles('SUPER_ADMIN', 'BRANCH_MANAGER', 'MANAGER'), callCenterSupervisorRoutes);
 app.use('/api/analytics', requireRoles('SUPER_ADMIN', 'BRANCH_MANAGER', 'FINANCE', 'MANAGER'), analyticsRoutes);
 app.use('/api/hr', requireRoles('SUPER_ADMIN', 'BRANCH_MANAGER', 'MANAGER', 'FINANCE'), hrRoutes);
 app.use('/api/finance', requireRoles('SUPER_ADMIN', 'BRANCH_MANAGER', 'FINANCE'), financeRoutes);
@@ -91,9 +120,35 @@ app.use('/api/fiscal', requireRoles('SUPER_ADMIN', 'BRANCH_MANAGER', 'FINANCE'),
 app.use('/api/day-close', requireRoles('SUPER_ADMIN', 'BRANCH_MANAGER', 'MANAGER', 'FINANCE'), dayCloseRoutes);
 app.use('/api/ai', requireRoles('SUPER_ADMIN', 'BRANCH_MANAGER', 'MANAGER'), aiRoutes);
 app.use('/api/ops', requireRoles('SUPER_ADMIN'), opsRoutes);
+app.use('/api/print-gateway', printGatewayRoutes);
+app.use('/api/whatsapp', whatsappRoutes);
+app.use('/api/inventory-intelligence', requireRoles('SUPER_ADMIN', 'BRANCH_MANAGER', 'MANAGER'), inventoryIntelligenceRoutes);
+app.use('/api/refunds', requireRoles('SUPER_ADMIN', 'BRANCH_MANAGER', 'MANAGER', 'CASHIER'), refundRoutes);
+app.use('/api/hr-extended', requireRoles('SUPER_ADMIN', 'BRANCH_MANAGER', 'MANAGER', 'FINANCE'), hrExtendedRoutes);
+
+// Error tracking API (ops)
+app.get('/api/ops/errors', requireRoles('SUPER_ADMIN'), (_req, res) => {
+    res.json({ errors: getRecentErrors(), stats: getErrorStats() });
+});
 
 // 404 handler for undefined routes
 app.use('/api/{*path}', notFoundHandler);
+
+// ── Static Frontend (production) ──
+if (process.env.NODE_ENV === 'production') {
+    const distPath = path.resolve(process.cwd(), 'dist');
+    app.use(express.static(distPath, { maxAge: '1y', immutable: true }));
+    // SPA fallback — serve index.html for all non-API routes
+    app.get('*', (_req, res) => {
+        res.sendFile(path.join(distPath, 'index.html'));
+    });
+}
+
+// Production error detail hiding
+app.use(hideErrorDetails);
+
+// Error tracking middleware (captures before global handler)
+app.use(errorTrackingMiddleware);
 
 // Global error handler (must be last)
 app.use(errorHandler);

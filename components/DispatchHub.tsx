@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+﻿import React, { useEffect, useMemo, useState } from 'react';
 import {
     Truck,
     MapPin,
@@ -9,7 +9,9 @@ import {
     Smartphone,
     ChevronRight,
     Package,
-    AlertTriangle
+    AlertTriangle,
+    Radar,
+    RefreshCw,
 } from 'lucide-react';
 import { useOrderStore } from '../stores/useOrderStore';
 import { useAuthStore } from '../stores/useAuthStore';
@@ -19,6 +21,16 @@ import { socketService } from '../services/socketService';
 
 const SLA_MINUTES = 45;
 
+type DriverTelemetry = {
+    driverId: string;
+    branchId?: string | null;
+    lat: number;
+    lng: number;
+    speedKmh?: number;
+    accuracy?: number;
+    updatedAt: string;
+};
+
 const DispatchHub: React.FC = () => {
     const { settings } = useAuthStore();
     const { orders, updateOrderStatus, fetchOrders } = useOrderStore();
@@ -26,8 +38,11 @@ const DispatchHub: React.FC = () => {
     const activeBranchId = settings.activeBranchId;
 
     const [drivers, setDrivers] = useState<Driver[]>([]);
+    const [telemetryByDriver, setTelemetryByDriver] = useState<Record<string, DriverTelemetry>>({});
     const [isLoadingDrivers, setIsLoadingDrivers] = useState(false);
     const [isAssigningOrderId, setIsAssigningOrderId] = useState<string | null>(null);
+    const [slaAlerts, setSlaAlerts] = useState<any[]>([]);
+    const [isEscalatingSla, setIsEscalatingSla] = useState(false);
 
     const loadDrivers = async () => {
         setIsLoadingDrivers(true);
@@ -49,35 +64,100 @@ const DispatchHub: React.FC = () => {
         }
     };
 
+    const loadTelemetry = async () => {
+        try {
+            const telemetry = await deliveryApi.getTelemetry(activeBranchId || undefined);
+            const map: Record<string, DriverTelemetry> = {};
+            for (const item of telemetry || []) {
+                map[item.driverId] = item;
+            }
+            setTelemetryByDriver(map);
+        } catch (error) {
+            console.error('Failed to load driver telemetry:', error);
+        }
+    };
+
+    const loadSlaAlerts = async () => {
+        try {
+            const result = await deliveryApi.getSlaAlerts(activeBranchId ? { branchId: activeBranchId } : undefined);
+            setSlaAlerts(Array.isArray(result.alerts) ? result.alerts : []);
+        } catch (error) {
+            console.error('Failed to load SLA alerts:', error);
+            setSlaAlerts([]);
+        }
+    };
+
     useEffect(() => {
         loadDrivers();
+        loadTelemetry();
+        loadSlaAlerts();
+    }, [activeBranchId]);
+
+    useEffect(() => {
+        const id = window.setInterval(loadSlaAlerts, 60000);
+        return () => window.clearInterval(id);
     }, [activeBranchId]);
 
     useEffect(() => {
         const onDriverStatus = (payload: { id: string; status: string }) => {
             setDrivers(prev => prev.map(d => d.id === payload.id ? { ...d, status: payload.status === 'BUSY' ? 'ON_DELIVERY' : payload.status as any } : d));
         };
+        const onDriverLocation = (payload: DriverTelemetry) => {
+            if (!payload?.driverId) return;
+            setTelemetryByDriver(prev => ({ ...prev, [payload.driverId]: payload }));
+        };
         const onDispatchAssigned = () => {
             if (activeBranchId) fetchOrders({ branch_id: activeBranchId, limit: 100 });
             loadDrivers();
+            loadTelemetry();
+            loadSlaAlerts();
         };
+        const onSlaEscalation = () => loadSlaAlerts();
         socketService.on('driver:status', onDriverStatus as any);
+        socketService.on('driver:location', onDriverLocation as any);
         socketService.on('dispatch:assigned', onDispatchAssigned);
+        socketService.on('delivery:sla-escalation', onSlaEscalation as any);
         return () => {
             socketService.off('driver:status', onDriverStatus as any);
+            socketService.off('driver:location', onDriverLocation as any);
             socketService.off('dispatch:assigned', onDispatchAssigned);
+            socketService.off('delivery:sla-escalation', onSlaEscalation as any);
         };
     }, [activeBranchId, fetchOrders]);
 
-    const deliveryOrders = orders.filter(o => o.type === OrderType.DELIVERY);
-    const pendingDispatch = deliveryOrders.filter(o =>
-        (o.status === OrderStatus.READY || o.status === OrderStatus.PREPARING) &&
-        (!activeBranchId || o.branchId === activeBranchId)
+    const deliveryOrders = useMemo(
+        () => orders.filter(o => o.type === OrderType.DELIVERY),
+        [orders],
     );
-    const activeDeliveries = deliveryOrders.filter(o =>
-        o.status === OrderStatus.OUT_FOR_DELIVERY &&
-        (!activeBranchId || o.branchId === activeBranchId)
+
+    const pendingDispatch = useMemo(
+        () => deliveryOrders.filter(o =>
+            (o.status === OrderStatus.READY || o.status === OrderStatus.PREPARING) &&
+            (!activeBranchId || o.branchId === activeBranchId)
+        ),
+        [deliveryOrders, activeBranchId],
     );
+
+    const activeDeliveries = useMemo(
+        () => deliveryOrders.filter(o =>
+            o.status === OrderStatus.OUT_FOR_DELIVERY &&
+            (!activeBranchId || o.branchId === activeBranchId)
+        ),
+        [deliveryOrders, activeBranchId],
+    );
+
+    const activeOrdersByDriver = useMemo(() => {
+        const map = new Map<string, typeof activeDeliveries>();
+        for (const order of activeDeliveries) {
+            const driverId = String((order as any).driverId || '');
+            if (!driverId) continue;
+            const bucket = map.get(driverId) || [];
+            bucket.push(order);
+            map.set(driverId, bucket);
+        }
+        return map;
+    }, [activeDeliveries]);
+
     const availableDrivers = useMemo(() => drivers.filter(d => d.status === 'AVAILABLE'), [drivers]);
 
     const delayedDeliveries = useMemo(() => {
@@ -88,6 +168,11 @@ const DispatchHub: React.FC = () => {
         });
     }, [activeDeliveries]);
 
+    const criticalSlaAlerts = useMemo(
+        () => slaAlerts.filter((a: any) => a.severity === 'HIGH' || a.severity === 'CRITICAL'),
+        [slaAlerts],
+    );
+
     const avgDeliveryMinutes = useMemo(() => {
         if (activeDeliveries.length === 0) return 0;
         const now = Date.now();
@@ -96,6 +181,47 @@ const DispatchHub: React.FC = () => {
         }, 0);
         return total / activeDeliveries.length;
     }, [activeDeliveries]);
+
+    const criticalAlertsByDriver = useMemo(() => {
+        const map = new Map<string, number>();
+        for (const alert of criticalSlaAlerts) {
+            const driverId = String((alert as any)?.driverId || '').trim();
+            if (!driverId) continue;
+            map.set(driverId, (map.get(driverId) || 0) + 1);
+        }
+        return map;
+    }, [criticalSlaAlerts]);
+
+    const estimateEta = (driverId: string) => {
+        const activeCount = (activeOrdersByDriver.get(driverId) || []).length;
+        if (activeCount === 0) return 0;
+        const telemetry = telemetryByDriver[driverId];
+        const speed = Number(telemetry?.speedKmh || 0);
+        const staleMins = telemetry?.updatedAt
+            ? Math.max(0, Math.floor((Date.now() - new Date(telemetry.updatedAt).getTime()) / 60000))
+            : 99;
+        const basePerStop = Math.min(18, Math.max(8, avgDeliveryMinutes > 0 ? avgDeliveryMinutes : 12));
+        let eta = activeCount * basePerStop;
+
+        if (speed >= 40) eta *= 0.75;
+        else if (speed >= 30) eta *= 0.85;
+        else if (speed >= 20) eta *= 0.95;
+        else if (speed > 0 && speed < 10) eta *= 1.2;
+
+        if (staleMins >= 12) eta += 8;
+        else if (staleMins >= 6) eta += 4;
+
+        eta += (criticalAlertsByDriver.get(driverId) || 0) * 3;
+        return Math.max(5, Math.round(eta));
+    };
+
+    const getLastSeenLabel = (driverId: string) => {
+        const telemetry = telemetryByDriver[driverId];
+        if (!telemetry?.updatedAt) return lang === 'ar' ? 'لا يوجد تحديث موقع' : 'No location update';
+        const mins = Math.floor((Date.now() - new Date(telemetry.updatedAt).getTime()) / 60000);
+        if (mins <= 0) return lang === 'ar' ? 'تحديث الآن' : 'Updated just now';
+        return lang === 'ar' ? `آخر تحديث منذ ${mins} دقيقة` : `Updated ${mins}m ago`;
+    };
 
     const assignDriver = async (orderId: string, driverId: string) => {
         setIsAssigningOrderId(orderId);
@@ -108,6 +234,18 @@ const DispatchHub: React.FC = () => {
             console.error('Failed to assign driver:', error);
         } finally {
             setIsAssigningOrderId(null);
+        }
+    };
+
+    const escalateSlaAlerts = async () => {
+        setIsEscalatingSla(true);
+        try {
+            await deliveryApi.autoEscalateSlaAlerts(activeBranchId ? { branchId: activeBranchId } : undefined);
+            await loadSlaAlerts();
+        } catch (error) {
+            console.error('Failed to escalate SLA alerts:', error);
+        } finally {
+            setIsEscalatingSla(false);
         }
     };
 
@@ -124,7 +262,7 @@ const DispatchHub: React.FC = () => {
                         </h2>
                     </div>
                     <p className="text-muted font-bold text-sm uppercase tracking-widest opacity-60">
-                        {lang === 'ar' ? 'إدارة الأسطول وتتبع العمليات الميدانية' : 'Fleet Management & Field Operations Tracking'}
+                        {lang === 'ar' ? 'إدارة التوصيل والسائقين' : 'Delivery & Driver Management'}
                     </p>
                 </div>
 
@@ -160,7 +298,7 @@ const DispatchHub: React.FC = () => {
                         {pendingDispatch.length === 0 ? (
                             <div className="xl:col-span-2 py-20 bg-card/50 rounded-[2.5rem] border border-dashed border-border flex flex-col items-center justify-center opacity-40">
                                 <Package size={48} className="mb-4" />
-                                <p className="font-black uppercase tracking-widest text-xs">{lang === 'ar' ? 'لا توجد طلبات جاهزة' : 'Clear for now. No orders ready.'}</p>
+                                <p className="font-black uppercase tracking-widest text-xs">{lang === 'ar' ? 'لا توجد طلبات جاهزة الآن' : 'Clear for now. No orders ready.'}</p>
                             </div>
                         ) : (
                             pendingDispatch.map(order => (
@@ -223,22 +361,31 @@ const DispatchHub: React.FC = () => {
                         </span>
                     </div>
 
-                    {delayedDeliveries.length > 0 && (
+                    {criticalSlaAlerts.length > 0 && (
                         <div className="bg-rose-50 dark:bg-rose-900/10 border border-rose-200/40 rounded-3xl p-5">
-                            <h4 className="text-xs font-black uppercase tracking-widest text-rose-600 mb-3 flex items-center gap-2">
-                                <AlertTriangle size={14} />
-                                SLA Delay Alerts
-                            </h4>
+                            <div className="flex items-center justify-between gap-2 mb-3">
+                                <h4 className="text-xs font-black uppercase tracking-widest text-rose-600 flex items-center gap-2">
+                                    <AlertTriangle size={14} />
+                                    SLA Delay Alerts
+                                </h4>
+                                <button
+                                    onClick={escalateSlaAlerts}
+                                    disabled={isEscalatingSla}
+                                    className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-rose-600 text-white text-[10px] font-black uppercase tracking-widest disabled:opacity-60"
+                                >
+                                    <RefreshCw size={11} className={isEscalatingSla ? 'animate-spin' : ''} />
+                                    Escalate
+                                </button>
+                            </div>
                             <div className="space-y-2 max-h-44 overflow-auto">
-                                {delayedDeliveries.map(order => {
-                                    const elapsed = Math.round((Date.now() - new Date(order.createdAt).getTime()) / (1000 * 60));
+                                {criticalSlaAlerts.map((alert: any) => {
                                     return (
-                                        <div key={order.id} className="p-2.5 rounded-xl bg-white/80 dark:bg-slate-900/30 border border-rose-200/30 flex items-center justify-between">
+                                        <div key={alert.id} className="p-2.5 rounded-xl bg-white/80 dark:bg-slate-900/30 border border-rose-200/30 flex items-center justify-between">
                                             <div>
-                                                <p className="text-[11px] font-black text-main">#{order.id.slice(-6)} {order.customerName || 'Guest'}</p>
-                                                <p className="text-[10px] text-muted">{order.deliveryAddress || '-'}</p>
+                                                <p className="text-[11px] font-black text-main">#{String(alert.orderId || '').slice(-6)} {alert.type}</p>
+                                                <p className="text-[10px] text-muted">{alert.details || '-'}</p>
                                             </div>
-                                            <span className="text-[10px] font-black text-rose-600">{elapsed}m</span>
+                                            <span className="text-[10px] font-black text-rose-600">{alert.ageMinutes}m</span>
                                         </div>
                                     );
                                 })}
@@ -247,35 +394,55 @@ const DispatchHub: React.FC = () => {
                     )}
 
                     <div className="space-y-4">
-                        {drivers.map(driver => (
-                            <div key={driver.id} className="bg-card border border-border rounded-3xl p-5 flex items-center gap-4 group">
-                                <div className={`w-12 h-12 rounded-2xl flex items-center justify-center relative ${driver.status === 'AVAILABLE' ? 'bg-success/10 text-success' : driver.status === 'ON_DELIVERY' ? 'bg-primary/10 text-primary' : 'bg-muted/10 text-muted'}`}>
-                                    <User size={24} />
-                                    <div className={`absolute -bottom-1 -right-1 w-4 h-4 rounded-full border-2 border-card ${driver.status === 'AVAILABLE' ? 'bg-success' : driver.status === 'ON_DELIVERY' ? 'bg-primary' : 'bg-muted'}`} />
-                                </div>
-                                <div className="flex-1">
-                                    <h5 className="font-black text-main uppercase text-xs">{driver.name}</h5>
-                                    <div className="flex items-center gap-2 mt-1">
-                                        <p className="text-[10px] font-bold text-muted uppercase tracking-widest">{driver.vehicleType}</p>
-                                        <div className="w-1 h-1 rounded-full bg-border" />
-                                        <p className="text-[10px] font-bold text-muted">{driver.phone}</p>
+                        {drivers.map(driver => {
+                            const telemetry = telemetryByDriver[driver.id];
+                            const eta = estimateEta(driver.id);
+                            return (
+                                <div key={driver.id} className="bg-card border border-border rounded-3xl p-5 flex items-center gap-4 group">
+                                    <div className={`w-12 h-12 rounded-2xl flex items-center justify-center relative ${driver.status === 'AVAILABLE' ? 'bg-success/10 text-success' : driver.status === 'ON_DELIVERY' ? 'bg-primary/10 text-primary' : 'bg-muted/10 text-muted'}`}>
+                                        <User size={24} />
+                                        <div className={`absolute -bottom-1 -right-1 w-4 h-4 rounded-full border-2 border-card ${driver.status === 'AVAILABLE' ? 'bg-success' : driver.status === 'ON_DELIVERY' ? 'bg-primary' : 'bg-muted'}`} />
+                                    </div>
+                                    <div className="flex-1 min-w-0">
+                                        <h5 className="font-black text-main uppercase text-xs truncate">{driver.name}</h5>
+                                        <div className="flex items-center gap-2 mt-1">
+                                            <p className="text-[10px] font-bold text-muted uppercase tracking-widest">{driver.vehicleType}</p>
+                                            <div className="w-1 h-1 rounded-full bg-border" />
+                                            <p className="text-[10px] font-bold text-muted">{driver.phone}</p>
+                                        </div>
+                                        <div className="mt-2 flex flex-wrap items-center gap-2">
+                                            <span className="inline-flex items-center gap-1 text-[10px] font-black text-slate-500">
+                                                <Radar size={12} />
+                                                {getLastSeenLabel(driver.id)}
+                                            </span>
+                                            {telemetry && (
+                                                <span className="text-[10px] font-bold text-slate-500">
+                                                    {telemetry.lat.toFixed(4)}, {telemetry.lng.toFixed(4)}
+                                                </span>
+                                            )}
+                                            {eta > 0 && (
+                                                <span className="px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-700 text-[10px] font-black">
+                                                    ETA ~ {eta}m
+                                                </span>
+                                            )}
+                                        </div>
+                                    </div>
+                                    <div className="flex flex-col items-end gap-2">
+                                        {driver.status === 'ON_DELIVERY' ? (
+                                            <div className="flex items-center gap-1.5 px-3 py-1 rounded-lg bg-primary/5 text-primary">
+                                                <Clock size={10} strokeWidth={3} />
+                                                <span className="text-[9px] font-black uppercase tracking-widest">LIVE</span>
+                                            </div>
+                                        ) : (
+                                            <button className="p-2 text-muted hover:text-primary transition-colors">
+                                                <Smartphone size={16} />
+                                            </button>
+                                        )}
+                                        <ChevronRight size={16} className="text-muted group-hover:translate-x-1 transition-transform" />
                                     </div>
                                 </div>
-                                <div className="flex flex-col items-end gap-2">
-                                    {driver.status === 'ON_DELIVERY' ? (
-                                        <div className="flex items-center gap-1.5 px-3 py-1 rounded-lg bg-primary/5 text-primary">
-                                            <Clock size={10} strokeWidth={3} />
-                                            <span className="text-[9px] font-black uppercase tracking-widest">LIVE</span>
-                                        </div>
-                                    ) : (
-                                        <button className="p-2 text-muted hover:text-primary transition-colors">
-                                            <Smartphone size={16} />
-                                        </button>
-                                    )}
-                                    <ChevronRight size={16} className="text-muted group-hover:translate-x-1 transition-transform" />
-                                </div>
-                            </div>
-                        ))}
+                            );
+                        })}
                     </div>
 
                     <div className="bg-primary p-8 rounded-[2.5rem] text-white shadow-2xl shadow-primary/30 relative overflow-hidden">
@@ -315,3 +482,5 @@ const DispatchHub: React.FC = () => {
 };
 
 export default DispatchHub;
+
+

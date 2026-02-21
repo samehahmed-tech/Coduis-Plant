@@ -1,0 +1,94 @@
+{
+  "generatedAt": "2026-02-15T00:22:33.252Z",
+  "flags": {
+    "requireEta": false,
+    "requireRedisRealtime": false,
+    "socketRedisEnabled": false
+  },
+  "currentBlockers": [
+    {
+      "key": "launch-gates",
+      "ok": true,
+      "details": "ok=true failedRequired=0"
+    },
+    {
+      "key": "uat-signoff",
+      "ok": false,
+      "details": "roles=5 pending_or_fail=5"
+    },
+    {
+      "key": "rollback-drill",
+      "ok": false,
+      "details": "hasTimings=true approvals(ops,product)=(false,false)"
+    }
+  ],
+  "actions": [
+    {
+      "title": "Decide ETA launch scope",
+      "severity": "MEDIUM",
+      "why": "ETA gates are optional unless GO_LIVE_REQUIRE_ETA=true.",
+      "how": [
+        "If ETA is in scope for Egypt go-live: set `GO_LIVE_REQUIRE_ETA=true` and configure `ETA_*`.",
+        "If not in scope for this launch: keep `GO_LIVE_REQUIRE_ETA=false` and ensure fiscal UI is disabled/hidden per branch policy."
+      ],
+      "evidence": [
+        "scripts/go-live-preflight.ts",
+        ".env.production.example"
+      ]
+    },
+    {
+      "title": "Decide realtime scaling scope",
+      "severity": "LOW",
+      "why": "Redis adapter is required only when running multiple backend instances or when explicitly enabled.",
+      "how": [
+        "If production will run multiple instances: set `SOCKET_REDIS_ENABLED=true` + `SOCKET_REDIS_URL` and pass `ops:realtime-gate`.",
+        "If single instance only: keep it disabled, but document the scaling constraint."
+      ],
+      "evidence": [
+        "docs/GO_LIVE_READINESS.md",
+        ".env.production.example"
+      ]
+    },
+    {
+      "title": "Complete UAT per role (sign-off gate)",
+      "severity": "BLOCKER",
+      "why": "Pending/failing roles: Cashier, Kitchen, Supervisor, Finance, BranchManager",
+      "how": [
+        "For each role: set `owner`, execute test cases, attach evidence fields, set `status=PASS`.",
+        "Re-run: `npm run ops:uat-signoff-check` until PASS."
+      ],
+      "evidence": [
+        "artifacts/uat/role-signoff.json",
+        "scripts/uat-signoff-check.ts"
+      ]
+    },
+    {
+      "title": "Execute and record rollback drill (measurable + approved)",
+      "severity": "BLOCKER",
+      "why": "timings=ok approvals=missing checklistIncomplete=5",
+      "how": [
+        "Run the drill steps from `docs/ROLLBACK_DRILL_PLAYBOOK.md`.",
+        "Fill `artifacts/rollback/drill-report.json`: timing fields + mark checklist items `completed=true` + set `approvals.ops/product=true`.",
+        "Re-run: `npm run ops:rollback-drill-check`."
+      ],
+      "evidence": [
+        "docs/ROLLBACK_DRILL_PLAYBOOK.md",
+        "scripts/rollback-drill-check.ts"
+      ]
+    },
+    {
+      "title": "Run pilot branch for 7-14 days with daily evidence",
+      "severity": "HIGH",
+      "why": "This is the last real-world confidence gate before market go-live.",
+      "how": [
+        "Run daily: `npm run ops:go-live:daily` and keep `artifacts/evidence/go-live-daily.json` history.",
+        "Log operational incidents and fixes in `artifacts/pilot/<date>/daily-log.md`.",
+        "At end: close remaining blockers then generate final manifest with `npm run ops:collect-evidence`."
+      ],
+      "evidence": [
+        "docs/PILOT_BRANCH_RUNBOOK.md",
+        "docs/PILOT_DAILY_LOG_TEMPLATE.md"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,54 @@
+{
+  "ok": true,
+  "generatedAt": "2026-02-17T02:30:23.923Z",
+  "flags": {
+    "requireEta": false,
+    "requireRedisRealtime": false,
+    "socketRedisEnabled": false
+  },
+  "summary": {
+    "total": 3,
+    "passed": 3,
+    "failed": 0,
+    "failedRequired": 0,
+    "skipped": 3
+  },
+  "results": [
+    {
+      "name": "eta-config-check",
+      "required": false,
+      "enabled": false,
+      "command": "npm run eta:check",
+      "ok": true,
+      "exitCode": null,
+      "stdout": "SKIPPED: ETA is not required (set GO_LIVE_REQUIRE_ETA=true to enforce)",
+      "stderr": "",
+      "durationMs": 0,
+      "skipped": true
+    },
+    {
+      "name": "eta-smoke",
+      "required": false,
+      "enabled": false,
+      "command": "npm run eta:smoke",
+      "ok": true,
+      "exitCode": null,
+      "stdout": "SKIPPED: ETA is not required (set GO_LIVE_REQUIRE_ETA=true to enforce)",
+      "stderr": "",
+      "durationMs": 0,
+      "skipped": true
+    },
+    {
+      "name": "realtime-redis-gate",
+      "required": false,
+      "enabled": false,
+      "command": "npm run ops:realtime-gate",
+      "ok": true,
+      "exitCode": null,
+      "stdout": "SKIPPED: Redis realtime adapter not required (enable SOCKET_REDIS_ENABLED=true to enforce)",
+      "stderr": "",
+      "durationMs": 0,
+      "skipped": true
+    }
+  ]
+}

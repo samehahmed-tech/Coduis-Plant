@@ -1,10 +1,10 @@
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useRef } from 'react';
 import {
    BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend, AreaChart, Area, Cell, PieChart, Pie
 } from 'recharts';
 import {
-   DollarSign, TrendingUp, ShoppingBag, Calendar, Download,
+   DollarSign, TrendingUp, ShoppingBag, Calendar, Download, Printer,
    ChevronDown, Filter, Target, Megaphone, Zap, Scale, Info
 } from 'lucide-react';
 
@@ -33,6 +33,7 @@ const Reports: React.FC = () => {
    const [isLoadingReport, setIsLoadingReport] = useState(false);
    const [reportError, setReportError] = useState<string | null>(null);
    const [integrity, setIntegrity] = useState<any>(null);
+   const printableRootRef = useRef<HTMLDivElement | null>(null);
 
    const downloadBlob = (blob: Blob, filename: string) => {
       const url = URL.createObjectURL(blob);
@@ -71,6 +72,36 @@ const Reports: React.FC = () => {
       } catch (error: any) {
          setReportError(error?.message || 'Failed to export PDF');
       }
+   };
+
+   const handlePrintCurrentReport = () => {
+      if (settings.autoPrintReports === false) return;
+      const node = printableRootRef.current;
+      if (!node) return;
+      const printWindow = window.open('', '_blank', 'width=1280,height=900');
+      if (!printWindow) return;
+
+      const styleNodes = Array.from(document.querySelectorAll('style, link[rel="stylesheet"]'))
+         .map((el) => el.outerHTML)
+         .join('\n');
+
+      printWindow.document.write(`
+        <html>
+          <head>
+            <title>RestoFlow Report - ${activeTab}</title>
+            ${styleNodes}
+          </head>
+          <body>
+            <div style="padding:16px">${node.innerHTML}</div>
+          </body>
+        </html>
+      `);
+      printWindow.document.close();
+      printWindow.focus();
+      setTimeout(() => {
+         printWindow.print();
+         printWindow.close();
+      }, 300);
    };
 
    React.useEffect(() => {
@@ -117,10 +148,10 @@ const Reports: React.FC = () => {
    ), [profitDaily]);
 
    return (
-      <div className="p-8 bg-slate-50 dark:bg-slate-950 min-h-screen transition-colors animate-fade-in pb-24">
+      <div ref={printableRootRef} className="p-8 bg-slate-50 dark:bg-slate-950 min-h-screen transition-colors animate-fade-in pb-24">
          <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-6 mb-10">
             <div>
-               <h2 className="text-3xl font-black text-slate-800 dark:text-white uppercase tracking-tight">Business Intelligence</h2>
+               <h2 className="text-3xl font-black text-slate-800 dark:text-white uppercase tracking-tight">Reports</h2>
                <p className="text-slate-500 dark:text-slate-400 font-semibold">Financial insights and operational performance tracking.</p>
             </div>
             <div className="flex flex-col xl:flex-row gap-3 w-full lg:w-auto">
@@ -157,6 +188,13 @@ const Reports: React.FC = () => {
                      <Filter size={12} />
                      Apply
                   </button>
+                  <button
+                     onClick={handlePrintCurrentReport}
+                     className="px-3 py-1.5 rounded-xl bg-indigo-600 text-white text-[10px] font-black uppercase tracking-widest flex items-center gap-2"
+                  >
+                     <Printer size={12} />
+                     Print
+                  </button>
                </div>
             </div>
          </div>
@@ -186,7 +224,7 @@ const Reports: React.FC = () => {
                <div className="bg-white dark:bg-slate-900 rounded-[2.5rem] border border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden">
                   <div className="p-8 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center bg-slate-50/50 dark:bg-slate-900/50">
                      <h3 className="text-xl font-black text-slate-800 dark:text-white flex items-center gap-3">
-                        <Scale size={24} className="text-indigo-600" /> Item Profitability Matrix
+                        <Scale size={24} className="text-indigo-600" /> Item Profitability
                      </h3>
                      <button onClick={handleExportCsv} className="text-xs font-black text-indigo-600 uppercase flex items-center gap-2 hover:bg-slate-200 dark:hover:bg-slate-800 px-4 py-2 rounded-xl transition-all">
                         <Download size={16} /> Export Analysis

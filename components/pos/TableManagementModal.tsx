@@ -45,7 +45,15 @@ const TableManagementModal: React.FC<TableManagementModalProps> = ({
         [allTables, sourceTable.id]);
 
     const occupiedTables = useMemo(() =>
-        allTables.filter(t => t.id !== sourceTable.id && t.status === TableStatus.OCCUPIED),
+        allTables.filter(
+            t =>
+                t.id !== sourceTable.id &&
+                (
+                    t.status === TableStatus.OCCUPIED ||
+                    t.status === TableStatus.WAITING_FOOD ||
+                    t.status === TableStatus.READY_TO_PAY
+                )
+        ),
         [allTables, sourceTable.id]);
 
     const toggleItem = (cartId: string) => {

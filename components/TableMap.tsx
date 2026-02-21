@@ -76,6 +76,13 @@ const TableMap: React.FC<TableMapProps> = ({
         return map;
     }, [orders]);
 
+    const deriveServiceTableStatus = (order?: Order): TableStatus | null => {
+        if (!order) return null;
+        if (order.status === OrderStatus.READY) return TableStatus.READY_TO_PAY;
+        if (order.status === OrderStatus.PENDING || order.status === OrderStatus.PREPARING) return TableStatus.WAITING_FOOD;
+        return TableStatus.OCCUPIED;
+    };
+
     const tableSummaries = useMemo(() => {
         const map: Record<string, { items: number; total: number; status: OrderStatus; openedAt?: Date; lastActivity?: Date }> = {};
         orders
@@ -107,12 +114,17 @@ const TableMap: React.FC<TableMapProps> = ({
 
     const decoratedTables = useMemo(() => {
         return tables.map(table => {
+            const activeOrder = activeOrderByTable[table.id];
             if (tableTotals[table.id]) {
-                return { ...table, status: TableStatus.OCCUPIED, currentOrderTotal: tableTotals[table.id] };
+                return {
+                    ...table,
+                    status: deriveServiceTableStatus(activeOrder) || TableStatus.OCCUPIED,
+                    currentOrderTotal: tableTotals[table.id],
+                };
             }
             return table;
         });
-    }, [tables, tableTotals]);
+    }, [tables, tableTotals, activeOrderByTable]);
 
     const sortedDecoratedTables = useMemo(() => {
         const normalize = (value?: string) => {
@@ -147,14 +159,30 @@ const TableMap: React.FC<TableMapProps> = ({
     const stats = useMemo(() => {
         const openOrders = orders.filter(o => o.status !== OrderStatus.DELIVERED);
         const closedOrders = orders.filter(o => o.status === OrderStatus.DELIVERED);
+        const dineInClosed = closedOrders.filter((o) => o.tableId && o.type === 'DINE_IN');
+        const turnoverMinutes = dineInClosed
+            .map((o) => {
+                const start = o.createdAt ? new Date(o.createdAt).getTime() : NaN;
+                const end = o.updatedAt ? new Date(o.updatedAt).getTime() : Date.now();
+                if (!Number.isFinite(start) || end <= start) return null;
+                return Math.max(1, Math.round((end - start) / 60000));
+            })
+            .filter((v): v is number => typeof v === 'number');
+        const avgTurnoverMinutes = turnoverMinutes.length > 0
+            ? Math.round(turnoverMinutes.reduce((sum, v) => sum + v, 0) / turnoverMinutes.length)
+            : 0;
+
         return {
             available: decoratedTables.filter(t => t.status === TableStatus.AVAILABLE).length,
             occupied: decoratedTables.filter(t => t.status === TableStatus.OCCUPIED).length,
+            waitingFood: decoratedTables.filter(t => t.status === TableStatus.WAITING_FOOD).length,
+            readyToPay: decoratedTables.filter(t => t.status === TableStatus.READY_TO_PAY).length,
             reserved: decoratedTables.filter(t => t.status === TableStatus.RESERVED).length,
             dirty: decoratedTables.filter(t => t.status === TableStatus.DIRTY).length,
             total: decoratedTables.length,
             openSales: openOrders.reduce((sum, o) => sum + (o.total || 0), 0),
-            closedSales: closedOrders.reduce((sum, o) => sum + (o.total || 0), 0)
+            closedSales: closedOrders.reduce((sum, o) => sum + (o.total || 0), 0),
+            avgTurnoverMinutes,
         };
     }, [decoratedTables, orders]);
 
@@ -167,6 +195,8 @@ const TableMap: React.FC<TableMapProps> = ({
         switch (status) {
             case TableStatus.AVAILABLE: return 'bg-emerald-500';
             case TableStatus.OCCUPIED: return 'bg-indigo-600';
+            case TableStatus.WAITING_FOOD: return 'bg-sky-500';
+            case TableStatus.READY_TO_PAY: return 'bg-teal-600';
             case TableStatus.RESERVED: return 'bg-amber-500';
             case TableStatus.DIRTY: return 'bg-rose-500';
             default: return 'bg-slate-400';
@@ -178,6 +208,8 @@ const TableMap: React.FC<TableMapProps> = ({
         switch (status) {
             case TableStatus.AVAILABLE: return `${base} ring-1 ring-emerald-400/40 dark:ring-emerald-400/30 hover:shadow-md`;
             case TableStatus.OCCUPIED: return `${base} ring-1 ring-indigo-400/40 dark:ring-indigo-400/30 hover:shadow-md`;
+            case TableStatus.WAITING_FOOD: return `${base} ring-1 ring-sky-400/40 dark:ring-sky-400/30 hover:shadow-md`;
+            case TableStatus.READY_TO_PAY: return `${base} ring-1 ring-teal-400/40 dark:ring-teal-400/30 hover:shadow-md`;
             case TableStatus.RESERVED: return `${base} ring-1 ring-amber-400/40 dark:ring-amber-400/30 hover:shadow-md`;
             case TableStatus.DIRTY: return `${base} ring-1 ring-rose-400/40 dark:ring-rose-400/30 hover:shadow-md`;
             default: return `${base} ring-1 ring-slate-200/60 dark:ring-slate-700/60`;
@@ -188,6 +220,8 @@ const TableMap: React.FC<TableMapProps> = ({
         switch (status) {
             case TableStatus.AVAILABLE: return t.free;
             case TableStatus.OCCUPIED: return t.busy;
+            case TableStatus.WAITING_FOOD: return t.waiting_food || (lang === 'ar' ? 'بانتظار الطعام' : 'Waiting Food');
+            case TableStatus.READY_TO_PAY: return t.ready_to_pay || (lang === 'ar' ? 'جاهز للحساب' : 'Ready To Pay');
             case TableStatus.RESERVED: return t.reserved;
             case TableStatus.DIRTY: return t.dirty;
             default: return '';
@@ -198,6 +232,8 @@ const TableMap: React.FC<TableMapProps> = ({
         switch (status) {
             case TableStatus.AVAILABLE: return 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border border-emerald-500/30';
             case TableStatus.OCCUPIED: return 'bg-indigo-500/15 text-indigo-700 dark:text-indigo-300 border border-indigo-500/30';
+            case TableStatus.WAITING_FOOD: return 'bg-sky-500/15 text-sky-700 dark:text-sky-300 border border-sky-500/30';
+            case TableStatus.READY_TO_PAY: return 'bg-teal-500/15 text-teal-700 dark:text-teal-300 border border-teal-500/30';
             case TableStatus.RESERVED: return 'bg-amber-500/15 text-amber-700 dark:text-amber-300 border border-amber-500/30';
             case TableStatus.DIRTY: return 'bg-rose-500/15 text-rose-700 dark:text-rose-300 border border-rose-500/30';
             default: return 'bg-slate-500/15 text-slate-600 dark:text-slate-300 border border-slate-500/30';
@@ -325,6 +361,10 @@ const TableMap: React.FC<TableMapProps> = ({
                     style={{
                         background: table.status === TableStatus.OCCUPIED
                             ? 'linear-gradient(90deg, #6366f1, #8b5cf6)'
+                            : table.status === TableStatus.WAITING_FOOD
+                                ? 'linear-gradient(90deg, #0ea5e9, #38bdf8)'
+                                : table.status === TableStatus.READY_TO_PAY
+                                    ? 'linear-gradient(90deg, #0d9488, #14b8a6)'
                             : table.status === TableStatus.AVAILABLE
                                 ? 'linear-gradient(90deg, #10b981, #34d399)'
                                 : undefined
@@ -581,6 +621,22 @@ const TableMap: React.FC<TableMapProps> = ({
                         </div>
                     </div>
 
+                    <div className="flex items-center gap-2 bg-sky-50 dark:bg-sky-950/40 px-3 py-2 rounded-xl border border-sky-200 dark:border-sky-800">
+                        <div className="w-3 h-3 rounded-full bg-sky-500" />
+                        <div>
+                            <p className="text-[9px] font-black text-sky-600 uppercase">{t.waiting_food || (lang === 'ar' ? 'بانتظار الطعام' : 'Waiting Food')}</p>
+                            <p className="text-lg font-black text-sky-700 dark:text-sky-300">{stats.waitingFood}</p>
+                        </div>
+                    </div>
+
+                    <div className="flex items-center gap-2 bg-teal-50 dark:bg-teal-950/40 px-3 py-2 rounded-xl border border-teal-200 dark:border-teal-800">
+                        <div className="w-3 h-3 rounded-full bg-teal-600" />
+                        <div>
+                            <p className="text-[9px] font-black text-teal-600 uppercase">{t.ready_to_pay || (lang === 'ar' ? 'جاهز للحساب' : 'Ready To Pay')}</p>
+                            <p className="text-lg font-black text-teal-700 dark:text-teal-300">{stats.readyToPay}</p>
+                        </div>
+                    </div>
+
                     {/* Reserved count */}
                     <div className="flex items-center gap-2 bg-amber-50 dark:bg-amber-950/50 px-3 py-2 rounded-xl border border-amber-200 dark:border-amber-800">
                         <div className="w-3 h-3 rounded-full bg-amber-500" />
@@ -606,6 +662,15 @@ const TableMap: React.FC<TableMapProps> = ({
                             <p className="text-[9px] font-black text-emerald-500 uppercase tracking-widest">{lang === 'ar' ? 'المبيعات المغلقة' : 'Closed Sales'}</p>
                             <p className="text-xl font-black text-emerald-600 dark:text-emerald-400">
                                 {t.currency || 'ج.م'} {stats.closedSales.toLocaleString('en-US', { minimumFractionDigits: 2 })}
+                            </p>
+                        </div>
+                    </div>
+
+                    <div className="flex items-center gap-2 bg-violet-100 dark:bg-violet-950/50 px-4 py-2 rounded-xl border border-violet-200 dark:border-violet-800">
+                        <div>
+                            <p className="text-[9px] font-black text-violet-500 uppercase tracking-widest">{lang === 'ar' ? 'متوسط تدوير الترابيزة' : 'Avg Table Turnover'}</p>
+                            <p className="text-xl font-black text-violet-600 dark:text-violet-400">
+                                {stats.avgTurnoverMinutes} {t.min_short || (lang === 'ar' ? 'د' : 'm')}
                             </p>
                         </div>
                     </div>
@@ -723,6 +788,8 @@ const TableMap: React.FC<TableMapProps> = ({
                 {[
                     { status: TableStatus.AVAILABLE, label: t.free || 'Available', color: 'bg-emerald-500', gradient: 'from-emerald-500 to-emerald-400' },
                     { status: TableStatus.OCCUPIED, label: t.busy || 'Occupied', color: 'bg-indigo-600', gradient: 'from-indigo-600 to-purple-500' },
+                    { status: TableStatus.WAITING_FOOD, label: t.waiting_food || (lang === 'ar' ? 'بانتظار الطعام' : 'Waiting Food'), color: 'bg-sky-500', gradient: 'from-sky-500 to-sky-400' },
+                    { status: TableStatus.READY_TO_PAY, label: t.ready_to_pay || (lang === 'ar' ? 'جاهز للحساب' : 'Ready To Pay'), color: 'bg-teal-600', gradient: 'from-teal-600 to-teal-500' },
                     { status: TableStatus.RESERVED, label: t.reserved || 'Reserved', color: 'bg-amber-500', gradient: 'from-amber-500 to-amber-400' },
                     { status: TableStatus.DIRTY, label: t.dirty || 'Dirty', color: 'bg-rose-500', gradient: 'from-rose-500 to-rose-400' }
                 ].map(item => (

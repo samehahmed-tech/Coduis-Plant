@@ -11,8 +11,8 @@ const MainLayout: React.FC = () => {
     const isPOSRoute = location.pathname === '/pos';
 
     // Sidebar widths matching Sidebar.tsx
-    const sidebarWidth = isSidebarCollapsed ? 'lg:pl-20' : (settings.isTouchMode ? 'lg:pl-80' : 'lg:pl-64');
-    const sidebarWidthRtl = isSidebarCollapsed ? 'lg:pr-20' : (settings.isTouchMode ? 'lg:pr-80' : 'lg:pr-64');
+    const sidebarWidth = isSidebarCollapsed ? 'xl:pl-20' : (settings.isTouchMode ? 'xl:pl-80' : 'xl:pl-64');
+    const sidebarWidthRtl = isSidebarCollapsed ? 'xl:pr-20' : (settings.isTouchMode ? 'xl:pr-80' : 'xl:pr-64');
 
     // Apply theme and dark mode
     const theme = settings.theme || 'xen';

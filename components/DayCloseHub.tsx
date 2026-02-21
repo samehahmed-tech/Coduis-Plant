@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+﻿import React, { useEffect, useMemo, useState } from 'react';
 import { dayCloseApi } from '../services/api';
 import { useAuthStore } from '../stores/useAuthStore';
 
@@ -94,7 +94,7 @@ const DayCloseHub: React.FC = () => {
 
     const handleSendEmail = async () => {
         if (!branchId || !date || !emailTo.trim()) {
-            setError(lang === 'ar' ? 'أدخل بريدًا واحدًا على الأقل' : 'Enter at least one recipient email');
+            setError(lang === 'ar' ? 'أدخل بريداً واحداً على الأقل' : 'Enter at least one recipient email');
             return;
         }
         setIsSending(true);
@@ -115,11 +115,16 @@ const DayCloseHub: React.FC = () => {
         }
     };
 
+    const handlePrintReport = () => {
+        if (settings.autoPrintReports === false) return;
+        window.print();
+    };
+
     return (
         <div className="p-4 md:p-6 lg:p-8 space-y-6 min-h-screen">
             <div className="card-primary rounded-3xl p-5 md:p-6">
                 <h2 className="text-2xl font-black text-main">{lang === 'ar' ? 'إغلاق اليوم' : 'Day Close'}</h2>
-                <p className="text-sm text-muted mt-1">{lang === 'ar' ? 'إغلاق يوم الفرع مع مراجعة الإيراد والمراجعة المالية' : 'Close branch day with sales and fiscal health checks'}</p>
+                <p className="text-sm text-muted mt-1">{lang === 'ar' ? 'إغلاق يوم الفرع مع مراجعة الإيراد والحالة الضريبية' : 'Close branch day with sales and fiscal health checks'}</p>
 
                 <div className="grid grid-cols-1 md:grid-cols-4 gap-3 mt-5">
                     <select
@@ -152,7 +157,14 @@ const DayCloseHub: React.FC = () => {
                         {isClosing ? (lang === 'ar' ? 'جارٍ الإغلاق...' : 'Closing...') : (lang === 'ar' ? 'إغلاق اليوم' : 'Close Day')}
                     </button>
                 </div>
-
+                <div className="mt-3">
+                    <button
+                        onClick={handlePrintReport}
+                        className="px-4 py-2.5 rounded-xl bg-slate-700 text-white font-black text-xs uppercase tracking-widest"
+                    >
+                        {lang === 'ar' ? 'طباعة التقرير' : 'Print Report'}
+                    </button>
+                </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mt-4">
                     <input
                         value={notes}
@@ -216,7 +228,7 @@ const DayCloseHub: React.FC = () => {
                     <h3 className="text-sm font-black uppercase tracking-widest text-muted mb-3">{lang === 'ar' ? 'التدقيق' : 'Audit Summary'}</h3>
                     <div className="space-y-2 text-sm font-bold">
                         <p>{lang === 'ar' ? 'إجمالي الأحداث:' : 'Total Events:'} {report?.auditSummary?.totalEvents ?? 0}</p>
-                        <p>{lang === 'ar' ? 'إلغاء:' : 'Voids:'} {report?.auditSummary?.voidCount ?? 0}</p>
+                        <p>{lang === 'ar' ? 'ط¥ظ„ط؛ط§ط،:' : 'Voids:'} {report?.auditSummary?.voidCount ?? 0}</p>
                         <p>{lang === 'ar' ? 'خصومات:' : 'Discounts:'} {report?.auditSummary?.discountCount ?? 0}</p>
                         <p>{lang === 'ar' ? 'مرتجعات:' : 'Refunds:'} {report?.auditSummary?.refundCount ?? 0}</p>
                     </div>
@@ -233,7 +245,7 @@ const DayCloseHub: React.FC = () => {
                         <div key={row.id} className="p-3 rounded-xl bg-elevated border border-border/50 flex items-center justify-between text-sm">
                             <div>
                                 <p className="font-black">{row.date}</p>
-                                <p className="text-muted font-bold">{lang === 'ar' ? 'بواسطة:' : 'By:'} {row.closedBy}</p>
+                                <p className="text-muted font-bold">{lang === 'ar' ? 'ط¨ظˆط§ط³ط·ط©:' : 'By:'} {row.closedBy}</p>
                             </div>
                             <div className="text-right font-bold">
                                 <p>{lang === 'ar' ? 'الطلبات:' : 'Orders:'} {row.summary?.totalOrders ?? 0}</p>
@@ -248,4 +260,5 @@ const DayCloseHub: React.FC = () => {
 };
 
 export default DayCloseHub;
+
 

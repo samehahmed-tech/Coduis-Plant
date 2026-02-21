@@ -5,6 +5,16 @@ import { buildDedupeKey, computeNextAttempt } from './syncQueueUtils';
 const MAX_RETRIES = 10;
 const BASE_RETRY_MS = 2000;
 
+const isReplaySafeConflict = (error: any) => {
+    const status = Number(error?.status || 0);
+    const code = String(error?.code || error?.message || '').toUpperCase();
+    if (status === 409) return true;
+    if (code.includes('ALREADY_EXISTS')) return true;
+    if (code.includes('DUPLICATE')) return true;
+    if (code.includes('UNIQUE')) return true;
+    return false;
+};
+
 const enrichPayload = (payload: any) => {
     if (!payload || typeof payload !== 'object') return payload;
     if (payload.clientUpdatedAt) return payload;
@@ -114,37 +124,82 @@ export const syncService = {
 
         switch (entity) {
             case 'menuCategory':
-                if (action === 'CREATE') return menuApi.createCategory(payload);
+                if (action === 'CREATE') {
+                    try {
+                        return await menuApi.createCategory(payload);
+                    } catch (error: any) {
+                        if (isReplaySafeConflict(error)) return;
+                        throw error;
+                    }
+                }
                 if (action === 'UPDATE') return menuApi.updateCategory(payload.id, payload);
                 if (action === 'DELETE') return menuApi.deleteCategory(payload.id);
                 break;
             case 'menuItem':
-                if (action === 'CREATE') return menuApi.createItem(payload);
+                if (action === 'CREATE') {
+                    try {
+                        return await menuApi.createItem(payload);
+                    } catch (error: any) {
+                        if (isReplaySafeConflict(error)) return;
+                        throw error;
+                    }
+                }
                 if (action === 'UPDATE') return menuApi.updateItem(payload.id, payload);
                 if (action === 'DELETE') return menuApi.deleteItem(payload.id);
                 break;
             case 'inventoryItem':
-                if (action === 'CREATE') return inventoryApi.create(payload);
+                if (action === 'CREATE') {
+                    try {
+                        return await inventoryApi.create(payload);
+                    } catch (error: any) {
+                        if (isReplaySafeConflict(error)) return;
+                        throw error;
+                    }
+                }
                 if (action === 'UPDATE') return inventoryApi.update(payload.id, payload);
                 if (action === 'DELETE') return inventoryApi.delete(payload.id);
                 break;
             case 'warehouse':
-                if (action === 'CREATE') return inventoryApi.createWarehouse(payload);
+                if (action === 'CREATE') {
+                    try {
+                        return await inventoryApi.createWarehouse(payload);
+                    } catch (error: any) {
+                        if (isReplaySafeConflict(error)) return;
+                        throw error;
+                    }
+                }
                 break;
             case 'branch':
-                if (action === 'CREATE') return branchesApi.create(payload);
+                if (action === 'CREATE') {
+                    try {
+                        return await branchesApi.create(payload);
+                    } catch (error: any) {
+                        if (isReplaySafeConflict(error)) return;
+                        throw error;
+                    }
+                }
                 break;
             case 'stockUpdate':
-                return inventoryApi.updateStock(payload);
+                return inventoryApi.updateStock({
+                    ...payload,
+                    reference_id: payload.reference_id || item.dedupeKey || item.id,
+                });
             case 'customer':
-                if (action === 'CREATE') return customersApi.create(payload);
+                if (action === 'CREATE') {
+                    try {
+                        return await customersApi.create(payload);
+                    } catch (error: any) {
+                        if (isReplaySafeConflict(error)) return;
+                        throw error;
+                    }
+                }
                 if (action === 'UPDATE') return customersApi.update(payload.id, payload);
                 if (action === 'DELETE') return customersApi.delete(payload.id);
                 break;
             case 'order':
                 if (action === 'CREATE') {
                     try {
-                        const result = await ordersApi.create(payload);
+                        const result = await ordersApi.create(payload, { idempotencyKey: item.dedupeKey || item.id });
                         await localDb.orders.update(payload.id, { syncStatus: 'SYNCED' } as any);
                         return result;
                     } catch (error: any) {
@@ -158,7 +213,11 @@ export const syncService = {
                 break;
             case 'orderStatus':
                 if (action === 'UPDATE') {
-                    const result = await ordersApi.updateStatus(payload.id, payload.data);
+                    const result = await ordersApi.updateStatus(
+                        payload.id,
+                        payload.data,
+                        { idempotencyKey: item.dedupeKey || item.id },
+                    );
                     const existing = await localDb.orders.get(payload.id);
                     if (existing) {
                         await localDb.orders.put({ ...existing, status: payload.data.status } as any);
@@ -167,10 +226,22 @@ export const syncService = {
                 }
                 break;
             case 'tableStatus':
-                if (action === 'UPDATE') return tablesApi.updateStatus(payload.id, payload.status, payload.currentOrderId);
+                if (action === 'UPDATE') {
+                    return tablesApi.updateStatus(
+                        payload.id,
+                        payload.status,
+                        payload.currentOrderId,
+                        payload.reference_id || item.dedupeKey || item.id,
+                    );
+                }
                 break;
             case 'tableLayout':
-                if (action === 'SAVE') return tablesApi.saveLayout(payload);
+                if (action === 'SAVE') {
+                    return tablesApi.saveLayout({
+                        ...payload,
+                        reference_id: payload.reference_id || item.dedupeKey || item.id,
+                    });
+                }
                 break;
             case 'setting':
                 if (action === 'UPDATE') return settingsApi.update(payload.key, payload.value, payload.category, payload.updated_by);

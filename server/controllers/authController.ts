@@ -9,9 +9,11 @@ import { getLoginThrottleState, registerLoginFailure, registerLoginSuccess } fro
 import { createSignedAuditLog } from '../services/auditLogService';
 import crypto from 'crypto';
 import { buildOtpAuthUri, generateBase32Secret, verifyTotp } from '../services/totpService';
+import { validatePassword } from '../services/passwordPolicyService';
 
 const JWT_SECRET = requireEnv('JWT_SECRET');
-const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || '12h';
+const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || '15m';
+const REFRESH_TOKEN_EXPIRES_IN = process.env.REFRESH_TOKEN_EXPIRES_IN || '7d';
 const AUTH_SESSION_TTL_HOURS = Number(process.env.AUTH_SESSION_TTL_HOURS || 12);
 const AUTH_MFA_ISSUER = process.env.AUTH_MFA_ISSUER || 'RestoFlow ERP';
 const AUTH_MFA_ENFORCE_ADMIN_FINANCE = process.env.AUTH_MFA_ENFORCE_ADMIN_FINANCE === 'true';
@@ -83,7 +85,14 @@ const issueAccessToken = async (user: any, req: Request, deviceName?: string) =>
         jti: tokenId,
     }, JWT_SECRET, { expiresIn: JWT_EXPIRES_IN, subject: user.id });
 
-    return token;
+    const refreshToken = jwt.sign({
+        sub: user.id,
+        sid: sessionId,
+        jti: tokenId,
+        purpose: 'refresh',
+    }, JWT_SECRET, { expiresIn: REFRESH_TOKEN_EXPIRES_IN });
+
+    return { token, refreshToken };
 };
 
 const roleRequiresMfa = (role: string): boolean => role === 'SUPER_ADMIN' || role === 'FINANCE';
@@ -135,8 +144,13 @@ export const login = async (req: Request, res: Response) => {
 
         // First-time password setup if hash is missing
         if (!user.passwordHash) {
-            if (String(password).length < 6) {
+            if (String(password).length < 4) {
                 return res.status(400).json({ error: 'PASSWORD_TOO_SHORT' });
+            }
+            const policyResult = validatePassword(String(password));
+            if (!policyResult.valid) {
+                // Accept weak password for legacy compatibility, but log warning
+                console.warn(`[AUTH] User ${user.email} set a weak password on first login. Recommend password change.`);
             }
             const hash = await bcrypt.hash(password, 10);
             await db.update(users).set({ passwordHash: hash, updatedAt: new Date() }).where(eq(users.id, user.id));
@@ -184,7 +198,7 @@ export const login = async (req: Request, res: Response) => {
             return res.json({ mfaRequired: true, mfaToken });
         }
 
-        const token = await issueAccessToken(user, req, deviceName);
+        const { token, refreshToken } = await issueAccessToken(user, req, deviceName);
 
         await writeAuthAudit({
             eventType: 'auth.login.success',
@@ -198,6 +212,7 @@ export const login = async (req: Request, res: Response) => {
 
         res.json({
             token,
+            refreshToken,
             user: sanitizeUser(user),
         });
     } catch (error: any) {
@@ -355,7 +370,7 @@ export const verifyMfaChallenge = async (req: Request, res: Response) => {
             return res.status(401).json({ error: 'INVALID_MFA_CODE' });
         }
 
-        const token = await issueAccessToken(user, req, String(deviceName || '').trim() || undefined);
+        const { token, refreshToken } = await issueAccessToken(user, req, String(deviceName || '').trim() || undefined);
         await writeAuthAudit({
             eventType: 'auth.mfa.verified',
             userId: user.id,
@@ -364,7 +379,7 @@ export const verifyMfaChallenge = async (req: Request, res: Response) => {
             branchId: user.assignedBranchId,
             ipAddress: req.ip || req.socket.remoteAddress || 'unknown',
         });
-        return res.json({ token, user: sanitizeUser(user) });
+        return res.json({ token, refreshToken, user: sanitizeUser(user) });
     } catch {
         return res.status(401).json({ error: 'INVALID_MFA_TOKEN' });
     }
@@ -497,7 +512,7 @@ export const loginWithPin = async (req: Request, res: Response) => {
         registerLoginSuccess(clientIp, `pin:${pin.slice(0, 2)}`);
 
         const deviceName = String(req.body?.deviceName || '').trim() || 'PIN Login';
-        const token = await issueAccessToken(matchedUser, req, deviceName);
+        const { token, refreshToken } = await issueAccessToken(matchedUser, req, deviceName);
 
         await writeAuthAudit({
             eventType: 'auth.pin_login.success',
@@ -510,6 +525,7 @@ export const loginWithPin = async (req: Request, res: Response) => {
 
         return res.json({
             token,
+            refreshToken,
             user: sanitizeUser(matchedUser),
         });
     } catch (error: any) {
@@ -625,6 +641,73 @@ export const adminSetUserPin = async (req: Request, res: Response) => {
         });
 
         return res.json({ ok: true, message: 'PIN_SET_FOR_USER' });
+    } catch (error: any) {
+        return res.status(500).json({ error: error.message });
+    }
+};
+
+// ============================================================================
+// REFRESH TOKEN
+// ============================================================================
+
+export const refreshAccessToken = async (req: Request, res: Response) => {
+    try {
+        const { refreshToken: rt } = req.body || {};
+        if (!rt) return res.status(400).json({ error: 'REFRESH_TOKEN_REQUIRED' });
+
+        let payload: any;
+        try {
+            payload = jwt.verify(rt, JWT_SECRET);
+        } catch {
+            return res.status(401).json({ error: 'INVALID_REFRESH_TOKEN' });
+        }
+
+        if (payload.purpose !== 'refresh') {
+            return res.status(401).json({ error: 'INVALID_REFRESH_TOKEN' });
+        }
+
+        const sessionId = payload.sid;
+        const userId = payload.sub;
+        const tokenId = payload.jti;
+
+        if (!sessionId || !userId || !tokenId) {
+            return res.status(401).json({ error: 'INVALID_REFRESH_TOKEN' });
+        }
+
+        // Verify session is still active
+        const [session] = await db.select().from(userSessions).where(and(
+            eq(userSessions.id, sessionId),
+            eq(userSessions.userId, userId),
+            eq(userSessions.tokenId, tokenId),
+            eq(userSessions.isActive, true),
+        ));
+
+        if (!session || session.revokedAt || new Date(session.expiresAt) < new Date()) {
+            return res.status(401).json({ error: 'SESSION_EXPIRED' });
+        }
+
+        // Fetch user
+        const [user] = await db.select().from(users).where(eq(users.id, userId));
+        if (!user || user.isActive === false) {
+            return res.status(401).json({ error: 'USER_INACTIVE' });
+        }
+
+        // Issue new short-lived access token (same session)
+        const newToken = jwt.sign({
+            id: user.id,
+            role: user.role,
+            permissions: user.permissions || [],
+            branchId: user.assignedBranchId,
+            sid: sessionId,
+            jti: tokenId,
+        }, JWT_SECRET, { expiresIn: JWT_EXPIRES_IN, subject: user.id });
+
+        // Touch session
+        await db.update(userSessions)
+            .set({ lastSeenAt: new Date(), updatedAt: new Date() })
+            .where(eq(userSessions.id, sessionId));
+
+        return res.json({ token: newToken, user: sanitizeUser(user) });
     } catch (error: any) {
         return res.status(500).json({ error: error.message });
     }

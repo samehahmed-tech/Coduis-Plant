@@ -3,6 +3,7 @@ import {
     getFiscalLogs,
     submitReceipt,
     getFiscalConfig,
+    getFiscalReadiness,
     getFiscalSummary,
     getDeadLetters,
     retryDeadLetter,
@@ -18,5 +19,6 @@ router.get('/dead-letters', getDeadLetters);
 router.post('/dead-letters/:id/retry', retryDeadLetter);
 router.post('/dead-letters/:id/dismiss', dismissDeadLetter);
 router.get('/config', getFiscalConfig);
+router.get('/readiness', getFiscalReadiness);
 
 export default router;

@@ -1,9 +1,46 @@
 import { Request, Response } from 'express';
 import { db } from '../db';
-import { deliveryZones, drivers, orders } from '../../src/db/schema';
-import { eq, and, desc } from 'drizzle-orm';
+import { deliveryZones, drivers, orders, settings } from '../../src/db/schema';
+import { eq, and, desc, or } from 'drizzle-orm';
 import { getIO } from '../socket';
 import { getStringParam } from '../utils/request';
+
+type DriverTelemetry = {
+    driverId: string;
+    branchId?: string | null;
+    lat: number;
+    lng: number;
+    speedKmh?: number;
+    accuracy?: number;
+    updatedAt: string;
+};
+
+const TELEMETRY_SETTINGS_KEY = 'driverTelemetry';
+const SLA_ESCALATIONS_KEY = 'deliverySlaEscalations';
+
+const loadTelemetry = async (): Promise<Record<string, DriverTelemetry>> => {
+    const [row] = await db.select().from(settings).where(eq(settings.key, TELEMETRY_SETTINGS_KEY)).limit(1);
+    if (!row?.value || typeof row.value !== 'object') return {};
+    return row.value as Record<string, DriverTelemetry>;
+};
+
+const saveTelemetry = async (telemetry: Record<string, DriverTelemetry>, updatedBy?: string) => {
+    await db.insert(settings).values({
+        key: TELEMETRY_SETTINGS_KEY,
+        value: telemetry,
+        category: 'delivery',
+        updatedBy: updatedBy || 'system',
+        updatedAt: new Date(),
+    }).onConflictDoUpdate({
+        target: settings.key,
+        set: {
+            value: telemetry,
+            category: 'delivery',
+            updatedBy: updatedBy || 'system',
+            updatedAt: new Date(),
+        },
+    });
+};
 
 export const getAllZones = async (req: Request, res: Response) => {
     try {
@@ -96,5 +133,245 @@ export const assignDriver = async (req: Request, res: Response) => {
         res.json({ message: 'Driver assigned successfully' });
     } catch (error: any) {
         res.status(500).json({ error: error.message });
+    }
+};
+
+export const updateDriverLocation = async (req: Request, res: Response) => {
+    try {
+        const driverId = getStringParam((req.params as any).id);
+        if (!driverId) return res.status(400).json({ error: 'DRIVER_ID_REQUIRED' });
+
+        const lat = Number(req.body?.lat);
+        const lng = Number(req.body?.lng);
+        const speedKmh = req.body?.speedKmh !== undefined ? Number(req.body.speedKmh) : undefined;
+        const accuracy = req.body?.accuracy !== undefined ? Number(req.body.accuracy) : undefined;
+
+        if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
+            return res.status(400).json({ error: 'INVALID_COORDINATES' });
+        }
+
+        const [driver] = await db.select().from(drivers).where(eq(drivers.id, driverId)).limit(1);
+        if (!driver) return res.status(404).json({ error: 'DRIVER_NOT_FOUND' });
+
+        const current = await loadTelemetry();
+        const nextItem: DriverTelemetry = {
+            driverId,
+            branchId: driver.branchId || null,
+            lat,
+            lng,
+            ...(Number.isFinite(speedKmh) ? { speedKmh } : {}),
+            ...(Number.isFinite(accuracy) ? { accuracy } : {}),
+            updatedAt: new Date().toISOString(),
+        };
+        const next = { ...current, [driverId]: nextItem };
+        await saveTelemetry(next, req.user?.id);
+
+        try {
+            const branchRoom = driver.branchId ? `branch:${driver.branchId}` : null;
+            if (branchRoom) getIO().to(branchRoom).emit('driver:location', nextItem);
+        } catch {
+            // socket optional
+        }
+
+        res.json(nextItem);
+    } catch (error: any) {
+        res.status(500).json({ error: error.message || 'FAILED_TO_UPDATE_DRIVER_LOCATION' });
+    }
+};
+
+export const getDriverTelemetry = async (req: Request, res: Response) => {
+    try {
+        const branchId = getStringParam(req.query.branchId);
+        const telemetry = await loadTelemetry();
+        const list = Object.values(telemetry).filter((item) => !branchId || String(item.branchId || '') === branchId);
+        list.sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
+        res.json(list);
+    } catch (error: any) {
+        res.status(500).json({ error: error.message || 'FAILED_TO_LOAD_DRIVER_TELEMETRY' });
+    }
+};
+
+type SlaAlert = {
+    id: string;
+    orderId: string;
+    branchId?: string | null;
+    driverId?: string | null;
+    type: 'LATE_DELIVERY' | 'MISSED_PICKUP' | 'UNASSIGNED_DRIVER' | 'STALE_DRIVER_LOCATION';
+    severity: 'MEDIUM' | 'HIGH' | 'CRITICAL';
+    ageMinutes: number;
+    details: string;
+    createdAt: string;
+};
+
+type DeliverySlaEscalationRecord = SlaAlert & {
+    status: 'OPEN' | 'RESOLVED';
+    escalatedBy?: string | null;
+};
+
+const loadSlaEscalations = async (): Promise<DeliverySlaEscalationRecord[]> => {
+    const [row] = await db.select().from(settings).where(eq(settings.key, SLA_ESCALATIONS_KEY)).limit(1);
+    const raw = row?.value;
+    if (!Array.isArray(raw)) return [];
+    return raw as DeliverySlaEscalationRecord[];
+};
+
+const saveSlaEscalations = async (records: DeliverySlaEscalationRecord[], updatedBy?: string | null) => {
+    await db.insert(settings).values({
+        key: SLA_ESCALATIONS_KEY,
+        value: records,
+        category: 'delivery',
+        updatedBy: updatedBy || 'system',
+        updatedAt: new Date(),
+    }).onConflictDoUpdate({
+        target: settings.key,
+        set: {
+            value: records,
+            category: 'delivery',
+            updatedBy: updatedBy || 'system',
+            updatedAt: new Date(),
+        },
+    });
+};
+
+const buildSlaAlerts = async (branchId?: string, delayMinutes = 45, staleLocationMinutes = 10): Promise<SlaAlert[]> => {
+    const telemetry = await loadTelemetry();
+    const conditions: any[] = [
+        eq(orders.type, 'DELIVERY'),
+        or(eq(orders.status, 'READY'), eq(orders.status, 'PREPARING'), eq(orders.status, 'OUT_FOR_DELIVERY')),
+    ];
+    if (branchId) conditions.push(eq(orders.branchId, branchId));
+
+    const activeDeliveryOrders = await db.select({
+        id: orders.id,
+        status: orders.status,
+        branchId: orders.branchId,
+        driverId: orders.driverId,
+        createdAt: orders.createdAt,
+        deliveryAddress: orders.deliveryAddress,
+    }).from(orders).where(and(...conditions));
+
+    const now = Date.now();
+    const alerts: SlaAlert[] = [];
+
+    for (const order of activeDeliveryOrders) {
+        const createdAt = new Date(order.createdAt || new Date()).getTime();
+        const ageMinutes = Math.max(0, Math.floor((now - createdAt) / 60000));
+        const driverId = order.driverId || null;
+        const base = {
+            orderId: order.id,
+            branchId: order.branchId || null,
+            driverId,
+            ageMinutes,
+            createdAt: new Date().toISOString(),
+        };
+
+        if (!driverId && ageMinutes >= 20) {
+            alerts.push({
+                id: `sla-${order.id}-unassigned`,
+                ...base,
+                type: 'UNASSIGNED_DRIVER',
+                severity: ageMinutes >= delayMinutes ? 'HIGH' : 'MEDIUM',
+                details: `No driver assigned for ${ageMinutes}m`,
+            });
+        }
+
+        if (order.status === 'READY' && ageMinutes >= delayMinutes) {
+            alerts.push({
+                id: `sla-${order.id}-pickup`,
+                ...base,
+                type: 'MISSED_PICKUP',
+                severity: ageMinutes >= delayMinutes + 20 ? 'CRITICAL' : 'HIGH',
+                details: `Pickup delay ${ageMinutes}m`,
+            });
+        }
+
+        if (order.status === 'OUT_FOR_DELIVERY' && ageMinutes >= delayMinutes) {
+            alerts.push({
+                id: `sla-${order.id}-late`,
+                ...base,
+                type: 'LATE_DELIVERY',
+                severity: ageMinutes >= delayMinutes + 25 ? 'CRITICAL' : 'HIGH',
+                details: `Delivery delay ${ageMinutes}m`,
+            });
+        }
+
+        if (driverId && telemetry[driverId]?.updatedAt) {
+            const staleMinutes = Math.floor((now - new Date(telemetry[driverId].updatedAt).getTime()) / 60000);
+            if (staleMinutes >= staleLocationMinutes) {
+                alerts.push({
+                    id: `sla-${order.id}-stale-location`,
+                    ...base,
+                    type: 'STALE_DRIVER_LOCATION',
+                    severity: staleMinutes >= staleLocationMinutes + 10 ? 'CRITICAL' : 'MEDIUM',
+                    details: `Driver location stale for ${staleMinutes}m`,
+                });
+            }
+        }
+    }
+
+    alerts.sort((a, b) => b.ageMinutes - a.ageMinutes);
+    return alerts;
+};
+
+export const getSlaAlerts = async (req: Request, res: Response) => {
+    try {
+        const branchId = getStringParam(req.query.branchId);
+        const delayMinutes = Math.max(15, Number(req.query.delayMinutes || 45));
+        const staleLocationMinutes = Math.max(3, Number(req.query.staleLocationMinutes || 10));
+        const alerts = await buildSlaAlerts(branchId, delayMinutes, staleLocationMinutes);
+        res.json({
+            branchId: branchId || 'ALL',
+            delayMinutes,
+            staleLocationMinutes,
+            total: alerts.length,
+            alerts,
+        });
+    } catch (error: any) {
+        res.status(500).json({ error: error.message || 'FAILED_TO_LOAD_SLA_ALERTS' });
+    }
+};
+
+export const autoEscalateSlaAlerts = async (req: Request, res: Response) => {
+    try {
+        const branchId = String(req.body?.branchId || req.user?.branchId || '').trim() || undefined;
+        const delayMinutes = Math.max(15, Number(req.body?.delayMinutes || 45));
+        const staleLocationMinutes = Math.max(3, Number(req.body?.staleLocationMinutes || 10));
+        const alerts = await buildSlaAlerts(branchId, delayMinutes, staleLocationMinutes);
+        const current = await loadSlaEscalations();
+        const openKeys = new Set(current.filter((e) => e.status === 'OPEN').map((e) => `${e.orderId}:${e.type}`));
+        const createdAt = new Date().toISOString();
+
+        const additions: DeliverySlaEscalationRecord[] = [];
+        for (const alert of alerts.filter((a) => a.severity === 'HIGH' || a.severity === 'CRITICAL')) {
+            const key = `${alert.orderId}:${alert.type}`;
+            if (openKeys.has(key)) continue;
+            additions.push({
+                ...alert,
+                status: 'OPEN',
+                createdAt,
+                escalatedBy: req.user?.id || 'system',
+            });
+        }
+
+        if (additions.length > 0) {
+            const next = [...additions, ...current].slice(0, 5000);
+            await saveSlaEscalations(next, req.user?.id || null);
+            try {
+                const io = getIO();
+                const room = branchId ? `branch:${branchId}` : null;
+                if (room) io.to(room).emit('delivery:sla-escalation', { count: additions.length, alerts: additions });
+            } catch {
+                // socket optional
+            }
+        }
+
+        res.json({
+            scanned: alerts.length,
+            escalated: additions.length,
+            branchId: branchId || 'ALL',
+            escalations: additions,
+        });
+    } catch (error: any) {
+        res.status(500).json({ error: error.message || 'FAILED_TO_ESCALATE_SLA_ALERTS' });
     }
 };

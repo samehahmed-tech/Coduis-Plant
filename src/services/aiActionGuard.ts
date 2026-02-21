@@ -5,9 +5,12 @@ export type AIAction =
     | { type: 'UPDATE_MENU_ITEM'; itemId: string; data: any }
     | { type: 'UPDATE_MENU_PRICE'; itemId: string; price: number }
     | { type: 'CREATE_MENU_ITEM'; categoryId: string; data: any }
+    | { type: 'CREATE_MENU_CATEGORY'; data: any }
+    | { type: 'UPDATE_MENU_CATEGORY'; categoryId: string; data: any }
     | { type: 'ANALYZE_MENU' }
     | { type: 'ANALYZE_INVENTORY' }
     | { type: 'CREATE_CUSTOMER'; data: any }
+    | { type: 'CREATE_USER'; data: any }
     | { type: 'SHOW_REPORT' }
     | { type: string; [key: string]: any };
 
@@ -30,9 +33,13 @@ export const getActionPermission = (action: AIAction): AppPermission | undefined
         case 'UPDATE_MENU_ITEM':
         case 'UPDATE_MENU_PRICE':
         case 'CREATE_MENU_ITEM':
+        case 'CREATE_MENU_CATEGORY':
+        case 'UPDATE_MENU_CATEGORY':
             return AppPermission.CFG_EDIT_MENU_PRICING;
         case 'CREATE_CUSTOMER':
             return AppPermission.NAV_CRM;
+        case 'CREATE_USER':
+            return AppPermission.CFG_MANAGE_USERS;
         case 'SHOW_REPORT':
         case 'ANALYZE_MENU':
         case 'ANALYZE_INVENTORY':
@@ -135,6 +142,42 @@ export const guardAction = (action: AIAction, context: {
                 auditType: AuditEventType.SETTINGS_CHANGE,
             };
         }
+        case 'CREATE_MENU_CATEGORY': {
+            return {
+                id,
+                action,
+                label: `Create menu category: ${action.data?.name || 'New category'}`,
+                permission,
+                canExecute: true,
+                before: null,
+                after: { ...action.data },
+                auditType: AuditEventType.SETTINGS_CHANGE,
+            };
+        }
+        case 'UPDATE_MENU_CATEGORY': {
+            const category = context.categories.find((c: any) => c.id === (action as any).categoryId);
+            if (!category) {
+                return {
+                    id,
+                    action,
+                    label: `Update menu category ${(action as any).categoryId || ''}`.trim(),
+                    permission,
+                    canExecute: false,
+                    reason: 'Category not found',
+                    auditType: AuditEventType.SETTINGS_CHANGE,
+                };
+            }
+            return {
+                id,
+                action,
+                label: `Update menu category: ${category.name || category.id}`,
+                permission,
+                canExecute: true,
+                before: category,
+                after: { ...category, ...((action as any).data || {}) },
+                auditType: AuditEventType.SETTINGS_CHANGE,
+            };
+        }
         case 'CREATE_CUSTOMER': {
             return {
                 id,
@@ -145,6 +188,18 @@ export const guardAction = (action: AIAction, context: {
                 before: null,
                 after: { ...action.data },
                 auditType: AuditEventType.ACCOUNTING_ADJUSTMENT,
+            };
+        }
+        case 'CREATE_USER': {
+            return {
+                id,
+                action,
+                label: `Create user: ${action.data?.name || action.data?.email || 'New user'}`,
+                permission,
+                canExecute: true,
+                before: null,
+                after: { ...action.data },
+                auditType: AuditEventType.SECURITY_PERMISSION_CHANGE,
             };
         }
         case 'ANALYZE_MENU': {

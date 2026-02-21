@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 import {
     FileText,
     ShieldCheck,
@@ -28,6 +28,13 @@ const FiscalHub: React.FC = () => {
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [submitResult, setSubmitResult] = useState<string | null>(null);
     const [etaConfig, setEtaConfig] = useState<{ ok: boolean; missing: string[] } | null>(null);
+    const [etaReadiness, setEtaReadiness] = useState<{
+        ok: boolean;
+        metrics24h: { submitted: number; pending: number; failed: number; total: number; successRate: number };
+        deadLetter: { pendingCount: number; oldestPendingAgeMinutes: number };
+        alerts: { configMissing: boolean; lowSuccessRate: boolean; hasPendingDlq: boolean; stalePendingDlq: boolean };
+    } | null>(null);
+    const [etaLastRefresh, setEtaLastRefresh] = useState<Date | null>(null);
     const [manualOrderId, setManualOrderId] = useState('');
     const [dateRange, setDateRange] = useState({
         start: new Date(new Date().setDate(1)).toISOString().split('T')[0], // 1st of current month
@@ -39,16 +46,29 @@ const FiscalHub: React.FC = () => {
     }, [dateRange]);
 
     useEffect(() => {
+        let active = true;
         const loadConfig = async () => {
             try {
                 const config = await fiscalApi.getConfig();
+                const readiness = await fiscalApi.getReadiness(settings.activeBranchId || undefined);
+                if (!active) return;
                 setEtaConfig(config);
+                setEtaReadiness(readiness);
+                setEtaLastRefresh(new Date());
             } catch {
+                if (!active) return;
                 setEtaConfig({ ok: false, missing: ['ETA config unreachable'] });
+                setEtaReadiness(null);
             }
         };
+
         loadConfig();
-    }, []);
+        const intervalId = window.setInterval(loadConfig, 60_000);
+        return () => {
+            active = false;
+            window.clearInterval(intervalId);
+        };
+    }, [settings.activeBranchId]);
 
     const loadFiscalData = async () => {
         setIsLoading(true);
@@ -193,7 +213,7 @@ const FiscalHub: React.FC = () => {
                                 <ShieldCheck size={28} />
                             </div>
                             <span className="text-[10px] font-black bg-white/20 px-3 py-1 rounded-full">
-                                {etaConfig?.ok ? 'READY' : 'SETUP'}
+                                {etaReadiness?.ok ? 'READY' : (etaConfig?.ok ? 'MONITOR' : 'SETUP')}
                             </span>
                         </div>
                         <h4 className="text-2xl font-black uppercase tracking-tighter mb-4">ETA Mandate Readiness</h4>
@@ -221,6 +241,29 @@ const FiscalHub: React.FC = () => {
                             {etaConfig && !etaConfig.ok && (
                                 <div className="text-[9px] font-black uppercase tracking-widest bg-white/10 p-3 rounded-xl">
                                     Missing: {etaConfig.missing.join(', ')}
+                                </div>
+                            )}
+                            {etaReadiness && (
+                                <div className="bg-white/10 rounded-xl p-3 space-y-2">
+                                    {etaLastRefresh && (
+                                        <p className="text-[9px] font-bold opacity-80">
+                                            Last refresh: {etaLastRefresh.toLocaleTimeString()}
+                                        </p>
+                                    )}
+                                    <p className="text-[10px] font-black uppercase tracking-widest">
+                                        24H Success Rate: {(etaReadiness.metrics24h.successRate * 100).toFixed(2)}%
+                                    </p>
+                                    <p className="text-[10px] font-bold">
+                                        Submitted: {etaReadiness.metrics24h.submitted} | Pending: {etaReadiness.metrics24h.pending} | Failed: {etaReadiness.metrics24h.failed}
+                                    </p>
+                                    <p className="text-[10px] font-bold">
+                                        DLQ Pending: {etaReadiness.deadLetter.pendingCount} | Oldest: {etaReadiness.deadLetter.oldestPendingAgeMinutes}m
+                                    </p>
+                                    {(etaReadiness.alerts.lowSuccessRate || etaReadiness.alerts.stalePendingDlq) && (
+                                        <p className="text-[10px] font-black text-amber-300 uppercase tracking-widest">
+                                            Operational alert requires action
+                                        </p>
+                                    )}
                                 </div>
                             )}
                         </div>
@@ -314,7 +357,7 @@ const FiscalHub: React.FC = () => {
                         {[
                             { action: 'VAT Rate Verification', user: 'System (Auto)', time: '2h ago', status: 'PASS' },
                             { action: 'Z-Report Finalization', user: 'Admin Mahmoud', time: '14h ago', status: 'PASS' },
-                            { action: 'Invoice Sequence Audit', user: 'Forensics Engine', time: '1d ago', status: 'PASS' },
+                            { action: 'Invoice Sequence Audit', user: 'Audit System', time: '1d ago', status: 'PASS' },
                             { action: 'Manual Price Override', user: 'User Sarah', time: '2d ago', status: 'REVIEW', color: 'text-amber-500' },
                         ].map((log, i) => (
                             <div key={i} className="flex justify-between items-center p-4 bg-app rounded-2xl border border-border/50">
@@ -341,3 +384,4 @@ const FiscalHub: React.FC = () => {
 };
 
 export default FiscalHub;
+

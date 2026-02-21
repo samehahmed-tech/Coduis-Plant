@@ -8,11 +8,13 @@ import {
     transferStock,
     getTransferMovements
 } from '../controllers/inventoryController';
+import { validate } from '../middleware/validate';
+import { stockUpdateSchema, stockTransferSchema } from '../middleware/validation';
 
 const router = Router();
 
-router.post('/stock/update', updateStock);
-router.post('/stock/transfer', transferStock);
+router.post('/stock/update', validate(stockUpdateSchema), updateStock);
+router.post('/stock/transfer', validate(stockTransferSchema), transferStock);
 router.get('/stock/transfers', getTransferMovements);
 router.get('/', getInventoryItems);
 router.post('/', createInventoryItem);

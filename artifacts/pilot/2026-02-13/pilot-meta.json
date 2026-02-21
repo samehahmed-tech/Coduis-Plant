@@ -1,0 +1,9 @@
+{
+  "branchId": "b1",
+  "dateKey": "2026-02-13",
+  "createdAt": "2026-02-13T12:13:41.378Z",
+  "files": {
+    "dailyLogPath": "artifacts\\pilot\\2026-02-13\\daily-log.md",
+    "uatSignoffPath": "artifacts\\uat\\role-signoff.json"
+  }
+}

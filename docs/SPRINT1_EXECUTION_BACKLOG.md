@@ -27,7 +27,7 @@ Success target:
 
 Type: Backend/API  
 Owner: Backend lead  
-Status: `pending`
+Status: `completed`
 
 Implementation:
 - Extend `/api/ai` beyond current `insights/execute` with:
@@ -56,7 +56,7 @@ Tests:
 
 Type: Frontend + Backend integration  
 Owner: Frontend lead  
-Status: `pending`
+Status: `completed`
 
 Implementation:
 - Replace direct mutation execution path in `components/AIAssistant.tsx` with:
@@ -83,7 +83,7 @@ Tests:
 
 Type: Backend/API  
 Owner: Backend lead  
-Status: `pending`
+Status: `completed`
 
 Implementation:
 - Support `Idempotency-Key` header (or body field fallback) in `createOrder`.
@@ -108,7 +108,7 @@ Tests:
 
 Type: Backend/API  
 Owner: Backend lead  
-Status: `pending`
+Status: `completed`
 
 Implementation:
 - Enforce optimistic concurrency with `expected_updated_at`.
@@ -133,7 +133,7 @@ Tests:
 
 Type: Backend platform  
 Owner: Backend lead  
-Status: `pending`
+Status: `completed`
 
 Implementation:
 - Replace ad-hoc `{ error: error.message }` in critical controllers with standard format:
@@ -166,7 +166,7 @@ Tests:
 
 Type: Backend platform  
 Owner: DevOps/backend  
-Status: `pending`
+Status: `completed`
 
 Implementation:
 - Generate/request-pass `X-Request-Id`.
@@ -186,7 +186,7 @@ Acceptance:
 
 Type: Frontend UX  
 Owner: Frontend lead  
-Status: `pending`
+Status: `completed`
 
 Implementation:
 - In `services/api.ts`, normalize server errors to typed app errors.
@@ -210,7 +210,7 @@ Acceptance:
 
 Type: QA/Test  
 Owner: QA lead  
-Status: `pending`
+Status: `completed`
 
 Implementation:
 - Create a scripted smoke pack:
@@ -260,12 +260,11 @@ Sprint is accepted only if:
 
 ## 6) Status Tracker
 
-- [ ] S1-AI-001
-- [ ] S1-AI-002
-- [ ] S1-ORD-001
-- [ ] S1-ORD-002
-- [ ] S1-ERR-001
-- [ ] S1-OBS-001
-- [ ] S1-FE-001
-- [ ] S1-QA-001
-
+- [x] S1-AI-001
+- [x] S1-AI-002
+- [x] S1-ORD-001
+- [x] S1-ORD-002
+- [x] S1-ERR-001
+- [x] S1-OBS-001
+- [x] S1-FE-001
+- [x] S1-QA-001

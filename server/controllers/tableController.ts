@@ -1,9 +1,28 @@
 import { Request, Response } from 'express';
 import { db } from '../db';
-import { tables, floorZones, orders, orderItems } from '../../src/db/schema';
+import { tables, floorZones, orders, orderItems, settings } from '../../src/db/schema';
 import { eq } from 'drizzle-orm';
 import { getStringParam } from '../utils/request';
 import { getIO } from '../socket';
+
+const tableRefKey = (referenceId: string) => `tableOpRef:${referenceId}`;
+
+const loadReplayPayload = async (referenceId?: string) => {
+    if (!referenceId) return null;
+    const [row] = await db.select().from(settings).where(eq(settings.key, tableRefKey(referenceId))).limit(1);
+    if (!row?.value || typeof row.value !== 'object') return null;
+    return row.value as any;
+};
+
+const saveReplayPayload = async (referenceId: string, payload: any, updatedBy?: string) => {
+    await db.insert(settings).values({
+        key: tableRefKey(referenceId),
+        value: payload,
+        category: 'table-idempotency',
+        updatedBy: updatedBy || 'system',
+        updatedAt: new Date(),
+    }).onConflictDoNothing({ target: settings.key });
+};
 
 export const getTables = async (req: Request, res: Response) => {
     try {
@@ -31,7 +50,13 @@ export const getZones = async (req: Request, res: Response) => {
 
 export const saveLayout = async (req: Request, res: Response) => {
     try {
-        const { branchId, zones: zonesData, tables: tablesData } = req.body;
+        const { branchId, zones: zonesData, tables: tablesData, reference_id } = req.body || {};
+        const replayId = reference_id ? String(reference_id) : '';
+
+        if (replayId) {
+            const existing = await loadReplayPayload(replayId);
+            if (existing) return res.json({ ...existing, idempotentReplay: true, referenceId: replayId });
+        }
 
         await db.transaction(async (tx) => {
             // Upsert Zones
@@ -75,7 +100,11 @@ export const saveLayout = async (req: Request, res: Response) => {
             // socket is optional
         }
 
-        res.json({ success: true });
+        const responsePayload = { success: true };
+        if (replayId) {
+            await saveReplayPayload(replayId, responsePayload, req.user?.id || 'system');
+        }
+        res.json(responsePayload);
     } catch (error: any) {
         res.status(500).json({ error: error.message });
     }
@@ -85,7 +114,18 @@ export const updateTableStatus = async (req: Request, res: Response) => {
     try {
         const id = getStringParam((req.params as any).id);
         if (!id) return res.status(400).json({ error: 'TABLE_ID_REQUIRED' });
-        const { status, currentOrderId } = req.body;
+        const { status, currentOrderId, reference_id } = req.body || {};
+
+        if (reference_id) {
+            const replayKey = `tableStatusRef:${String(reference_id)}`;
+            const [existingReplay] = await db.select().from(settings).where(eq(settings.key, replayKey)).limit(1);
+            if (existingReplay) {
+                const [existingTable] = await db.select().from(tables).where(eq(tables.id, id)).limit(1);
+                if (existingTable) {
+                    return res.json({ ...existingTable, idempotentReplay: true, referenceId: reference_id });
+                }
+            }
+        }
 
         const [updatedTable] = await db.update(tables)
             .set({
@@ -97,6 +137,22 @@ export const updateTableStatus = async (req: Request, res: Response) => {
             .returning();
 
         if (!updatedTable) return res.status(404).json({ error: 'Table not found' });
+
+        if (reference_id) {
+            const replayKey = `tableStatusRef:${String(reference_id)}`;
+            await db.insert(settings).values({
+                key: replayKey,
+                value: {
+                    tableId: updatedTable.id,
+                    status: updatedTable.status,
+                    currentOrderId: updatedTable.currentOrderId || null,
+                    recordedAt: new Date().toISOString(),
+                },
+                category: 'table-idempotency',
+                updatedBy: req.user?.id || 'system',
+                updatedAt: new Date(),
+            }).onConflictDoNothing({ target: settings.key });
+        }
 
         try {
             const branchRoom = updatedTable.branchId ? `branch:${updatedTable.branchId}` : null;
@@ -204,12 +260,17 @@ const pickItemsToMove = async (
 
 export const transferTableOrder = async (req: Request, res: Response) => {
     try {
-        const { sourceTableId, targetTableId } = req.body || {};
+        const { sourceTableId, targetTableId, reference_id } = req.body || {};
+        const replayId = reference_id ? String(reference_id) : '';
         if (!sourceTableId || !targetTableId) {
             return res.status(400).json({ error: 'SOURCE_TARGET_REQUIRED' });
         }
         if (sourceTableId === targetTableId) {
             return res.status(400).json({ error: 'SOURCE_EQUALS_TARGET' });
+        }
+        if (replayId) {
+            const existing = await loadReplayPayload(replayId);
+            if (existing) return res.json({ ...existing, idempotentReplay: true, referenceId: replayId });
         }
 
         const result = await db.transaction(async (tx) => {
@@ -250,7 +311,11 @@ export const transferTableOrder = async (req: Request, res: Response) => {
             // socket optional
         }
 
-        return res.json({ success: true, ...result });
+        const responsePayload = { success: true, ...result };
+        if (replayId) {
+            await saveReplayPayload(replayId, responsePayload, req.user?.id || 'system');
+        }
+        return res.json(responsePayload);
     } catch (error: any) {
         return res.status(400).json({ error: error.message || 'TABLE_TRANSFER_FAILED' });
     }
@@ -258,12 +323,17 @@ export const transferTableOrder = async (req: Request, res: Response) => {
 
 export const splitTableOrder = async (req: Request, res: Response) => {
     try {
-        const { sourceTableId, targetTableId, items } = req.body || {};
+        const { sourceTableId, targetTableId, items, reference_id } = req.body || {};
+        const replayId = reference_id ? String(reference_id) : '';
         if (!sourceTableId || !targetTableId) {
             return res.status(400).json({ error: 'SOURCE_TARGET_REQUIRED' });
         }
         if (sourceTableId === targetTableId) {
             return res.status(400).json({ error: 'SOURCE_EQUALS_TARGET' });
+        }
+        if (replayId) {
+            const existing = await loadReplayPayload(replayId);
+            if (existing) return res.json({ ...existing, idempotentReplay: true, referenceId: replayId });
         }
 
         const result = await db.transaction(async (tx) => {
@@ -353,7 +423,11 @@ export const splitTableOrder = async (req: Request, res: Response) => {
             // socket optional
         }
 
-        return res.json({ success: true, ...result });
+        const responsePayload = { success: true, ...result };
+        if (replayId) {
+            await saveReplayPayload(replayId, responsePayload, req.user?.id || 'system');
+        }
+        return res.json(responsePayload);
     } catch (error: any) {
         return res.status(400).json({ error: error.message || 'TABLE_SPLIT_FAILED' });
     }
@@ -361,12 +435,17 @@ export const splitTableOrder = async (req: Request, res: Response) => {
 
 export const mergeTableOrders = async (req: Request, res: Response) => {
     try {
-        const { sourceTableId, targetTableId, items } = req.body || {};
+        const { sourceTableId, targetTableId, items, reference_id } = req.body || {};
+        const replayId = reference_id ? String(reference_id) : '';
         if (!sourceTableId || !targetTableId) {
             return res.status(400).json({ error: 'SOURCE_TARGET_REQUIRED' });
         }
         if (sourceTableId === targetTableId) {
             return res.status(400).json({ error: 'SOURCE_EQUALS_TARGET' });
+        }
+        if (replayId) {
+            const existing = await loadReplayPayload(replayId);
+            if (existing) return res.json({ ...existing, idempotentReplay: true, referenceId: replayId });
         }
 
         const result = await db.transaction(async (tx) => {
@@ -445,7 +524,11 @@ export const mergeTableOrders = async (req: Request, res: Response) => {
             // socket optional
         }
 
-        return res.json({ success: true, ...result });
+        const responsePayload = { success: true, ...result };
+        if (replayId) {
+            await saveReplayPayload(replayId, responsePayload, req.user?.id || 'system');
+        }
+        return res.json(responsePayload);
     } catch (error: any) {
         return res.status(400).json({ error: error.message || 'TABLE_MERGE_FAILED' });
     }

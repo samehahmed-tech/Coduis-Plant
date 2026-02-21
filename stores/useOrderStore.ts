@@ -4,6 +4,9 @@ import { Order, OrderType, OrderItem, OrderStatus, Table, TableStatus, AuditEven
 import { ordersApi, tablesApi } from '../services/api';
 import { localDb } from '../db/localDb';
 import { syncService } from '../services/syncService';
+import { useAuthStore } from './useAuthStore';
+import { printOrderReceipt } from '../services/posPrintOrchestrator';
+import { translations } from '../services/translations';
 
 interface HeldOrder {
     id: string;
@@ -34,7 +37,7 @@ interface OrderState {
     // Async Actions (API)
     fetchOrders: (params?: { status?: string; branch_id?: string; date?: string; limit?: number }) => Promise<void>;
     placeOrder: (order: Order) => Promise<Order>;
-    updateOrderStatus: (orderId: string, status: OrderStatus, changedBy?: string) => Promise<void>;
+    updateOrderStatus: (orderId: string, status: OrderStatus, changedBy?: string, notes?: string) => Promise<void>;
 
     fetchTables: (branchId: string) => Promise<void>;
     updateTableStatus: (tableId: string, status: TableStatus) => Promise<void>;
@@ -74,6 +77,34 @@ const INITIAL_ZONES: FloorZone[] = [
 ];
 import { persist } from 'zustand/middleware';
 import { eventBus } from '../services/eventBus';
+
+const isCompletionStatus = (status?: string) => status === OrderStatus.DELIVERED || status === 'COMPLETED';
+
+const printCompletionReceiptIfNeeded = async (order: Order) => {
+    if (typeof window === 'undefined') return;
+    const { settings, branches, printers } = useAuthStore.getState();
+    if (settings.autoPrintCompletionReceipt === false) return;
+
+    const dedupeKey = `restoflow_completion_receipt_${order.id}_${order.status}`;
+    if (window.sessionStorage.getItem(dedupeKey)) return;
+
+    const lang = (settings.language || 'en') as 'en' | 'ar';
+    const t = translations[lang] || translations.en;
+    const branch = branches.find((b) => b.id === order.branchId);
+
+    await printOrderReceipt({
+        order,
+        printers,
+        settings,
+        currencySymbol: settings.currencySymbol || (lang === 'ar' ? 'ج.م' : 'EGP'),
+        lang,
+        t,
+        branch,
+        title: lang === 'ar' ? 'شيك نهائي' : 'Final Receipt',
+    });
+
+    window.sessionStorage.setItem(dedupeKey, new Date().toISOString());
+};
 
 export const useOrderStore = create<OrderState>()(
     persist(
@@ -136,7 +167,9 @@ export const useOrderStore = create<OrderState>()(
                         set({ orders: cached as Order[], isLoading: false });
                     }
                 } catch (error: any) {
-                    set({ error: error.message, isLoading: false });
+                    set({ error: error?.code || error?.message || 'FETCH_ORDERS_FAILED', isLoading: false });
+                    const code = String(error?.code || error?.message || '').toUpperCase();
+                    if (code.includes('INVALID_TOKEN') || Number(error?.status) === 401) return;
                     console.error('Failed to fetch orders:', error);
                 }
             },
@@ -162,8 +195,6 @@ export const useOrderStore = create<OrderState>()(
                             width: z.width ?? 1600,
                             height: z.height ?? 1200
                         }));
-                        // Map or validate data if needed
-                        console.log('Fetched tables:', tables);
                         set({ tables, zones, isLoading: false });
                         await localDb.floorTables.bulkPut(tables.map((t: any) => ({ ...t, branchId, x: t.position?.x ?? t.x ?? 0, y: t.position?.y ?? t.y ?? 0 })));
                         await localDb.floorZones.bulkPut(zones.map((z: any) => ({ ...z, branchId })));
@@ -183,7 +214,7 @@ export const useOrderStore = create<OrderState>()(
                     }
                 } catch (error: any) {
                     console.error('Failed to fetch tables:', error);
-                    set({ error: error.message, isLoading: false });
+                    set({ error: error?.code || error?.message || 'FETCH_TABLES_FAILED', isLoading: false });
                 }
             },
 
@@ -278,22 +309,23 @@ export const useOrderStore = create<OrderState>()(
 
                     return normalizedOrder;
                 } catch (error: any) {
-                    set({ error: error.message, isLoading: false });
+                    set({ error: error?.code || error?.message || 'PLACE_ORDER_FAILED', isLoading: false });
                     console.error('Failed to save order:', error);
                     throw error;
                 }
             },
 
-            updateOrderStatus: async (orderId, status, changedBy) => {
+            updateOrderStatus: async (orderId, status, changedBy, notes) => {
                 try {
                     const current = get().orders.find(o => o.id === orderId);
+                    const previousStatus = current?.status;
                     const expectedUpdatedAt = current?.updatedAt ? new Date(current.updatedAt).toISOString() : undefined;
                     if (navigator.onLine) {
-                        await ordersApi.updateStatus(orderId, { status, changed_by: changedBy, expected_updated_at: expectedUpdatedAt });
+                        await ordersApi.updateStatus(orderId, { status, changed_by: changedBy, notes, expected_updated_at: expectedUpdatedAt });
                     } else {
                         await syncService.queue('orderStatus', 'UPDATE', {
                             id: orderId,
-                            data: { status, changed_by: changedBy, expected_updated_at: expectedUpdatedAt }
+                            data: { status, changed_by: changedBy, notes, expected_updated_at: expectedUpdatedAt }
                         });
                     }
                     eventBus.emit(AuditEventType.ORDER_STATUS_CHANGE, {
@@ -309,11 +341,29 @@ export const useOrderStore = create<OrderState>()(
                     if (existing) {
                         await localDb.orders.put({ ...existing, status, updatedAt: new Date() } as any);
                     }
+
+                    if (!isCompletionStatus(previousStatus) && isCompletionStatus(status)) {
+                        const orderForPrint = current ? { ...current, status, updatedAt: new Date() } : get().orders.find(o => o.id === orderId);
+                        if (orderForPrint) {
+                            try {
+                                await printCompletionReceiptIfNeeded(orderForPrint as Order);
+                            } catch (printError) {
+                                console.warn('Completion receipt print failed:', printError);
+                            }
+                        }
+                    }
                 } catch (error: any) {
-                    // Update locally anyway for responsiveness
-                    set((state) => ({
-                        orders: state.orders.map(o => o.id === orderId ? { ...o, status, updatedAt: new Date() } : o)
-                    }));
+                    const errorCode = String(error?.code || error?.message || '');
+                    const isConflict = Number(error?.status) === 409 || errorCode.includes('ORDER_VERSION_CONFLICT');
+                    if (isConflict) {
+                        const branchId = get().orders.find(o => o.id === orderId)?.branchId;
+                        set({ error: 'ORDER_VERSION_CONFLICT' });
+                        if (navigator.onLine) {
+                            await get().fetchOrders({ branch_id: branchId, limit: 100 });
+                        }
+                        return;
+                    }
+                    set({ error: error?.code || error?.message || 'ORDER_STATUS_UPDATE_FAILED' });
                     console.error('Failed to update order status:', error);
                 }
             },
@@ -455,7 +505,11 @@ export const useOrderStore = create<OrderState>()(
                 // API Call (transactional on backend)
                 try {
                     if (navigator.onLine) {
-                        await tablesApi.transfer({ sourceTableId: sourceId, targetTableId: targetId });
+                        await tablesApi.transfer({
+                            sourceTableId: sourceId,
+                            targetTableId: targetId,
+                            reference_id: `table-transfer:${sourceId}:${targetId}:${Date.now()}`,
+                        });
                     } else {
                         await tablesApi.updateStatus(sourceId, TableStatus.AVAILABLE);
                         await tablesApi.updateStatus(targetId, TableStatus.OCCUPIED);
@@ -496,9 +550,19 @@ export const useOrderStore = create<OrderState>()(
                     if (navigator.onLine) {
                         const payloadItems = itemsToMove.map(i => ({ name: i.name, price: Number(i.price || 0), quantity: Number(i.quantity || 1) }));
                         if (targetOrder) {
-                            await tablesApi.merge({ sourceTableId: sourceId, targetTableId: targetId, items: payloadItems });
+                            await tablesApi.merge({
+                                sourceTableId: sourceId,
+                                targetTableId: targetId,
+                                items: payloadItems,
+                                reference_id: `table-merge:${sourceId}:${targetId}:${Date.now()}`,
+                            });
                         } else {
-                            await tablesApi.split({ sourceTableId: sourceId, targetTableId: targetId, items: payloadItems });
+                            await tablesApi.split({
+                                sourceTableId: sourceId,
+                                targetTableId: targetId,
+                                items: payloadItems,
+                                reference_id: `table-split:${sourceId}:${targetId}:${Date.now()}`,
+                            });
                         }
                     }
                 } catch (error) {
@@ -530,7 +594,12 @@ export const useOrderStore = create<OrderState>()(
                 try {
                     if (navigator.onLine) {
                         const payloadItems = itemsToMove.map(i => ({ name: i.name, price: Number(i.price || 0), quantity: Number(i.quantity || 1) }));
-                        await tablesApi.split({ sourceTableId: sourceId, targetTableId: targetId, items: payloadItems });
+                        await tablesApi.split({
+                            sourceTableId: sourceId,
+                            targetTableId: targetId,
+                            items: payloadItems,
+                            reference_id: `table-split:${sourceId}:${targetId}:${Date.now()}`,
+                        });
                     }
                 } catch (error) {
                     console.error('Failed to split table in backend:', error);

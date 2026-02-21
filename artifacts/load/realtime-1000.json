@@ -1,0 +1,31 @@
+{
+  "api": {
+    "total": 1000,
+    "ok": 0,
+    "failed": 1000,
+    "elapsedMs": 406,
+    "rps": 2463
+  },
+  "ws": {
+    "skipped": true,
+    "reason": "AUTH_TOKEN is missing"
+  },
+  "result": {
+    "apiFailureRate": 1,
+    "wsFailureRate": 0,
+    "wsRequired": true,
+    "wsPassed": false,
+    "maxAllowedFailureRate": 0.01,
+    "passed": false
+  },
+  "config": {
+    "API_BASE": "http://localhost:3001",
+    "SOCKET_BASE": "http://localhost:3001",
+    "BRANCH_ID": "b1",
+    "API_REQUESTS": 1000,
+    "WS_CLIENTS": 1000,
+    "WS_HOLD_MS": 15000,
+    "hasToken": false,
+    "tokenSource": "missing"
+  }
+}

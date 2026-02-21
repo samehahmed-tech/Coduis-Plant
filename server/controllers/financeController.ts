@@ -1,5 +1,6 @@
 import { Request, Response } from 'express';
 import { financeEngine } from '../services/financeEngine';
+import { financialStatements } from '../services/financialStatements';
 
 export const getAccounts = async (_req: Request, res: Response) => {
     try {
@@ -111,5 +112,59 @@ export const closePeriod = async (req: Request, res: Response) => {
         res.status(201).json(closed);
     } catch (error: any) {
         res.status(400).json({ error: error.message });
+    }
+};
+
+// =============================================================================
+// Financial Statements
+// =============================================================================
+
+export const getProfitAndLoss = async (req: Request, res: Response) => {
+    try {
+        const periodStart = String(req.query.start || new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split('T')[0]);
+        const periodEnd = String(req.query.end || new Date().toISOString().split('T')[0]);
+        const report = await financialStatements.profitAndLoss(periodStart, periodEnd);
+        res.json(report);
+    } catch (error: any) {
+        res.status(500).json({ error: error.message });
+    }
+};
+
+export const getBalanceSheet = async (req: Request, res: Response) => {
+    try {
+        const asOfDate = req.query.date ? String(req.query.date) : undefined;
+        const report = await financialStatements.balanceSheet(asOfDate);
+        res.json(report);
+    } catch (error: any) {
+        res.status(500).json({ error: error.message });
+    }
+};
+
+export const getCashFlowStatement = async (req: Request, res: Response) => {
+    try {
+        const periodStart = String(req.query.start || new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split('T')[0]);
+        const periodEnd = String(req.query.end || new Date().toISOString().split('T')[0]);
+        const report = await financialStatements.cashFlowStatement(periodStart, periodEnd);
+        res.json(report);
+    } catch (error: any) {
+        res.status(500).json({ error: error.message });
+    }
+};
+
+export const getAccountsReceivable = async (_req: Request, res: Response) => {
+    try {
+        const report = await financialStatements.accountsReceivable();
+        res.json(report);
+    } catch (error: any) {
+        res.status(500).json({ error: error.message });
+    }
+};
+
+export const getAccountsPayable = async (_req: Request, res: Response) => {
+    try {
+        const report = await financialStatements.accountsPayable();
+        res.json(report);
+    } catch (error: any) {
+        res.status(500).json({ error: error.message });
     }
 };

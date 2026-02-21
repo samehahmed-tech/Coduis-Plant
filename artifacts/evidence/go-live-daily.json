@@ -1,0 +1,60 @@
+{
+  "ok": false,
+  "generatedAt": "2026-02-15T00:22:38.631Z",
+  "summary": {
+    "total": 7,
+    "passed": 2,
+    "failed": 5
+  },
+  "results": [
+    {
+      "name": "platform-health",
+      "command": "npm run ops:platform-health",
+      "ok": false,
+      "exitCode": 1,
+      "durationMs": 656
+    },
+    {
+      "name": "launch-gates",
+      "command": "npm run ops:launch-gates",
+      "ok": true,
+      "exitCode": 0,
+      "durationMs": 582
+    },
+    {
+      "name": "go-live-blockers",
+      "command": "npm run ops:go-live:blockers",
+      "ok": false,
+      "exitCode": 1,
+      "durationMs": 659
+    },
+    {
+      "name": "go-live-plan",
+      "command": "npm run ops:go-live:plan",
+      "ok": true,
+      "exitCode": 0,
+      "durationMs": 590
+    },
+    {
+      "name": "uat-signoff-check",
+      "command": "npm run ops:uat-signoff-check",
+      "ok": false,
+      "exitCode": 2,
+      "durationMs": 599
+    },
+    {
+      "name": "rollback-drill-check",
+      "command": "npm run ops:rollback-drill-check",
+      "ok": false,
+      "exitCode": 2,
+      "durationMs": 627
+    },
+    {
+      "name": "collect-evidence",
+      "command": "npm run ops:collect-evidence",
+      "ok": false,
+      "exitCode": 2,
+      "durationMs": 4117
+    }
+  ]
+}

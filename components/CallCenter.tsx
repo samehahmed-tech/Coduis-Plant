@@ -70,7 +70,8 @@ import { useOrderStore } from '../stores/useOrderStore';
 // Services
 import { translations } from '../services/translations';
 import { printKitchenTicketsByRouting, printOrderReceipt } from '../services/posPrintOrchestrator';
-import { deliveryApi } from '../services/api';
+import { deliveryApi, getActionableErrorMessage } from '../services/api';
+import { useToast } from './Toast';
 
 // POS Components
 import ItemGrid from './pos/ItemGrid';
@@ -106,7 +107,7 @@ const DriverAssignmentModal: React.FC<{
                 const data = await deliveryApi.getDrivers({ branchId });
                 setDrivers(Array.isArray(data) ? data : []);
             } catch (error: any) {
-                setErrorMessage(error?.message || 'Failed to load drivers');
+                setErrorMessage(getActionableErrorMessage(error, lang));
                 setDrivers([]);
             } finally {
                 setIsLoading(false);
@@ -150,7 +151,7 @@ const DriverAssignmentModal: React.FC<{
                                         await onAssign(driver.id);
                                         onClose();
                                     } catch (error: any) {
-                                        setErrorMessage(error?.message || 'Failed to assign driver');
+                                        setErrorMessage(getActionableErrorMessage(error, lang));
                                     } finally {
                                         setAssigningDriverId(null);
                                     }
@@ -316,6 +317,7 @@ const CallCenter: React.FC = () => {
     const lang = (settings.language || 'en') as 'en' | 'ar';
     const t = translations[lang] || translations['en'];
     const currencySymbol = lang === 'ar' ? 'ج.م' : 'EGP';
+    const { showToast } = useToast();
 
     // --- View State ---
     const [activeView, setActiveView] = useState<'order' | 'tracking'>('order');
@@ -468,53 +470,60 @@ const CallCenter: React.FC = () => {
     const handleSubmitOrder = async () => {
         if (!selectedBranchId || cart.length === 0 || !selectedCustomer) return;
 
-        const newOrder: Order = {
-            id: `CC-${Math.random().toString(36).substr(2, 6).toUpperCase()}`,
-            type: OrderType.DELIVERY,
-            branchId: selectedBranchId,
-            customerId: selectedCustomer?.id,
-            customerName: selectedCustomer?.name,
-            customerPhone: selectedCustomer?.phone,
-            deliveryAddress: deliveryAddress,
-            isCallCenterOrder: true,
-            items: cart,
-            status: OrderStatus.PENDING,
-            subtotal,
-            tax,
-            total,
-            createdAt: new Date(),
-            notes: orderNotes,
-            freeDelivery: freeDelivery,
-            isUrgent: urgentFlag,
-            discount: discount
-        };
+        try {
+            const newOrder: Order = {
+                id: `CC-${Math.random().toString(36).substr(2, 6).toUpperCase()}`,
+                type: OrderType.DELIVERY,
+                branchId: selectedBranchId,
+                customerId: selectedCustomer?.id,
+                customerName: selectedCustomer?.name,
+                customerPhone: selectedCustomer?.phone,
+                deliveryAddress: deliveryAddress,
+                isCallCenterOrder: true,
+                items: cart,
+                status: OrderStatus.PENDING,
+                subtotal,
+                tax,
+                total,
+                createdAt: new Date(),
+                notes: orderNotes,
+                freeDelivery: freeDelivery,
+                isUrgent: urgentFlag,
+                discount: discount
+            };
 
-        const savedOrder = await placeOrder(newOrder);
-        const activeBranch = branches.find(b => b.id === selectedBranchId);
-        await printKitchenTicketsByRouting({
-            order: savedOrder,
-            categories,
-            printers,
-            branchId: selectedBranchId,
-            maxKitchenPrinters: settings.maxKitchenPrinters,
-            settings,
-            currencySymbol: settings.currencySymbol,
-            lang,
-            t,
-            branch: activeBranch
-        });
-        if (settings.autoPrintReceipt !== false) {
-            await printOrderReceipt({
+            const savedOrder = await placeOrder(newOrder);
+            const activeBranch = branches.find(b => b.id === selectedBranchId);
+            await printKitchenTicketsByRouting({
                 order: savedOrder,
+                categories,
+                printers,
+                branchId: selectedBranchId,
+                maxKitchenPrinters: settings.maxKitchenPrinters,
                 settings,
                 currencySymbol: settings.currencySymbol,
                 lang,
                 t,
-                branch: activeBranch,
-                title: t.order_receipt || (lang === 'ar' ? 'إيصال الطلب' : 'Order Receipt')
+                branch: activeBranch
             });
+            const shouldPrintOnSubmit = (settings.autoPrintReceiptOnSubmit ?? settings.autoPrintReceipt ?? false) === true;
+            if (shouldPrintOnSubmit) {
+                await printOrderReceipt({
+                    order: savedOrder,
+                    printers,
+                    settings,
+                    currencySymbol: settings.currencySymbol,
+                    lang,
+                    t,
+                    branch: activeBranch,
+                    title: t.order_receipt || (lang === 'ar' ? 'إيصال الطلب' : 'Order Receipt')
+                });
+            }
+            resetOrder();
+            showToast(lang === 'ar' ? 'تم إرسال الطلب بنجاح' : 'Order sent successfully', 'success');
+        } catch (error: any) {
+            showToast(getActionableErrorMessage(error, lang), 'error');
         }
-        resetOrder();
     };
 
     // --- Keyboard Shortcuts ---

@@ -1,12 +1,18 @@
 import { Request, Response } from 'express';
 import { db } from '../db';
-import { orders, orderItems, orderStatusHistory, payments, warehouses, shifts, settings } from '../../src/db/schema';
-import { eq, and, desc, gte, lte, inArray } from 'drizzle-orm';
+import { orders, orderItems, orderStatusHistory, payments, warehouses, shifts, settings, idempotencyKeys, menuItems } from '../../src/db/schema';
+import { eq, and, desc, gte, lte, inArray, gt } from 'drizzle-orm';
 import { inventoryService } from '../services/inventoryService';
 import { getStringParam } from '../utils/request';
 import { getIO } from '../socket';
 import { submitOrderToFiscal } from '../services/fiscalSubmitService';
 import { postPosOrderEntry } from '../services/financePostingService';
+import { buildRequestHash, getIdempotencyKeyFromRequest, sanitizeIdempotencyPayload } from '../services/idempotencyService';
+import { evaluateOrderStatusUpdate } from '../services/orderStatusPolicy';
+
+const ORDER_CREATE_SCOPE = 'ORDER_CREATE';
+const ORDER_STATUS_UPDATE_SCOPE = 'ORDER_STATUS_UPDATE';
+const IDEMPOTENCY_TTL_MS = 24 * 60 * 60 * 1000;
 
 type CouponRule = {
     code: string;
@@ -158,14 +164,38 @@ export const getAllOrders = async (req: Request, res: Response) => {
 
         const orderIds = allOrders.map((o) => o.id);
         const allOrderItems = await db.select().from(orderItems).where(inArray(orderItems.orderId, orderIds));
+        const menuItemIds = Array.from(
+            new Set(
+                allOrderItems
+                    .map((item) => item.menuItemId)
+                    .filter((id): id is string => Boolean(id)),
+            ),
+        );
+        const menuItemsById = new Map<string, { id: string; categoryId: string | null; printerIds: string[] | null }>();
+        if (menuItemIds.length > 0) {
+            const relatedMenuItems = await db
+                .select({
+                    id: menuItems.id,
+                    categoryId: menuItems.categoryId,
+                    printerIds: menuItems.printerIds,
+                })
+                .from(menuItems)
+                .where(inArray(menuItems.id, menuItemIds));
+            for (const mi of relatedMenuItems) {
+                menuItemsById.set(mi.id, mi);
+            }
+        }
         const itemsByOrderId = new Map<string, any[]>();
         for (const item of allOrderItems) {
+            const menuMeta = item.menuItemId ? menuItemsById.get(item.menuItemId) : undefined;
             const bucket = itemsByOrderId.get(item.orderId) || [];
             bucket.push({
                 id: item.menuItemId,
                 menu_item_id: item.menuItemId,
                 menuItemId: item.menuItemId,
                 name: item.name,
+                categoryId: menuMeta?.categoryId || null,
+                printerIds: menuMeta?.printerIds || [],
                 price: item.price,
                 quantity: item.quantity,
                 notes: item.notes,
@@ -186,8 +216,88 @@ export const getAllOrders = async (req: Request, res: Response) => {
 };
 
 export const createOrder = async (req: Request, res: Response) => {
+    const idempotencyKey = getIdempotencyKeyFromRequest(req);
+    const idempotencyHash = idempotencyKey
+        ? buildRequestHash(sanitizeIdempotencyPayload(req.body))
+        : undefined;
+    const idempotencyExpiry = new Date(Date.now() + IDEMPOTENCY_TTL_MS);
+
+    const replayIdempotentResponse = async () => {
+        if (!idempotencyKey || !idempotencyHash) return null;
+        const [existingClaim] = await db
+            .select()
+            .from(idempotencyKeys)
+            .where(
+                and(
+                    eq(idempotencyKeys.key, idempotencyKey),
+                    eq(idempotencyKeys.scope, ORDER_CREATE_SCOPE),
+                    gt(idempotencyKeys.expiresAt, new Date()),
+                ),
+            )
+            .limit(1);
+
+        if (!existingClaim) return null;
+        if (existingClaim.requestHash !== idempotencyHash) {
+            return res.status(409).json({
+                error: 'IDEMPOTENCY_KEY_PAYLOAD_CONFLICT',
+                message: 'This Idempotency-Key was used with a different payload.',
+            });
+        }
+
+        if (existingClaim.responseBody) {
+            return res.status(existingClaim.responseCode || 200).json(existingClaim.responseBody);
+        }
+
+        if (existingClaim.resourceId) {
+            const [existingOrder] = await db.select().from(orders).where(eq(orders.id, existingClaim.resourceId)).limit(1);
+            if (existingOrder) {
+                return res.status(existingClaim.responseCode || 200).json(existingOrder);
+            }
+        }
+
+        return res.status(409).json({
+            error: 'IDEMPOTENCY_KEY_IN_PROGRESS',
+            message: 'Request with this Idempotency-Key is still being processed.',
+        });
+    };
+
+    const clearIdempotencyClaim = async () => {
+        if (!idempotencyKey) return;
+        await db.delete(idempotencyKeys).where(
+            and(
+                eq(idempotencyKeys.key, idempotencyKey),
+                eq(idempotencyKeys.scope, ORDER_CREATE_SCOPE),
+            ),
+        );
+    };
+
     try {
         const { items, userId, ...bodyData } = req.body;
+
+        if (idempotencyKey && idempotencyHash) {
+            const replay = await replayIdempotentResponse();
+            if (replay) return replay;
+
+            const inserted = await db
+                .insert(idempotencyKeys)
+                .values({
+                    key: idempotencyKey,
+                    scope: ORDER_CREATE_SCOPE,
+                    requestHash: idempotencyHash,
+                    status: 'IN_PROGRESS',
+                    expiresAt: idempotencyExpiry,
+                    updatedAt: new Date(),
+                })
+                .onConflictDoNothing({
+                    target: [idempotencyKeys.key, idempotencyKeys.scope],
+                })
+                .returning({ id: idempotencyKeys.id });
+
+            if (inserted.length === 0) {
+                const replay = await replayIdempotentResponse();
+                if (replay) return replay;
+            }
+        }
 
         // Map incoming snake_case to schema's camelCase
         const orderData = {
@@ -229,6 +339,24 @@ export const createOrder = async (req: Request, res: Response) => {
         if (orderData.id) {
             const [existingOrder] = await db.select().from(orders).where(eq(orders.id, orderData.id)).limit(1);
             if (existingOrder) {
+                if (idempotencyKey) {
+                    await db
+                        .update(idempotencyKeys)
+                        .set({
+                            status: 'COMPLETED',
+                            responseCode: 200,
+                            resourceId: existingOrder.id,
+                            responseBody: existingOrder,
+                            updatedAt: new Date(),
+                            expiresAt: idempotencyExpiry,
+                        })
+                        .where(
+                            and(
+                                eq(idempotencyKeys.key, idempotencyKey),
+                                eq(idempotencyKeys.scope, ORDER_CREATE_SCOPE),
+                            ),
+                        );
+                }
                 return res.status(200).json(existingOrder);
             }
         }
@@ -244,6 +372,7 @@ export const createOrder = async (req: Request, res: Response) => {
         );
 
         if (!activeShift) {
+            await clearIdempotencyClaim();
             return res.status(400).json({
                 error: 'SHIFT_REQUIRED',
                 message: 'No active shift found. Please open a shift before placing orders.'
@@ -373,22 +502,141 @@ export const createOrder = async (req: Request, res: Response) => {
             }, 0);
         }
 
+        if (idempotencyKey) {
+            await db
+                .update(idempotencyKeys)
+                .set({
+                    status: 'COMPLETED',
+                    responseCode: 201,
+                    resourceId: savedOrder.id,
+                    responseBody: savedOrder,
+                    updatedAt: new Date(),
+                    expiresAt: idempotencyExpiry,
+                })
+                .where(
+                    and(
+                        eq(idempotencyKeys.key, idempotencyKey),
+                        eq(idempotencyKeys.scope, ORDER_CREATE_SCOPE),
+                    ),
+                );
+        }
+
         res.status(201).json(savedOrder);
     } catch (error: any) {
+        await clearIdempotencyClaim();
         res.status(500).json({ error: error.message });
     }
 };
 
 export const updateOrderStatus = async (req: Request, res: Response) => {
+    const idempotencyKey = getIdempotencyKeyFromRequest(req);
+    const idempotencyHash = idempotencyKey
+        ? buildRequestHash(sanitizeIdempotencyPayload({
+            orderId: getStringParam((req.params as any).id),
+            ...req.body,
+        }))
+        : undefined;
+    const idempotencyExpiry = new Date(Date.now() + IDEMPOTENCY_TTL_MS);
+
+    const replayIdempotentResponse = async () => {
+        if (!idempotencyKey || !idempotencyHash) return null;
+        const [existingClaim] = await db
+            .select()
+            .from(idempotencyKeys)
+            .where(
+                and(
+                    eq(idempotencyKeys.key, idempotencyKey),
+                    eq(idempotencyKeys.scope, ORDER_STATUS_UPDATE_SCOPE),
+                    gt(idempotencyKeys.expiresAt, new Date()),
+                ),
+            )
+            .limit(1);
+
+        if (!existingClaim) return null;
+        if (existingClaim.requestHash !== idempotencyHash) {
+            return res.status(409).json({
+                error: 'IDEMPOTENCY_KEY_PAYLOAD_CONFLICT',
+                message: 'This Idempotency-Key was used with a different payload.',
+            });
+        }
+
+        if (existingClaim.responseBody) {
+            return res.status(existingClaim.responseCode || 200).json(existingClaim.responseBody);
+        }
+
+        if (existingClaim.resourceId) {
+            const [existingOrder] = await db.select().from(orders).where(eq(orders.id, existingClaim.resourceId)).limit(1);
+            if (existingOrder) {
+                return res.status(existingClaim.responseCode || 200).json(existingOrder);
+            }
+        }
+
+        return res.status(409).json({
+            error: 'IDEMPOTENCY_KEY_IN_PROGRESS',
+            message: 'Request with this Idempotency-Key is still being processed.',
+        });
+    };
+
+    const clearIdempotencyClaim = async () => {
+        if (!idempotencyKey) return;
+        await db.delete(idempotencyKeys).where(
+            and(
+                eq(idempotencyKeys.key, idempotencyKey),
+                eq(idempotencyKeys.scope, ORDER_STATUS_UPDATE_SCOPE),
+            ),
+        );
+    };
+
     try {
         const { status, changed_by, notes } = req.body;
         const expectedUpdatedAtRaw = req.body?.expected_updated_at || req.body?.expectedUpdatedAt;
+        const nextStatus = String(status || '').toUpperCase();
         const orderId = getStringParam((req.params as any).id);
         if (!orderId) return res.status(400).json({ error: 'ORDER_ID_REQUIRED' });
+
+        if (idempotencyKey && idempotencyHash) {
+            const replay = await replayIdempotentResponse();
+            if (replay) return replay;
+
+            const inserted = await db
+                .insert(idempotencyKeys)
+                .values({
+                    key: idempotencyKey,
+                    scope: ORDER_STATUS_UPDATE_SCOPE,
+                    requestHash: idempotencyHash,
+                    status: 'IN_PROGRESS',
+                    expiresAt: idempotencyExpiry,
+                    updatedAt: new Date(),
+                })
+                .onConflictDoNothing({
+                    target: [idempotencyKeys.key, idempotencyKeys.scope],
+                })
+                .returning({ id: idempotencyKeys.id });
+
+            if (inserted.length === 0) {
+                const replay = await replayIdempotentResponse();
+                if (replay) return replay;
+            }
+        }
 
         const result = await db.transaction(async (tx) => {
             const [currentOrder] = await tx.select().from(orders).where(eq(orders.id, orderId)).limit(1);
             if (!currentOrder) throw new Error('Order not found');
+
+            const statusPolicy = evaluateOrderStatusUpdate({
+                currentStatus: String(currentOrder.status || ''),
+                nextStatus,
+                notes,
+                userRole: req.user?.role,
+                userBranchId: req.user?.branchId,
+                orderBranchId: currentOrder.branchId,
+            });
+            if (!statusPolicy.ok) {
+                const policyCode = statusPolicy.code || 'INVALID_STATUS_TRANSITION';
+                const policyError: any = new Error(policyCode);
+                policyError.status = policyCode === 'FORBIDDEN_BRANCH_SCOPE' || policyCode === 'STATUS_TRANSITION_FORBIDDEN' ? 403 : 400;
+                throw policyError;
+            }
 
             if (expectedUpdatedAtRaw && currentOrder.updatedAt) {
                 const expected = new Date(expectedUpdatedAtRaw).getTime();
@@ -407,14 +655,14 @@ export const updateOrderStatus = async (req: Request, res: Response) => {
             }
 
             const [updatedOrder] = await tx.update(orders)
-                .set({ status, updatedAt: new Date() })
+                .set({ status: nextStatus, updatedAt: new Date() })
                 .where(eq(orders.id, orderId))
                 .returning();
             if (!updatedOrder) throw new Error('Order not found');
 
             await tx.insert(orderStatusHistory).values({
                 orderId,
-                status,
+                status: nextStatus,
                 changedBy: changed_by,
                 notes,
                 createdAt: new Date(),
@@ -422,6 +670,25 @@ export const updateOrderStatus = async (req: Request, res: Response) => {
 
             return updatedOrder;
         });
+
+        if (idempotencyKey) {
+            await db
+                .update(idempotencyKeys)
+                .set({
+                    status: 'COMPLETED',
+                    responseCode: 200,
+                    resourceId: result.id,
+                    responseBody: result,
+                    updatedAt: new Date(),
+                    expiresAt: idempotencyExpiry,
+                })
+                .where(
+                    and(
+                        eq(idempotencyKeys.key, idempotencyKey),
+                        eq(idempotencyKeys.scope, ORDER_STATUS_UPDATE_SCOPE),
+                    ),
+                );
+        }
 
         try {
             const branchRoom = result.branchId ? `branch:${result.branchId}` : null;
@@ -442,12 +709,16 @@ export const updateOrderStatus = async (req: Request, res: Response) => {
 
         res.json(result);
     } catch (error: any) {
+        await clearIdempotencyClaim();
         const statusCode = Number(error?.status) || 500;
         if (statusCode === 409) {
             return res.status(409).json({
                 error: error.message,
                 currentUpdatedAt: error.currentUpdatedAt
             });
+        }
+        if (statusCode === 403 || statusCode === 400) {
+            return res.status(statusCode).json({ error: error.message });
         }
         res.status(statusCode).json({ error: error.message });
     }

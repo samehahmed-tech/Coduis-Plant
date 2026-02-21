@@ -58,6 +58,8 @@ export enum OrderType {
 export enum TableStatus {
   AVAILABLE = 'AVAILABLE',
   OCCUPIED = 'OCCUPIED',
+  WAITING_FOOD = 'WAITING_FOOD',
+  READY_TO_PAY = 'READY_TO_PAY',
   RESERVED = 'RESERVED',
   DIRTY = 'DIRTY'
 }
@@ -408,14 +410,20 @@ export interface RestaurantMenu {
 }
 
 export type PrinterType = 'LOCAL' | 'NETWORK';
+export type PrinterRole = 'CASHIER' | 'KITCHEN' | 'SHAWARMA' | 'GRILL' | 'BAR' | 'DESSERT' | 'OTHER';
 
 export interface Printer {
   id: string;
   name: string;
+  code?: string;
   type: PrinterType;
   address: string; // IP or local name
   isActive: boolean;
   branchId: string;
+  role?: PrinterRole;
+  isPrimaryCashier?: boolean;
+  isOnline?: boolean;
+  lastHeartbeatAt?: string | Date;
 }
 
 export enum AuditEventType {
@@ -579,7 +587,12 @@ export interface AppSettings {
   phone: string;
   receiptLogoUrl?: string;
   receiptQrUrl?: string;
+  receiptBrandingByOrderType?: Partial<Record<OrderType, { logoUrl?: string; qrUrl?: string }>>;
+  primaryCashierPrinterId?: string;
   autoPrintReceipt?: boolean;
+  autoPrintReceiptOnSubmit?: boolean;
+  autoPrintCompletionReceipt?: boolean;
+  autoPrintReports?: boolean;
   maxKitchenPrinters?: number;
   activeBranchId?: string; // Current operating branch context
   currentUser?: User;

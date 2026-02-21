@@ -1,0 +1,25 @@
+{
+  "ok": false,
+  "generatedAt": "2026-02-17T02:30:17.226Z",
+  "blockers": [
+    {
+      "key": "launch-gates",
+      "ok": true,
+      "details": "ok=true failedRequired=0"
+    },
+    {
+      "key": "uat-signoff",
+      "ok": false,
+      "details": "roles=5 pending_or_fail=5"
+    },
+    {
+      "key": "rollback-drill",
+      "ok": false,
+      "details": "hasTimings=true approvals(ops,product)=(false,false)"
+    }
+  ],
+  "summary": {
+    "total": 3,
+    "failed": 2
+  }
+}

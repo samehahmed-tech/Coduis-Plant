@@ -4,6 +4,25 @@ import { settings } from '../../src/db/schema';
 import { eq } from 'drizzle-orm';
 import { getStringParam } from '../utils/request';
 
+const SENSITIVE_SETTINGS_KEYS = new Set([
+    'geminiApiKey',
+    'openRouterApiKey',
+    'openrouterApiKey',
+    'aiApiKey',
+    'aiApiKeyEncrypted',
+    'aiApiKeySource',
+    'apiKey',
+    'token',
+    'secret',
+]);
+
+const isSensitiveSettingKey = (key: string) => {
+    const normalized = String(key || '').trim();
+    if (!normalized) return false;
+    if (SENSITIVE_SETTINGS_KEYS.has(normalized)) return true;
+    return /api.?key|secret|token/i.test(normalized);
+};
+
 /**
  * Get all settings as a flat object
  */
@@ -13,6 +32,7 @@ export const getAllSettings = async (req: Request, res: Response) => {
         const settingsMap: Record<string, any> = {};
 
         allSettings.forEach(s => {
+            if (isSensitiveSettingKey(s.key)) return;
             settingsMap[s.key] = s.value;
         });
 
@@ -41,6 +61,7 @@ export const updateSetting = async (req: Request, res: Response) => {
     try {
         const key = getStringParam((req.params as any).key);
         if (!key) return res.status(400).json({ error: 'SETTING_KEY_REQUIRED' });
+        if (isSensitiveSettingKey(key)) return res.status(403).json({ error: 'SENSITIVE_SETTING_BLOCKED' });
         const { value, category, updated_by } = req.body;
 
         const [updated] = await db.insert(settings)
@@ -74,6 +95,11 @@ export const updateSetting = async (req: Request, res: Response) => {
 export const updateBulkSettings = async (req: Request, res: Response) => {
     try {
         const updates = req.body;
+
+        const blocked = Object.keys(updates).filter((key) => isSensitiveSettingKey(key));
+        if (blocked.length > 0) {
+            return res.status(403).json({ error: 'SENSITIVE_SETTING_BLOCKED', keys: blocked });
+        }
 
         const operations = Object.entries(updates).map(([key, value]) => {
             return db.insert(settings)

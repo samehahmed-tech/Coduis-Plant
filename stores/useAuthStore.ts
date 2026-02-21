@@ -63,12 +63,15 @@ const DEFAULT_SETTINGS: AppSettings = {
     phone: '',
     receiptLogoUrl: '',
     receiptQrUrl: '',
+    receiptBrandingByOrderType: {},
+    primaryCashierPrinterId: '',
+    autoPrintReceiptOnSubmit: false,
+    autoPrintCompletionReceipt: true,
+    autoPrintReports: true,
     currentUser: undefined,
     activeBranchId: undefined,
     syncAuthority: 'SERVER',
     branchHierarchy: { id: 'central', level: 'MASTER' },
-    // IMPORTANT: Never ship API keys in source control. Provide via env or UI settings instead.
-    geminiApiKey: import.meta.env.VITE_OPENROUTER_API_KEY || import.meta.env.VITE_GEMINI_API_KEY || ''
 };
 
 // Only keep ONE admin user for first login - rest comes from database
@@ -105,10 +108,13 @@ export const useAuthStore = create<AuthState>()(
                     if (!result.token || !result.user) {
                         throw new Error('INVALID_AUTH_RESPONSE');
                     }
-                    const { token, user } = result;
+                    const { token, refreshToken, user } = result;
 
                     if (token) {
                         localStorage.setItem('auth_token', token);
+                    }
+                    if (refreshToken) {
+                        localStorage.setItem('auth_refresh_token', refreshToken);
                     }
 
                     const mappedUser: User = {
@@ -158,7 +164,8 @@ export const useAuthStore = create<AuthState>()(
                     }));
                 } catch {
                     const cachedUser = get().settings.currentUser;
-                    if (cachedUser) {
+                    // Offline fallback only: keep cached session when backend is unreachable and user was previously restored.
+                    if (!navigator.onLine && cachedUser) {
                         set((state) => ({
                             token,
                             settings: { ...state.settings, currentUser: cachedUser, activeBranchId: cachedUser.assignedBranchId || state.branches[0]?.id },
@@ -166,6 +173,15 @@ export const useAuthStore = create<AuthState>()(
                         }));
                     } else {
                         localStorage.removeItem('auth_token');
+                        set((state) => ({
+                            token: null,
+                            isAuthenticated: false,
+                            settings: {
+                                ...state.settings,
+                                currentUser: undefined,
+                                activeBranchId: undefined,
+                            },
+                        }));
                     }
                 }
             },
@@ -198,6 +214,8 @@ export const useAuthStore = create<AuthState>()(
                     }
                 } catch (error: any) {
                     set({ isLoading: false });
+                    const code = String(error?.code || error?.message || '').toUpperCase();
+                    if (code.includes('INVALID_TOKEN') || Number(error?.status) === 401) return;
                     console.error('Failed to fetch users:', error);
                 }
             },
@@ -223,6 +241,8 @@ export const useAuthStore = create<AuthState>()(
                         if (cached.length > 0) set({ branches: cached as Branch[] });
                     }
                 } catch (error) {
+                    const code = String((error as any)?.code || (error as any)?.message || '').toUpperCase();
+                    if (code.includes('INVALID_TOKEN') || Number((error as any)?.status) === 401) return;
                     console.error('Failed to fetch branches:', error);
                 }
             },
@@ -240,13 +260,18 @@ export const useAuthStore = create<AuthState>()(
                                     branchAddress: data.branchAddress || state.settings.branchAddress,
                                     receiptLogoUrl: data.receiptLogoUrl || state.settings.receiptLogoUrl,
                                     receiptQrUrl: data.receiptQrUrl || state.settings.receiptQrUrl,
+                                    receiptBrandingByOrderType: data.receiptBrandingByOrderType || state.settings.receiptBrandingByOrderType,
+                                    primaryCashierPrinterId: data.primaryCashierPrinterId || state.settings.primaryCashierPrinterId,
+                                    autoPrintReceipt: data.autoPrintReceipt ?? state.settings.autoPrintReceipt,
+                                    autoPrintReceiptOnSubmit: data.autoPrintReceiptOnSubmit ?? state.settings.autoPrintReceiptOnSubmit,
+                                    autoPrintCompletionReceipt: data.autoPrintCompletionReceipt ?? state.settings.autoPrintCompletionReceipt,
+                                    autoPrintReports: data.autoPrintReports ?? state.settings.autoPrintReports,
                                     currency: data.currency || state.settings.currency,
                                     taxRate: data.taxRate ?? state.settings.taxRate,
                                     serviceCharge: data.serviceCharge ?? state.settings.serviceCharge,
                                     language: data.language || state.settings.language,
                                     isDarkMode: data.isDarkMode ?? state.settings.isDarkMode,
                                     theme: data.theme || state.settings.theme,
-                                    geminiApiKey: data.geminiApiKey || state.settings.geminiApiKey,
                                     currencySymbol: data.currencySymbol || state.settings.currencySymbol,
                                     isTouchMode: data.isTouchMode ?? state.settings.isTouchMode,
                                 }
@@ -265,13 +290,18 @@ export const useAuthStore = create<AuthState>()(
                                     branchAddress: data.branchAddress || state.settings.branchAddress,
                                     receiptLogoUrl: data.receiptLogoUrl || state.settings.receiptLogoUrl,
                                     receiptQrUrl: data.receiptQrUrl || state.settings.receiptQrUrl,
+                                    receiptBrandingByOrderType: data.receiptBrandingByOrderType || state.settings.receiptBrandingByOrderType,
+                                    primaryCashierPrinterId: data.primaryCashierPrinterId || state.settings.primaryCashierPrinterId,
+                                    autoPrintReceipt: data.autoPrintReceipt ?? state.settings.autoPrintReceipt,
+                                    autoPrintReceiptOnSubmit: data.autoPrintReceiptOnSubmit ?? state.settings.autoPrintReceiptOnSubmit,
+                                    autoPrintCompletionReceipt: data.autoPrintCompletionReceipt ?? state.settings.autoPrintCompletionReceipt,
+                                    autoPrintReports: data.autoPrintReports ?? state.settings.autoPrintReports,
                                     currency: data.currency || state.settings.currency,
                                     taxRate: data.taxRate ?? state.settings.taxRate,
                                     serviceCharge: data.serviceCharge ?? state.settings.serviceCharge,
                                     language: data.language || state.settings.language,
                                     isDarkMode: data.isDarkMode ?? state.settings.isDarkMode,
                                     theme: data.theme || state.settings.theme,
-                                    geminiApiKey: data.geminiApiKey || state.settings.geminiApiKey,
                                     currencySymbol: data.currencySymbol || state.settings.currencySymbol,
                                     isTouchMode: data.isTouchMode ?? state.settings.isTouchMode,
                                 }
@@ -279,6 +309,8 @@ export const useAuthStore = create<AuthState>()(
                         }
                     }
                 } catch (error) {
+                    const code = String((error as any)?.code || (error as any)?.message || '').toUpperCase();
+                    if (code.includes('INVALID_TOKEN') || Number((error as any)?.status) === 401) return;
                     console.error('Failed to fetch settings:', error);
                 }
             },
@@ -290,13 +322,20 @@ export const useAuthStore = create<AuthState>()(
                     const printers = data.map((p: any) => ({
                         id: p.id,
                         name: p.name,
+                        code: p.code || '',
                         type: p.type,
                         address: p.address || '',
                         isActive: p.is_active !== false,
                         branchId: p.branch_id || '',
+                        role: p.role || 'OTHER',
+                        isPrimaryCashier: p.is_primary_cashier === true,
+                        isOnline: p.heartbeat_status ? String(p.heartbeat_status).toUpperCase() === 'ONLINE' : p.is_active !== false,
+                        lastHeartbeatAt: p.last_heartbeat_at || undefined,
                     }));
                     set({ printers });
                 } catch (error) {
+                    const code = String((error as any)?.code || (error as any)?.message || '').toUpperCase();
+                    if (code.includes('INVALID_TOKEN') || Number((error as any)?.status) === 401) return;
                     console.error('Failed to fetch printers:', error);
                 }
             },
@@ -312,6 +351,8 @@ export const useAuthStore = create<AuthState>()(
                         permissions: user.permissions,
                         assigned_branch_id: user.assignedBranchId,
                         is_active: user.isActive,
+                        password: (user as any).password,
+                        pin: (user as any).pin,
                     });
                     set((state) => ({ users: [...state.users, user], isLoading: false }));
                 } catch (error: any) {
@@ -356,18 +397,26 @@ export const useAuthStore = create<AuthState>()(
                     const created = await printersApi.create({
                         id: printer.id,
                         name: printer.name,
+                        code: printer.code,
                         type: printer.type,
                         address: printer.address,
                         branch_id: printer.branchId,
+                        role: printer.role,
+                        is_primary_cashier: printer.isPrimaryCashier === true,
                         is_active: printer.isActive,
                     });
                     const mapped: Printer = {
                         id: created.id,
                         name: created.name,
+                        code: created.code || '',
                         type: created.type,
                         address: created.address || '',
                         isActive: created.is_active !== false,
                         branchId: created.branch_id || '',
+                        role: created.role || 'OTHER',
+                        isPrimaryCashier: created.is_primary_cashier === true,
+                        isOnline: created.heartbeat_status ? String(created.heartbeat_status).toUpperCase() === 'ONLINE' : created.is_active !== false,
+                        lastHeartbeatAt: created.last_heartbeat_at || undefined,
                     };
                     set((state) => ({ printers: [mapped, ...state.printers] }));
                 } catch (error: any) {
@@ -380,18 +429,26 @@ export const useAuthStore = create<AuthState>()(
                 try {
                     const updated = await printersApi.update(printer.id, {
                         name: printer.name,
+                        code: printer.code,
                         type: printer.type,
                         address: printer.address,
                         branch_id: printer.branchId,
+                        role: printer.role,
+                        is_primary_cashier: printer.isPrimaryCashier === true,
                         is_active: printer.isActive,
                     });
                     const mapped: Printer = {
                         id: updated.id,
                         name: updated.name,
+                        code: updated.code || '',
                         type: updated.type,
                         address: updated.address || '',
                         isActive: updated.is_active !== false,
                         branchId: updated.branch_id || '',
+                        role: updated.role || 'OTHER',
+                        isPrimaryCashier: updated.is_primary_cashier === true,
+                        isOnline: updated.heartbeat_status ? String(updated.heartbeat_status).toUpperCase() === 'ONLINE' : updated.is_active !== false,
+                        lastHeartbeatAt: updated.last_heartbeat_at || undefined,
                     };
                     set((state) => ({
                         printers: state.printers.map(p => p.id === mapped.id ? mapped : p)
@@ -420,10 +477,15 @@ export const useAuthStore = create<AuthState>()(
                     const mapped: Printer = {
                         id: res.printer.id,
                         name: res.printer.name,
+                        code: res.printer.code || '',
                         type: res.printer.type,
                         address: res.printer.address || '',
                         isActive: res.printer.is_active !== false,
                         branchId: res.printer.branch_id || '',
+                        role: res.printer.role || 'OTHER',
+                        isPrimaryCashier: res.printer.is_primary_cashier === true,
+                        isOnline: res.online === true,
+                        lastHeartbeatAt: res.printer.last_heartbeat_at || undefined,
                     };
                     set((state) => ({
                         printers: state.printers.map(p => p.id === mapped.id ? mapped : p)
@@ -479,6 +541,7 @@ export const useAuthStore = create<AuthState>()(
             logout: () => {
                 authApi.logout().catch(() => undefined);
                 localStorage.removeItem('auth_token');
+                localStorage.removeItem('auth_refresh_token');
                 set((state) => ({
                     settings: { ...state.settings, currentUser: undefined, activeBranchId: undefined },
                     isAuthenticated: false,

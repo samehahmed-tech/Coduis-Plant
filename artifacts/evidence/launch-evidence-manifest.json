@@ -1,0 +1,117 @@
+{
+  "ok": false,
+  "generatedAt": "2026-02-15T00:22:38.612Z",
+  "summary": {
+    "total": 2,
+    "passed": 1,
+    "failed": 1,
+    "failedRequired": 1
+  },
+  "results": [
+    {
+      "name": "launch-gates",
+      "command": "npm run ops:launch-gates",
+      "required": true,
+      "ok": true,
+      "exitCode": 0,
+      "durationMs": 622,
+      "reportPath": "artifacts/gates/launch-gates.json",
+      "parsedReport": {
+        "ok": true,
+        "generatedAt": "2026-02-15T00:22:35.756Z",
+        "flags": {
+          "requireEta": false,
+          "requireRedisRealtime": false,
+          "socketRedisEnabled": false
+        },
+        "summary": {
+          "total": 3,
+          "passed": 3,
+          "failed": 0,
+          "failedRequired": 0,
+          "skipped": 3
+        },
+        "results": [
+          {
+            "name": "eta-config-check",
+            "required": false,
+            "enabled": false,
+            "command": "npm run eta:check",
+            "ok": true,
+            "exitCode": null,
+            "stdout": "SKIPPED: ETA is not required (set GO_LIVE_REQUIRE_ETA=true to enforce)",
+            "stderr": "",
+            "durationMs": 0,
+            "skipped": true
+          },
+          {
+            "name": "eta-smoke",
+            "required": false,
+            "enabled": false,
+            "command": "npm run eta:smoke",
+            "ok": true,
+            "exitCode": null,
+            "stdout": "SKIPPED: ETA is not required (set GO_LIVE_REQUIRE_ETA=true to enforce)",
+            "stderr": "",
+            "durationMs": 0,
+            "skipped": true
+          },
+          {
+            "name": "realtime-redis-gate",
+            "required": false,
+            "enabled": false,
+            "command": "npm run ops:realtime-gate",
+            "ok": true,
+            "exitCode": null,
+            "stdout": "SKIPPED: Redis realtime adapter not required (enable SOCKET_REDIS_ENABLED=true to enforce)",
+            "stderr": "",
+            "durationMs": 0,
+            "skipped": true
+          }
+        ]
+      },
+      "stdoutTail": "> restoflow-erp@1.1.0 ops:launch-gates\n> tsx scripts/launch-gate-runner.ts\n\n{\n  \"ok\": true,\n  \"generatedAt\": \"2026-02-15T00:22:35.756Z\",\n  \"flags\": {\n    \"requireEta\": false,\n    \"requireRedisRealtime\": false,\n    \"socketRedisEnabled\": false\n  },\n  \"summary\": {\n    \"total\": 3,\n    \"passed\": 3,\n    \"failed\": 0,\n    \"failedRequired\": 0,\n    \"skipped\": 3\n  },\n  \"results\": [\n    {\n      \"name\": \"eta-config-check\",\n      \"required\": false,\n      \"enabled\": false,\n      \"command\": \"npm run eta:check\",\n      \"ok\": true,\n      \"exitCode\": null,\n      \"stdout\": \"SKIPPED: ETA is not required (set GO_LIVE_REQUIRE_ETA=true to enforce)\",\n      \"stderr\": \"\",\n      \"durationMs\": 0,\n      \"skipped\": true\n    },\n    {\n      \"name\": \"eta-smoke\",\n      \"required\": false,\n      \"enabled\": false,\n      \"command\": \"npm run eta:smoke\",\n      \"ok\": true,\n      \"exitCode\": null,\n      \"stdout\": \"SKIPPED: ETA is not required (set GO_LIVE_REQUIRE_ETA=true to enforce)\",\n      \"stderr\": \"\",\n      \"durationMs\": 0,\n      \"skipped\": true\n    },\n    {\n      \"name\": \"realtime-redis-gate\",\n      \"required\": false,\n      \"enabled\": false,\n      \"command\": \"npm run ops:realtime-gate\",\n      \"ok\": true,\n      \"exitCode\": null,\n      \"stdout\": \"SKIPPED: Redis realtime adapter not required (enable SOCKET_REDIS_ENABLED=true to enforce)\",\n      \"stderr\": \"\",\n      \"durationMs\": 0,\n      \"skipped\": true\n    }\n  ]\n}",
+      "stderrTail": ""
+    },
+    {
+      "name": "realtime-bench",
+      "command": "npm run load:realtime:bench",
+      "required": true,
+      "ok": false,
+      "exitCode": 2,
+      "durationMs": 2823,
+      "reportPath": "artifacts/load/realtime-bench-summary.json",
+      "parsedReport": {
+        "ok": false,
+        "generatedAt": "2026-02-15T00:22:38.574Z",
+        "summary": {
+          "total": 2,
+          "passed": 0,
+          "failed": 2
+        },
+        "results": [
+          {
+            "name": "realtime-500",
+            "command": "npm run load:realtime:500",
+            "ok": false,
+            "exitCode": 2,
+            "durationMs": 1010,
+            "stdoutTail": "> restoflow-erp@1.1.0 load:realtime:500\n> tsx scripts/load/realtime-node-load.ts --api-requests=500 --ws-clients=500 --ws-hold-ms=12000 --report-path=artifacts/load/realtime-500.json\n\n[dotenv@17.2.3] injecting env (13) from .env -- tip: 🔄 add secrets lifecycle management: https://dotenvx.com/ops\n{\n  \"api\": {\n    \"total\": 500,\n    \"ok\": 0,\n    \"failed\": 500,\n    \"elapsedMs\": 231,\n    \"rps\": 2165\n  },\n  \"ws\": {\n    \"skipped\": true,\n    \"reason\": \"AUTH_TOKEN is missing\"\n  },\n  \"result\": {\n    \"apiFailureRate\": 1,\n    \"wsFailureRate\": 0,\n    \"wsRequired\": true,\n    \"wsPassed\": false,\n    \"maxAllowedFailureRate\": 0.01,\n    \"passed\": false\n  },\n  \"config\": {\n    \"API_BASE\": \"http://localhost:3001\",\n    \"SOCKET_BASE\": \"http://localhost:3001\",\n    \"BRANCH_ID\": \"b1\",\n    \"API_REQUESTS\": 500,\n    \"WS_CLIENTS\": 500,\n    \"WS_HOLD_MS\": 12000,\n    \"hasToken\": false,\n    \"tokenSource\": \"missing\"\n  }\n}",
+            "stderrTail": ""
+          },
+          {
+            "name": "realtime-1000",
+            "command": "npm run load:realtime:1000",
+            "ok": false,
+            "exitCode": 2,
+            "durationMs": 1199,
+            "stdoutTail": "> restoflow-erp@1.1.0 load:realtime:1000\n> tsx scripts/load/realtime-node-load.ts --api-requests=1000 --ws-clients=1000 --ws-hold-ms=15000 --report-path=artifacts/load/realtime-1000.json\n\n[dotenv@17.2.3] injecting env (13) from .env -- tip: 🔐 encrypt with Dotenvx: https://dotenvx.com\n{\n  \"api\": {\n    \"total\": 1000,\n    \"ok\": 0,\n    \"failed\": 1000,\n    \"elapsedMs\": 406,\n    \"rps\": 2463\n  },\n  \"ws\": {\n    \"skipped\": true,\n    \"reason\": \"AUTH_TOKEN is missing\"\n  },\n  \"result\": {\n    \"apiFailureRate\": 1,\n    \"wsFailureRate\": 0,\n    \"wsRequired\": true,\n    \"wsPassed\": false,\n    \"maxAllowedFailureRate\": 0.01,\n    \"passed\": false\n  },\n  \"config\": {\n    \"API_BASE\": \"http://localhost:3001\",\n    \"SOCKET_BASE\": \"http://localhost:3001\",\n    \"BRANCH_ID\": \"b1\",\n    \"API_REQUESTS\": 1000,\n    \"WS_CLIENTS\": 1000,\n    \"WS_HOLD_MS\": 15000,\n    \"hasToken\": false,\n    \"tokenSource\": \"missing\"\n  }\n}",
+            "stderrTail": ""
+          }
+        ]
+      },
+      "stdoutTail": " from .env -- tip: 🔄 add secrets lifecycle management: https://dotenvx.com/ops\\n{\\n  \\\"api\\\": {\\n    \\\"total\\\": 500,\\n    \\\"ok\\\": 0,\\n    \\\"failed\\\": 500,\\n    \\\"elapsedMs\\\": 231,\\n    \\\"rps\\\": 2165\\n  },\\n  \\\"ws\\\": {\\n    \\\"skipped\\\": true,\\n    \\\"reason\\\": \\\"AUTH_TOKEN is missing\\\"\\n  },\\n  \\\"result\\\": {\\n    \\\"apiFailureRate\\\": 1,\\n    \\\"wsFailureRate\\\": 0,\\n    \\\"wsRequired\\\": true,\\n    \\\"wsPassed\\\": false,\\n    \\\"maxAllowedFailureRate\\\": 0.01,\\n    \\\"passed\\\": false\\n  },\\n  \\\"config\\\": {\\n    \\\"API_BASE\\\": \\\"http://localhost:3001\\\",\\n    \\\"SOCKET_BASE\\\": \\\"http://localhost:3001\\\",\\n    \\\"BRANCH_ID\\\": \\\"b1\\\",\\n    \\\"API_REQUESTS\\\": 500,\\n    \\\"WS_CLIENTS\\\": 500,\\n    \\\"WS_HOLD_MS\\\": 12000,\\n    \\\"hasToken\\\": false,\\n    \\\"tokenSource\\\": \\\"missing\\\"\\n  }\\n}\",\n      \"stderrTail\": \"\"\n    },\n    {\n      \"name\": \"realtime-1000\",\n      \"command\": \"npm run load:realtime:1000\",\n      \"ok\": false,\n      \"exitCode\": 2,\n      \"durationMs\": 1199,\n      \"stdoutTail\": \"> restoflow-erp@1.1.0 load:realtime:1000\\n> tsx scripts/load/realtime-node-load.ts --api-requests=1000 --ws-clients=1000 --ws-hold-ms=15000 --report-path=artifacts/load/realtime-1000.json\\n\\n[dotenv@17.2.3] injecting env (13) from .env -- tip: 🔐 encrypt with Dotenvx: https://dotenvx.com\\n{\\n  \\\"api\\\": {\\n    \\\"total\\\": 1000,\\n    \\\"ok\\\": 0,\\n    \\\"failed\\\": 1000,\\n    \\\"elapsedMs\\\": 406,\\n    \\\"rps\\\": 2463\\n  },\\n  \\\"ws\\\": {\\n    \\\"skipped\\\": true,\\n    \\\"reason\\\": \\\"AUTH_TOKEN is missing\\\"\\n  },\\n  \\\"result\\\": {\\n    \\\"apiFailureRate\\\": 1,\\n    \\\"wsFailureRate\\\": 0,\\n    \\\"wsRequired\\\": true,\\n    \\\"wsPassed\\\": false,\\n    \\\"maxAllowedFailureRate\\\": 0.01,\\n    \\\"passed\\\": false\\n  },\\n  \\\"config\\\": {\\n    \\\"API_BASE\\\": \\\"http://localhost:3001\\\",\\n    \\\"SOCKET_BASE\\\": \\\"http://localhost:3001\\\",\\n    \\\"BRANCH_ID\\\": \\\"b1\\\",\\n    \\\"API_REQUESTS\\\": 1000,\\n    \\\"WS_CLIENTS\\\": 1000,\\n    \\\"WS_HOLD_MS\\\": 15000,\\n    \\\"hasToken\\\": false,\\n    \\\"tokenSource\\\": \\\"missing\\\"\\n  }\\n}\",\n      \"stderrTail\": \"\"\n    }\n  ]\n}",
+      "stderrTail": ""
+    }
+  ]
+}

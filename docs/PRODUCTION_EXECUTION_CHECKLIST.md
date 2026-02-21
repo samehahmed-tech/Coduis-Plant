@@ -6,6 +6,7 @@
 - [ ] Remove any real keys from local `.env` and repository history.
 - [x] Add `.env.production.example` without secrets.
 - [x] Configure `CORS_ORIGINS` for dev/staging/prod.
+- [x] Add go-live gate flags (`GO_LIVE_REQUIRE_*`) to production template.
 - [ ] Rotate current AI/ETA keys.
 - [ ] Acceptance: no secret leaks, and `npm run eta:check` output is safe.
 

@@ -3,12 +3,138 @@
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || '/api';
 const IS_DEV = import.meta.env.DEV;
+const API_DEBUG = IS_DEV && import.meta.env.VITE_DEBUG_API === 'true';
+
+export type AppApiError = Error & {
+    status?: number;
+    endpoint?: string;
+    code?: string;
+    requestId?: string;
+    details?: any;
+    silent?: boolean;
+};
+
+const toAppApiError = (
+    payload: any,
+    status: number,
+    endpoint: string,
+): AppApiError => {
+    const code = String(payload?.code || payload?.error || `HTTP_${status}`);
+    const message = String(payload?.message || payload?.error || code);
+    const err = new Error(message) as AppApiError;
+    err.status = status;
+    err.endpoint = endpoint;
+    err.code = code;
+    err.requestId = payload?.requestId ? String(payload.requestId) : undefined;
+    err.details = payload?.details;
+    return err;
+};
+
+export const getActionableErrorMessage = (error: any, lang: 'en' | 'ar' = 'en') => {
+    const code = String(error?.code || error?.message || '').toUpperCase();
+    const fallback = lang === 'ar' ? 'حدث خطأ غير متوقع. حاول مرة أخرى.' : 'Unexpected error. Please try again.';
+    const mapAr: Record<string, string> = {
+        ORDER_VERSION_CONFLICT: 'الطلب تم تعديله من جهاز آخر. تم تحديث البيانات، حاول مرة أخرى.',
+        FORBIDDEN: 'ليس لديك صلاحية لتنفيذ هذا الإجراء.',
+        FORBIDDEN_BRANCH_SCOPE: 'لا يمكن تنفيذ الإجراء خارج فرعك الحالي.',
+        STATUS_TRANSITION_FORBIDDEN: 'ليس لديك صلاحية تغيير حالة الطلب إلى هذه الحالة.',
+        INVALID_STATUS_TRANSITION: 'لا يمكن نقل الطلب لهذه الحالة مباشرة.',
+        CANCELLATION_REASON_REQUIRED: 'سبب الإلغاء مطلوب قبل إلغاء الطلب.',
+        SHIFT_REQUIRED: 'لا يوجد شيفت مفتوح. افتح شيفت أولاً ثم أعد المحاولة.',
+        IDEMPOTENCY_KEY_PAYLOAD_CONFLICT: 'تم إرسال نفس العملية ببيانات مختلفة. راجع الطلب وأعد الإرسال.',
+        IDEMPOTENCY_KEY_IN_PROGRESS: 'جاري تنفيذ نفس العملية بالفعل. انتظر لحظات ثم حدّث الشاشة.',
+        TOO_MANY_LOGIN_ATTEMPTS: 'محاولات كثيرة. انتظر قليلًا ثم أعد المحاولة.',
+        VALIDATION_ERROR: 'بعض البيانات غير صحيحة. راجع المدخلات.',
+    };
+    const mapEn: Record<string, string> = {
+        ORDER_VERSION_CONFLICT: 'Order was updated from another device. Data was refreshed, please retry.',
+        FORBIDDEN: 'You do not have permission to perform this action.',
+        FORBIDDEN_BRANCH_SCOPE: 'Action is not allowed outside your branch scope.',
+        STATUS_TRANSITION_FORBIDDEN: 'You are not allowed to move order to this status.',
+        INVALID_STATUS_TRANSITION: 'This order status transition is not allowed.',
+        CANCELLATION_REASON_REQUIRED: 'Cancellation reason is required before cancelling this order.',
+        SHIFT_REQUIRED: 'No active shift. Open a shift first, then retry.',
+        IDEMPOTENCY_KEY_PAYLOAD_CONFLICT: 'Same request key used with different payload. Review and retry.',
+        IDEMPOTENCY_KEY_IN_PROGRESS: 'Same request is still processing. Wait and refresh.',
+        TOO_MANY_LOGIN_ATTEMPTS: 'Too many attempts. Please wait and retry.',
+        VALIDATION_ERROR: 'Some fields are invalid. Please review your input.',
+    };
+    const mapped = (lang === 'ar' ? mapAr : mapEn)[code];
+    if (mapped) return mapped;
+    return error?.message || fallback;
+};
+
 const getAuthToken = () => {
     try {
         return localStorage.getItem('auth_token');
     } catch {
         return null;
     }
+};
+
+const getRefreshToken = () => {
+    try {
+        return localStorage.getItem('auth_refresh_token');
+    } catch {
+        return null;
+    }
+};
+
+const setAuthToken = (token: string) => {
+    try { localStorage.setItem('auth_token', token); } catch { /* */ }
+};
+
+const setRefreshToken = (token: string) => {
+    try { localStorage.setItem('auth_refresh_token', token); } catch { /* */ }
+};
+
+const handleUnauthorizedToken = (endpoint: string) => {
+    // Ignore explicit auth endpoints; they have their own UX handling.
+    if (endpoint.startsWith('/auth/login') || endpoint.startsWith('/auth/mfa') || endpoint.startsWith('/auth/refresh') || endpoint.startsWith('/setup/')) return;
+    try {
+        localStorage.removeItem('auth_token');
+        localStorage.removeItem('auth_refresh_token');
+    } catch {
+        // ignore storage errors
+    }
+    if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('restoflow:auth-invalid', { detail: { endpoint } }));
+    }
+};
+
+// Refresh token lock to prevent concurrent refresh calls
+let isRefreshing = false;
+let refreshPromise: Promise<string | null> | null = null;
+
+const tryRefreshToken = async (): Promise<string | null> => {
+    if (isRefreshing && refreshPromise) return refreshPromise;
+    const rt = getRefreshToken();
+    if (!rt) return null;
+
+    isRefreshing = true;
+    refreshPromise = (async () => {
+        try {
+            const url = `${API_BASE_URL}/auth/refresh`;
+            const resp = await fetch(url, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ refreshToken: rt }),
+            });
+            if (!resp.ok) return null;
+            const data = await resp.json();
+            if (data.token) {
+                setAuthToken(data.token);
+                return data.token as string;
+            }
+            return null;
+        } catch {
+            return null;
+        } finally {
+            isRefreshing = false;
+            refreshPromise = null;
+        }
+    })();
+    return refreshPromise;
 };
 
 // ============================================================================
@@ -22,7 +148,7 @@ async function apiRequest<T>(
     const url = endpoint.startsWith('http') ? endpoint : `${API_BASE_URL}${endpoint}`;
 
     // Debug log for API calls
-    if (IS_DEV) {
+    if (API_DEBUG) {
         console.log(`API Request: ${options.method || 'GET'} ${url}`);
     }
 
@@ -39,10 +165,30 @@ async function apiRequest<T>(
         const response = await fetch(url, config);
 
         if (!response.ok) {
-            const error = await response.json().catch(() => ({ message: 'Request failed' }));
-            const err: any = new Error(error.message || error.error || `HTTP Error: ${response.status}`);
-            err.status = response.status;
-            err.endpoint = endpoint;
+            const error = await response.json().catch(() => ({ code: `HTTP_${response.status}`, message: 'Request failed' }));
+
+            // Auto-refresh on 401 (except auth endpoints themselves)
+            if (response.status === 401 && !endpoint.startsWith('/auth/')) {
+                const newToken = await tryRefreshToken();
+                if (newToken) {
+                    // Retry the original request with the new token
+                    const retryConfig: RequestInit = {
+                        ...options,
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Authorization': `Bearer ${newToken}`,
+                            ...options.headers,
+                        },
+                    };
+                    const retryResponse = await fetch(url, retryConfig);
+                    if (retryResponse.ok) {
+                        return await retryResponse.json();
+                    }
+                }
+                handleUnauthorizedToken(endpoint);
+            }
+
+            const err = toAppApiError(error, response.status, endpoint);
             if (response.status === 401 && endpoint === '/auth/me') {
                 err.silent = true;
             }
@@ -55,11 +201,11 @@ async function apiRequest<T>(
         const data = await response.json();
         return data;
     } catch (error: any) {
-        if (!error?.silent && IS_DEV) {
+        if (!error?.silent && API_DEBUG) {
             console.error(`API Error [${endpoint}]:`, error.message);
         }
         // If it's a syntax error with '<', it's likely we hit an HTML page instead of JSON
-        if (!error?.silent && IS_DEV && error.message?.includes('Unexpected token')) {
+        if (!error?.silent && API_DEBUG && error.message?.includes('Unexpected token')) {
             console.error('Hint: The server might be returning an HTML page. Check if the backend is running and the API URL is correct.');
         }
         throw error;
@@ -81,7 +227,8 @@ async function apiRequestBlob(
     const response = await fetch(url, config);
     if (!response.ok) {
         const text = await response.text().catch(() => 'Request failed');
-        throw new Error(text || `HTTP Error: ${response.status}`);
+        const err = toAppApiError({ message: text || 'Request failed' }, response.status, endpoint);
+        throw err;
     }
     return response.blob();
 }
@@ -111,9 +258,11 @@ export const setupApi = {
 
 export const authApi = {
     login: (email: string, password: string, deviceName?: string) =>
-        apiRequest<{ token?: string; user?: any; mfaRequired?: boolean; mfaToken?: string }>('/auth/login', { method: 'POST', body: JSON.stringify({ email, password, deviceName }) }),
+        apiRequest<{ token?: string; refreshToken?: string; user?: any; mfaRequired?: boolean; mfaToken?: string }>('/auth/login', { method: 'POST', body: JSON.stringify({ email, password, deviceName }) }),
     verifyMfa: (mfaToken: string, code: string, deviceName?: string) =>
-        apiRequest<{ token: string; user: any }>('/auth/mfa/verify', { method: 'POST', body: JSON.stringify({ mfaToken, code, deviceName }) }),
+        apiRequest<{ token: string; refreshToken: string; user: any }>('/auth/mfa/verify', { method: 'POST', body: JSON.stringify({ mfaToken, code, deviceName }) }),
+    pinLogin: (pin: string, branchId?: string, deviceName?: string) =>
+        apiRequest<{ token: string; refreshToken: string; user: any }>('/auth/pin-login', { method: 'POST', body: JSON.stringify({ pin, branchId, deviceName }) }),
     me: () => apiRequest<{ user: any }>('/auth/me'),
     logout: () => apiRequest<{ ok: boolean }>('/auth/logout', { method: 'POST' }),
     getSessions: () => apiRequest<Array<{
@@ -207,14 +356,27 @@ export const menuApi = {
 // ============================================================================
 
 export const ordersApi = {
+    // Optional idempotencyKey is used by offline sync retries to avoid duplicate server writes.
     getAll: (params?: { status?: string; branch_id?: string; type?: string; date?: string; limit?: number }) => {
         const query = new URLSearchParams(params as any).toString();
         return apiRequest<any[]>(`/orders${query ? `?${query}` : ''}`);
     },
     getById: (id: string) => apiRequest<any>(`/orders/${id}`),
-    create: (order: any) => apiRequest<any>('/orders', { method: 'POST', body: JSON.stringify(order) }),
-    updateStatus: (id: string, data: { status: string; changed_by?: string; notes?: string; expected_updated_at?: string; expectedUpdatedAt?: string }) =>
-        apiRequest<any>(`/orders/${id}/status`, { method: 'PUT', body: JSON.stringify(data) }),
+    create: (order: any, options?: { idempotencyKey?: string }) => apiRequest<any>('/orders', {
+        method: 'POST',
+        body: JSON.stringify(order),
+        ...(options?.idempotencyKey ? { headers: { 'Idempotency-Key': options.idempotencyKey } } : {}),
+    }),
+    updateStatus: (
+        id: string,
+        data: { status: string; changed_by?: string; notes?: string; expected_updated_at?: string; expectedUpdatedAt?: string },
+        options?: { idempotencyKey?: string },
+    ) =>
+        apiRequest<any>(`/orders/${id}/status`, {
+            method: 'PUT',
+            body: JSON.stringify(data),
+            ...(options?.idempotencyKey ? { headers: { 'Idempotency-Key': options.idempotencyKey } } : {}),
+        }),
     validateCoupon: (data: { code: string; branchId?: string; orderType: string; subtotal: number; customerId?: string }) =>
         apiRequest<{
             valid: boolean;
@@ -243,7 +405,7 @@ export const inventoryApi = {
     createWarehouse: (warehouse: any) => apiRequest<any>('/warehouses', { method: 'POST', body: JSON.stringify(warehouse) }),
 
     // Stock
-    updateStock: (data: { item_id: string; warehouse_id: string; quantity: number; type: string; reason?: string; actor_id?: string }) =>
+    updateStock: (data: { item_id: string; warehouse_id: string; quantity: number; type: string; reason?: string; actor_id?: string; reference_id?: string }) =>
         apiRequest<any>('/inventory/stock/update', { method: 'POST', body: JSON.stringify(data) }),
     transferStock: (data: { item_id: string; from_warehouse_id: string; to_warehouse_id: string; quantity: number; reason?: string; actor_id?: string; reference_id?: string }) =>
         apiRequest<any>('/inventory/stock/transfer', { method: 'POST', body: JSON.stringify(data) }),
@@ -317,8 +479,60 @@ export const deliveryApi = {
         const query = new URLSearchParams(params as any).toString();
         return apiRequest<any[]>(`/delivery/drivers/all${query ? `?${query}` : ''}`);
     },
+    getTelemetry: (branchId?: string) => apiRequest<Array<{
+        driverId: string;
+        branchId?: string | null;
+        lat: number;
+        lng: number;
+        speedKmh?: number;
+        accuracy?: number;
+        updatedAt: string;
+    }>>(`/delivery/telemetry${branchId ? `?branchId=${branchId}` : ''}`),
+    updateDriverLocation: (id: string, data: { lat: number; lng: number; speedKmh?: number; accuracy?: number }) =>
+        apiRequest<any>(`/delivery/drivers/${id}/location`, { method: 'PUT', body: JSON.stringify(data) }),
+    getSlaAlerts: (params?: { branchId?: string; delayMinutes?: number; staleLocationMinutes?: number }) => {
+        const query = new URLSearchParams(params as any).toString();
+        return apiRequest<{ branchId: string; total: number; alerts: any[] }>(`/delivery/sla-alerts${query ? `?${query}` : ''}`);
+    },
+    autoEscalateSlaAlerts: (data?: { branchId?: string; delayMinutes?: number; staleLocationMinutes?: number }) =>
+        apiRequest<{ scanned: number; escalated: number; branchId: string; escalations: any[] }>(
+            '/delivery/sla-alerts/escalate',
+            { method: 'POST', body: JSON.stringify(data || {}) }
+        ),
     assign: (data: { orderId: string; driverId: string }) => apiRequest<any>('/delivery/assign', { method: 'POST', body: JSON.stringify(data) }),
     updateDriverStatus: (id: string, status: string) => apiRequest<any>(`/delivery/drivers/${id}/status`, { method: 'PUT', body: JSON.stringify({ status }) }),
+};
+
+// ============================================================================
+// Call Center Supervisor API
+// ============================================================================
+
+export const callCenterSupervisorApi = {
+    getEscalations: (params?: { status?: 'OPEN' | 'RESOLVED'; branchId?: string }) => {
+        const query = new URLSearchParams(params as any).toString();
+        return apiRequest<any[]>(`/call-center/escalations${query ? `?${query}` : ''}`);
+    },
+    createEscalation: (data: { orderId: string; branchId?: string; priority?: 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL'; reason: string; notes?: string; assignedTo?: string }) =>
+        apiRequest<any>('/call-center/escalations', { method: 'POST', body: JSON.stringify(data) }),
+    scanEscalations: (data?: { thresholdMinutes?: number; branchId?: string }) =>
+        apiRequest<{ scanned: number; created: number; thresholdMinutes: number; branchId: string; escalations: any[] }>(
+            '/call-center/escalations/scan',
+            { method: 'POST', body: JSON.stringify(data || {}) },
+        ),
+    resolveEscalation: (id: string, resolutionNotes?: string) =>
+        apiRequest<any>(`/call-center/escalations/${id}/resolve`, { method: 'PUT', body: JSON.stringify({ resolutionNotes }) }),
+    getCoachingNotes: (params?: { agentId?: string; branchId?: string }) => {
+        const query = new URLSearchParams(params as any).toString();
+        return apiRequest<any[]>(`/call-center/coaching-notes${query ? `?${query}` : ''}`);
+    },
+    addCoachingNote: (data: { agentId: string; branchId?: string; note: string; tags?: string[] }) =>
+        apiRequest<any>('/call-center/coaching-notes', { method: 'POST', body: JSON.stringify(data) }),
+    getDiscountAbuse: (params?: { branchId?: string; startDate?: string; endDate?: string; thresholdPercent?: number; thresholdAmount?: number }) => {
+        const query = new URLSearchParams(params as any).toString();
+        return apiRequest<any>(`/call-center/discount-abuse${query ? `?${query}` : ''}`);
+    },
+    approveDiscountViolation: (data: { orderId: string; agentId?: string; branchId?: string; status?: 'APPROVED' | 'REJECTED'; reason?: string }) =>
+        apiRequest<any>('/call-center/discount-abuse/approve', { method: 'POST', body: JSON.stringify(data) }),
 };
 
 // ============================================================================
@@ -329,6 +543,17 @@ export const campaignsApi = {
     getAll: () => apiRequest<any[]>('/campaigns'),
     getStats: () => apiRequest<any>('/campaigns/stats'),
     create: (data: any) => apiRequest<any>('/campaigns', { method: 'POST', body: JSON.stringify(data) }),
+    dispatch: (id: string, data: { mode?: 'DRY_RUN' | 'SEND'; phones?: string[]; customerIds?: string[]; message?: string }) =>
+        apiRequest<{
+            ok: boolean;
+            campaignId: string;
+            method: 'SMS' | 'Email' | 'Push' | 'WHATSAPP';
+            dryRun: boolean;
+            recipients: number;
+            sent: number;
+            failed: number;
+            dispatchId: string;
+        }>(`/campaigns/${id}/dispatch`, { method: 'POST', body: JSON.stringify(data) }),
     update: (id: string, data: any) => apiRequest<any>(`/campaigns/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
     delete: (id: string) => apiRequest<any>(`/campaigns/${id}`, { method: 'DELETE' }),
 };
@@ -387,6 +612,19 @@ export const financeApi = {
     getPeriodCloses: () => apiRequest<any[]>('/finance/period-closes'),
     closePeriod: (data: { periodStart: string; periodEnd: string }) =>
         apiRequest<any>('/finance/period-close', { method: 'POST', body: JSON.stringify(data) }),
+    // Financial Statements
+    getProfitAndLoss: (params?: { start?: string; end?: string }) => {
+        const query = new URLSearchParams(params as any).toString();
+        return apiRequest<any>(`/finance/statements/pnl${query ? `?${query}` : ''}`);
+    },
+    getBalanceSheet: (date?: string) =>
+        apiRequest<any>(`/finance/statements/balance-sheet${date ? `?date=${date}` : ''}`),
+    getCashFlow: (params?: { start?: string; end?: string }) => {
+        const query = new URLSearchParams(params as any).toString();
+        return apiRequest<any>(`/finance/statements/cash-flow${query ? `?${query}` : ''}`);
+    },
+    getAccountsReceivable: () => apiRequest<any>('/finance/statements/ar'),
+    getAccountsPayable: () => apiRequest<any>('/finance/statements/ap'),
 };
 
 // ============================================================================
@@ -509,6 +747,16 @@ export const fiscalApi = {
         return apiRequest<any[]>(`/fiscal/logs${query ? `?${query}` : ''}`);
     },
     getConfig: () => apiRequest<{ ok: boolean; missing: string[] }>('/fiscal/config'),
+    getReadiness: (branchId?: string) =>
+        apiRequest<{
+            ok: boolean;
+            branchId: string;
+            period: { from: string; to: string };
+            config: { ok: boolean; missing: string[] };
+            metrics24h: { submitted: number; pending: number; failed: number; total: number; successRate: number };
+            deadLetter: { pendingCount: number; oldestPendingAgeMinutes: number };
+            alerts: { configMissing: boolean; lowSuccessRate: boolean; hasPendingDlq: boolean; stalePendingDlq: boolean };
+        }>(`/fiscal/readiness${branchId ? `?branchId=${encodeURIComponent(branchId)}` : ''}`),
 };
 
 // ============================================================================
@@ -593,16 +841,16 @@ export const printersApi = {
 export const tablesApi = {
     getAll: (branchId: string) => apiRequest<any[]>(`/tables?branchId=${branchId}`),
     getZones: (branchId: string) => apiRequest<any[]>(`/tables/zones?branchId=${branchId}`),
-    saveLayout: (data: { branchId: string; zones: any[]; tables: any[] }) =>
+    saveLayout: (data: { branchId: string; zones: any[]; tables: any[]; reference_id?: string }) =>
         apiRequest<any>('/tables/layout', { method: 'POST', body: JSON.stringify(data) }),
-    transfer: (data: { sourceTableId: string; targetTableId: string }) =>
+    transfer: (data: { sourceTableId: string; targetTableId: string; reference_id?: string }) =>
         apiRequest<any>('/tables/transfer', { method: 'POST', body: JSON.stringify(data) }),
-    split: (data: { sourceTableId: string; targetTableId: string; items: Array<{ name: string; price: number; quantity: number }> }) =>
+    split: (data: { sourceTableId: string; targetTableId: string; items: Array<{ name: string; price: number; quantity: number }>; reference_id?: string }) =>
         apiRequest<any>('/tables/split', { method: 'POST', body: JSON.stringify(data) }),
-    merge: (data: { sourceTableId: string; targetTableId: string; items: Array<{ name: string; price: number; quantity: number }> }) =>
+    merge: (data: { sourceTableId: string; targetTableId: string; items: Array<{ name: string; price: number; quantity: number }>; reference_id?: string }) =>
         apiRequest<any>('/tables/merge', { method: 'POST', body: JSON.stringify(data) }),
-    updateStatus: (id: string, status: string, currentOrderId?: string) =>
-        apiRequest<any>(`/tables/${id}/status`, { method: 'PUT', body: JSON.stringify({ status, currentOrderId }) }),
+    updateStatus: (id: string, status: string, currentOrderId?: string, reference_id?: string) =>
+        apiRequest<any>(`/tables/${id}/status`, { method: 'PUT', body: JSON.stringify({ status, currentOrderId, reference_id }) }),
 };
 
 // ============================================================================
@@ -614,9 +862,54 @@ export const aiApi = {
         const query = branchId ? `?branchId=${encodeURIComponent(branchId)}` : '';
         return apiRequest<{ insight: string }>(`/ai/insights${query}`);
     },
+    chat: (data: { message: string; context?: Record<string, any>; lang?: 'en' | 'ar' }) =>
+        apiRequest<{ text: string; actions: any[]; suggestion?: any | null }>('/ai/chat', {
+            method: 'POST',
+            body: JSON.stringify(data),
+        }),
+    previewAction: (data: { action: Record<string, any> } | { actionType: string; parameters?: Record<string, any> }) =>
+        apiRequest<{ guarded: any; allowed: boolean }>('/ai/action-preview', {
+            method: 'POST',
+            body: JSON.stringify(data),
+        }),
+    actionExecute: (data: { action: Record<string, any>; explanation?: string } | { actionType: string; parameters?: Record<string, any>; explanation?: string }) =>
+        apiRequest<{ success: boolean; message: string; actionId: string; guarded?: any; result?: any }>('/ai/action-execute', {
+            method: 'POST',
+            body: JSON.stringify(data),
+        }),
+    // Legacy compatibility wrapper
     executeAction: (data: { actionType: string; parameters?: Record<string, any>; explanation?: string }) =>
         apiRequest<{ success: boolean; message: string; actionId: string }>('/ai/execute', {
             method: 'POST',
+            body: JSON.stringify(data),
+        }),
+    getKeyConfig: () =>
+        apiRequest<{
+            provider: 'OPENROUTER' | 'OLLAMA';
+            providerOptions: Array<{ id: 'OPENROUTER' | 'OLLAMA'; label: string }>;
+            ollama: { enabled: boolean; baseUrl: string; model: string; modelDefault: string };
+            source: 'DEFAULT' | 'CUSTOM';
+            hasCustomKey: boolean;
+            maskedCustomKey: string | null;
+            usingDefaultAvailable: boolean;
+            model: string;
+            defaultModel: string;
+            availableModels: Array<{ id: string; label: string; provider: string }>;
+        }>('/ai/key-config'),
+    updateKeyConfig: (data: { source: 'DEFAULT' | 'CUSTOM'; customKey?: string; model?: string; provider?: 'OPENROUTER' | 'OLLAMA'; ollamaModel?: string }) =>
+        apiRequest<{
+            provider: 'OPENROUTER' | 'OLLAMA';
+            providerOptions: Array<{ id: 'OPENROUTER' | 'OLLAMA'; label: string }>;
+            ollama: { enabled: boolean; baseUrl: string; model: string; modelDefault: string };
+            source: 'DEFAULT' | 'CUSTOM';
+            hasCustomKey: boolean;
+            maskedCustomKey: string | null;
+            usingDefaultAvailable: boolean;
+            model: string;
+            defaultModel: string;
+            availableModels: Array<{ id: string; label: string; provider: string }>;
+        }>('/ai/key-config', {
+            method: 'PUT',
             body: JSON.stringify(data),
         }),
 };
@@ -633,6 +926,60 @@ export const opsApi = {
             database: { ok: boolean; latencyMs: number };
             socket: Record<string, any>;
         }>('/ops/realtime-health'),
+    getGoLiveSummary: () =>
+        apiRequest<{
+            ok: boolean;
+            generatedAt: string;
+            blockers: any;
+            launchGates: any;
+            uat: any;
+            rollback: any;
+            evidence: any;
+            daily: any;
+        }>('/ops/go-live/summary'),
+    refreshGoLiveReports: () => apiRequest<{ ok: boolean; blockers: any }>('/ops/go-live/refresh', { method: 'POST' }),
+    updateUatSignoffArtifact: (data: any) => apiRequest<{ ok: boolean }>('/ops/go-live/uat-signoff', { method: 'PUT', body: JSON.stringify(data) }),
+    updateRollbackDrillArtifact: (data: any) => apiRequest<{ ok: boolean }>('/ops/go-live/rollback-drill', { method: 'PUT', body: JSON.stringify(data) }),
+};
+
+// ============================================================================
+// Print Gateway API
+// ============================================================================
+
+export const printGatewayApi = {
+    getJobs: (params?: { branchId?: string; status?: 'QUEUED' | 'PROCESSING' | 'COMPLETED' | 'FAILED'; limit?: number }) => {
+        const query = new URLSearchParams(params as any).toString();
+        return apiRequest<{ ok: boolean; stats: { queued: number; processing: number; completed: number; failed: number; total: number }; jobs: any[] }>(`/print-gateway/jobs${query ? `?${query}` : ''}`);
+    },
+    retryJob: (jobId: string) => apiRequest<{ ok: boolean; job: any }>(`/print-gateway/jobs/${jobId}/retry`, { method: 'POST' }),
+};
+
+// ============================================================================
+// WhatsApp API
+// ============================================================================
+
+export const whatsappApi = {
+    getStatus: () => apiRequest<{
+        ok: boolean;
+        provider: 'mock' | 'meta' | 'twilio';
+        configured: boolean;
+        lastWebhookAt: string | null;
+        inboxCount: number;
+        openEscalations: number;
+    }>('/whatsapp/status'),
+    sendTest: (data: { to: string; text: string }) =>
+        apiRequest<{ ok: boolean; result: any }>('/whatsapp/send-test', { method: 'POST', body: JSON.stringify(data) }),
+    getInbox: (params?: { limit?: number; from?: string; branchId?: string }) => {
+        const query = new URLSearchParams(params as any).toString();
+        return apiRequest<{ ok: boolean; total: number; inbox: any[] }>(`/whatsapp/inbox${query ? `?${query}` : ''}`);
+    },
+    getEscalations: (status?: 'OPEN' | 'RESOLVED') =>
+        apiRequest<{ ok: boolean; total: number; escalations: any[] }>(`/whatsapp/escalations${status ? `?status=${status}` : ''}`),
+    resolveEscalation: (id: string, resolutionNotes?: string) =>
+        apiRequest<{ ok: boolean; escalation: any }>(`/whatsapp/escalations/${id}/resolve`, {
+            method: 'PUT',
+            body: JSON.stringify({ resolutionNotes: resolutionNotes || '' }),
+        }),
 };
 
 // ============================================================================
@@ -654,6 +1001,7 @@ export default {
     shifts: shiftsApi,
     approvals: approvalsApi,
     delivery: deliveryApi,
+    callCenterSupervisor: callCenterSupervisorApi,
     campaigns: campaignsApi,
     analytics: analyticsApi,
     hr: hrApi,
@@ -668,6 +1016,137 @@ export default {
     tables: tablesApi,
     ai: aiApi,
     ops: opsApi,
+    printGateway: printGatewayApi,
+    whatsapp: whatsappApi,
 };
 
+// ============================================================================
+// Inventory Intelligence API
+// ============================================================================
 
+export const inventoryIntelligenceApi = {
+    getReorderAlerts: (warehouseId?: string) =>
+        apiRequest<any[]>(`/inventory-intelligence/reorder-alerts${warehouseId ? `?warehouseId=${warehouseId}` : ''}`),
+    getPurchaseSuggestions: (warehouseId?: string) =>
+        apiRequest<any[]>(`/inventory-intelligence/purchase-suggestions${warehouseId ? `?warehouseId=${warehouseId}` : ''}`),
+    convertUnit: (value: number, from: string, to: string) =>
+        apiRequest<any>(`/inventory-intelligence/convert-unit?value=${value}&from=${from}&to=${to}`),
+    getSupportedUnits: () =>
+        apiRequest<string[]>('/inventory-intelligence/supported-units'),
+    createStockCount: (warehouseId: string) =>
+        apiRequest<any>('/inventory-intelligence/stock-count', { method: 'POST', body: JSON.stringify({ warehouseId }) }),
+    updateStockCount: (sessionId: string, counts: { itemId: string; countedQty: number; notes?: string }[]) =>
+        apiRequest<any>(`/inventory-intelligence/stock-count/${sessionId}`, { method: 'PUT', body: JSON.stringify({ counts }) }),
+    completeStockCount: (sessionId: string, applyAdjustments?: boolean) =>
+        apiRequest<any>(`/inventory-intelligence/stock-count/${sessionId}/complete`, { method: 'POST', body: JSON.stringify({ applyAdjustments }) }),
+};
+
+// ============================================================================
+// Refund API
+// ============================================================================
+
+export const refundApi = {
+    getRefunds: (filters?: { branchId?: string; status?: string; orderId?: string }) => {
+        const query = new URLSearchParams(filters as any).toString();
+        return apiRequest<any[]>(`/refunds${query ? `?${query}` : ''}`);
+    },
+    getRefundById: (id: string) => apiRequest<any>(`/refunds/${id}`),
+    requestRefund: (data: {
+        orderId: string; type: string; reason: string; reasonCategory: string;
+        refundMethod: string; requestedByName?: string;
+        items?: { orderItemId: number; quantity: number; reason?: string }[];
+        customAmount?: number;
+    }) => apiRequest<any>('/refunds', { method: 'POST', body: JSON.stringify(data) }),
+    approveRefund: (id: string) =>
+        apiRequest<any>(`/refunds/${id}/approve`, { method: 'PUT' }),
+    rejectRefund: (id: string, reason: string) =>
+        apiRequest<any>(`/refunds/${id}/reject`, { method: 'PUT', body: JSON.stringify({ reason }) }),
+    processRefund: (id: string) =>
+        apiRequest<any>(`/refunds/${id}/process`, { method: 'POST' }),
+    getPolicy: () => apiRequest<any>('/refunds/policy'),
+    updatePolicy: (policy: any) =>
+        apiRequest<any>('/refunds/policy', { method: 'PUT', body: JSON.stringify(policy) }),
+    getStats: (branchId?: string, startDate?: string, endDate?: string) => {
+        const params: any = {};
+        if (branchId) params.branchId = branchId;
+        if (startDate) params.startDate = startDate;
+        if (endDate) params.endDate = endDate;
+        const query = new URLSearchParams(params).toString();
+        return apiRequest<any>(`/refunds/stats${query ? `?${query}` : ''}`);
+    },
+};
+
+// ============================================================================
+// HR Extended API
+// ============================================================================
+
+export const hrExtendedApi = {
+    getDepartments: () => apiRequest<any[]>('/hr-extended/departments'),
+    createDepartment: (data: { name: string; nameAr?: string; managerId?: string }) =>
+        apiRequest<any>('/hr-extended/departments', { method: 'POST', body: JSON.stringify(data) }),
+    getJobTitles: () => apiRequest<any[]>('/hr-extended/job-titles'),
+    createJobTitle: (data: { name: string; nameAr?: string; departmentId?: string }) =>
+        apiRequest<any>('/hr-extended/job-titles', { method: 'POST', body: JSON.stringify(data) }),
+    getLeaveTypes: () => apiRequest<any[]>('/hr-extended/leave-types'),
+    getLeaveRequests: (filters?: { employeeId?: string; status?: string }) => {
+        const query = new URLSearchParams(filters as any).toString();
+        return apiRequest<any[]>(`/hr-extended/leave-requests${query ? `?${query}` : ''}`);
+    },
+    createLeaveRequest: (data: {
+        employeeId: string; employeeName: string; leaveTypeId: string;
+        startDate: string; endDate: string; reason: string;
+    }) => apiRequest<any>('/hr-extended/leave-requests', { method: 'POST', body: JSON.stringify(data) }),
+    approveLeave: (id: string) =>
+        apiRequest<any>(`/hr-extended/leave-requests/${id}/approve`, { method: 'PUT' }),
+    rejectLeave: (id: string, reason: string) =>
+        apiRequest<any>(`/hr-extended/leave-requests/${id}/reject`, { method: 'PUT', body: JSON.stringify({ reason }) }),
+    getLeaveBalance: (employeeId: string) =>
+        apiRequest<any[]>(`/hr-extended/leave-balance/${employeeId}`),
+    getOvertimeEntries: (filters?: { employeeId?: string; status?: string; month?: string }) => {
+        const query = new URLSearchParams(filters as any).toString();
+        return apiRequest<any[]>(`/hr-extended/overtime${query ? `?${query}` : ''}`);
+    },
+    recordOvertime: (data: {
+        employeeId: string; date: string; regularHours: number;
+        overtimeHours: number; overtimeRate?: number; baseSalaryPerHour?: number;
+    }) => apiRequest<any>('/hr-extended/overtime', { method: 'POST', body: JSON.stringify(data) }),
+    approveOvertime: (id: string) =>
+        apiRequest<any>(`/hr-extended/overtime/${id}/approve`, { method: 'PUT' }),
+};
+
+// ============================================================================
+// Main API Export
+// ============================================================================
+
+export const api = {
+    auth: authApi,
+    users: usersApi,
+    branches: branchesApi,
+    customers: customersApi,
+    menu: menuApi,
+    orders: ordersApi,
+    inventory: inventoryApi,
+    shifts: shiftsApi,
+    settings: settingsApi,
+    delivery: deliveryApi,
+    callCenterSupervisor: callCenterSupervisorApi,
+    campaigns: campaignsApi,
+    analytics: analyticsApi,
+    hr: hrApi,
+    financeEngine: financeApi,
+    reports: reportsApi,
+    fiscal: fiscalApi,
+    dayClose: dayCloseApi,
+    wastage: wastageApi,
+    suppliers: suppliersApi,
+    purchaseOrders: purchaseOrdersApi,
+    printers: printersApi,
+    tables: tablesApi,
+    ai: aiApi,
+    ops: opsApi,
+    printGateway: printGatewayApi,
+    whatsapp: whatsappApi,
+    inventoryIntelligence: inventoryIntelligenceApi,
+    refunds: refundApi,
+    hrExtended: hrExtendedApi,
+};

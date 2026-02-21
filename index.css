@@ -361,6 +361,7 @@ body {
   line-height: 1.6;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  -webkit-text-size-adjust: 100%;
 }
 
 .min-h-screen {
@@ -376,6 +377,33 @@ body {
 .app-viewport {
   min-height: 100svh;
   min-height: 100dvh;
+}
+
+/* Tablet UX pass: improve readability, contrast, and touch comfort */
+@media (min-width: 768px) and (max-width: 1199px) {
+  [data-theme] {
+    --text-main: 15 23 42;
+    --text-muted: 71 85 105;
+    --border-color: 203 213 225;
+  }
+
+  .dark [data-theme] {
+    --text-main: 241 245 249;
+    --text-muted: 186 198 214;
+    --border-color: 51 65 85;
+  }
+
+  .pos-shell button,
+  .pos-shell .btn,
+  .pos-shell [role='button'],
+  .pos-shell input,
+  .pos-shell select {
+    min-height: 44px;
+  }
+
+  .pos-shell .text-\[10px\] {
+    font-size: 0.72rem;
+  }
 }
 
 .safe-area {

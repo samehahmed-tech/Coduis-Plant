@@ -170,3 +170,81 @@ export const getFiscalConfig = async (_req: Request, res: Response) => {
     const missing = required.filter(key => !process.env[key]);
     res.json({ ok: missing.length === 0, missing });
 };
+
+export const getFiscalReadiness = async (req: Request, res: Response) => {
+    try {
+        const branchId = getStringParam(req.query.branchId);
+        const since = new Date();
+        since.setDate(since.getDate() - 1);
+
+        const required = [
+            'ETA_BASE_URL',
+            'ETA_TOKEN_URL',
+            'ETA_CLIENT_ID',
+            'ETA_CLIENT_SECRET',
+            'ETA_API_KEY',
+            'ETA_PRIVATE_KEY',
+            'ETA_RIN',
+        ];
+        const missing = required.filter(key => !process.env[key]);
+
+        const rows = await db.select({
+            status: fiscalLogs.status,
+            count: sql<number>`count(*)`,
+        }).from(fiscalLogs)
+            .where(and(
+                branchId ? eq(fiscalLogs.branchId, branchId) : undefined,
+                gte(fiscalLogs.createdAt, since),
+            ))
+            .groupBy(fiscalLogs.status);
+
+        const pendingDlqRows = await db.select().from(etaDeadLetters)
+            .where(and(
+                branchId ? eq(etaDeadLetters.branchId, branchId) : undefined,
+                eq(etaDeadLetters.status, 'PENDING'),
+            ))
+            .orderBy(desc(etaDeadLetters.createdAt));
+
+        const submitted = Number(rows.find(r => r.status === 'SUBMITTED')?.count || 0);
+        const failed = Number(rows.find(r => r.status === 'FAILED')?.count || 0);
+        const pending = Number(rows.find(r => r.status === 'PENDING')?.count || 0);
+        const total = submitted + failed + pending;
+        const successRate = total > 0 ? Number((submitted / total).toFixed(4)) : 1;
+
+        const oldestPendingDlq = pendingDlqRows.length > 0 ? pendingDlqRows[pendingDlqRows.length - 1] : null;
+        const oldestPendingAgeMinutes = oldestPendingDlq?.createdAt
+            ? Math.floor((Date.now() - new Date(oldestPendingDlq.createdAt).getTime()) / 60000)
+            : 0;
+
+        const alerts = {
+            configMissing: missing.length > 0,
+            lowSuccessRate: successRate < 0.98,
+            hasPendingDlq: pendingDlqRows.length > 0,
+            stalePendingDlq: oldestPendingAgeMinutes >= 30,
+        };
+
+        res.json({
+            ok: !alerts.configMissing && !alerts.lowSuccessRate && !alerts.stalePendingDlq,
+            branchId: branchId || 'ALL',
+            period: { from: since, to: new Date() },
+            config: {
+                ok: missing.length === 0,
+                missing,
+            },
+            metrics24h: {
+                submitted,
+                pending,
+                failed,
+                total,
+                successRate,
+            },
+            deadLetter: {
+                pendingCount: pendingDlqRows.length,
+                oldestPendingAgeMinutes,
+            },
+            alerts,
+        });
+    } catch (error: any) {
+        res.status(500).json({ error: error.message || 'FAILED_TO_GET_FISCAL_READINESS' });
+    }
+};

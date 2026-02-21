@@ -147,6 +147,29 @@ export const updateStock = async (req: Request, res: Response) => {
             return res.status(400).json({ error: 'quantity must be a number' });
         }
 
+        // Idempotency guard for offline replay: if this reference is already applied, do not apply twice.
+        if (reference_id) {
+            const [existingMovement] = await db
+                .select()
+                .from(stockMovements)
+                .where(eq(stockMovements.referenceId, String(reference_id)))
+                .limit(1);
+            if (existingMovement) {
+                const [currentStock] = await db.select().from(inventoryStock).where(
+                    and(eq(inventoryStock.itemId, item_id), eq(inventoryStock.warehouseId, warehouse_id))
+                );
+                const currentQty = Number(currentStock?.quantity || 0);
+                return res.json({
+                    success: true,
+                    idempotentReplay: true,
+                    referenceId: reference_id,
+                    previousQuantity: currentQty,
+                    newQuantity: currentQty,
+                    delta: 0,
+                });
+            }
+        }
+
         const [existing] = await db.select().from(inventoryStock).where(
             and(eq(inventoryStock.itemId, item_id), eq(inventoryStock.warehouseId, warehouse_id))
         );
@@ -247,6 +270,23 @@ export const transferStock = async (req: Request, res: Response) => {
         const transferQty = Number(quantity);
         if (!Number.isFinite(transferQty) || transferQty <= 0) {
             return res.status(400).json({ error: 'quantity must be a positive number' });
+        }
+
+        // Idempotency guard for offline replay.
+        if (reference_id) {
+            const [existingTransfer] = await db.select().from(stockMovements).where(
+                and(
+                    eq(stockMovements.referenceId, String(reference_id)),
+                    eq(stockMovements.type, 'TRANSFER')
+                )
+            ).limit(1);
+            if (existingTransfer) {
+                return res.json({
+                    success: true,
+                    idempotentReplay: true,
+                    referenceId: reference_id,
+                });
+            }
         }
 
         await db.transaction(async (tx) => {

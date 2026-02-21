@@ -4,9 +4,38 @@ import { printers } from '../../src/db/schema';
 import { and, desc, eq } from 'drizzle-orm';
 import { getStringParam } from '../utils/request';
 import net from 'node:net';
+import { pool } from '../db';
+
+let printerSchemaReady = false;
+
+const ensurePrinterSchema = async () => {
+    if (printerSchemaReady) return;
+    await pool.query(`
+        alter table printers add column if not exists code text;
+        alter table printers add column if not exists role text default 'OTHER';
+        alter table printers add column if not exists is_primary_cashier boolean default false;
+        alter table printers add column if not exists last_heartbeat_at timestamptz;
+        alter table printers add column if not exists heartbeat_status text default 'UNKNOWN';
+        alter table printers add column if not exists updated_at timestamptz default now();
+    `);
+    printerSchemaReady = true;
+};
+
+const enforceSinglePrimaryCashier = async (branchId: string | null, printerId: string) => {
+    if (!branchId) return;
+    await pool.query(
+        `update printers
+         set is_primary_cashier = false,
+             updated_at = now()
+         where branch_id = $1
+           and id <> $2`,
+        [branchId, printerId],
+    );
+};
 
 export const getPrinters = async (req: Request, res: Response) => {
     try {
+        await ensurePrinterSchema();
         const branchId = getStringParam(req.query.branchId);
         const active = getStringParam(req.query.active);
 
@@ -26,6 +55,7 @@ export const getPrinters = async (req: Request, res: Response) => {
 
 export const getPrinterById = async (req: Request, res: Response) => {
     try {
+        await ensurePrinterSchema();
         const id = getStringParam((req.params as any).id);
         if (!id) return res.status(400).json({ error: 'PRINTER_ID_REQUIRED' });
 
@@ -40,22 +70,35 @@ export const getPrinterById = async (req: Request, res: Response) => {
 
 export const createPrinter = async (req: Request, res: Response) => {
     try {
+        await ensurePrinterSchema();
         const body = req.body || {};
         if (!body.name || !body.type) {
             return res.status(400).json({ error: 'name and type are required' });
         }
 
+        const printerId = body.id || `PRN-${Date.now()}`;
+        const branchId = body.branch_id || body.branchId || null;
+        const isPrimaryCashier = body.is_primary_cashier === true || body.isPrimaryCashier === true;
+
         const [created] = await db.insert(printers).values({
-            id: body.id || `PRN-${Date.now()}`,
+            id: printerId,
             name: body.name,
+            code: body.code || null,
             type: body.type,
             address: body.address || '',
             location: body.location || '',
-            branchId: body.branch_id || body.branchId || null,
+            role: body.role || 'OTHER',
+            isPrimaryCashier,
+            branchId,
             isActive: body.is_active !== false,
             paperWidth: body.paper_width ?? 80,
             createdAt: new Date(),
+            updatedAt: new Date(),
         }).returning();
+
+        if (isPrimaryCashier) {
+            await enforceSinglePrimaryCashier(branchId, created.id);
+        }
 
         res.status(201).json(created);
     } catch (error: any) {
@@ -65,24 +108,41 @@ export const createPrinter = async (req: Request, res: Response) => {
 
 export const updatePrinter = async (req: Request, res: Response) => {
     try {
+        await ensurePrinterSchema();
         const id = getStringParam((req.params as any).id);
         if (!id) return res.status(400).json({ error: 'PRINTER_ID_REQUIRED' });
         const body = req.body || {};
 
+        const branchId = body.branch_id || body.branchId || null;
+        const hasPrimaryFlag = Object.prototype.hasOwnProperty.call(body, 'is_primary_cashier') || Object.prototype.hasOwnProperty.call(body, 'isPrimaryCashier');
+        const isPrimaryCashier = body.is_primary_cashier === true || body.isPrimaryCashier === true;
+
+        const updateData: any = {
+            name: body.name,
+            code: body.code,
+            type: body.type,
+            address: body.address,
+            location: body.location,
+            role: body.role,
+            branchId,
+            isActive: body.is_active,
+            paperWidth: body.paper_width,
+            updatedAt: new Date(),
+        };
+        if (hasPrimaryFlag) {
+            updateData.isPrimaryCashier = isPrimaryCashier;
+        }
+
         const [updated] = await db.update(printers)
-            .set({
-                name: body.name,
-                type: body.type,
-                address: body.address,
-                location: body.location,
-                branchId: body.branch_id || body.branchId,
-                isActive: body.is_active,
-                paperWidth: body.paper_width,
-            })
+            .set(updateData)
             .where(eq(printers.id, id))
             .returning();
 
         if (!updated) return res.status(404).json({ error: 'Printer not found' });
+
+        if (hasPrimaryFlag && isPrimaryCashier) {
+            await enforceSinglePrimaryCashier(updated.branchId || null, updated.id);
+        }
         res.json(updated);
     } catch (error: any) {
         res.status(500).json({ error: error.message });
@@ -91,6 +151,7 @@ export const updatePrinter = async (req: Request, res: Response) => {
 
 export const deletePrinter = async (req: Request, res: Response) => {
     try {
+        await ensurePrinterSchema();
         const id = getStringParam((req.params as any).id);
         if (!id) return res.status(400).json({ error: 'PRINTER_ID_REQUIRED' });
 
@@ -132,6 +193,7 @@ const probeNetworkPrinter = (address: string): Promise<boolean> => {
 
 export const heartbeatPrinter = async (req: Request, res: Response) => {
     try {
+        await ensurePrinterSchema();
         const id = getStringParam((req.params as any).id);
         if (!id) return res.status(400).json({ error: 'PRINTER_ID_REQUIRED' });
         const [printer] = await db.select().from(printers).where(eq(printers.id, id));
@@ -146,7 +208,12 @@ export const heartbeatPrinter = async (req: Request, res: Response) => {
         }
 
         const [updated] = await db.update(printers)
-            .set({ isActive: online })
+            .set({
+                isActive: online,
+                heartbeatStatus: online ? 'ONLINE' : 'OFFLINE',
+                lastHeartbeatAt: new Date(),
+                updatedAt: new Date(),
+            })
             .where(eq(printers.id, id))
             .returning();
 

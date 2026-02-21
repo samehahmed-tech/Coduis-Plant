@@ -36,6 +36,7 @@ export const loaders = {
     DayCloseHub: () => import('./components/DayCloseHub'),
     FranchiseManager: () => import('./components/FranchiseManager'),
     SetupWizard: () => import('./components/SetupWizard'),
+    GoLiveCenter: () => import('./components/GoLiveCenter'),
 };
 
 // Lazy load components using exported loaders
@@ -66,6 +67,7 @@ const FiscalHub = React.lazy(loaders.FiscalHub);
 const DayCloseHub = React.lazy(loaders.DayCloseHub);
 const FranchiseManager = React.lazy(loaders.FranchiseManager);
 const LazySetupWizard = React.lazy(loaders.SetupWizard);
+const GoLiveCenter = React.lazy(loaders.GoLiveCenter);
 
 const Loading = () => <div className="p-8 text-center text-slate-400 font-black uppercase tracking-widest text-[8px] opacity-40">Initializing Module...</div>;
 
@@ -238,6 +240,14 @@ export const router = createBrowserRouter([
                 element: withPermission(AppPermission.NAV_SETTINGS, (
                     <Suspense fallback={<Loading />}>
                         <SettingsHub />
+                    </Suspense>
+                )),
+            },
+            {
+                path: 'go-live',
+                element: withPermission(AppPermission.NAV_SECURITY, (
+                    <Suspense fallback={<Loading />}>
+                        <GoLiveCenter />
                     </Suspense>
                 )),
             },

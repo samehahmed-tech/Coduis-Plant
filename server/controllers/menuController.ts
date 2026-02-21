@@ -26,6 +26,12 @@ const getTableColumns = async (tableName: string): Promise<Set<string>> => {
 };
 
 const hasAnyColumn = (columns: Set<string>) => columns.size > 0;
+const hasColumn = (columns: Set<string>, name: string) => columns.has(name);
+
+const compatSelect = (columns: Set<string>, columnName: string, alias: string, fallbackSql: string) =>
+    hasColumn(columns, columnName)
+        ? `${columnName} as "${alias}"`
+        : `${fallbackSql} as "${alias}"`;
 
 const readCategoriesCompat = async () => {
     const columns = await getTableColumns('menu_categories');
@@ -34,26 +40,20 @@ const readCategoriesCompat = async () => {
     }
 
     const selectParts = [
-        `id`,
-        `name`,
-        `name_ar as "nameAr"`,
-        `description`,
-        `icon`,
-        `image`,
-        `color`,
-        `sort_order as "sortOrder"`,
-        `is_active as "isActive"`,
-        columns.has('target_order_types')
-            ? `target_order_types as "targetOrderTypes"`
-            : `'[]'::json as "targetOrderTypes"`,
-        columns.has('menu_ids')
-            ? `menu_ids as "menuIds"`
-            : `'[]'::json as "menuIds"`,
-        columns.has('printer_ids')
-            ? `printer_ids as "printerIds"`
-            : `'[]'::json as "printerIds"`,
-        `created_at as "createdAt"`,
-        `updated_at as "updatedAt"`,
+        compatSelect(columns, 'id', 'id', `''::text`),
+        compatSelect(columns, 'name', 'name', `''::text`),
+        compatSelect(columns, 'name_ar', 'nameAr', `null::text`),
+        compatSelect(columns, 'description', 'description', `null::text`),
+        compatSelect(columns, 'icon', 'icon', `null::text`),
+        compatSelect(columns, 'image', 'image', `null::text`),
+        compatSelect(columns, 'color', 'color', `null::text`),
+        compatSelect(columns, 'sort_order', 'sortOrder', `0`),
+        compatSelect(columns, 'is_active', 'isActive', `true`),
+        compatSelect(columns, 'target_order_types', 'targetOrderTypes', `'[]'::json`),
+        compatSelect(columns, 'menu_ids', 'menuIds', `'[]'::json`),
+        compatSelect(columns, 'printer_ids', 'printerIds', `'[]'::json`),
+        compatSelect(columns, 'created_at', 'createdAt', `now()`),
+        compatSelect(columns, 'updated_at', 'updatedAt', `now()`),
     ];
 
     const query = `

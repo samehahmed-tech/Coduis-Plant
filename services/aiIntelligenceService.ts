@@ -1,6 +1,6 @@
 import { eventBus } from './eventBus';
 import { AuditEventType, AuditLog } from '../types';
-import { forecastInventory, analyzeMenuEngineering } from './geminiService';
+import { aiApi } from './api';
 import { useOrderStore } from '../stores/useOrderStore';
 import { useInventoryStore } from '../stores/useInventoryStore';
 import { useAuthStore } from '../stores/useAuthStore';
@@ -39,11 +39,20 @@ class AIIntelligenceService {
 
         try {
             // 1. Forecast Inventory
-            const forecast = await forecastInventory(inventory, this.orderAccumulator, lang);
+            const forecast = await aiApi.chat({
+                message: lang === 'ar'
+                    ? 'حلل المخزون الحالي والطلبات الأخيرة وحدد العناصر المعرضة للنفاد قريبًا.'
+                    : 'Analyze current inventory and recent orders, and identify items at risk of stockout.',
+                lang,
+                context: {
+                    inventory,
+                    orders: this.orderAccumulator,
+                },
+            });
 
             eventBus.emit(AuditEventType.AI_INSIGHT_GENERATED, {
                 type: 'INVENTORY_FORECAST',
-                insight: forecast,
+                insight: forecast.text,
                 timestamp: new Date()
             });
 

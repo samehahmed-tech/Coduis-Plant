@@ -25,9 +25,20 @@ export const useDataInit = (): InitResult => {
     const fetchSettings = useAuthStore(state => state.fetchSettings);
     const fetchPrinters = useAuthStore(state => state.fetchPrinters);
     const isAuthenticated = useAuthStore(state => state.isAuthenticated);
+    const logout = useAuthStore(state => state.logout);
     const fetchMenu = useMenuStore(state => state.fetchMenu);
     const fetchOrders = useOrderStore(state => state.fetchOrders);
     const fetchCustomers = useCRMStore(state => state.fetchCustomers);
+
+    useEffect(() => {
+        const onInvalidToken = () => {
+            logout();
+            setError('INVALID_TOKEN');
+            setIsConnected(false);
+        };
+        window.addEventListener('restoflow:auth-invalid', onInvalidToken as EventListener);
+        return () => window.removeEventListener('restoflow:auth-invalid', onInvalidToken as EventListener);
+    }, [logout]);
 
     useEffect(() => {
         const initData = async () => {

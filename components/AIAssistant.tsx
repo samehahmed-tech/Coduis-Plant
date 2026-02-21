@@ -1,9 +1,8 @@
-
+﻿
 import React, { useState, useRef, useEffect } from 'react';
 import { Send, Bot, User, Loader2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import { chatWithRestaurantAI, analyzeMenuEngineering, forecastInventory } from '../services/geminiService';
-import { ViewState, AuditEventType } from '../types';
+import { ViewState } from '../types';
 
 // Stores
 import { useAuthStore } from '../stores/useAuthStore';
@@ -11,12 +10,11 @@ import { useInventoryStore } from '../stores/useInventoryStore';
 import { useOrderStore } from '../stores/useOrderStore';
 import { useMenuStore } from '../stores/useMenuStore';
 import { useFinanceStore } from '../stores/useFinanceStore';
-import { useCRMStore } from '../stores/useCRMStore';
 
 // Services
 import { translations } from '../services/translations';
-import { guardAction, GuardedAIAction } from '../services/aiActionGuard';
-import { eventBus } from '../services/eventBus';
+import { GuardedAIAction } from '../services/aiActionGuard';
+import { aiApi } from '../services/api';
 
 interface Message {
   id: string;
@@ -27,15 +25,63 @@ interface Message {
   actionsExecuted?: string[];
 }
 
+const VALID_ACTION_TYPES = new Set([
+  'UPDATE_INVENTORY',
+  'UPDATE_MENU_ITEM',
+  'UPDATE_MENU_PRICE',
+  'CREATE_MENU_ITEM',
+  'CREATE_MENU_CATEGORY',
+  'UPDATE_MENU_CATEGORY',
+  'CREATE_CUSTOMER',
+  'CREATE_USER',
+  'ANALYZE_MENU',
+  'ANALYZE_INVENTORY',
+  'SHOW_REPORT',
+  'UPDATE_THRESHOLD',
+  'RESTOCK_TRIGGER',
+  'MARK_ITEM_STATUS',
+]);
+
+const normalizeActionType = (raw: any) => {
+  const type = String(raw || '').trim().toUpperCase().replace(/[\s-]+/g, '_');
+  const aliases: Record<string, string> = {
+    ADD_MENU_ITEM: 'CREATE_MENU_ITEM',
+    CREATE_ITEM: 'CREATE_MENU_ITEM',
+    ADD_CATEGORY: 'CREATE_MENU_CATEGORY',
+    CREATE_CATEGORY: 'CREATE_MENU_CATEGORY',
+    UPDATE_CATEGORY: 'UPDATE_MENU_CATEGORY',
+    EDIT_MENU_ITEM: 'UPDATE_MENU_ITEM',
+    CREATE_STAFF: 'CREATE_USER',
+    ADD_USER: 'CREATE_USER',
+    OPEN_REPORT: 'SHOW_REPORT',
+  };
+  return aliases[type] || type;
+};
+
+const normalizeClientAction = (action: any) => {
+  if (!action || typeof action !== 'object') return action;
+  const type = normalizeActionType(action.type || action.actionType || action.action);
+  if (!type) return action;
+  return { ...action, type };
+};
+
+const buildFallbackGuard = (action: any, reason: string): GuardedAIAction => ({
+  id: `AI-${Date.now()}-${Math.random().toString(36).slice(2, 7).toUpperCase()}`,
+  action,
+  label: String(action?.type || action?.actionType || 'UNKNOWN_ACTION'),
+  canExecute: false,
+  reason,
+  auditType: 'SETTINGS_CHANGE' as any,
+});
+
 const AIAssistant: React.FC = () => {
   const navigate = useNavigate();
   const { settings, branches } = useAuthStore();
   const hasPermission = useAuthStore(state => state.hasPermission);
-  const { inventory, updateInventoryItem } = useInventoryStore();
+  const { inventory } = useInventoryStore();
   const { orders } = useOrderStore();
-  const { categories, updateMenuItem, addMenuItem } = useMenuStore();
+  const { categories } = useMenuStore();
   const { accounts } = useFinanceStore();
-  const { addCustomer } = useCRMStore();
 
   const menuItems = categories.flatMap(cat => cat.items);
   const lang = (settings.language || 'en') as 'en' | 'ar';
@@ -63,90 +109,40 @@ const AIAssistant: React.FC = () => {
     scrollToBottom();
   }, [messages, isTyping]);
 
-  const executeAction = async (action: any): Promise<string> => {
-    try {
-      switch (action.type) {
-        case 'UPDATE_INVENTORY':
-          await updateInventoryItem(action.itemId, action.data);
-          return lang === 'ar' ? `تم تحديث المخزون للصنف ${action.itemId}` : `Updated inventory for item ${action.itemId}`;
-
-        case 'UPDATE_MENU_ITEM':
-          const targetItem = menuItems.find(i => i.id === action.itemId);
-          if (targetItem) {
-            await updateMenuItem('menu-1', targetItem.categoryId, { ...targetItem, ...action.data });
-            return lang === 'ar' ? `تم تحديث بيانات ${targetItem.name}` : `Updated details for ${targetItem.name}`;
-          }
-          return `Item ${action.itemId} not found`;
-
-        case 'CREATE_MENU_ITEM':
-          const newItemId = `item-${Date.now()}`;
-          const newItem = {
-            id: newItemId,
-            name: action.data.name,
-            price: action.data.price,
-            categoryId: action.categoryId,
-            isAvailable: action.data.isAvailable !== false,
-            ...action.data
-          };
-          await addMenuItem('menu-1', action.categoryId, newItem);
-          return lang === 'ar' ? `تمت إضافة الصنف ${newItem.name}` : `Added item ${newItem.name}`;
-
-        case 'ANALYZE_MENU':
-          return await analyzeMenuEngineering(menuItems, orders);
-
-        case 'ANALYZE_INVENTORY':
-          return await forecastInventory(inventory, orders);
-
-        case 'UPDATE_MENU_PRICE':
-          const item = menuItems.find(i => i.id === action.itemId);
-          if (item) {
-            await updateMenuItem('menu-1', item.categoryId, { ...item, price: action.price });
-            return lang === 'ar' ? `تم تحديث سعر ${item.name} إلى ${action.price}` : `Updated price for ${item.name} to ${action.price}`;
-          }
-          return `Item ${action.itemId} not found`;
-
-        case 'CREATE_CUSTOMER':
-          await addCustomer(action.data);
-          return lang === 'ar' ? `تمت إضافة العميل ${action.data.name}` : `Added customer ${action.data.name}`;
-
-        case 'SHOW_REPORT':
-          navigate('/reports');
-          return lang === 'ar' ? 'تم فتح قسم التقارير' : 'Opened reports section';
-
-        default:
-          return `Unknown action type: ${action.type}`;
-      }
-    } catch (err: any) {
-      console.error(`Action failed: ${action.type}`, err);
-      return `Failed: ${err.message}`;
-    }
-  };
-
   const handleApproveAction = async (guarded: GuardedAIAction) => {
     if (!guarded.canExecute) return;
     const permission = guarded.permission;
     if (permission && !hasPermission(permission)) return;
     const reason = actionReason[guarded.id] || 'Approved via AI Assistant';
-
-    const before = guarded.before;
-    const after = guarded.after;
-    eventBus.emit(AuditEventType.AI_ACTION_PREVIEW, {
-      before,
-      after,
-      reason,
-      metadata: { action: guarded.action }
-    });
-
-    const result = await executeAction(guarded.action);
-
-    eventBus.emit(AuditEventType.AI_ACTION_EXECUTED, {
-      before,
-      after,
-      reason,
-      metadata: { action: guarded.action, result }
-    });
-
-    setPendingActions(prev => prev.filter(a => a.id !== guarded.id));
+    try {
+      const response = await aiApi.actionExecute({
+        action: guarded.action as any,
+        explanation: reason,
+      });
+      if (String((guarded.action as any)?.type || '').toUpperCase() === 'SHOW_REPORT') {
+        navigate('/reports');
+      }
+      setPendingActions(prev => prev.filter(a => a.id !== guarded.id));
+      setMessages(prev => [
+        ...prev,
+        {
+          id: `${Date.now()}-exec-ok`,
+          sender: 'ai',
+          text: response?.message || (lang === 'ar' ? 'تم تنفيذ الإجراء بنجاح.' : 'Action executed successfully.'),
+          timestamp: new Date(),
+        }
+      ]);
+    } catch (err: any) {
+      setMessages(prev => [
+        ...prev,
+        {
+          id: `${Date.now()}-exec-fail`,
+          sender: 'ai',
+          text: err?.message || (lang === 'ar' ? 'فشل تنفيذ الإجراء.' : 'Action execution failed.'),
+          timestamp: new Date(),
+        }
+      ]);
+    }
   };
 
   const handleSend = async () => {
@@ -164,9 +160,10 @@ const AIAssistant: React.FC = () => {
     setIsTyping(true);
 
     try {
-      const response = await chatWithRestaurantAI(
-        input,
-        {
+      const response = await aiApi.chat({
+        message: input,
+        lang,
+        context: {
           inventory,
           orders,
           menuItems,
@@ -174,13 +171,22 @@ const AIAssistant: React.FC = () => {
           accounts,
           branches,
           settings
-        },
-        lang,
-        settings.geminiApiKey
-      );
+        }
+      });
 
-      const guarded = (response.actions || []).map((action: any) =>
-        guardAction(action, { inventory, menuItems, categories })
+      const actions = Array.isArray(response.actions) ? response.actions.map(normalizeClientAction) : [];
+      const guarded = await Promise.all(
+        actions.map(async (action: any) => {
+          if (!VALID_ACTION_TYPES.has(String(action?.type || '').toUpperCase())) {
+            return buildFallbackGuard(action, lang === 'ar' ? 'نوع إجراء غير مدعوم' : 'Unsupported action type');
+          }
+          try {
+            const preview = await aiApi.previewAction({ action });
+            return preview.guarded as GuardedAIAction;
+          } catch (error: any) {
+            return buildFallbackGuard(action, error?.message || 'Preview failed');
+          }
+        }),
       );
 
       if (guarded.length > 0) {

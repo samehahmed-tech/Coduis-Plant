@@ -28,11 +28,10 @@ import {
   Wallet,
   Building2,
 } from 'lucide-react';
-import { getBusinessInsights } from '../services/geminiService';
 import { useAuthStore } from '../stores/useAuthStore';
 import { useNavigate } from 'react-router-dom';
 import AIAlertsWidget from './AIAlertsWidget';
-import { reportsApi } from '../services/api';
+import { aiApi, reportsApi } from '../services/api';
 import { socketService } from '../services/socketService';
 
 const COLORS = ['#6366f1', '#8b5cf6', '#ec4899', '#10b981', '#f59e0b', '#0ea5e9'];
@@ -215,14 +214,14 @@ const Dashboard: React.FC = () => {
 
   const handleGenerateInsight = async () => {
     setLoadingInsight(true);
-    const salesSummary = {
-      todayRevenue: totals.revenue,
-      totalOrders: totals.orderCount,
-      avgOrder: totals.avgTicket.toFixed(1),
-    };
-    const result = await getBusinessInsights(salesSummary, [], lang, settings.geminiApiKey);
-    setInsight(result);
-    setLoadingInsight(false);
+    try {
+      const result = await aiApi.getInsights(settings.activeBranchId);
+      setInsight(result.insight || '');
+    } catch (error: any) {
+      setInsight(error?.message || (lang === 'ar' ? 'فشل تحميل التحليل الذكي' : 'Failed to load AI insight'));
+    } finally {
+      setLoadingInsight(false);
+    }
   };
 
   const primaryColor = 'rgb(var(--primary))';
@@ -337,7 +336,7 @@ const Dashboard: React.FC = () => {
                   <div className="text-xs text-muted font-bold">{viewScope}</div>
                 </div>
                 <div className="h-[320px]">
-                  <ResponsiveContainer width="100%" height="100%">
+                  <ResponsiveContainer width="100%" height="100%" minWidth={0}>
                     <LineChart data={trendData}>
                       <CartesianGrid strokeDasharray="3 3" stroke={gridColor} />
                       <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: chartTextColor, fontSize: 11, fontWeight: 700 }} />
@@ -353,7 +352,7 @@ const Dashboard: React.FC = () => {
                 <div className="card-primary p-6 rounded-3xl">
                   <h3 className="text-sm font-black text-main mb-4 uppercase tracking-widest">Payments Mix</h3>
                   <div className="h-[240px]">
-                    <ResponsiveContainer width="100%" height="100%">
+                    <ResponsiveContainer width="100%" height="100%" minWidth={0}>
                       <PieChart>
                         <Pie data={paymentBreakdown} dataKey="value" nameKey="name" innerRadius={55} outerRadius={85} paddingAngle={4}>
                           {paymentBreakdown.map((_, i) => <Cell key={i} fill={COLORS[i % COLORS.length]} />)}
@@ -375,7 +374,7 @@ const Dashboard: React.FC = () => {
                 <div className="card-primary p-6 rounded-3xl">
                   <h3 className="text-sm font-black text-main mb-4 uppercase tracking-widest">Order Types</h3>
                   <div className="h-[240px]">
-                    <ResponsiveContainer width="100%" height="100%">
+                    <ResponsiveContainer width="100%" height="100%" minWidth={0}>
                       <BarChart data={orderTypeBreakdown}>
                         <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={gridColor} />
                         <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: chartTextColor, fontSize: 11, fontWeight: 700 }} />

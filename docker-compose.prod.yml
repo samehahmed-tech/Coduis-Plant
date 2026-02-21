@@ -1,0 +1,199 @@
+# =============================================================================
+# RestoFlow ERP — Production Docker Compose
+# Full stack: Backend + PostgreSQL + Redis + Nginx + Print Bridge
+# =============================================================================
+
+version: '3.8'
+
+services:
+  # -------------------------------------------------------------------------
+  # PostgreSQL Database
+  # -------------------------------------------------------------------------
+  db:
+    image: postgres:15-alpine
+    container_name: restoflow-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${DB_USER:-restoflow}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?DB_PASSWORD is required}
+      POSTGRES_DB: ${DB_NAME:-restoflow}
+      POSTGRES_INITDB_ARGS: "--encoding=UTF8 --locale=en_US.UTF-8"
+    ports:
+      - "${DB_PORT:-5432}:5432"
+    volumes:
+      - db_data:/var/lib/postgresql/data
+      - ./backups:/backups
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-restoflow} -d ${DB_NAME:-restoflow}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+          cpus: '1.0'
+    command: >
+      postgres
+        -c shared_buffers=256MB
+        -c effective_cache_size=768MB
+        -c work_mem=16MB
+        -c maintenance_work_mem=128MB
+        -c max_connections=100
+        -c log_min_duration_statement=500
+        -c log_statement=none
+        -c log_checkpoints=on
+
+  # -------------------------------------------------------------------------
+  # Redis Cache & Pub/Sub
+  # -------------------------------------------------------------------------
+  redis:
+    image: redis:7-alpine
+    container_name: restoflow-redis
+    restart: unless-stopped
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+    command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+          cpus: '0.5'
+
+  # -------------------------------------------------------------------------
+  # Backend API Server
+  # -------------------------------------------------------------------------
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: restoflow-backend
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      DATABASE_URL: postgresql://${DB_USER:-restoflow}:${DB_PASSWORD}@db:5432/${DB_NAME:-restoflow}
+      API_PORT: 3001
+      REDIS_URL: redis://redis:6379
+      SOCKET_REDIS_ENABLED: "true"
+      SOCKET_REDIS_URL: redis://redis:6379
+      JWT_SECRET: ${JWT_SECRET:?JWT_SECRET is required}
+      JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-12h}
+      AUDIT_HMAC_SECRET: ${AUDIT_HMAC_SECRET:?AUDIT_HMAC_SECRET is required}
+      AI_KEY_ENCRYPTION_SECRET: ${AI_KEY_ENCRYPTION_SECRET:-change-me-ai-key-secret}
+      CORS_ORIGINS: ${CORS_ORIGINS:-https://erp.example.com}
+      PRINT_GATEWAY_TOKEN: ${PRINT_GATEWAY_TOKEN:-change-me-print-token}
+      # ETA Fiscal
+      ETA_BASE_URL: ${ETA_BASE_URL:-}
+      ETA_TOKEN_URL: ${ETA_TOKEN_URL:-}
+      ETA_CLIENT_ID: ${ETA_CLIENT_ID:-}
+      ETA_CLIENT_SECRET: ${ETA_CLIENT_SECRET:-}
+      ETA_API_KEY: ${ETA_API_KEY:-}
+      # SMTP
+      SMTP_HOST: ${SMTP_HOST:-}
+      SMTP_PORT: ${SMTP_PORT:-587}
+      SMTP_USER: ${SMTP_USER:-}
+      SMTP_PASS: ${SMTP_PASS:-}
+      SMTP_FROM: ${SMTP_FROM:-}
+      # S3
+      S3_REGION: ${S3_REGION:-}
+      S3_BUCKET: ${S3_BUCKET:-}
+      S3_ACCESS_KEY_ID: ${S3_ACCESS_KEY_ID:-}
+      S3_SECRET_ACCESS_KEY: ${S3_SECRET_ACCESS_KEY:-}
+    ports:
+      - "3001:3001"
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:3001/api/health"]
+      interval: 30s
+      timeout: 5s
+      start_period: 15s
+      retries: 3
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+          cpus: '2.0'
+
+  # -------------------------------------------------------------------------
+  # Nginx Reverse Proxy (SSL termination, static files, rate limiting)
+  # -------------------------------------------------------------------------
+  nginx:
+    image: nginx:alpine
+    container_name: restoflow-nginx
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/conf.d/default.conf:ro
+      - ./dist:/usr/share/nginx/html:ro
+      - ./nginx/ssl:/etc/nginx/ssl:ro
+      - ./nginx/certbot:/var/www/certbot:ro
+    depends_on:
+      backend:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+  # -------------------------------------------------------------------------
+  # Print Bridge (optional — runs on host network for USB/local printers)
+  # -------------------------------------------------------------------------
+  print-bridge:
+    build: ./hardware-bridge
+    container_name: restoflow-print-bridge
+    restart: unless-stopped
+    network_mode: "host"
+    privileged: true
+    profiles:
+      - print
+
+  # -------------------------------------------------------------------------
+  # Database Backup Cron
+  # -------------------------------------------------------------------------
+  db-backup:
+    image: postgres:15-alpine
+    container_name: restoflow-db-backup
+    restart: unless-stopped
+    environment:
+      PGHOST: db
+      PGUSER: ${DB_USER:-restoflow}
+      PGPASSWORD: ${DB_PASSWORD}
+      PGDATABASE: ${DB_NAME:-restoflow}
+    volumes:
+      - ./backups:/backups
+    depends_on:
+      db:
+        condition: service_healthy
+    entrypoint: /bin/sh
+    command: >
+      -c 'while true; do
+        TIMESTAMP=$$(date +%Y%m%d_%H%M%S);
+        echo "[$$TIMESTAMP] Starting backup...";
+        pg_dump -Fc --no-owner --no-privileges > /backups/restoflow_$$TIMESTAMP.dump;
+        echo "[$$TIMESTAMP] Backup complete: restoflow_$$TIMESTAMP.dump";
+        # Retain last 30 days of backups
+        find /backups -name "restoflow_*.dump" -mtime +30 -delete;
+        echo "[$$TIMESTAMP] Old backups cleaned.";
+        # Sleep 24 hours
+        sleep 86400;
+      done'
+
+volumes:
+  db_data:
+    driver: local
+  redis_data:
+    driver: local

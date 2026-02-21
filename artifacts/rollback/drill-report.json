@@ -1,0 +1,64 @@
+{
+  "generatedAt": "2026-02-12T00:00:00.000Z",
+  "branchId": "b1",
+  "drillId": "",
+  "scenario": "API failure under peak load",
+  "incidentStartAt": "",
+  "decisionAt": "",
+  "rollbackStartAt": "",
+  "rollbackEndAt": "",
+  "recoveryVerifiedAt": "",
+  "timing": {
+    "detectionToRollbackStartMinutes": null,
+    "rollbackDurationMinutes": null,
+    "recoveryVerificationMinutes": null
+  },
+  "checklist": [
+    {
+      "id": "RB-01",
+      "title": "Declare incident and freeze risky changes",
+      "completed": false,
+      "owner": "",
+      "at": ""
+    },
+    {
+      "id": "RB-02",
+      "title": "Trigger rollback to previous stable release",
+      "completed": false,
+      "owner": "",
+      "at": ""
+    },
+    {
+      "id": "RB-03",
+      "title": "Run smoke tests (POS/KDS/Reports/Print/Fiscal)",
+      "completed": false,
+      "owner": "",
+      "at": ""
+    },
+    {
+      "id": "RB-04",
+      "title": "Validate data integrity and no duplicate orders",
+      "completed": false,
+      "owner": "",
+      "at": ""
+    },
+    {
+      "id": "RB-05",
+      "title": "Close incident and communicate status",
+      "completed": false,
+      "owner": "",
+      "at": ""
+    }
+  ],
+  "dataIntegrityChecksPassed": false,
+  "ordersCountBefore": 0,
+  "ordersCountAfter": 0,
+  "paymentsTotalBefore": 0,
+  "paymentsTotalAfter": 0,
+  "duplicateOrdersDetected": false,
+  "approvedBy": {
+    "ops": "",
+    "product": ""
+  },
+  "notes": ""
+}

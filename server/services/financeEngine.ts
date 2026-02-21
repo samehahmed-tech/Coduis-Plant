@@ -52,18 +52,51 @@ const PERIOD_CLOSES_KEY = 'finance_period_closes_v1';
 const LOCKED_THROUGH_KEY = 'finance_locked_through_v1';
 
 const defaultAccounts = (): FinanceAccount[] => ([
+    // === ASSETS (1xxx) ===
     { id: 'acc-1000', code: '1000', name: 'Assets', type: 'ASSET', balance: 0 },
     { id: 'acc-1100', code: '1100', name: 'Cash & Cash Equivalents', type: 'ASSET', balance: 0, parentId: 'acc-1000' },
     { id: 'acc-1110', code: '1110', name: 'Cashier Main', type: 'ASSET', balance: 0, parentId: 'acc-1100' },
+    { id: 'acc-1120', code: '1120', name: 'Bank Account', type: 'ASSET', balance: 0, parentId: 'acc-1100' },
     { id: 'acc-1200', code: '1200', name: 'Inventory Stock', type: 'ASSET', balance: 0, parentId: 'acc-1000' },
     { id: 'acc-1210', code: '1210', name: 'Raw Materials', type: 'ASSET', balance: 0, parentId: 'acc-1200' },
     { id: 'acc-1220', code: '1220', name: 'Finished Goods', type: 'ASSET', balance: 0, parentId: 'acc-1200' },
+    { id: 'acc-1300', code: '1300', name: 'Accounts Receivable', type: 'ASSET', balance: 0, parentId: 'acc-1000' },
+
+    // === LIABILITIES (2xxx) ===
     { id: 'acc-2000', code: '2000', name: 'Liabilities', type: 'LIABILITY', balance: 0 },
     { id: 'acc-2100', code: '2100', name: 'Accounts Payable', type: 'LIABILITY', balance: 0, parentId: 'acc-2000' },
+    { id: 'acc-2200', code: '2200', name: 'VAT Payable', type: 'LIABILITY', balance: 0, parentId: 'acc-2000' },
+    { id: 'acc-2300', code: '2300', name: 'Service Charge Payable', type: 'LIABILITY', balance: 0, parentId: 'acc-2000' },
+
+    // === EQUITY (3xxx) ===
+    { id: 'acc-3000', code: '3000', name: 'Equity', type: 'EQUITY', balance: 0 },
+    { id: 'acc-3100', code: '3100', name: 'Owner Equity', type: 'EQUITY', balance: 0, parentId: 'acc-3000' },
+    { id: 'acc-3200', code: '3200', name: 'Retained Earnings', type: 'EQUITY', balance: 0, parentId: 'acc-3000' },
+
+    // === REVENUE (4xxx) ===
     { id: 'acc-4000', code: '4000', name: 'Revenue', type: 'REVENUE', balance: 0 },
     { id: 'acc-4100', code: '4100', name: 'Sales', type: 'REVENUE', balance: 0, parentId: 'acc-4000' },
+    { id: 'acc-4200', code: '4200', name: 'Other Revenue', type: 'REVENUE', balance: 0, parentId: 'acc-4000' },
+
+    // === COST OF GOODS SOLD (51xx) ===
     { id: 'acc-5000', code: '5000', name: 'Expenses', type: 'EXPENSE', balance: 0 },
-    { id: 'acc-5110', code: '5110', name: 'Inventory Cost', type: 'EXPENSE', balance: 0, parentId: 'acc-5000' },
+    { id: 'acc-5100', code: '5100', name: 'Cost of Goods Sold', type: 'EXPENSE', balance: 0, parentId: 'acc-5000' },
+    { id: 'acc-5110', code: '5110', name: 'Inventory Cost', type: 'EXPENSE', balance: 0, parentId: 'acc-5100' },
+    { id: 'acc-5120', code: '5120', name: 'Wastage Cost', type: 'EXPENSE', balance: 0, parentId: 'acc-5100' },
+    { id: 'acc-5130', code: '5130', name: 'Production Cost', type: 'EXPENSE', balance: 0, parentId: 'acc-5100' },
+
+    // === OPERATING EXPENSES (52xx) ===
+    { id: 'acc-5200', code: '5200', name: 'Rent Expense', type: 'EXPENSE', balance: 0, parentId: 'acc-5000' },
+    { id: 'acc-5210', code: '5210', name: 'Utilities Expense', type: 'EXPENSE', balance: 0, parentId: 'acc-5000' },
+    { id: 'acc-5220', code: '5220', name: 'Salaries & Wages', type: 'EXPENSE', balance: 0, parentId: 'acc-5000' },
+    { id: 'acc-5230', code: '5230', name: 'Marketing & Advertising', type: 'EXPENSE', balance: 0, parentId: 'acc-5000' },
+    { id: 'acc-5240', code: '5240', name: 'Maintenance & Repairs', type: 'EXPENSE', balance: 0, parentId: 'acc-5000' },
+    { id: 'acc-5250', code: '5250', name: 'Office Supplies', type: 'EXPENSE', balance: 0, parentId: 'acc-5000' },
+    { id: 'acc-5260', code: '5260', name: 'Other Operating Expenses', type: 'EXPENSE', balance: 0, parentId: 'acc-5000' },
+
+    // === OTHER EXPENSES (6xxx) ===
+    { id: 'acc-6100', code: '6100', name: 'Bank Charges & Fees', type: 'EXPENSE', balance: 0 },
+    { id: 'acc-6200', code: '6200', name: 'Depreciation', type: 'EXPENSE', balance: 0 },
 ]);
 
 const readSetting = async <T>(key: string, fallback: T): Promise<T> => {

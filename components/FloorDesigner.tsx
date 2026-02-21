@@ -362,7 +362,7 @@ const FloorDesigner: React.FC<{ onClose?: () => void }> = ({ onClose }) => {
                     <div className="h-8 w-[1px] bg-slate-200 dark:bg-slate-700 mx-2" />
                     <div>
                         <h2 className="text-xl font-black text-slate-800 dark:text-white uppercase tracking-tight flex items-center gap-3">
-                            <Layout className="text-indigo-600" /> Interior Architecture
+                            <Layout className="text-indigo-600" /> Floor Design
                         </h2>
                         <div className="flex items-center gap-2">
                             <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Active Zone:</p>
@@ -405,7 +405,7 @@ const FloorDesigner: React.FC<{ onClose?: () => void }> = ({ onClose }) => {
                         onClick={handleSave}
                         className="bg-indigo-600 text-white px-8 py-3.5 rounded-[1.5rem] font-black uppercase text-xs tracking-widest flex items-center gap-3 shadow-xl shadow-indigo-600/30 hover:bg-indigo-700 transition-all active:scale-95"
                     >
-                        <Save size={18} /> Deploy Layout
+                        <Save size={18} /> Save Layout
                     </button>
                 </div>
             </div>
@@ -679,7 +679,7 @@ const FloorDesigner: React.FC<{ onClose?: () => void }> = ({ onClose }) => {
                     <div className="bg-white dark:bg-slate-900 w-full max-w-lg rounded-[3.5rem] p-10 shadow-2xl space-y-8 animate-in zoom-in-95 duration-300">
                         <div className="flex justify-between items-center">
                             <div>
-                                <h3 className="text-2xl font-black text-slate-800 dark:text-white uppercase tracking-tight">Zone Architecture</h3>
+                                <h3 className="text-2xl font-black text-slate-800 dark:text-white uppercase tracking-tight">Zone Management</h3>
                                 <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Manage distinct spatial areas</p>
                             </div>
                             <button onClick={() => setIsZoneManagerOpen(false)} className="p-3 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-2xl transition-all">

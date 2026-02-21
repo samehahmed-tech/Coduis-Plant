@@ -134,6 +134,51 @@ Day close email now sends through SMTP when the following are configured:
 
 If SMTP is not configured, the API returns `SMTP_NOT_CONFIGURED`.
 
+### WhatsApp Integration (MVP)
+WhatsApp integration now supports provider-based sending (`mock`, `meta`, `twilio`).
+
+Required env (depending on provider):
+- `WHATSAPP_PROVIDER` = `mock|meta|twilio`
+- `WHATSAPP_WEBHOOK_VERIFY_TOKEN`
+- For Meta:
+  - `WHATSAPP_META_TOKEN`
+  - `WHATSAPP_META_PHONE_NUMBER_ID`
+- For Twilio:
+  - `WHATSAPP_TWILIO_ACCOUNT_SID`
+  - `WHATSAPP_TWILIO_AUTH_TOKEN`
+  - `WHATSAPP_TWILIO_FROM`
+
+Endpoints:
+- Public webhook verify/callback:
+  - `GET /api/whatsapp/webhook`
+  - `POST /api/whatsapp/webhook`
+- Protected ops endpoints:
+  - `GET /api/whatsapp/status`
+  - `POST /api/whatsapp/send-test`
+  - `GET /api/whatsapp/inbox`
+  - `GET /api/whatsapp/escalations`
+  - `PUT /api/whatsapp/escalations/:id/resolve`
+
+Webhook inbound triage:
+- Incoming Meta text messages are normalized into inbox records.
+- Complaint/negative messages auto-create WhatsApp escalations for supervisor follow-up.
+
+### Campaign Dispatch (MVP)
+Campaigns can now be dispatched from backend directly:
+- `POST /api/campaigns/:id/dispatch`
+  - Supports channels with current behavior:
+    - `WHATSAPP`: real provider send (`mock/meta/twilio` based on env)
+    - `SMS/Email/Push`: placeholder dispatch accounting (for phased provider rollout)
+  - Payload example:
+```json
+{
+  "mode": "SEND",
+  "phones": ["+201001234567"],
+  "customerIds": ["CUS-123"],
+  "message": "Special offer 10% today"
+}
+```
+
 ### Report Export Granularity
 CSV/PDF export supports:
 - `granularity=DAILY`

@@ -37,6 +37,9 @@ const SecurityHub: React.FC = () => {
     const [selectedUser, setSelectedUser] = useState<User | null>(null);
     const [searchQuery, setSearchQuery] = useState('');
     const [isSaving, setIsSaving] = useState(false);
+    const [showCreateModal, setShowCreateModal] = useState(false);
+    const [newUser, setNewUser] = useState({ name: '', email: '', password: '', pin: '', role: UserRole.CASHIER as UserRole, branchId: '' });
+    const [createError, setCreateError] = useState('');
 
     const permissionsList = Object.values(AppPermission);
     const rolesList = Object.values(UserRole);
@@ -77,19 +80,34 @@ const SecurityHub: React.FC = () => {
 
     const handleCreateUser = async () => {
         if (isSaving) return;
+        setCreateError('');
+
+        // Validate
+        if (!newUser.name.trim()) { setCreateError('الاسم مطلوب / Name is required'); return; }
+        if (!newUser.email.trim()) { setCreateError('الإيميل مطلوب / Email is required'); return; }
+        if (!newUser.password.trim() || newUser.password.length < 4) { setCreateError('كلمة المرور مطلوبة (4 أحرف على الأقل) / Password required (min 4 chars)'); return; }
+        if (!newUser.pin.trim() || newUser.pin.length < 4 || !/^\d+$/.test(newUser.pin)) { setCreateError('كود PIN مطلوب (4-6 أرقام) / PIN required (4-6 digits)'); return; }
+
         setIsSaving(true);
-        const branchId = branches[0]?.id;
-        const draftUser: User = {
+        const branchId = newUser.branchId || branches[0]?.id;
+        const draftUser: any = {
             id: `u-${Date.now()}`,
-            name: 'New User',
-            email: `user.${Date.now()}@restoflow.local`,
-            role: UserRole.CASHIER,
-            permissions: INITIAL_ROLE_PERMISSIONS[UserRole.CASHIER] || [],
+            name: newUser.name.trim(),
+            email: newUser.email.trim(),
+            role: newUser.role,
+            permissions: INITIAL_ROLE_PERMISSIONS[newUser.role] || [],
             isActive: true,
             assignedBranchId: branchId,
+            password: newUser.password,
+            pin: newUser.pin,
         };
         try {
             await createUser(draftUser);
+            setShowCreateModal(false);
+            setNewUser({ name: '', email: '', password: '', pin: '', role: UserRole.CASHIER, branchId: '' });
+            setCreateError('');
+        } catch (err: any) {
+            setCreateError(err?.message || 'Failed to create user');
         } finally {
             setIsSaving(false);
         }
@@ -109,7 +127,7 @@ const SecurityHub: React.FC = () => {
                         <Shield className="text-indigo-600" size={32} />
                         Security & Access Center
                     </h2>
-                    <p className="text-slate-500 dark:text-slate-400 font-semibold italic">Manage staff encryption, roles and advanced system permissions.</p>
+                    <p className="text-slate-500 dark:text-slate-400 font-semibold italic">Manage staff, roles and permissions.</p>
                 </div>
                 <div className="flex bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-1.5 rounded-2xl shadow-sm">
                     <button
@@ -136,18 +154,17 @@ const SecurityHub: React.FC = () => {
                                 <Search size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-indigo-600 transition-colors" />
                                 <input
                                     type="text"
-                                    placeholder="Search authorized identities..."
+                                    placeholder="Search users..."
                                     className="w-full bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-800 rounded-2xl py-3.5 pl-12 pr-6 font-bold text-sm outline-none focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-600 transition-all"
                                     value={searchQuery}
                                     onChange={(e) => setSearchQuery(e.target.value)}
                                 />
                             </div>
                             <button
-                                onClick={handleCreateUser}
-                                disabled={isSaving}
+                                onClick={() => setShowCreateModal(true)}
                                 className="w-full md:w-auto bg-indigo-600 text-white px-8 py-3.5 rounded-2xl font-black uppercase text-xs tracking-widest shadow-xl shadow-indigo-600/20 hover:bg-indigo-700 transition-all whitespace-nowrap flex items-center justify-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed"
                             >
-                                <UserPlus size={18} /> Onboard Identity
+                                <UserPlus size={18} /> Add User
                             </button>
                         </div>
 
@@ -155,11 +172,11 @@ const SecurityHub: React.FC = () => {
                             <table className="w-full text-left border-collapse">
                                 <thead>
                                     <tr className="bg-slate-50/50 dark:bg-slate-950/50 text-slate-400 dark:text-slate-500 text-[10px] uppercase font-black tracking-widest">
-                                        <th className="px-6 py-5">Identity Profile</th>
-                                        <th className="px-6 py-5">Role Context</th>
-                                        <th className="px-6 py-5">Assigned Node</th>
+                                        <th className="px-6 py-5">User</th>
+                                        <th className="px-6 py-5">Role</th>
+                                        <th className="px-6 py-5">Branch</th>
                                         <th className="px-6 py-5 text-center">Status</th>
-                                        <th className="px-6 py-5">Operations</th>
+                                        <th className="px-6 py-5">Actions</th>
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
@@ -217,7 +234,7 @@ const SecurityHub: React.FC = () => {
                                     </div>
                                     <div>
                                         <h3 className="text-lg font-black text-slate-800 dark:text-white uppercase leading-none tracking-tight">{selectedUser.name}</h3>
-                                        <p className="text-[10px] text-indigo-600 font-black uppercase tracking-widest mt-2">Core Auth Overrides</p>
+                                        <p className="text-[10px] text-indigo-600 font-black uppercase tracking-widest mt-2">Permissions</p>
                                     </div>
                                 </div>
                                 <button onClick={() => setSelectedUser(null)} className="p-3 bg-slate-50 dark:bg-slate-800 rounded-2xl text-slate-400 hover:text-rose-500 transition-colors">
@@ -227,7 +244,7 @@ const SecurityHub: React.FC = () => {
 
                             <div className="space-y-8">
                                 <div>
-                                    <label className="text-[10px] font-black uppercase text-slate-400 tracking-[0.2em] mb-4 block">Primary Protocol (Role)</label>
+                                    <label className="text-[10px] font-black uppercase text-slate-400 tracking-[0.2em] mb-4 block">Role</label>
                                     <div className="grid grid-cols-2 gap-3">
                                         {rolesList.map(role => (
                                             <button
@@ -243,13 +260,13 @@ const SecurityHub: React.FC = () => {
                                 </div>
 
                                 <div className="space-y-6">
-                                    <label className="text-[10px] font-black uppercase text-slate-400 tracking-[0.2em] mb-2 block">Cortex Permissions</label>
+                                    <label className="text-[10px] font-black uppercase text-slate-400 tracking-[0.2em] mb-2 block">Permissions</label>
                                     <div className="space-y-10 max-h-[60vh] md:max-h-[500px] overflow-y-auto no-scrollbar pr-2">
                                         {Object.entries({
-                                            "NAV ARCHITECTURE": permissionsList.filter(p => p.startsWith('NAV_')),
-                                            "SYSTEM DATA (KERNEL)": permissionsList.filter(p => p.startsWith('DATA_')),
-                                            "OPERATIONAL FIELD": permissionsList.filter(p => p.startsWith('OP_')),
-                                            "GLOBAL CONFIG": permissionsList.filter(p => p.startsWith('CFG_'))
+                                            "NAVIGATION": permissionsList.filter(p => p.startsWith('NAV_')),
+                                            "DATA ACCESS": permissionsList.filter(p => p.startsWith('DATA_')),
+                                            "OPERATIONS": permissionsList.filter(p => p.startsWith('OP_')),
+                                            "CONFIGURATION": permissionsList.filter(p => p.startsWith('CFG_'))
                                         }).map(([category, perms]) => (
                                             <div key={category} className="space-y-3">
                                                 <h4 className="text-[8px] font-black uppercase tracking-[0.3em] text-indigo-600 bg-indigo-50 dark:bg-indigo-900/30 px-3 py-1.5 rounded-lg inline-block">
@@ -288,10 +305,10 @@ const SecurityHub: React.FC = () => {
 
                                 <div className="pt-6 border-t border-slate-100 dark:border-slate-800 space-y-4">
                                     <button className="w-full bg-indigo-600 text-white py-5 rounded-3xl font-black uppercase tracking-[0.2em] text-xs shadow-2xl shadow-indigo-600/30 hover:bg-indigo-700 transition-all">
-                                        Authorize & Deploy
+                                        Save Changes
                                     </button>
                                     <button className="w-full py-4 text-[9px] font-black uppercase tracking-[0.3em] text-slate-400 hover:text-rose-500 transition-colors">
-                                        REVERT TO PROTOCOL DEFAULTS
+                                        RESET TO DEFAULTS
                                     </button>
                                 </div>
                             </div>
@@ -301,14 +318,143 @@ const SecurityHub: React.FC = () => {
                             <div className="w-24 h-24 rounded-[2rem] bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-slate-300 mb-8 border-4 border-white dark:border-slate-900 shadow-xl">
                                 <Shield size={48} />
                             </div>
-                            <h3 className="text-xl font-black text-slate-800 dark:text-white uppercase tracking-tight">Identity Inspector</h3>
-                            <p className="text-xs font-bold text-slate-400 mt-3 max-w-xs mx-auto leading-relaxed uppercase tracking-widest">Select an authorized identity from the registry to decrypt and manage node permissions.</p>
+                            <h3 className="text-xl font-black text-slate-800 dark:text-white uppercase tracking-tight">User Details</h3>
+                            <p className="text-xs font-bold text-slate-400 mt-3 max-w-xs mx-auto leading-relaxed uppercase tracking-widest">Select a user from the list to manage their role and permissions.</p>
                         </div>
                     )}
                 </div>
             </div>
+
+            {/* Create User Modal */}
+            {showCreateModal && (
+                <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-md z-[300] flex items-center justify-center p-4 animate-in fade-in duration-200">
+                    <div className="bg-white dark:bg-slate-900 w-full max-w-lg rounded-[2.5rem] p-8 shadow-2xl space-y-6 border border-slate-200 dark:border-slate-800">
+                        <div className="flex items-center justify-between pb-4 border-b border-slate-100 dark:border-slate-800">
+                            <div className="flex items-center gap-3">
+                                <div className="w-12 h-12 rounded-2xl bg-indigo-600 text-white flex items-center justify-center shadow-lg shadow-indigo-600/30">
+                                    <UserPlus size={24} />
+                                </div>
+                                <div>
+                                    <h3 className="text-lg font-black text-slate-800 dark:text-white uppercase tracking-tight">Add New User</h3>
+                                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">All fields required</p>
+                                </div>
+                            </div>
+                            <button onClick={() => { setShowCreateModal(false); setCreateError(''); }} className="p-3 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-2xl transition-all">
+                                <X size={20} className="text-slate-400" />
+                            </button>
+                        </div>
+
+                        <div className="space-y-4">
+                            <div>
+                                <label className="text-[10px] font-black uppercase text-slate-400 tracking-[0.2em] mb-2 block">Name / الاسم *</label>
+                                <input
+                                    type="text"
+                                    value={newUser.name}
+                                    onChange={(e) => setNewUser(p => ({ ...p, name: e.target.value }))}
+                                    placeholder="Ahmed Mohamed"
+                                    className="w-full bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-2xl py-3.5 px-5 font-bold text-sm outline-none focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all"
+                                />
+                            </div>
+
+                            <div>
+                                <label className="text-[10px] font-black uppercase text-slate-400 tracking-[0.2em] mb-2 block">Email / الإيميل *</label>
+                                <input
+                                    type="email"
+                                    value={newUser.email}
+                                    onChange={(e) => setNewUser(p => ({ ...p, email: e.target.value }))}
+                                    placeholder="user@restaurant.com"
+                                    className="w-full bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-2xl py-3.5 px-5 font-bold text-sm outline-none focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all"
+                                />
+                            </div>
+
+                            <div className="grid grid-cols-2 gap-4">
+                                <div>
+                                    <label className="text-[10px] font-black uppercase text-slate-400 tracking-[0.2em] mb-2 block">Password / كلمة المرور *</label>
+                                    <input
+                                        type="password"
+                                        value={newUser.password}
+                                        onChange={(e) => setNewUser(p => ({ ...p, password: e.target.value }))}
+                                        placeholder="••••••"
+                                        className="w-full bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-2xl py-3.5 px-5 font-bold text-sm outline-none focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="text-[10px] font-black uppercase text-slate-400 tracking-[0.2em] mb-2 block">PIN Code / كود PIN *</label>
+                                    <input
+                                        type="text"
+                                        inputMode="numeric"
+                                        maxLength={6}
+                                        value={newUser.pin}
+                                        onChange={(e) => setNewUser(p => ({ ...p, pin: e.target.value.replace(/\D/g, '').slice(0, 6) }))}
+                                        placeholder="1234"
+                                        className="w-full bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-2xl py-3.5 px-5 font-bold text-sm font-mono tracking-[0.3em] outline-none focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all text-center"
+                                    />
+                                </div>
+                            </div>
+
+                            <div className="grid grid-cols-2 gap-4">
+                                <div>
+                                    <label className="text-[10px] font-black uppercase text-slate-400 tracking-[0.2em] mb-2 block">Role / الدور</label>
+                                    <select
+                                        value={newUser.role}
+                                        onChange={(e) => setNewUser(p => ({ ...p, role: e.target.value as UserRole }))}
+                                        className="w-full bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-2xl py-3.5 px-5 font-bold text-sm outline-none focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all appearance-none"
+                                    >
+                                        {rolesList.map(role => (
+                                            <option key={role} value={role}>{role}</option>
+                                        ))}
+                                    </select>
+                                </div>
+                                <div>
+                                    <label className="text-[10px] font-black uppercase text-slate-400 tracking-[0.2em] mb-2 block">Branch / الفرع</label>
+                                    <select
+                                        value={newUser.branchId || branches[0]?.id || ''}
+                                        onChange={(e) => setNewUser(p => ({ ...p, branchId: e.target.value }))}
+                                        className="w-full bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-2xl py-3.5 px-5 font-bold text-sm outline-none focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all appearance-none"
+                                    >
+                                        {branches.map(b => (
+                                            <option key={b.id} value={b.id}>{b.name}</option>
+                                        ))}
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+
+                        {createError && (
+                            <div className="p-4 bg-rose-50 dark:bg-rose-900/20 border border-rose-200 dark:border-rose-800/40 rounded-2xl text-rose-600 dark:text-rose-400 text-sm font-bold text-center">
+                                {createError}
+                            </div>
+                        )}
+
+                        <div className="flex gap-3 pt-2">
+                            <button
+                                onClick={() => { setShowCreateModal(false); setCreateError(''); }}
+                                className="flex-1 py-4 rounded-2xl font-black uppercase text-xs tracking-widest text-slate-500 hover:text-slate-800 dark:hover:text-white bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 transition-all"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                onClick={handleCreateUser}
+                                disabled={isSaving}
+                                className="flex-1 py-4 bg-indigo-600 text-white rounded-2xl font-black uppercase text-xs tracking-widest shadow-xl shadow-indigo-600/20 hover:bg-indigo-700 transition-all disabled:opacity-60 flex items-center justify-center gap-2"
+                            >
+                                {isSaving ? (
+                                    <div className="flex gap-1.5">
+                                        <div className="w-2 h-2 rounded-full bg-white animate-bounce" />
+                                        <div className="w-2 h-2 rounded-full bg-white animate-bounce" style={{ animationDelay: '0.1s' }} />
+                                        <div className="w-2 h-2 rounded-full bg-white animate-bounce" style={{ animationDelay: '0.2s' }} />
+                                    </div>
+                                ) : (
+                                    <><UserPlus size={16} /> Create User</>
+                                )}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 };
 
 export default SecurityHub;
+

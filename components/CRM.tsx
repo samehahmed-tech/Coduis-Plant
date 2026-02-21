@@ -37,7 +37,7 @@ const CRM: React.FC = () => {
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 mb-10">
         <div>
           <h2 className="text-3xl font-black text-main uppercase tracking-tight">Customer Relationship</h2>
-          <p className="text-muted font-semibold">Intelligence-driven customer loyalty and behavioral tracking.</p>
+          <p className="text-muted font-semibold">Customer management and loyalty tracking.</p>
         </div>
         <button
           onClick={() => setShowAddModal(true)}

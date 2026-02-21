@@ -11,7 +11,8 @@ import {
     real,
     json,
     uuid,
-    varchar
+    varchar,
+    uniqueIndex
 } from 'drizzle-orm/pg-core';
 
 // ============================================================================
@@ -309,6 +310,22 @@ export const orders = pgTable('orders', {
     shiftId: text('shift_id'),
 });
 
+export const idempotencyKeys = pgTable('idempotency_keys', {
+    id: serial('id').primaryKey(),
+    key: text('key').notNull(),
+    scope: text('scope').notNull().default('ORDER_CREATE'),
+    requestHash: text('request_hash').notNull(),
+    resourceId: text('resource_id'),
+    responseCode: integer('response_code'),
+    responseBody: json('response_body'),
+    status: text('status').notNull().default('IN_PROGRESS'), // IN_PROGRESS, COMPLETED
+    expiresAt: timestamp('expires_at').notNull(),
+    createdAt: timestamp('created_at').defaultNow(),
+    updatedAt: timestamp('updated_at').defaultNow(),
+}, (table) => ({
+    keyScopeUnique: uniqueIndex('idempotency_keys_key_scope_idx').on(table.key, table.scope),
+}));
+
 export const orderItems = pgTable('order_items', {
     id: serial('id').primaryKey(),
     orderId: text('order_id').references(() => orders.id).notNull(),
@@ -517,13 +534,19 @@ export const purchaseOrderItems = pgTable('purchase_order_items', {
 export const printers = pgTable('printers', {
     id: text('id').primaryKey(),
     name: text('name').notNull(),
+    code: text('code'),
     type: text('type').notNull(), // NETWORK, USB, BLUETOOTH
     address: text('address'), // IP address or port
     location: text('location'), // Kitchen, Bar, Reception
+    role: text('role').default('OTHER'),
+    isPrimaryCashier: boolean('is_primary_cashier').default(false),
+    lastHeartbeatAt: timestamp('last_heartbeat_at'),
+    heartbeatStatus: text('heartbeat_status').default('UNKNOWN'),
     branchId: text('branch_id').references(() => branches.id),
     isActive: boolean('is_active').default(true),
     paperWidth: integer('paper_width').default(80), // mm
     createdAt: timestamp('created_at').defaultNow(),
+    updatedAt: timestamp('updated_at').defaultNow(),
 });
 
 // ============================================================================

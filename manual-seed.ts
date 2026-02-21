@@ -1,4 +1,4 @@
-
+﻿
 import { db } from './server/db';
 import { menuCategories, menuItems } from './src/db/schema';
 
@@ -46,3 +46,4 @@ async function manualSeed() {
 }
 
 manualSeed();
+

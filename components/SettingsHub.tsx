@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+﻿import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
     Building2,
@@ -25,7 +25,7 @@ import {
 } from 'lucide-react';
 import { AppSettings } from '../types';
 import { useToast } from './Toast';
-import { branchesApi, inventoryApi } from '../services/api';
+import { aiApi, branchesApi, inventoryApi } from '../services/api';
 import { nanoid } from 'nanoid';
 
 // Stores
@@ -46,11 +46,90 @@ const SettingsHub: React.FC = () => {
     const [showPlatformModal, setShowPlatformModal] = useState(false);
     const [showWarehouseModal, setShowWarehouseModal] = useState(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const [aiKeySource, setAiKeySource] = useState<'DEFAULT' | 'CUSTOM'>('DEFAULT');
+    const [customAiKey, setCustomAiKey] = useState('');
+    const [maskedCustomAiKey, setMaskedCustomAiKey] = useState<string | null>(null);
+    const [hasCustomAiKey, setHasCustomAiKey] = useState(false);
+    const [usingDefaultAvailable, setUsingDefaultAvailable] = useState(false);
+    const [aiProvider, setAiProvider] = useState<'OLLAMA' | 'OPENROUTER'>('OPENROUTER');
+    const [providerOptions, setProviderOptions] = useState<Array<{ id: 'OPENROUTER' | 'OLLAMA'; label: string }>>([]);
+    const [ollamaEnabled, setOllamaEnabled] = useState(false);
+    const [ollamaBaseUrl, setOllamaBaseUrl] = useState('');
+    const [ollamaModel, setOllamaModel] = useState('');
+    const [ollamaModelDefault, setOllamaModelDefault] = useState('');
+    const [aiModel, setAiModel] = useState('');
+    const [defaultAiModel, setDefaultAiModel] = useState('');
+    const [availableAiModels, setAvailableAiModels] = useState<Array<{ id: string; label: string; provider: string }>>([]);
+    const [aiConfigLoading, setAiConfigLoading] = useState(false);
+    const [aiConfigSaving, setAiConfigSaving] = useState(false);
 
     // Form states
     const [branchForm, setBranchForm] = useState({ name: '', location: '', timezone: 'Africa/Cairo', currency: 'EGP' });
     const [platformForm, setPlatformForm] = useState({ name: '', apiKey: '', commissionPercent: 0 });
     const [warehouseForm, setWarehouseForm] = useState({ name: '', branchId: '', type: 'MAIN' });
+
+    useEffect(() => {
+        let cancelled = false;
+        const loadAiKeyConfig = async () => {
+            setAiConfigLoading(true);
+            try {
+                const config = await aiApi.getKeyConfig();
+                if (cancelled) return;
+                setAiProvider(config.provider || 'OPENROUTER');
+                setProviderOptions(config.providerOptions || []);
+                setOllamaEnabled(Boolean(config.ollama?.enabled));
+                setOllamaBaseUrl(String(config.ollama?.baseUrl || ''));
+                setOllamaModel(String(config.ollama?.model || ''));
+                setOllamaModelDefault(String(config.ollama?.modelDefault || ''));
+                setAiKeySource(config.source);
+                setHasCustomAiKey(config.hasCustomKey);
+                setMaskedCustomAiKey(config.maskedCustomKey);
+                setUsingDefaultAvailable(config.usingDefaultAvailable);
+                setAiModel(config.model);
+                setDefaultAiModel(config.defaultModel);
+                setAvailableAiModels(config.availableModels || []);
+            } catch {
+                // keep defaults
+            } finally {
+                if (!cancelled) setAiConfigLoading(false);
+            }
+        };
+        loadAiKeyConfig();
+        return () => { cancelled = true; };
+    }, []);
+
+    const saveAiKeyConfig = async () => {
+        setAiConfigSaving(true);
+        try {
+            const payload: { source: 'DEFAULT' | 'CUSTOM'; customKey?: string; model?: string; provider?: 'OPENROUTER' | 'OLLAMA'; ollamaModel?: string } = {
+                source: aiKeySource,
+                model: aiModel || defaultAiModel || undefined,
+                provider: aiProvider,
+            };
+            if (aiKeySource === 'CUSTOM' && customAiKey.trim()) payload.customKey = customAiKey.trim();
+            if (aiProvider === 'OLLAMA') payload.ollamaModel = (ollamaModel || ollamaModelDefault || '').trim() || undefined;
+            const config = await aiApi.updateKeyConfig(payload);
+            setAiProvider(config.provider || 'OPENROUTER');
+            setProviderOptions(config.providerOptions || []);
+            setOllamaEnabled(Boolean(config.ollama?.enabled));
+            setOllamaBaseUrl(String(config.ollama?.baseUrl || ''));
+            setOllamaModel(String(config.ollama?.model || ''));
+            setOllamaModelDefault(String(config.ollama?.modelDefault || ''));
+            setAiKeySource(config.source);
+            setHasCustomAiKey(config.hasCustomKey);
+            setMaskedCustomAiKey(config.maskedCustomKey);
+            setUsingDefaultAvailable(config.usingDefaultAvailable);
+            setAiModel(config.model);
+            setDefaultAiModel(config.defaultModel);
+            setAvailableAiModels(config.availableModels || []);
+            setCustomAiKey('');
+            showToast(lang === 'ar' ? 'تم حفظ إعدادات الذكاء الاصطناعي' : 'AI key configuration saved', 'success');
+        } catch (err: any) {
+            showToast(err?.message || (lang === 'ar' ? 'فشل حفظ إعدادات الذكاء الاصطناعي' : 'Failed to save AI key config'), 'error');
+        } finally {
+            setAiConfigSaving(false);
+        }
+    };
 
     const handleChange = (key: keyof AppSettings, value: any) => {
         updateSettings({ [key]: value });
@@ -135,8 +214,8 @@ const SettingsHub: React.FC = () => {
                 { key: 'restaurantName', label: lang === 'ar' ? 'اسم المطعم' : 'Restaurant Name', type: 'text' },
                 { key: 'phone', label: lang === 'ar' ? 'رقم الهاتف' : 'Phone Number', type: 'text' },
                 { key: 'branchAddress', label: lang === 'ar' ? 'عنوان الفرع' : 'Branch Address', type: 'text' },
-                { key: 'receiptLogoUrl', label: lang === 'ar' ? 'رابط شعار الشيك' : 'Receipt Logo URL', type: 'text' },
-                { key: 'receiptQrUrl', label: lang === 'ar' ? 'رابط كود QR في الشيك' : 'Receipt QR URL', type: 'text' },
+                { key: 'receiptLogoUrl', label: lang === 'ar' ? 'رابط شعار الإيصال' : 'Receipt Logo URL', type: 'text' },
+                { key: 'receiptQrUrl', label: lang === 'ar' ? 'رابط QR في الإيصال' : 'Receipt QR URL', type: 'text' },
             ]
         },
         {
@@ -194,7 +273,7 @@ const SettingsHub: React.FC = () => {
                     ))}
                     <button onClick={() => setShowPlatformModal(true)} className="flex flex-col items-center justify-center gap-2 p-4 border-border rounded-2xl text-muted hover:text-orange-600 hover:border-orange-400 transition-all">
                         <Plus size={24} />
-                        <span className="text-[10px] font-black uppercase tracking-widest">{lang === 'ar' ? 'إيجاد تطبيق' : 'Add App'}</span>
+                        <span className="text-[10px] font-black uppercase tracking-widest">{lang === 'ar' ? 'ط¥ظٹط¬ط§ط¯ طھط·ط¨ظٹظ‚' : 'Add App'}</span>
                     </button>
                 </div>
             )
@@ -212,7 +291,7 @@ const SettingsHub: React.FC = () => {
                             <div key={w.id} className="p-4 bg-elevated rounded-2xl flex items-center justify-between border border-transparent hover:border-primary transition-all cursor-pointer">
                                 <div>
                                     <p className="font-bold text-main leading-tight uppercase tracking-tight">{w.name}</p>
-                                    <p className="text-[9px] text-muted font-black uppercase tracking-widest">{branch?.name} • {w.type}</p>
+                                    <p className="text-[9px] text-muted font-black uppercase tracking-widest">{branch?.name} - {w.type}</p>
                                 </div>
                                 <div className="w-8 h-8 rounded-lg bg-primary/10 text-primary flex items-center justify-center">
                                     <ExternalLink size={14} />
@@ -234,15 +313,15 @@ const SettingsHub: React.FC = () => {
             customRender: () => (
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
                     {[
-                        { id: 'xen', name: lang === 'ar' ? 'زين برو' : 'Xen Pro', colors: ['#00A8CC', '#0F172A'] },
-                        { id: 'ember', name: lang === 'ar' ? 'إمبر بيزنيس' : 'Ember Business', colors: ['#F57C2B', '#1F130C'] },
+                        { id: 'xen', name: lang === 'ar' ? 'ط²ظٹظ† ط¨ط±ظˆ' : 'Xen Pro', colors: ['#00A8CC', '#0F172A'] },
+                        { id: 'ember', name: lang === 'ar' ? 'إمبر بزنس' : 'Ember Business', colors: ['#F57C2B', '#1F130C'] },
                         { id: 'graphite', name: lang === 'ar' ? 'جرافيت تنفيذي' : 'Graphite Executive', colors: ['#4C5463', '#111827'] },
-                        { id: 'ocean', name: lang === 'ar' ? 'أوشن بريميوم' : 'Ocean Premium', colors: ['#2B7CF2', '#0B1B33'] },
-                        { id: 'carbon', name: lang === 'ar' ? 'كاربون لوكس' : 'Carbon Luxe', colors: ['#111827', '#22C55E'] },
+                        { id: 'ocean', name: lang === 'ar' ? 'ط£ظˆط´ظ† ط¨ط±ظٹظ…ظٹظˆظ…' : 'Ocean Premium', colors: ['#2B7CF2', '#0B1B33'] },
+                        { id: 'carbon', name: lang === 'ar' ? 'ظƒط§ط±ط¨ظˆظ† ظ„ظˆظƒط³' : 'Carbon Luxe', colors: ['#111827', '#22C55E'] },
                         { id: 'royal', name: lang === 'ar' ? 'رويال كلاسيك' : 'Royal Classic', colors: ['#2E4D9E', '#0E1B3D'] },
                         { id: 'emerald_luxe', name: lang === 'ar' ? 'زمرد لوكس' : 'Emerald Luxe', colors: ['#0E9F6E', '#06281C'] },
-                        { id: 'noir', name: lang === 'ar' ? 'نوار برو' : 'Noir Pro', colors: ['#0F172A', '#0A0A0A'] },
-                        { id: 'beige_luxe', name: lang === 'ar' ? 'بيج فاخر' : 'Beige Luxe', colors: ['#C8A97E', '#3A2F2A'] },
+                        { id: 'noir', name: lang === 'ar' ? 'ظ†ظˆط§ط± ط¨ط±ظˆ' : 'Noir Pro', colors: ['#0F172A', '#0A0A0A'] },
+                        { id: 'beige_luxe', name: lang === 'ar' ? 'ط¨ظٹط¬ ظپط§ط®ط±' : 'Beige Luxe', colors: ['#C8A97E', '#3A2F2A'] },
                     ].map(theme => (
                         <button
                             key={theme.id}
@@ -264,10 +343,10 @@ const SettingsHub: React.FC = () => {
                                 <div className="p-3 space-y-2">
                                     <div className="h-10 rounded-xl border border-slate-200/60 dark:border-slate-800/60 bg-white/80 dark:bg-slate-900/60 flex items-center justify-between px-3">
                                         <span className="text-[9px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-400">
-                                            {lang === 'ar' ? 'نص رئيسي' : 'Primary Text'}
+                                            {lang === 'ar' ? 'ظ†طµ ط±ط¦ظٹط³ظٹ' : 'Primary Text'}
                                         </span>
                                         <span className="text-[10px] font-black" style={{ color: theme.colors[0] }}>
-                                            {lang === 'ar' ? 'زر' : 'Action'}
+                                            {lang === 'ar' ? 'ط²ط±' : 'Action'}
                                         </span>
                                     </div>
                                     <div className="h-8 rounded-lg bg-slate-100 dark:bg-slate-800/70" />
@@ -287,9 +366,139 @@ const SettingsHub: React.FC = () => {
             title: lang === 'ar' ? 'الذكاء الاصطناعي والأتمتة' : 'AI & Automation',
             icon: Cpu,
             color: 'bg-cyan-600',
-            fields: [
-                { key: 'geminiApiKey', label: lang === 'ar' ? 'مفتاح OpenRouter API' : 'OpenRouter API Key', type: 'text' },
-            ]
+            customRender: () => (
+                <div className="space-y-6">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div className="md:col-span-2 space-y-3">
+                            <label className="text-[10px] font-black text-muted uppercase tracking-[0.2em] ml-1">
+                                {lang === 'ar' ? 'مزود الذكاء الاصطناعي' : 'AI Provider'}
+                            </label>
+                            <select
+                                value={aiProvider}
+                                onChange={(e) => setAiProvider((e.target.value === 'OLLAMA' ? 'OLLAMA' : 'OPENROUTER'))}
+                                className="w-full p-4 bg-app/50 border-2 border-border focus:border-primary rounded-[1.2rem] font-black text-xs outline-none transition-all text-main"
+                            >
+                                {(providerOptions.length ? providerOptions : [
+                                    { id: 'OLLAMA', label: 'Local Ollama (Unlimited, Self-hosted)' },
+                                    { id: 'OPENROUTER', label: 'OpenRouter (Free-tier, Rate-limited)' },
+                                ]).map((p) => (
+                                    <option key={p.id} value={p.id}>{p.label}</option>
+                                ))}
+                            </select>
+                            {aiProvider === 'OLLAMA' && (
+                                <div className="space-y-3">
+                                    <div className="text-[10px] text-muted font-bold uppercase tracking-widest">
+                                        {lang === 'ar'
+                                            ? `الحالة: ${ollamaEnabled ? 'مفعل على السيرفر' : 'غير مفعل على السيرفر'} | العنوان: ${ollamaBaseUrl || '-'}`
+                                            : `Status: ${ollamaEnabled ? 'enabled on server' : 'disabled on server'} | URL: ${ollamaBaseUrl || '-'}`}
+                                    </div>
+                                    <label className="text-[10px] font-black text-muted uppercase tracking-[0.2em] ml-1">
+                                        {lang === 'ar' ? 'موديل Ollama (محلي)' : 'Ollama Model (Local)'}
+                                    </label>
+                                    <input
+                                        value={ollamaModel || ''}
+                                        onChange={(e) => setOllamaModel(e.target.value)}
+                                        placeholder={ollamaModelDefault || 'qwen2.5:7b-instruct'}
+                                        className="w-full p-5 bg-app/50 border-2 border-border focus:border-primary rounded-[1.5rem] font-black text-xs outline-none transition-all shadow-inner tracking-wider text-main"
+                                    />
+                                    <p className="text-[10px] text-muted font-bold uppercase tracking-widest">
+                                        {lang === 'ar'
+                                            ? 'ملاحظة: Ollama مجاني بالكامل. شغله على جهاز السيرفر/الكمبيوتر ثم اختار الموديل هنا.'
+                                            : 'Note: Ollama is fully free. Run it on the server machine, then select the local model here.'}
+                                    </p>
+                                </div>
+                            )}
+                        </div>
+                        <button
+                            type="button"
+                            onClick={() => setAiKeySource('DEFAULT')}
+                            className={`p-5 rounded-2xl border text-left transition-all ${aiKeySource === 'DEFAULT' ? 'border-primary bg-primary/5' : 'border-border bg-app/40'}`}
+                        >
+                            <p className="text-xs font-black uppercase tracking-wider text-main">
+                                {lang === 'ar' ? 'المفتاح الافتراضي (Server)' : 'Default Server Key'}
+                            </p>
+                            <p className="text-[10px] text-muted mt-2 font-bold uppercase tracking-widest">
+                                {usingDefaultAvailable
+                                    ? (lang === 'ar' ? 'متاح على السيرفر' : 'Available on server')
+                                    : (lang === 'ar' ? 'غير مضبوط في البيئة' : 'Missing in environment')}
+                            </p>
+                        </button>
+
+                        <button
+                            type="button"
+                            onClick={() => setAiKeySource('CUSTOM')}
+                            className={`p-5 rounded-2xl border text-left transition-all ${aiKeySource === 'CUSTOM' ? 'border-primary bg-primary/5' : 'border-border bg-app/40'}`}
+                        >
+                            <p className="text-xs font-black uppercase tracking-wider text-main">
+                                {lang === 'ar' ? 'مفتاح مخصص مشفر' : 'Encrypted Custom Key'}
+                            </p>
+                            <p className="text-[10px] text-muted mt-2 font-bold uppercase tracking-widest">
+                                {hasCustomAiKey
+                                    ? `${lang === 'ar' ? 'محفوظ:' : 'Stored:'} ${maskedCustomAiKey || '***'}`
+                                    : (lang === 'ar' ? 'لا يوجد مفتاح مخصص' : 'No custom key saved')}
+                            </p>
+                        </button>
+                    </div>
+
+                    {aiKeySource === 'CUSTOM' && (
+                        <div className="space-y-3">
+                            <label className="text-[10px] font-black text-muted uppercase tracking-[0.2em] ml-1">
+                                {lang === 'ar' ? 'إدخال/تحديث مفتاح مخصص' : 'Set or rotate custom key'}
+                            </label>
+                            <input
+                                type="password"
+                                autoComplete="off"
+                                value={customAiKey}
+                                onChange={(e) => setCustomAiKey(e.target.value)}
+                                placeholder={lang === 'ar' ? 'sk-or-...' : 'sk-or-...'}
+                                className="w-full p-6 bg-app/50 border-2 border-border focus:border-primary rounded-[1.5rem] font-black text-xs outline-none transition-all shadow-inner tracking-wider text-main"
+                            />
+                            <p className="text-[10px] text-muted font-bold uppercase tracking-widest">
+                                {lang === 'ar'
+                                    ? 'المفتاح يتم تشفيره وحفظه على السيرفر فقط ولن يظهر في الواجهة.'
+                                    : 'Key is encrypted and stored server-side only, never exposed to client.'}
+                            </p>
+                        </div>
+                    )}
+
+                    <div className="space-y-3">
+                        <label className="text-[10px] font-black text-muted uppercase tracking-[0.2em] ml-1">
+                            {lang === 'ar' ? 'موديل الذكاء الاصطناعي (مجاني فقط)' : 'AI Model (Free models only)'}
+                        </label>
+                        <select
+                            value={aiModel || defaultAiModel}
+                            onChange={(e) => setAiModel(e.target.value)}
+                            disabled={aiProvider === 'OLLAMA'}
+                            className="w-full p-4 bg-app/50 border-2 border-border focus:border-primary rounded-[1.2rem] font-black text-xs outline-none transition-all text-main"
+                        >
+                            {(availableAiModels.length ? availableAiModels : [{ id: defaultAiModel || 'google/gemini-2.0-flash-exp:free', label: 'Gemini 2.0 Flash (Free)', provider: 'Google' }]).map((model) => (
+                                <option key={model.id} value={model.id}>
+                                    {model.label}
+                                </option>
+                            ))}
+                        </select>
+                        <p className="text-[10px] text-muted font-bold uppercase tracking-widest">
+                            {aiProvider === 'OLLAMA'
+                                ? (lang === 'ar' ? 'سيتم استخدام موديل Ollama المحلي.' : 'Using local Ollama model.')
+                                : (lang === 'ar'
+                                    ? `الافتراضي: Gemini (${defaultAiModel || 'google/gemini-2.0-flash-exp:free'})`
+                                    : `Default: Gemini (${defaultAiModel || 'google/gemini-2.0-flash-exp:free'})`)}
+                        </p>
+                    </div>
+
+                    <div className="flex items-center gap-3">
+                        <button
+                            type="button"
+                            onClick={saveAiKeyConfig}
+                            disabled={aiConfigLoading || aiConfigSaving}
+                            className="px-6 py-3 rounded-2xl bg-primary text-white text-[10px] font-black uppercase tracking-[0.2em] disabled:opacity-60 flex items-center gap-2"
+                        >
+                            {(aiConfigLoading || aiConfigSaving) ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
+                            {lang === 'ar' ? 'حفظ إعداد AI' : 'Save AI Config'}
+                        </button>
+                    </div>
+                </div>
+            )
         }
     ];
 
@@ -302,16 +511,16 @@ const SettingsHub: React.FC = () => {
                         <div className="p-4 bg-primary/10 text-primary rounded-[2rem] shadow-inner">
                             <Settings size={36} className="animate-spin-slow" />
                         </div>
-                        Control Engine
+                        Settings
                     </h1>
-                    <p className="text-muted font-black text-[10px] tracking-[0.2em] mt-3 uppercase opacity-60">Master Configuration & Global Protcols v3.0</p>
+                    <p className="text-muted font-black text-[10px] tracking-[0.2em] mt-3 uppercase opacity-60">System configuration and preferences</p>
                 </div>
                 <div className="flex gap-4">
                     <button
                         onClick={() => navigate('/')}
                         className="bg-card border border-border text-main px-8 py-4 rounded-[1.5rem] font-black text-[10px] uppercase tracking-[0.2em] shadow-sm hover:shadow-xl hover:bg-app transition-all flex items-center gap-3"
                     >
-                        Exit Terminal
+                        Back to Dashboard
                     </button>
                     <button
                         onClick={() => {
@@ -349,13 +558,13 @@ const SettingsHub: React.FC = () => {
 
                     <div className="p-10 bg-primary rounded-[3rem] text-white shadow-2xl shadow-primary/40 mt-10 relative overflow-hidden group">
                         <div className="absolute top-0 right-0 w-48 h-48 bg-white/10 rounded-full blur-3xl group-hover:scale-150 transition-transform duration-1000" />
-                        <h4 className="font-black uppercase tracking-tight text-2xl mb-4 relative z-10">Interior Architecture</h4>
-                        <p className="text-[10px] uppercase font-bold text-white/70 leading-relaxed mb-8 relative z-10">Construct spatial seating matrices and terminal distribution.</p>
+                        <h4 className="font-black uppercase tracking-tight text-2xl mb-4 relative z-10">Floor Design</h4>
+                        <p className="text-[10px] uppercase font-bold text-white/70 leading-relaxed mb-8 relative z-10">Design your restaurant seating layout and table arrangement.</p>
                         <button
                             onClick={onOpenFloorDesigner}
                             className="w-full py-5 bg-white text-primary rounded-[1.5rem] font-black text-[10px] uppercase tracking-widest hover:bg-opacity-95 transition-all shadow-xl relative z-10"
                         >
-                            Activate Designer
+                            Open Designer
                         </button>
                     </div>
                 </div>
@@ -372,7 +581,7 @@ const SettingsHub: React.FC = () => {
                                 </div>
                                 <div>
                                     <h3 className="text-3xl font-black text-main uppercase tracking-tight">{section.title}</h3>
-                                    <p className="text-[10px] font-black text-muted uppercase tracking-[0.2em] mt-2 opacity-60">Operational Constraints & Registry Logic</p>
+                                    <p className="text-[10px] font-black text-muted uppercase tracking-[0.2em] mt-2 opacity-60">Configure section settings</p>
                                 </div>
                             </div>
 
@@ -407,9 +616,9 @@ const SettingsHub: React.FC = () => {
                                 <Cpu size={40} />
                             </div>
                             <div>
-                                <h4 className="text-2xl font-black uppercase tracking-tight mb-2">Cryptographic Syncronization</h4>
+                                <h4 className="text-2xl font-black uppercase tracking-tight mb-2">Settings Sync</h4>
                                 <p className="text-sm font-bold text-slate-400 uppercase tracking-widest leading-relaxed max-w-xl opacity-80">
-                                    Global configuration hashes are synchronized across the <span className="text-white">Hybrid-Cloud Lattice</span>. All changes are immutable and logged in the forensic record.
+                                    Settings are synced with the server automatically. All changes are saved and logged.
                                 </p>
                             </div>
                         </div>
@@ -584,10 +793,10 @@ const SettingsHub: React.FC = () => {
                                     onChange={e => setWarehouseForm(f => ({ ...f, type: e.target.value }))}
                                     className="w-full p-4 bg-app border border-border rounded-xl text-main font-bold focus:border-primary outline-none"
                                 >
-                                    <option value="MAIN">{lang === 'ar' ? 'رئيسي' : 'Main'}</option>
+                                    <option value="MAIN">{lang === 'ar' ? 'ط±ط¦ظٹط³ظٹ' : 'Main'}</option>
                                     <option value="KITCHEN">{lang === 'ar' ? 'مطبخ' : 'Kitchen'}</option>
-                                    <option value="BAR">{lang === 'ar' ? 'بار' : 'Bar'}</option>
-                                    <option value="COLD">{lang === 'ar' ? 'تبريد' : 'Cold Storage'}</option>
+                                    <option value="BAR">{lang === 'ar' ? 'ط¨ط§ط±' : 'Bar'}</option>
+                                    <option value="COLD">{lang === 'ar' ? 'طھط¨ط±ظٹط¯' : 'Cold Storage'}</option>
                                 </select>
                             </div>
                         </div>
@@ -607,3 +816,4 @@ const SettingsHub: React.FC = () => {
 };
 
 export default SettingsHub;
+

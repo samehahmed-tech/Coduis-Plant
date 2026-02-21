@@ -141,7 +141,7 @@ const Finance: React.FC = () => {
     <div className="p-8 bg-slate-50 dark:bg-slate-950 min-h-screen pb-24">
       <div className="flex justify-between items-center mb-8">
         <div>
-          <h2 className="text-3xl font-black text-slate-800 dark:text-white uppercase">Finance Engine</h2>
+          <h2 className="text-3xl font-black text-slate-800 dark:text-white uppercase">Finance</h2>
           <p className="text-sm text-slate-500 font-semibold">Backend-driven double-entry ledger.</p>
         </div>
         <button

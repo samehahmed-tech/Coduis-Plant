@@ -63,6 +63,8 @@ export const useCRMStore = create<CRMState>()(
                     }
                 } catch (error: any) {
                     set({ error: error.message, isLoading: false });
+                    const code = String(error?.code || error?.message || '').toUpperCase();
+                    if (code.includes('INVALID_TOKEN') || Number(error?.status) === 401) return;
                     console.error('Failed to fetch customers:', error);
                 }
             },

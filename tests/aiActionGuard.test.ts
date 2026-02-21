@@ -1,4 +1,6 @@
 import { describe, it, expect } from 'vitest';
+import fs from 'node:fs';
+import path from 'node:path';
 import { guardAction } from '../src/services/aiActionGuard';
 
 describe('aiActionGuard', () => {
@@ -21,5 +23,15 @@ describe('aiActionGuard', () => {
         expect(guarded.canExecute).toBe(true);
         expect(guarded.before.price).toBe(20);
         expect(guarded.after.price).toBe(50);
+    });
+
+    it('keeps AI assistant action flow backend-driven', () => {
+        const assistantPath = path.resolve(process.cwd(), 'components', 'AIAssistant.tsx');
+        const source = fs.readFileSync(assistantPath, 'utf8');
+
+        expect(source.includes('aiApi.chat(')).toBe(true);
+        expect(source.includes('aiApi.previewAction(')).toBe(true);
+        expect(source.includes('aiApi.actionExecute(')).toBe(true);
+        expect(source.includes('guardAction(')).toBe(false);
     });
 });

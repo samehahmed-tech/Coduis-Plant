@@ -110,7 +110,7 @@ const RecipeManager: React.FC = () => {
                         Recipe & Engineering
                     </h2>
                     <p className="text-slate-500 dark:text-slate-400 font-semibold italic text-sm">
-                        Synchronize menu intelligence with raw ingredient consumption.
+                        Link recipes with ingredients and track costs.
                     </p>
                 </div>
             </div>
@@ -188,7 +188,7 @@ const RecipeManager: React.FC = () => {
                                             onClick={handleSaveRecipe}
                                             className="bg-indigo-600 text-white px-6 py-3 rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-indigo-700 transition-all shadow-xl shadow-indigo-600/30 flex items-center gap-2"
                                         >
-                                            <Save size={16} /> Deploy Recipe
+                                            <Save size={16} /> Save Recipe
                                         </button>
                                     </div>
 
@@ -196,7 +196,7 @@ const RecipeManager: React.FC = () => {
                                         {currentRecipe.length === 0 ? (
                                             <div className="py-24 flex flex-col items-center justify-center opacity-30">
                                                 <ChefHat size={64} className="mb-6" />
-                                                <p className="text-xs font-black uppercase tracking-widest">Protocol Empty</p>
+                                                <p className="text-xs font-black uppercase tracking-widest">No Ingredients</p>
                                             </div>
                                         ) : (
                                             currentRecipe.map(ing => {
@@ -280,9 +280,9 @@ const RecipeManager: React.FC = () => {
                                     <Calculator size={32} />
                                 </div>
                                 <div>
-                                    <p className="text-sm font-black uppercase tracking-widest text-indigo-400 mb-1">Cost-Deduction Engine</p>
+                                    <p className="text-sm font-black uppercase tracking-widest text-indigo-400 mb-1">Auto Stock Deduction</p>
                                     <p className="text-xs font-bold text-slate-300 uppercase leading-relaxed max-w-2xl opacity-80">
-                                        Autonomous stock reconciliation is enabled. The system will cryptographically deduct these components from the <span className="text-white font-black">Main Kitchen Cluster</span> upon order confirmation.
+                                        Ingredients will be automatically deducted from inventory when an order is confirmed.
                                     </p>
                                 </div>
                             </div>

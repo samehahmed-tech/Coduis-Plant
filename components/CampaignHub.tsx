@@ -24,7 +24,7 @@ type Campaign = {
     status: 'ACTIVE' | 'AUTOMATED' | 'SCHEDULED' | 'PAUSED';
     outreach: number;
     conversions: number;
-    method: 'SMS' | 'Email' | 'Push';
+    method: 'SMS' | 'Email' | 'Push' | 'WHATSAPP';
     discount?: string;
 };
 
@@ -34,6 +34,7 @@ const CampaignHub: React.FC = () => {
     const [campaigns, setCampaigns] = useState<Campaign[]>([]);
     const [stats, setStats] = useState<any>(null);
     const [creating, setCreating] = useState(false);
+    const [dispatchingId, setDispatchingId] = useState<string | null>(null);
 
     const loadData = async () => {
         try {
@@ -66,6 +67,28 @@ const CampaignHub: React.FC = () => {
         }
     };
 
+    const dispatchCampaign = async (campaign: Campaign) => {
+        const fallbackPhone = String(settings?.phone || '').trim();
+        const phones = fallbackPhone ? [fallbackPhone] : [];
+        if (phones.length === 0) {
+            alert(lang === 'ar' ? 'لا يوجد رقم افتراضي في الإعدادات للإرسال التجريبي.' : 'No default phone in settings for test dispatch.');
+            return;
+        }
+        setDispatchingId(campaign.id);
+        try {
+            await campaignsApi.dispatch(campaign.id, {
+                mode: 'SEND',
+                phones,
+                message: `${campaign.name}${campaign.discount ? ` - ${campaign.discount}` : ''}`,
+            });
+            await loadData();
+        } catch (error: any) {
+            alert(error?.message || 'Dispatch failed');
+        } finally {
+            setDispatchingId(null);
+        }
+    };
+
     const statusClass = (status: Campaign['status']) => {
         if (status === 'ACTIVE') return 'bg-emerald-500/10 text-emerald-500';
         if (status === 'AUTOMATED') return 'bg-blue-500/10 text-blue-500';
@@ -84,6 +107,7 @@ const CampaignHub: React.FC = () => {
             { label: 'SMS', value: channels.SMS || 0 },
             { label: 'Email', value: channels.Email || 0 },
             { label: 'Push', value: channels.Push || 0 },
+            { label: 'WHATSAPP', value: channels.WHATSAPP || 0 },
         ];
     }, [stats]);
 
@@ -100,7 +124,7 @@ const CampaignHub: React.FC = () => {
                         </h2>
                     </div>
                     <p className="text-muted font-bold text-sm uppercase tracking-widest opacity-60 flex items-center gap-2">
-                        {lang === 'ar' ? 'محرك الأتمتة والولاء الذكي' : 'Intelligent Automation & Loyalty Engine'}
+                        {lang === 'ar' ? 'العروض وبرنامج الولاء' : 'Promotions & Loyalty'}
                         <span className="w-2 h-2 rounded-full bg-emerald-500 animate-ping" />
                     </p>
                 </div>
@@ -165,7 +189,11 @@ const CampaignHub: React.FC = () => {
                                         <td className="px-8 py-6">
                                             <div className="flex items-center gap-4">
                                                 <div className="w-10 h-10 rounded-xl bg-app flex items-center justify-center text-primary border border-border">
-                                                    {cp.method === 'SMS' ? <MessageSquare size={18} /> : cp.method === 'Email' ? <Mail size={18} /> : <Megaphone size={18} />}
+                                                    {cp.method === 'SMS' || cp.method === 'WHATSAPP'
+                                                        ? <MessageSquare size={18} />
+                                                        : cp.method === 'Email'
+                                                            ? <Mail size={18} />
+                                                            : <Megaphone size={18} />}
                                                 </div>
                                                 <div>
                                                     <p className="text-sm font-black text-main uppercase">{cp.name}</p>
@@ -188,12 +216,21 @@ const CampaignHub: React.FC = () => {
                                             </div>
                                         </td>
                                         <td className="px-8 py-6 text-right">
-                                            <button
-                                                onClick={() => campaignsApi.update(cp.id, { status: cp.status === 'ACTIVE' ? 'PAUSED' : 'ACTIVE' }).then(loadData)}
-                                                className="text-muted hover:text-primary transition-all"
-                                            >
-                                                <ChevronRight size={20} />
-                                            </button>
+                                            <div className="flex items-center justify-end gap-3">
+                                                <button
+                                                    onClick={() => dispatchCampaign(cp)}
+                                                    disabled={dispatchingId === cp.id}
+                                                    className="text-[10px] font-black px-3 py-1.5 rounded-full bg-primary/10 text-primary hover:bg-primary/20 transition-all disabled:opacity-60"
+                                                >
+                                                    {dispatchingId === cp.id ? '...' : (lang === 'ar' ? 'إرسال' : 'Blast')}
+                                                </button>
+                                                <button
+                                                    onClick={() => campaignsApi.update(cp.id, { status: cp.status === 'ACTIVE' ? 'PAUSED' : 'ACTIVE' }).then(loadData)}
+                                                    className="text-muted hover:text-primary transition-all"
+                                                >
+                                                    <ChevronRight size={20} />
+                                                </button>
+                                            </div>
                                         </td>
                                     </tr>
                                 ))}

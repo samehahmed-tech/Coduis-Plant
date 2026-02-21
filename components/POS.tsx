@@ -4,7 +4,7 @@
  * Manual Unlock Required: "INITIATE POS PROTOCOL UNLOCK"
  */
 import React, { useState, useEffect, useRef, useMemo, useCallback, useDeferredValue } from 'react';
-import { Search, ShoppingBag, X, LogOut, SlidersHorizontal, ArrowUpDown, LayoutGrid, Grid2x2, PanelRightOpen, PanelRightClose, Plus, UtensilsCrossed, Truck, MapPin, Keyboard } from 'lucide-react';
+import { Search, ShoppingBag, X, LogOut, SlidersHorizontal, ArrowUpDown, LayoutGrid, Grid2x2, Plus, UtensilsCrossed, Truck, MapPin, Keyboard } from 'lucide-react';
 import {
    Order, OrderItem, OrderStatus, Table, PaymentMethod,
    OrderType, Customer, PaymentRecord, RestaurantMenu,
@@ -32,7 +32,7 @@ import { useModal } from './Modal';
 
 // Services
 import { translations } from '../services/translations';
-import { shiftsApi } from '../services/api';
+import { getActionableErrorMessage, shiftsApi } from '../services/api';
 
 // Stores
 import { useAuthStore } from '../stores/useAuthStore';
@@ -45,6 +45,8 @@ import { useFinanceStore } from '../stores/useFinanceStore';
 const POS: React.FC = () => {
    const POS_UI_PREFS_KEY = 'restoflow_pos_ui_prefs_v1';
    const POS_ITEM_USAGE_KEY = 'restoflow_pos_item_usage_v1';
+   const POS_PAYMENT_PREFS_KEY = 'restoflow_pos_payment_prefs_v1';
+   const POS_CART_LAYOUT_KEY = 'restoflow_pos_cart_layout_v1';
    // --- Global State (Selective Picking for Performance) ---
    const settings = useAuthStore(state => state.settings);
    const branches = useAuthStore(state => state.branches);
@@ -117,7 +119,12 @@ const POS: React.FC = () => {
    const [showCalculator, setShowCalculator] = useState(false);
    const [showApprovalModal, setShowApprovalModal] = useState(false);
    const [isCartOpenMobile, setIsCartOpenMobile] = useState(false);
+   const [showMobileFilters, setShowMobileFilters] = useState(false);
+   const [isTabletViewport, setIsTabletViewport] = useState(() => typeof window !== 'undefined' ? window.innerWidth <= 1180 : false);
+   const [showCategoryStrip, setShowCategoryStrip] = useState(true);
    const [cartPanelWidth, setCartPanelWidth] = useState<'compact' | 'normal' | 'wide'>('normal');
+   const [isPaymentPanelCollapsed, setIsPaymentPanelCollapsed] = useState(false);
+   const [cartSearchQuery, setCartSearchQuery] = useState('');
    const [couponCode, setCouponCode] = useState('');
    const [isApplyingCoupon, setIsApplyingCoupon] = useState(false);
    const [approvalCallback, setApprovalCallback] = useState<{ fn: () => void; action: string } | null>(null);
@@ -139,7 +146,10 @@ const POS: React.FC = () => {
             try {
                await fn();
             } catch (error: any) {
-               showToast(error?.message || (settings.language === 'ar' ? 'فشل تنفيذ العملية' : 'Action failed'), 'error');
+               showToast(
+                  getActionableErrorMessage(error, (settings.language || 'en') as 'en' | 'ar'),
+                  'error'
+               );
             } finally {
                setApprovalCallback(null);
             }
@@ -171,6 +181,19 @@ const POS: React.FC = () => {
    }, []);
 
    useEffect(() => {
+      const updateViewport = () => {
+         const isTablet = window.innerWidth <= 1180;
+         setIsTabletViewport(isTablet);
+         if (!isTablet) {
+            setShowCategoryStrip(true);
+         }
+      };
+      updateViewport();
+      window.addEventListener('resize', updateViewport);
+      return () => window.removeEventListener('resize', updateViewport);
+   }, []);
+
+   useEffect(() => {
       try {
          const raw = localStorage.getItem(POS_UI_PREFS_KEY);
          if (!raw) return;
@@ -184,9 +207,6 @@ const POS: React.FC = () => {
          if (parsed?.itemDensity && ['comfortable', 'compact', 'ultra'].includes(parsed.itemDensity)) {
             setItemDensity(parsed.itemDensity);
          }
-         if (parsed?.cartPanelWidth && ['compact', 'normal', 'wide'].includes(parsed.cartPanelWidth)) {
-            setCartPanelWidth(parsed.cartPanelWidth);
-         }
       } catch {
          // ignore malformed local prefs
       }
@@ -197,13 +217,12 @@ const POS: React.FC = () => {
          localStorage.setItem(POS_UI_PREFS_KEY, JSON.stringify({
             itemFilter,
             itemSort,
-            itemDensity,
-            cartPanelWidth
+            itemDensity
          }));
       } catch {
          // ignore storage errors
       }
-   }, [itemFilter, itemSort, itemDensity, cartPanelWidth]);
+   }, [itemFilter, itemSort, itemDensity]);
 
    useEffect(() => {
       try {
@@ -217,6 +236,55 @@ const POS: React.FC = () => {
    }, []);
 
    useEffect(() => {
+      try {
+         const raw = localStorage.getItem(POS_CART_LAYOUT_KEY);
+         if (!raw) return;
+         const parsed = JSON.parse(raw);
+         if (parsed?.cartPanelWidth && ['compact', 'normal', 'wide'].includes(parsed.cartPanelWidth)) {
+            setCartPanelWidth(parsed.cartPanelWidth);
+         }
+         if (typeof parsed?.isPaymentPanelCollapsed === 'boolean') {
+            setIsPaymentPanelCollapsed(parsed.isPaymentPanelCollapsed);
+         }
+      } catch {
+         // ignore malformed layout prefs
+      }
+   }, []);
+
+   useEffect(() => {
+      try {
+         localStorage.setItem(POS_CART_LAYOUT_KEY, JSON.stringify({
+            cartPanelWidth,
+            isPaymentPanelCollapsed,
+         }));
+      } catch {
+         // ignore storage errors
+      }
+   }, [cartPanelWidth, isPaymentPanelCollapsed]);
+
+   useEffect(() => {
+      try {
+         const raw = localStorage.getItem(POS_PAYMENT_PREFS_KEY);
+         if (!raw) return;
+         const parsed = JSON.parse(raw);
+         if (parsed && typeof parsed === 'object') {
+            paymentPrefsRef.current = parsed;
+         }
+      } catch {
+         // ignore malformed payment prefs
+      }
+   }, []);
+
+   useEffect(() => {
+      const preferred = paymentPrefsRef.current[activeOrderType];
+      if (preferred) {
+         setPaymentMethod(preferred);
+      } else {
+         setPaymentMethod(PaymentMethod.CASH);
+      }
+   }, [activeOrderType]);
+
+   useEffect(() => {
       if (!lastAddedItemId) return;
       const timer = window.setTimeout(() => setLastAddedItemId(null), 700);
       return () => window.clearTimeout(timer);
@@ -228,6 +296,10 @@ const POS: React.FC = () => {
    const searchInputRef = useRef<HTMLInputElement>(null);
    const tableNumberBufferRef = useRef('');
    const tableNumberTimerRef = useRef<number | null>(null);
+   const scannerBufferRef = useRef('');
+   const scannerLastInputAtRef = useRef(0);
+   const scannerFlushTimerRef = useRef<number | null>(null);
+   const paymentPrefsRef = useRef<Partial<Record<OrderType, PaymentMethod>>>({});
    const deferredSearchQuery = useDeferredValue(searchQuery);
 
    // --- Derived Data ---
@@ -401,6 +473,25 @@ const POS: React.FC = () => {
       [categoryResultCounts]
    );
 
+   const quickCategoryNav = useMemo(() => {
+      const withCounts = currentCategories
+         .map((cat) => ({ ...cat, count: categoryResultCounts[cat.id] || 0 }))
+         .filter((cat) => cat.count > 0)
+         .sort((a, b) => {
+            if (b.count !== a.count) return b.count - a.count;
+            return String(lang === 'ar' ? (a.nameAr || a.name) : a.name).localeCompare(
+               String(lang === 'ar' ? (b.nameAr || b.name) : b.name)
+            );
+         });
+
+      const top = withCounts.slice(0, 8);
+      const active = withCounts.find((cat) => cat.id === activeCategory);
+      if (active && !top.some((cat) => cat.id === active.id)) {
+         return [active, ...top.slice(0, 7)];
+      }
+      return top;
+   }, [currentCategories, categoryResultCounts, activeCategory, lang]);
+
    useEffect(() => {
       if (activeCategory === 'all') return;
       const currentCount = categoryResultCounts[activeCategory] || 0;
@@ -409,16 +500,6 @@ const POS: React.FC = () => {
       const firstAvailableCategory = currentCategories.find(c => (categoryResultCounts[c.id] || 0) > 0);
       setActiveCategory(firstAvailableCategory?.id || 'all');
    }, [activeCategory, categoryResultCounts, currentCategories]);
-
-   const availableVisibleCount = useMemo(
-      () => pricedItems.filter(item => (item as any).isActuallyAvailable !== false).length,
-      [pricedItems]
-   );
-
-   const popularVisibleCount = useMemo(
-      () => pricedItems.filter(item => !!item.isPopular).length,
-      [pricedItems]
-   );
 
    const quickPickItems = useMemo(() => {
       const available = pricedItems.filter(item => (item as any).isActuallyAvailable !== false);
@@ -462,6 +543,33 @@ const POS: React.FC = () => {
       const total = afterDiscount * 1.1; // 10% tax
       return { cartSubtotal: subtotal, cartTotal: total };
    }, [safeActiveCart, discount]);
+
+   const cartQuery = useMemo(() => cartSearchQuery.trim().toLowerCase(), [cartSearchQuery]);
+   const filteredCartItems = useMemo(() => {
+      if (!cartQuery) return safeActiveCart;
+      return safeActiveCart.filter((item) => {
+         const name = String(lang === 'ar' ? (item.nameAr || item.name) : item.name).toLowerCase();
+         const note = String(item.notes || '').toLowerCase();
+         return name.includes(cartQuery) || note.includes(cartQuery);
+      });
+   }, [safeActiveCart, cartQuery, lang]);
+
+   const cartStats = useMemo(() => {
+      const totalQty = safeActiveCart.reduce((sum, item) => sum + Number(item.quantity || 0), 0);
+      return {
+         lines: safeActiveCart.length,
+         qty: totalQty,
+      };
+   }, [safeActiveCart]);
+
+   const currentOrderPreview = useMemo(() => {
+      if (safeActiveCart.length === 0) return [];
+      return safeActiveCart.slice(0, 3).map((item) => ({
+         id: item.cartId,
+         name: lang === 'ar' ? (item.nameAr || item.name) : item.name,
+         quantity: Number(item.quantity || 0),
+      }));
+   }, [safeActiveCart, lang]);
 
    // --- Shift Sync ---
    useEffect(() => {
@@ -577,10 +685,109 @@ const POS: React.FC = () => {
    const showCustomerSelect = activeOrderType === OrderType.DELIVERY && !deliveryCustomer;
    const isPOS = true;
 
+   const handleSetPaymentMethod = useCallback((method: PaymentMethod) => {
+      setPaymentMethod(method);
+      const nextPrefs: Partial<Record<OrderType, PaymentMethod>> = {
+         ...paymentPrefsRef.current,
+         [activeOrderType]: method,
+      };
+      paymentPrefsRef.current = nextPrefs;
+      try {
+         localStorage.setItem(POS_PAYMENT_PREFS_KEY, JSON.stringify(nextPrefs));
+      } catch {
+         // ignore storage errors
+      }
+   }, [activeOrderType]);
+
    useEffect(() => {
       const handleKeyDown = (e: KeyboardEvent) => {
+         const processScannerBuffer = () => {
+            const rawCode = scannerBufferRef.current.trim();
+            scannerBufferRef.current = '';
+            if (rawCode.length < 4) return false;
+
+            const code = rawCode.toLowerCase();
+            const matched = indexedItems.find((item) => {
+               const barcode = String((item as any).barcode || '').toLowerCase();
+               const sku = String((item as any).sku || '').toLowerCase();
+               const name = String(item.name || '').toLowerCase();
+               const nameAr = String(item.nameAr || '').toLowerCase();
+               return barcode === code || sku === code || name === code || nameAr === code;
+            });
+
+            if (!matched) {
+               showToast(
+                  lang === 'ar'
+                     ? `لم يتم العثور على منتج للكود: ${rawCode}`
+                     : `No product found for code: ${rawCode}`,
+                  'error'
+               );
+               return true;
+            }
+
+            const existingItem = safeActiveCart.find(ci =>
+               ci.id === matched.id && JSON.stringify(ci.selectedModifiers) === JSON.stringify([])
+            );
+            if (existingItem) {
+               updateCartItemQuantity(existingItem.cartId, 1);
+            } else {
+               addToCart({ ...matched, cartId: Math.random().toString(36).substr(2, 9), quantity: 1, selectedModifiers: [] });
+            }
+
+            setLastAddedItemId(matched.id);
+            setItemUsageMap(prev => {
+               const next = { ...prev, [matched.id]: (prev[matched.id] || 0) + 1 };
+               try {
+                  localStorage.setItem(POS_ITEM_USAGE_KEY, JSON.stringify(next));
+               } catch {
+                  // ignore storage errors
+               }
+               return next;
+            });
+            setIsCartOpenMobile(true);
+            showToast(
+               lang === 'ar'
+                  ? `تمت إضافة ${matched.nameAr || matched.name}`
+                  : `${matched.name} added`,
+               'success'
+            );
+            return true;
+         };
+
          const isInput = (e.target as HTMLElement).tagName === 'INPUT';
          const isTextarea = (e.target as HTMLElement).tagName === 'TEXTAREA';
+         const isScannerChar = e.key.length === 1 && /[a-zA-Z0-9\-_.]/.test(e.key);
+
+         if (!isInput && !isTextarea && !e.altKey && !e.ctrlKey && !e.metaKey) {
+            if (isScannerChar) {
+               const now = Date.now();
+               const delta = now - scannerLastInputAtRef.current;
+               if (scannerBufferRef.current && delta > 90) {
+                  scannerBufferRef.current = '';
+               }
+               scannerBufferRef.current += e.key;
+               scannerLastInputAtRef.current = now;
+               if (scannerFlushTimerRef.current) window.clearTimeout(scannerFlushTimerRef.current);
+               scannerFlushTimerRef.current = window.setTimeout(() => {
+                  const buffered = scannerBufferRef.current;
+                  scannerBufferRef.current = '';
+                  if (buffered.length >= 8) {
+                     processScannerBuffer();
+                  }
+               }, 140);
+
+               // Scanner streams are fast; suppress other shortcuts while sequence is being captured.
+               if (delta < 90 || scannerBufferRef.current.length >= 6) {
+                  return;
+               }
+            }
+            if (e.key === 'Enter' && scannerBufferRef.current.length >= 4) {
+               e.preventDefault();
+               processScannerBuffer();
+               return;
+            }
+         }
+
          if (isInput || isTextarea) {
             if (e.key === 'Escape') {
                (e.target as HTMLElement).blur();
@@ -645,6 +852,16 @@ const POS: React.FC = () => {
             e.preventDefault();
             searchInputRef.current?.focus();
          }
+         if (e.shiftKey && e.key === 'Enter' && safeActiveCart.length > 0 && !showSplitModal) {
+            e.preventDefault();
+            handleQuickPay();
+            return;
+         }
+         if (e.ctrlKey && e.key === 'Enter' && safeActiveCart.length > 0 && !showSplitModal) {
+            e.preventDefault();
+            handleSendKitchen();
+            return;
+         }
          if (e.key === 'Enter' && safeActiveCart.length > 0 && !showSplitModal) handleSubmitOrder();
          if (e.key === 'Delete' && safeActiveCart.length > 0) handleVoidOrder();
 
@@ -664,6 +881,36 @@ const POS: React.FC = () => {
             if (e.key === '4') {
                e.preventDefault();
                setOrderMode(OrderType.DELIVERY);
+            }
+            if (e.key.toLowerCase() === 'r') {
+               e.preventDefault();
+               if (heldOrders.length > 0) {
+                  recallOrder(heldOrders.length - 1);
+                  showToast(
+                     lang === 'ar' ? 'تم استرجاع آخر طلب مُعلق' : 'Last held order recalled',
+                     'success'
+                  );
+               } else if (orders.length > 0) {
+                  const lastOrder = orders[0];
+                  clearCart();
+                  lastOrder.items.forEach(item => {
+                     addToCart({
+                        ...item,
+                        cartId: Math.random().toString(36).substr(2, 9)
+                     });
+                  });
+                  if (lastOrder.tableId) setSelectedTableId(lastOrder.tableId);
+                  if (lastOrder.type) setOrderMode(lastOrder.type);
+                  showToast(
+                     lang === 'ar' ? 'تم استرجاع آخر طلب' : 'Last order recalled',
+                     'success'
+                  );
+               } else {
+                  showToast(
+                     lang === 'ar' ? 'لا يوجد طلبات للاسترجاع' : 'No orders available to recall',
+                     'error'
+                  );
+               }
             }
          }
 
@@ -692,7 +939,10 @@ const POS: React.FC = () => {
          }
       };
       window.addEventListener('keydown', handleKeyDown);
-      return () => window.removeEventListener('keydown', handleKeyDown);
+      return () => {
+         window.removeEventListener('keydown', handleKeyDown);
+         if (scannerFlushTimerRef.current) window.clearTimeout(scannerFlushTimerRef.current);
+      };
    }, [
       safeActiveCart,
       selectedTableId,
@@ -707,7 +957,15 @@ const POS: React.FC = () => {
       setOrderMode,
       switchToTable,
       leaveTable,
-      findTableByNumber
+      findTableByNumber,
+      indexedItems,
+      addToCart,
+      updateCartItemQuantity,
+      showToast,
+      lang,
+      orders,
+      heldOrders,
+      recallOrder
    ]);
 
    // --- Handlers (Memoized to prevent child re-renders) ---
@@ -747,11 +1005,22 @@ const POS: React.FC = () => {
    }, [safeActiveCart, handleUpdateQuantity]);
 
    const handleQuickPay = () => {
-      setPaymentMethod(PaymentMethod.CASH);
+      handleSetPaymentMethod(PaymentMethod.CASH);
       setTimeout(() => handleSubmitOrder(), 0);
    };
 
    const handleRecallLastOrder = () => {
+      if (heldOrders.length > 0) {
+         const idx = heldOrders.length - 1;
+         recallOrder(idx);
+         showToast(
+            lang === 'ar'
+               ? 'تم استرجاع آخر طلب مُعلق'
+               : 'Last held order recalled',
+            'success'
+         );
+         return;
+      }
       if (orders.length > 0) {
          const lastOrder = orders[0];
          // Restore items to cart
@@ -764,25 +1033,27 @@ const POS: React.FC = () => {
          });
          if (lastOrder.tableId) setSelectedTableId(lastOrder.tableId);
          if (lastOrder.type) setOrderMode(lastOrder.type);
+         showToast(
+            lang === 'ar'
+               ? 'تم استرجاع آخر طلب'
+               : 'Last order recalled',
+            'success'
+         );
+      } else {
+         showToast(
+            lang === 'ar'
+               ? 'لا يوجد طلبات للاسترجاع'
+               : 'No orders available to recall',
+            'error'
+         );
       }
    };
 
    const performCloseTable = async (tableId: string) => {
       const activeOrder = orders.find(o => o.tableId === tableId && o.status !== OrderStatus.DELIVERED);
       if (activeOrder) {
+         // Completion receipt is printed by the centralized order-status flow.
          await updateOrderStatus(activeOrder.id, OrderStatus.DELIVERED);
-         await printService.print({
-            type: 'RECEIPT',
-            content: formatReceipt({
-               order: activeOrder,
-               title: t.final_bill || 'Final Bill',
-               settings,
-               currencySymbol,
-               lang,
-               t,
-               branch: activeBranch
-            })
-         });
       }
       updateTableStatus(tableId, TableStatus.DIRTY);
       clearTableDraft(tableId);
@@ -850,40 +1121,37 @@ const POS: React.FC = () => {
       });
       showToast(t.temp_bill_printed || (lang === 'ar' ? 'تم طباعة شيك مؤقت' : 'Temporary bill printed'), 'success');
    };
-   const handleSendKitchen = async () => {
-      if (safeActiveCart.length === 0) return;
+   const buildDraftOrder = (withPayment: boolean): Order => ({
+      id: Math.random().toString(36).substr(2, 9).toUpperCase(),
+      type: activeOrderType,
+      branchId: branchId,
+      tableId: selectedTableId || undefined,
+      customerId: activeOrderType === OrderType.DELIVERY ? deliveryCustomer?.id : undefined,
+      items: [...safeActiveCart],
+      // New orders always start from PENDING; kitchen fire moves to PREPARING.
+      status: OrderStatus.PENDING,
+      subtotal: cartTotal / 1.1,
+      tax: cartTotal - (cartTotal / 1.1),
+      total: cartTotal,
+      createdAt: new Date(),
+      paymentMethod: withPayment ? paymentMethod : undefined,
+      payments: withPayment
+         ? (paymentMethod === PaymentMethod.SPLIT ? splitPayments : [{ method: paymentMethod, amount: cartTotal }])
+         : [],
+      syncStatus: 'PENDING'
+   });
 
-      const newOrder: Order = {
-         id: Math.random().toString(36).substr(2, 9).toUpperCase(),
-         type: activeOrderType,
-         branchId: branchId,
-         tableId: selectedTableId || undefined,
-         customerId: activeOrderType === OrderType.DELIVERY ? deliveryCustomer?.id : undefined,
-         items: [...safeActiveCart],
-         status: OrderStatus.PREPARING,
-         subtotal: cartTotal / 1.1,
-         tax: cartTotal - (cartTotal / 1.1),
-         total: cartTotal,
-         createdAt: new Date(),
-         payments: [],
-         syncStatus: 'PENDING'
-      };
-
-      await placeOrder(newOrder);
-
-      if (activeOrderType === OrderType.DINE_IN && selectedTableId) {
-         updateTableStatus(selectedTableId, TableStatus.OCCUPIED);
-         clearTableDraft(selectedTableId);
-      }
-
+   const resetAfterOrderCommit = () => {
       setDeliveryCustomer(null);
       setSplitPayments([]);
       setPaymentMethod(PaymentMethod.CASH);
       setCouponCode('');
       clearCoupon();
+   };
 
+   const fireOrderToKitchen = async (order: Order) => {
       await printKitchenTicketsByRouting({
-         order: newOrder,
+         order,
          categories: currentCategories,
          printers,
          branchId,
@@ -894,17 +1162,31 @@ const POS: React.FC = () => {
          t,
          branch: activeBranch
       });
-      if (settings.autoPrintReceipt !== false) {
-         await printOrderReceipt({
-            order: newOrder,
-            settings,
-            currencySymbol,
-            lang,
-            t,
-            branch: activeBranch
-         });
+      await updateOrderStatus(order.id, OrderStatus.PREPARING);
+   };
+
+   const handleSendKitchen = async () => {
+      if (safeActiveCart.length === 0) return;
+      try {
+         const draftOrder = buildDraftOrder(false);
+         const savedOrder = await placeOrder(draftOrder);
+
+         if (activeOrderType === OrderType.DINE_IN && selectedTableId) {
+            updateTableStatus(selectedTableId, TableStatus.OCCUPIED);
+            clearTableDraft(selectedTableId);
+         }
+
+         await fireOrderToKitchen(savedOrder);
+         resetAfterOrderCommit();
+         showToast(
+            lang === 'ar'
+               ? 'تم إرسال الطلب للمطبخ بنجاح'
+               : 'Kitchen ticket sent successfully',
+            'success'
+         );
+      } catch (error: any) {
+         showToast(getActionableErrorMessage(error, lang), 'error');
       }
-      showToast(t.send_kitchen || (lang === 'ar' ? 'تم إرسال الطلب للمطبخ' : 'Sent to kitchen'), 'success');
    };
 
    const handleSubmitOrder = async () => {
@@ -916,78 +1198,53 @@ const POS: React.FC = () => {
             return;
          }
       }
+      try {
+         const draftOrder = buildDraftOrder(true);
 
-      const newOrder: Order = {
-         id: Math.random().toString(36).substr(2, 9).toUpperCase(),
-         type: activeOrderType,
-         branchId: branchId,
-         tableId: selectedTableId || undefined,
-         customerId: activeOrderType === OrderType.DELIVERY ? deliveryCustomer?.id : undefined,
-         items: [...safeActiveCart],
-         status: OrderStatus.PENDING,
-         subtotal: cartTotal / 1.1,
-         tax: cartTotal - (cartTotal / 1.1),
-         total: cartTotal,
-         createdAt: new Date(),
-         paymentMethod: paymentMethod,
-         payments: paymentMethod === PaymentMethod.SPLIT ? splitPayments : [{ method: paymentMethod, amount: cartTotal }],
-         syncStatus: 'PENDING'
-      };
+         // 1. Place Order in Store (Syncs with server which now handles inventory)
+         const savedOrder = await placeOrder(draftOrder);
 
-      // 1. Place Order in Store (Syncs with server which now handles inventory)
-      await placeOrder(newOrder);
+         // Update Table Status to OCCUPIED if Dine-In
+         if (activeOrderType === OrderType.DINE_IN && selectedTableId) {
+            updateTableStatus(selectedTableId, TableStatus.OCCUPIED);
+            clearTableDraft(selectedTableId);
+            setSelectedTableId(null);
+         } else if (activeOrderType === OrderType.DINE_IN) {
+            setSelectedTableId(null);
+         }
 
-      // Update Table Status to OCCUPIED if Dine-In
-      if (activeOrderType === OrderType.DINE_IN && selectedTableId) {
-         updateTableStatus(selectedTableId, TableStatus.OCCUPIED);
-         clearTableDraft(selectedTableId);
-         setSelectedTableId(null);
-      } else if (activeOrderType === OrderType.DINE_IN) {
-         setSelectedTableId(null);
-      }
-
-      // 2. Record Finance Transactions (Keeping for now although this belongs to an event listener too)
-      recordTransaction({
-         date: new Date(),
-         description: `Sale - Order #${newOrder.id}`,
-         debitAccountId: '1-1-1',
-         creditAccountId: '4-1',
-         amount: newOrder.total,
-         referenceId: newOrder.id
-      });
-
-      // Reset Local State
-      setDeliveryCustomer(null);
-      setSplitPayments([]);
-      setPaymentMethod(PaymentMethod.CASH);
-      setCouponCode('');
-      clearCoupon();
-
-      // 3. Trigger Kitchen + Customer Receipts
-      await printKitchenTicketsByRouting({
-         order: newOrder,
-         categories: currentCategories,
-         printers,
-         branchId,
-         maxKitchenPrinters: settings.maxKitchenPrinters,
-         settings,
-         currencySymbol,
-         lang,
-         t,
-         branch: activeBranch
-      });
-      if (settings.autoPrintReceipt !== false) {
-         await printOrderReceipt({
-            order: newOrder,
-            settings,
-            currencySymbol,
-            lang,
-            t,
-            branch: activeBranch
+         // 2. Record Finance Transactions (Keeping for now although this belongs to an event listener too)
+         recordTransaction({
+            date: new Date(),
+            description: `Sale - Order #${savedOrder.id}`,
+            debitAccountId: '1-1-1',
+            creditAccountId: '4-1',
+            amount: savedOrder.total,
+            referenceId: savedOrder.id
          });
-      }
-      if (paymentMethod === PaymentMethod.CASH) {
-         await printService.triggerCashDrawer();
+
+         // 3. Trigger kitchen fire on submit for all order types.
+         await fireOrderToKitchen(savedOrder);
+
+         // 4. Trigger customer receipts.
+         const shouldPrintOnSubmit = (settings.autoPrintReceiptOnSubmit ?? settings.autoPrintReceipt ?? false) === true;
+         if (shouldPrintOnSubmit) {
+            await printOrderReceipt({
+               order: savedOrder,
+               printers,
+               settings,
+               currencySymbol,
+               lang,
+               t,
+               branch: activeBranch
+            });
+         }
+         if (paymentMethod === PaymentMethod.CASH) {
+            await printService.triggerCashDrawer();
+         }
+         resetAfterOrderCommit();
+      } catch (error: any) {
+         showToast(getActionableErrorMessage(error, lang), 'error');
       }
    };
 
@@ -1033,7 +1290,7 @@ const POS: React.FC = () => {
             });
             showToast(lang === 'ar' ? 'تم تطبيق الكوبون' : 'Coupon applied', 'success');
          } catch (error: any) {
-            showToast(error?.message || (lang === 'ar' ? 'كوبون غير صالح' : 'Invalid coupon'), 'error');
+            showToast(getActionableErrorMessage(error, lang), 'error');
          } finally {
             setIsApplyingCoupon(false);
          }
@@ -1057,7 +1314,7 @@ const POS: React.FC = () => {
                : t.takeaway;
    const orderTypeSubLabel =
       activeOrderType === OrderType.DINE_IN
-         ? `${t.table} ${selectedTableId || ''}`.trim()
+         ? `${t.table} ${tables.find(tb => tb.id === selectedTableId)?.name || selectedTableId || '-'}`.trim()
          : activeOrderType === OrderType.DELIVERY
             ? (deliveryCustomer?.name || t.select_customer)
             : activeOrderType === OrderType.PICKUP
@@ -1068,16 +1325,16 @@ const POS: React.FC = () => {
    const hasCartItems = safeActiveCart.length > 0;
    const cartPanelWidthClass =
       cartPanelWidth === 'compact'
-         ? 'sm:w-[360px] xl:w-[400px]'
+         ? 'sm:w-[340px] lg:w-[360px]'
          : cartPanelWidth === 'wide'
-            ? 'sm:w-[460px] xl:w-[540px]'
-            : 'sm:w-[420px] xl:w-[480px]';
+            ? 'sm:w-[420px] lg:w-[460px]'
+            : 'sm:w-[380px] lg:w-[420px]';
    const desktopWorkspaceClass = shouldRenderCartPanel
       ? (cartPanelWidth === 'compact'
-         ? 'lg:grid-cols-[minmax(0,1fr)_360px] xl:grid-cols-[minmax(0,1fr)_400px]'
+         ? 'lg:grid-cols-[minmax(0,1fr)_360px] 2xl:grid-cols-[minmax(0,1fr)_380px]'
          : cartPanelWidth === 'wide'
-            ? 'lg:grid-cols-[minmax(0,1fr)_500px] xl:grid-cols-[minmax(0,1fr)_560px]'
-            : 'lg:grid-cols-[minmax(0,1fr)_430px] xl:grid-cols-[minmax(0,1fr)_500px]')
+            ? 'lg:grid-cols-[minmax(0,1fr)_460px] 2xl:grid-cols-[minmax(0,1fr)_520px]'
+            : 'lg:grid-cols-[minmax(0,1fr)_420px] 2xl:grid-cols-[minmax(0,1fr)_460px]')
       : 'lg:grid-cols-1';
 
    useEffect(() => {
@@ -1089,7 +1346,7 @@ const POS: React.FC = () => {
    }, [safeActiveCart.length, selectedTableId]);
 
    return (
-      <div className="flex app-viewport bg-app text-main transition-colors overflow-hidden min-h-0">
+      <div className="flex app-viewport pos-shell bg-app text-main transition-colors overflow-hidden min-h-0">
          <ShiftOverlays onOpen={() => console.log('Shift opened')} />
 
          <CloseShiftModal
@@ -1134,11 +1391,11 @@ const POS: React.FC = () => {
                      <button
                         key={entry.mode}
                         onClick={() => setOrderMode(entry.mode)}
-                        className={`inline-flex items-center gap-2 px-3 py-2 rounded-xl border text-xs font-black uppercase tracking-wider transition-colors ${activeOrderType === entry.mode ? entry.activeClass : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-200 border-transparent hover:border-primary/40'}`}
+                        className={`inline-flex items-center gap-2 px-2.5 sm:px-3 py-2 rounded-xl border text-xs font-black uppercase tracking-wider transition-colors min-h-11 ${activeOrderType === entry.mode ? entry.activeClass : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-200 border-transparent hover:border-primary/40'}`}
                      >
                         <entry.icon size={14} />
-                        <span>{entry.label}</span>
-                        <span className={`text-[9px] px-1.5 py-0.5 rounded-md ${activeOrderType === entry.mode ? 'bg-white/20' : 'bg-slate-200 dark:bg-slate-700'}`}>{entry.keyHint}</span>
+                        <span className="hidden sm:inline">{entry.label}</span>
+                        <span className={`hidden md:inline text-[9px] px-1.5 py-0.5 rounded-md ${activeOrderType === entry.mode ? 'bg-white/20' : 'bg-slate-200 dark:bg-slate-700'}`}>{entry.keyHint}</span>
                      </button>
                   ))}
 
@@ -1146,53 +1403,53 @@ const POS: React.FC = () => {
 
                   <button
                      onClick={() => searchInputRef.current?.focus()}
-                     className="inline-flex items-center gap-2 px-3 py-2 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 text-xs font-black uppercase tracking-wider hover:text-primary"
+                     className="inline-flex items-center gap-2 px-2.5 sm:px-3 py-2 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 text-xs font-black uppercase tracking-wider hover:text-primary min-h-11"
                   >
                      <Search size={14} />
-                     {lang === 'ar' ? 'بحث' : 'Search'}
-                     <span className="text-[9px] px-1.5 py-0.5 rounded-md bg-slate-200 dark:bg-slate-700">/</span>
+                     <span className="hidden sm:inline">{lang === 'ar' ? 'بحث' : 'Search'}</span>
+                     <span className="hidden md:inline text-[9px] px-1.5 py-0.5 rounded-md bg-slate-200 dark:bg-slate-700">/</span>
                   </button>
 
                   <button
                      onClick={() => setIsCartOpenMobile((prev) => !prev)}
-                     className="inline-flex items-center gap-2 px-3 py-2 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 text-xs font-black uppercase tracking-wider hover:text-primary"
+                     className="inline-flex items-center gap-2 px-2.5 sm:px-3 py-2 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 text-xs font-black uppercase tracking-wider hover:text-primary min-h-11"
                   >
                      <ShoppingBag size={14} />
-                     {lang === 'ar' ? 'السلة' : 'Cart'}
+                     <span className="hidden sm:inline">{lang === 'ar' ? 'السلة' : 'Cart'}</span>
                      <span className="text-[9px] px-1.5 py-0.5 rounded-md bg-slate-200 dark:bg-slate-700">{safeActiveCart.length}</span>
                   </button>
 
                   {activeOrderType === OrderType.DINE_IN && (
                      <button
                         onClick={() => setSelectedTableId(null)}
-                        className="inline-flex items-center gap-2 px-3 py-2 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 text-xs font-black uppercase tracking-wider hover:text-primary"
+                        className="inline-flex items-center gap-2 px-2.5 sm:px-3 py-2 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 text-xs font-black uppercase tracking-wider hover:text-primary min-h-11"
                      >
                         <LayoutGrid size={14} />
-                        {lang === 'ar' ? 'الطاولات' : 'Tables'}
+                        <span className="hidden sm:inline">{lang === 'ar' ? 'الطاولات' : 'Tables'}</span>
                      </button>
                   )}
 
                   {activeOrderType === OrderType.DELIVERY && (
                      <button
                         onClick={() => setDeliveryCustomer(null)}
-                        className="inline-flex items-center gap-2 px-3 py-2 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 text-xs font-black uppercase tracking-wider hover:text-primary"
+                        className="inline-flex items-center gap-2 px-2.5 sm:px-3 py-2 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 text-xs font-black uppercase tracking-wider hover:text-primary min-h-11"
                      >
                         <Truck size={14} />
-                        {lang === 'ar' ? 'العملاء' : 'Customers'}
+                        <span className="hidden sm:inline">{lang === 'ar' ? 'العملاء' : 'Customers'}</span>
                      </button>
                   )}
 
                   {safeActiveCart.length > 0 && (
                      <button
                         onClick={handleQuickPay}
-                        className="inline-flex items-center gap-2 px-3 py-2 rounded-xl bg-emerald-600 text-white text-xs font-black uppercase tracking-wider hover:bg-emerald-700"
+                        className="hidden sm:inline-flex items-center gap-2 px-3 py-2 rounded-xl bg-emerald-600 text-white text-xs font-black uppercase tracking-wider hover:bg-emerald-700 min-h-11"
                      >
                         <Plus size={14} />
                         {lang === 'ar' ? 'دفع سريع' : 'Quick Pay'}
                      </button>
                   )}
 
-                  <div className="ml-auto inline-flex items-center gap-1.5 text-[10px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-400">
+                  <div className="ml-auto hidden 2xl:inline-flex items-center gap-1.5 text-[10px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-400">
                      <Keyboard size={12} />
                      {lang === 'ar' ? 'اختصارات لوحة المفاتيح مفعلة' : 'Keyboard shortcuts enabled'}
                   </div>
@@ -1216,7 +1473,7 @@ const POS: React.FC = () => {
             <div className="flex-1 flex overflow-hidden relative min-h-0 bg-slate-100/70 dark:bg-slate-950">
                {/* Cart Mobile Overlay */}
                {shouldShowCart && isCartOpenMobile && (
-                  <div className="lg:hidden fixed inset-0 bg-black/40 backdrop-blur-sm z-30 animate-in fade-in" onClick={() => setIsCartOpenMobile(false)} />
+                  <div className="xl:hidden fixed inset-0 bg-black/40 backdrop-blur-sm z-30 animate-in fade-in" onClick={() => setIsCartOpenMobile(false)} />
                )}
 
                {showMap ? (
@@ -1237,7 +1494,11 @@ const POS: React.FC = () => {
                               });
                               return;
                            }
-                           if (table.status === TableStatus.OCCUPIED) {
+                           if (
+                              table.status === TableStatus.OCCUPIED ||
+                              table.status === TableStatus.WAITING_FOOD ||
+                              table.status === TableStatus.READY_TO_PAY
+                           ) {
                               setManagedTableId(table.id);
                            } else {
                               switchToTable(table.id);
@@ -1264,21 +1525,23 @@ const POS: React.FC = () => {
                   />
                ) : (
                   <>
-                     <div className={`flex-1 min-h-0 grid grid-cols-1 ${desktopWorkspaceClass} gap-0 lg:gap-2`}>
+                     <div className={`flex-1 min-h-0 h-full overflow-hidden grid grid-cols-1 ${desktopWorkspaceClass} gap-0 xl:gap-2`}>
                         <div className={`min-w-0 flex flex-col h-full overflow-hidden min-h-0 bg-slate-50 dark:bg-slate-950 transition-all duration-300 ${shouldRenderCartPanel ? 'lg:rounded-2xl lg:border lg:border-slate-200/70 lg:dark:border-slate-800 lg:shadow-sm lg:mx-2 lg:my-2' : ''}`}>
                         {/* Professional Categories Bar At Top */}
-                        <div className="shrink-0 flex-col flex overflow-hidden">
-                           <CategoryTabs
-                              categories={currentCategories}
-                              activeCategory={activeCategory}
-                              onSetCategory={setActiveCategory}
-                              isTouchMode={isTouchMode}
-                              lang={lang as any}
-                              counts={categoryResultCounts}
-                              totalCount={totalMatchedAcrossCategories}
-                              hasActiveFiltering={Boolean(normalizedSearchQuery || itemFilter !== 'all')}
-                           />
-                        </div>
+                        {(!isTabletViewport || showCategoryStrip) && (
+                           <div className="shrink-0 flex-col flex overflow-hidden">
+                              <CategoryTabs
+                                 categories={currentCategories}
+                                 activeCategory={activeCategory}
+                                 onSetCategory={setActiveCategory}
+                                 isTouchMode={isTouchMode}
+                                 lang={lang as any}
+                                 counts={categoryResultCounts}
+                                 totalCount={totalMatchedAcrossCategories}
+                                 hasActiveFiltering={Boolean(normalizedSearchQuery || itemFilter !== 'all')}
+                              />
+                           </div>
+                        )}
 
                         <div className="flex-1 flex flex-col h-full overflow-hidden min-h-0">
                            {/* Search & Actions Bar (Clean & Flexible) */}
@@ -1297,13 +1560,25 @@ const POS: React.FC = () => {
                                     <span className="px-2.5 py-1.5 rounded-full bg-primary/10 text-primary">
                                        {pricedItems.length} {lang === 'ar' ? 'صنف' : 'items'}
                                     </span>
-                                    <span className="px-2.5 py-1.5 rounded-full bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 dark:text-emerald-300">
-                                       {availableVisibleCount} {lang === 'ar' ? 'متاح' : 'available'}
-                                    </span>
-                                    <span className="px-2.5 py-1.5 rounded-full bg-amber-50 dark:bg-amber-900/20 text-amber-600 dark:text-amber-300">
-                                       {popularVisibleCount} {lang === 'ar' ? 'رائج' : 'popular'}
-                                    </span>
-                                    {(searchQuery || itemFilter !== 'all' || itemSort !== 'smart') && (
+                                    {isTabletViewport && (
+                                       <button
+                                          onClick={() => setShowCategoryStrip((prev) => !prev)}
+                                          className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-full bg-indigo-50 dark:bg-indigo-900/20 text-indigo-700 dark:text-indigo-300"
+                                       >
+                                          <LayoutGrid size={12} />
+                                          {showCategoryStrip
+                                             ? (lang === 'ar' ? 'إخفاء الأقسام' : 'Hide Categories')
+                                             : (lang === 'ar' ? 'الأقسام' : 'Categories')}
+                                          </button>
+                                    )}
+                                    <button
+                                       onClick={() => setShowMobileFilters((prev) => !prev)}
+                                       className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-200"
+                                    >
+                                       <SlidersHorizontal size={12} />
+                                       {lang === 'ar' ? 'فلاتر' : 'Filters'}
+                                    </button>
+                                    {showMobileFilters && (searchQuery || itemFilter !== 'all' || itemSort !== 'smart') && (
                                        <button
                                           onClick={() => {
                                              setSearchQuery('');
@@ -1318,7 +1593,7 @@ const POS: React.FC = () => {
                                  </div>
                               </div>
 
-                              <div className="grid grid-cols-1 xl:grid-cols-[minmax(320px,1fr)_auto] gap-3 items-center">
+                              <div className="grid grid-cols-1 gap-3 items-center">
                                  <div className="relative w-full xl:max-w-2xl">
                                     <Search className={`absolute top-1/2 -translate-y-1/2 text-primary/30 w-4 h-4 ${lang === 'ar' ? 'right-4' : 'left-4'}`} />
                                     <input
@@ -1339,7 +1614,77 @@ const POS: React.FC = () => {
                                     )}
                                  </div>
 
-                                 <div className="flex flex-wrap items-center gap-2 xl:justify-end">
+                                 {shouldRenderCartPanel && !isCartOpenMobile && (hasCartItems || selectedTableId) && (
+                                    <div className="lg:hidden rounded-2xl border border-slate-200 dark:border-slate-800 bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 text-white px-3 py-2.5 shadow-lg">
+                                       <div className="flex items-center justify-between gap-2">
+                                          <div className="min-w-0">
+                                             <p className="text-[10px] font-black uppercase tracking-widest text-white/70">
+                                                {lang === 'ar' ? 'الأوردر الحالي' : 'Current Order'}
+                                             </p>
+                                             <p className="text-xs font-black truncate">
+                                                {hasCartItems
+                                                   ? `${cartStats.lines} ${lang === 'ar' ? 'بنود' : 'lines'} • ${cartStats.qty} ${lang === 'ar' ? 'قطعة' : 'items'} • ${currencySymbol}${cartTotal.toFixed(2)}`
+                                                   : (lang === 'ar' ? 'لا توجد بنود بعد' : 'No items yet')}
+                                             </p>
+                                          </div>
+                                          <button
+                                             onClick={() => setIsCartOpenMobile(true)}
+                                             className="shrink-0 px-3 py-2 rounded-xl bg-primary text-white text-[10px] font-black uppercase tracking-wider"
+                                          >
+                                             {lang === 'ar' ? 'مراجعة' : 'Review'}
+                                          </button>
+                                       </div>
+                                       {currentOrderPreview.length > 0 && (
+                                          <div className="mt-2 flex items-center gap-1.5 overflow-x-auto no-scrollbar">
+                                             {currentOrderPreview.map((entry) => (
+                                                <span
+                                                   key={`order-preview-${entry.id}`}
+                                                   className="shrink-0 inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-white/10 border border-white/15 text-[10px] font-bold"
+                                                >
+                                                   <span className="text-primary font-black">{entry.quantity}x</span>
+                                                   <span className="max-w-[140px] truncate">{entry.name}</span>
+                                                </span>
+                                             ))}
+                                             {safeActiveCart.length > 3 && (
+                                                <span className="shrink-0 text-[10px] font-black uppercase tracking-wider text-white/70">
+                                                   +{safeActiveCart.length - 3} {lang === 'ar' ? 'أكثر' : 'more'}
+                                                </span>
+                                             )}
+                                          </div>
+                                       )}
+                                    </div>
+                                 )}
+
+                                 <div className="flex items-center gap-2 overflow-x-auto no-scrollbar py-0.5">
+                                    <button
+                                       onClick={() => setActiveCategory('all')}
+                                       className={`shrink-0 px-3 py-1.5 rounded-full text-[10px] font-black uppercase tracking-wider transition-colors ${
+                                          activeCategory === 'all'
+                                             ? 'bg-primary text-white'
+                                             : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:text-primary'
+                                       }`}
+                                    >
+                                       {lang === 'ar' ? 'الكل' : 'All'}
+                                    </button>
+                                    {quickCategoryNav.map((cat) => (
+                                       <button
+                                          key={`quick-cat-${cat.id}`}
+                                          onClick={() => setActiveCategory(cat.id)}
+                                          className={`shrink-0 px-3 py-1.5 rounded-full text-[10px] font-black uppercase tracking-wider transition-colors ${
+                                             activeCategory === cat.id
+                                                ? 'bg-primary text-white'
+                                                : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:text-primary'
+                                          }`}
+                                       >
+                                          {(lang === 'ar' ? (cat.nameAr || cat.name) : cat.name)}
+                                          <span className={`ml-1.5 text-[9px] ${activeCategory === cat.id ? 'text-white/90' : 'text-slate-400'}`}>
+                                             {cat.count}
+                                          </span>
+                                       </button>
+                                    ))}
+                                 </div>
+
+                                 <div className={`${showMobileFilters ? 'flex' : 'hidden'} flex-wrap items-center gap-2`}>
                                     <div className="inline-flex bg-slate-100 dark:bg-slate-800 rounded-xl p-1">
                                        {[
                                           { id: 'all', label: lang === 'ar' ? 'الكل' : 'All' },
@@ -1396,8 +1741,8 @@ const POS: React.FC = () => {
                                  </div>
                               </div>
 
-                              {quickPickItems.length > 0 && (
-                                 <div className="flex md:flex-wrap items-center gap-2 overflow-x-auto md:overflow-visible no-scrollbar py-1.5 px-0.5">
+                              {showMobileFilters && quickPickItems.length > 0 && (
+                                 <div className="flex flex-wrap items-center gap-2 overflow-x-auto md:overflow-visible no-scrollbar py-1.5 px-0.5">
                                     <span className="shrink-0 text-[10px] font-black uppercase tracking-wider text-slate-500">
                                        {lang === 'ar' ? 'اختيارات ذكية' : 'Smart picks'}
                                     </span>
@@ -1418,8 +1763,8 @@ const POS: React.FC = () => {
                                     ))}
                                  </div>
                               )}
-                              {upsellSuggestions.length > 0 && (
-                                 <div className="flex md:flex-wrap items-center gap-2 overflow-x-auto md:overflow-visible no-scrollbar py-1 px-0.5">
+                              {showMobileFilters && upsellSuggestions.length > 0 && (
+                                 <div className="flex flex-wrap items-center gap-2 overflow-x-auto md:overflow-visible no-scrollbar py-1 px-0.5">
                                     <span className="shrink-0 text-[10px] font-black uppercase tracking-wider text-emerald-600 dark:text-emerald-300">
                                        {lang === 'ar' ? 'مقترحات إضافة' : 'Upsell'}
                                     </span>
@@ -1452,185 +1797,204 @@ const POS: React.FC = () => {
                         </div>
                         </div>
 
-                     {shouldShowCart && !isCartOpenMobile && (
-                        <button
-                           onClick={() => setIsCartOpenMobile(true)}
-                           className={`lg:hidden fixed bottom-[max(1rem,var(--safe-bottom))] z-40 px-4 py-3 bg-primary text-white rounded-2xl shadow-2xl font-black text-xs uppercase tracking-widest flex items-center gap-2 ${lang === 'ar' ? 'right-4' : 'left-4'}`}
-                        >
-                           {t.checkout || 'Cart'} ({safeActiveCart.length})
-                        </button>
+                    {shouldRenderCartPanel && !isCartOpenMobile && !showMap && !showCustomerSelect && (
+                        <div className={`md:hidden fixed bottom-[max(1rem,var(--safe-bottom))] ${lang === 'ar' ? 'right-4 left-4' : 'left-4 right-4'} z-40`}>
+                           <button
+                              onClick={() => setIsCartOpenMobile(true)}
+                              className="w-full h-14 px-4 rounded-2xl bg-slate-900/90 backdrop-blur-md text-white shadow-2xl border border-slate-700 flex items-center justify-between"
+                           >
+                              <div className="min-w-0 flex items-center gap-3">
+                                 <div className="w-9 h-9 rounded-xl bg-primary/20 flex items-center justify-center">
+                                    <ShoppingBag size={16} className="text-primary" />
+                                 </div>
+                                 <div className="text-left min-w-0">
+                                    <p className="text-[10px] font-black uppercase tracking-widest text-white/70">
+                                       {lang === 'ar' ? 'الطلب الحالي' : 'Current Order'}
+                                    </p>
+                                    <p className="text-xs font-black truncate">
+                                       {safeActiveCart.length > 0
+                                          ? `${safeActiveCart.length} ${lang === 'ar' ? 'بنود' : 'lines'} • ${currencySymbol}${cartTotal.toFixed(2)}`
+                                          : (lang === 'ar' ? 'السلة فارغة' : 'Cart empty')}
+                                    </p>
+                                 </div>
+                              </div>
+                              <span className="text-[10px] font-black uppercase tracking-widest text-primary">
+                                 {lang === 'ar' ? 'فتح' : 'Open'}
+                              </span>
+                           </button>
+                        </div>
                      )}
 
                      {/* Cart Sidebar */}
                      {shouldRenderCartPanel && (
                         <div className={`
-                     fixed lg:static inset-y-0 w-[92%] max-w-[94vw] lg:w-full ${cartPanelWidthClass} bg-card dark:bg-card flex flex-col h-full lg:h-[calc(100%-1rem)] shadow-2xl z-40 transition-transform duration-300
+                     fixed lg:sticky lg:top-2 inset-y-0 w-[92%] max-w-[94vw] lg:w-full ${cartPanelWidthClass} bg-card dark:bg-card flex flex-col h-full lg:h-[calc(100dvh-6.5rem)] lg:max-h-[calc(100dvh-6.5rem)] shadow-2xl z-40 transition-transform duration-300
                      ${lang === 'ar' ? 'border-r left-0' : 'border-l right-0'} border-slate-200 dark:border-slate-800
                      ${shouldShowCart && isCartOpenMobile ? 'translate-x-0' : (lang === 'ar' ? '-translate-x-full' : 'translate-x-full')} lg:translate-x-0
-                     lg:mx-2 lg:my-2 lg:self-center lg:rounded-2xl lg:border lg:shadow-xl lg:overflow-hidden
+                     lg:mx-2 lg:self-start lg:rounded-2xl lg:border lg:shadow-xl lg:overflow-hidden
                   `}>
-                        <div className="p-3 md:p-4 border-b border-slate-200 dark:border-slate-800 bg-elevated dark:bg-elevated/50 flex justify-between items-center shrink-0">
-                           <div className="min-w-0">
-                              <h2 className="text-lg md:text-xl font-black text-slate-800 dark:text-white uppercase tracking-tight truncate">
-                                 {orderTypeLabel}
-                              </h2>
-                              <p className="text-[10px] font-black text-primary uppercase tracking-widest mt-0.5 md:mt-1 truncate">
-                                 {orderTypeSubLabel}
-                              </p>
-                           </div>
-                           <div className="flex items-center gap-2">
-                              <div className="hidden lg:flex items-center gap-1 rounded-xl bg-slate-100 dark:bg-slate-800 p-1">
+                        <div className="p-3 md:p-4 border-b border-slate-200 dark:border-slate-800 bg-elevated dark:bg-elevated/50 shrink-0 space-y-2.5">
+                           <div className="flex justify-between items-center gap-2">
+                              <div className="min-w-0">
+                                 <h2 className="text-lg md:text-xl font-black text-slate-800 dark:text-white uppercase tracking-tight truncate">
+                                    {orderTypeLabel}
+                                 </h2>
+                                 <p className="text-[10px] font-black text-primary uppercase tracking-widest mt-0.5 md:mt-1 truncate">
+                                    {orderTypeSubLabel}
+                                 </p>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                 {activeOrderType === OrderType.DINE_IN && selectedTableId && (
+                                    <button
+                                       onClick={leaveTable}
+                                       title={t.back_to_tables}
+                                       className="p-2 md:p-3 text-muted hover:text-primary transition-all bg-card dark:bg-elevated rounded-full shadow-sm flex-shrink-0"
+                                    >
+                                       <LogOut size={20} className="md:w-6 md:h-6" />
+                                    </button>
+                                 )}
                                  <button
-                                    onClick={() => setCartPanelWidth('compact')}
-                                    title={lang === 'ar' ? 'سلة أصغر' : 'Compact cart'}
-                                    className={`w-7 h-7 rounded-lg flex items-center justify-center transition-colors ${cartPanelWidth === 'compact' ? 'bg-white dark:bg-slate-700 text-primary shadow-sm' : 'text-slate-500 dark:text-slate-300'}`}
+                                    onClick={() => { if (activeOrderType === OrderType.DINE_IN) leaveTable(); setIsCartOpenMobile(false); }}
+                                    className="p-2 text-muted hover:text-primary transition-all bg-card dark:bg-elevated rounded-full shadow-sm flex-shrink-0 lg:hidden"
                                  >
-                                    <PanelRightClose size={15} />
-                                 </button>
-                                 <button
-                                    onClick={() => setCartPanelWidth('normal')}
-                                    title={lang === 'ar' ? 'سلة متوسطة' : 'Normal cart'}
-                                    className={`w-7 h-7 rounded-lg flex items-center justify-center transition-colors ${cartPanelWidth === 'normal' ? 'bg-white dark:bg-slate-700 text-primary shadow-sm' : 'text-slate-500 dark:text-slate-300'}`}
-                                 >
-                                    <SlidersHorizontal size={15} />
-                                 </button>
-                                 <button
-                                    onClick={() => setCartPanelWidth('wide')}
-                                    title={lang === 'ar' ? 'سلة أوسع' : 'Wide cart'}
-                                    className={`w-7 h-7 rounded-lg flex items-center justify-center transition-colors ${cartPanelWidth === 'wide' ? 'bg-white dark:bg-slate-700 text-primary shadow-sm' : 'text-slate-500 dark:text-slate-300'}`}
-                                 >
-                                    <PanelRightOpen size={15} />
+                                    <X size={20} className="md:w-6 md:h-6" />
                                  </button>
                               </div>
-                              {activeOrderType === OrderType.DINE_IN && selectedTableId && (
-                                 <button
-                                    onClick={leaveTable}
-                                    title={t.back_to_tables}
-                                    className="p-2 md:p-3 text-muted hover:text-primary transition-all bg-card dark:bg-elevated rounded-full shadow-sm flex-shrink-0"
-                                 >
-                                    <LogOut size={20} className="md:w-6 md:h-6" />
-                                 </button>
-                              )}
-                              <button
-                                 onClick={() => { if (activeOrderType === OrderType.DINE_IN) leaveTable(); setIsCartOpenMobile(false); }}
-                                 className="p-2 text-muted hover:text-primary transition-all bg-card dark:bg-elevated rounded-full shadow-sm flex-shrink-0 lg:hidden"
-                              >
-                                 <X size={20} className="md:w-6 md:h-6" />
-                              </button>
+                           </div>
+
+                           <div className="flex flex-wrap items-center gap-2">
+                              <span className="px-2.5 py-1 rounded-full bg-primary/10 text-primary text-[10px] font-black uppercase tracking-wider">
+                                 {cartStats.lines} {lang === 'ar' ? 'بنود' : 'lines'}
+                              </span>
+                              <span className="px-2.5 py-1 rounded-full bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 dark:text-emerald-300 text-[10px] font-black uppercase tracking-wider">
+                                 {currencySymbol}{cartTotal.toFixed(2)}
+                              </span>
+                              <div className="hidden lg:inline-flex ml-auto bg-card dark:bg-elevated rounded-xl p-1 border border-border/50">
+                                 {(['compact', 'normal', 'wide'] as const).map((mode) => (
+                                    <button
+                                       key={mode}
+                                       onClick={() => setCartPanelWidth(mode)}
+                                       className={`px-2.5 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider transition-colors ${
+                                          cartPanelWidth === mode ? 'bg-primary text-white' : 'text-slate-500 dark:text-slate-300 hover:text-primary'
+                                       }`}
+                                    >
+                                       {mode === 'compact' ? 'C' : mode === 'normal' ? 'M' : 'W'}
+                                    </button>
+                                 ))}
+                              </div>
+                           </div>
+
+                           <div className="relative">
+                              <Search className={`absolute top-1/2 -translate-y-1/2 text-slate-400 w-4 h-4 ${lang === 'ar' ? 'right-3' : 'left-3'}`} />
+                              <input
+                                 type="text"
+                                 value={cartSearchQuery}
+                                 onChange={(e) => setCartSearchQuery(e.target.value)}
+                                 placeholder={lang === 'ar' ? 'بحث داخل السلة' : 'Search cart'}
+                                 className={`w-full h-9 rounded-xl bg-card dark:bg-slate-900 border border-border/50 text-xs font-bold outline-none focus:border-primary/40 ${
+                                    lang === 'ar' ? 'pr-9 pl-3 text-right' : 'pl-9 pr-3 text-left'
+                                 }`}
+                              />
                            </div>
                         </div>
-                        {activeOrderType === OrderType.DINE_IN && selectedTableId && (
-                           <div className="px-4 md:px-8 py-3 border-b border-slate-200 dark:border-slate-800 bg-card/50 dark:bg-card/30 flex items-center gap-2 overflow-x-auto no-scrollbar">
-                              <span className="text-[10px] font-black uppercase tracking-widest text-muted shrink-0">
-                                 {t.quick_switch}
-                              </span>
-                              <button
-                                 onClick={() => {
-                                    if (sortedTables.length === 0) return;
-                                    const prevIndex = currentTableIndex <= 0 ? sortedTables.length - 1 : currentTableIndex - 1;
-                                    switchToTable(sortedTables[prevIndex].id);
-                                 }}
-                                 className="px-2.5 py-1.5 text-xs font-black rounded-full bg-elevated dark:bg-elevated/60 text-main"
-                              >
-                                 {t.prev_table}
-                              </button>
-                              <button
-                                 onClick={() => {
-                                    if (sortedTables.length === 0) return;
-                                    const nextIndex = currentTableIndex === -1 ? 0 : (currentTableIndex + 1) % sortedTables.length;
-                                    switchToTable(sortedTables[nextIndex].id);
-                                 }}
-                                 className="px-2.5 py-1.5 text-xs font-black rounded-full bg-elevated dark:bg-elevated/60 text-main"
-                              >
-                                 {t.next_table}
-                              </button>
-                              <div className="flex items-center gap-2">
-                                 {sortedTables.slice(0, 10).map((table) => {
-                                    const hasDraft = !!tableDrafts[table.id];
-                                    const isActive = table.id === selectedTableId;
-                                    return (
-                                       <button
-                                          key={table.id}
-                                          onClick={() => switchToTable(table.id)}
-                                          className={`px-2.5 py-1.5 text-xs font-black rounded-full border transition ${isActive ? 'bg-primary text-white border-primary' : 'bg-card dark:bg-card border-slate-200 dark:border-slate-700 text-main'} ${hasDraft && !isActive ? 'ring-2 ring-primary/30' : ''}`}
-                                       >
-                                          {table.name || table.id}
-                                       </button>
-                                    );
-                                 })}
+                        <div className="flex-1 min-h-0 flex flex-col">
+                           <div className="min-h-0 flex flex-col border-b border-slate-200/70 dark:border-slate-800/70 bg-card/30 dark:bg-card/10">
+                              <div className="shrink-0 px-3 py-2 border-b border-slate-200/60 dark:border-slate-800/60 flex items-center justify-between gap-2">
+                                 <p className="text-[10px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-300">
+                                    {lang === 'ar' ? 'تفاصيل الأوردر' : 'Order Details'}
+                                 </p>
+                                 <p className="text-[10px] font-black uppercase tracking-widest text-primary">
+                                    {filteredCartItems.length}/{safeActiveCart.length}
+                                 </p>
+                              </div>
+
+                              <div className="flex-1 overflow-y-auto p-2 md:p-2.5 pb-3 space-y-2 no-scrollbar min-h-0">
+                                 {filteredCartItems.map(item => (
+                                    <CartItem
+                                       key={item.cartId}
+                                       item={item}
+                                       currencySymbol={currencySymbol}
+                                       isTouchMode={isTouchMode}
+                                       lang={lang}
+                                       onEditNote={(cartId, note) => {
+                                          setEditingItemId(cartId);
+                                          setNoteInput(note);
+                                       }}
+                                       onUpdateQuantity={handleUpdateQuantity}
+                                       onRemove={(cartId) => removeFromCart(cartId)}
+                                    />
+                                 ))}
+                                 {safeActiveCart.length > 0 && filteredCartItems.length === 0 && (
+                                    <div className="py-8 text-center text-slate-400">
+                                       <p className="text-xs font-black uppercase tracking-widest">{lang === 'ar' ? 'لا نتائج في السلة' : 'No cart matches'}</p>
+                                    </div>
+                                 )}
+                                 {safeActiveCart.length === 0 && (
+                                    <div className="h-full flex flex-col items-center justify-center text-slate-400 py-10 md:py-16 px-4">
+                                       <div className="w-16 h-16 rounded-2xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center mb-4 opacity-70">
+                                          <ShoppingBag size={28} />
+                                       </div>
+                                       <p className="font-black uppercase tracking-widest opacity-70">{t.empty_cart}</p>
+                                       <p className="text-xs font-bold mt-2 opacity-50 text-center">
+                                          {lang === 'ar' ? 'ابدأ بإضافة أصناف أو استخدم البحث السريع' : 'Start adding items or use quick search'}
+                                       </p>
+                                       <div className="flex items-center gap-2 mt-4">
+                                          <button
+                                             onClick={() => searchInputRef.current?.focus()}
+                                             className="px-3 py-2 rounded-xl bg-slate-100 dark:bg-slate-800 text-xs font-black uppercase tracking-wider hover:text-primary"
+                                          >
+                                             {lang === 'ar' ? 'بحث' : 'Search'}
+                                          </button>
+                                          {!hasCartItems && (
+                                             <button
+                                                onClick={() => setItemFilter('popular')}
+                                                className="px-3 py-2 rounded-xl bg-amber-50 dark:bg-amber-900/20 text-amber-600 dark:text-amber-300 text-xs font-black uppercase tracking-wider"
+                                             >
+                                                {lang === 'ar' ? 'الأكثر طلباً' : 'Popular'}
+                                             </button>
+                                          )}
+                                       </div>
+                                    </div>
+                                 )}
                               </div>
                            </div>
-                        )}
 
-                        <div className="flex-1 overflow-y-auto p-2.5 md:p-3 space-y-2 no-scrollbar min-h-0">
-                           {safeActiveCart.map(item => (
-                              <CartItem
-                                 key={item.cartId}
-                                 item={item}
+                           <div
+                              className={`shrink-0 border-t border-slate-200/70 dark:border-slate-800/70 overflow-y-auto no-scrollbar bg-elevated/35 dark:bg-elevated/15 ${
+                                 isPaymentPanelCollapsed
+                                    ? ''
+                                    : 'max-h-[38dvh] lg:max-h-[42%]'
+                              }`}
+                           >
+                              <PaymentSummary
+                                 subtotal={cartSubtotal}
+                                 discount={discount}
+                                 tax={cartTotal - (cartTotal / 1.1)}
+                                 total={cartTotal}
                                  currencySymbol={currencySymbol}
+                                 paymentMethod={paymentMethod}
+                                 onSetPaymentMethod={handleSetPaymentMethod}
+                                 onShowSplitModal={() => setShowSplitModal(true)}
                                  isTouchMode={isTouchMode}
                                  lang={lang}
-                                 onEditNote={(cartId, note) => {
-                                    setEditingItemId(cartId);
-                                    setNoteInput(note);
-                                 }}
-                                 onUpdateQuantity={handleUpdateQuantity}
-                                 onRemove={(cartId) => removeFromCart(cartId)}
+                                 t={t}
+                                 onVoid={handleVoidOrder}
+                                 onSendKitchen={handleSendKitchen}
+                                 onSubmit={handleSubmitOrder}
+                                 onQuickPay={handleQuickPay}
+                                 canSubmit={safeActiveCart.length > 0}
+                                 couponCode={couponCode}
+                                 activeCoupon={activeCoupon}
+                                 isApplyingCoupon={isApplyingCoupon}
+                                 onCouponCodeChange={setCouponCode}
+                                 onApplyCoupon={handleApplyCoupon}
+                                 onClearCoupon={() => { setCouponCode(''); clearCoupon(); }}
+                                 collapsed={isPaymentPanelCollapsed}
+                                 onToggleCollapsed={() => setIsPaymentPanelCollapsed((prev) => !prev)}
+                                 itemCount={cartStats.qty}
                               />
-                           ))}
-                           {safeActiveCart.length === 0 && (
-                              <div className="h-full flex flex-col items-center justify-center text-slate-400 py-10 md:py-16 px-4">
-                                 <div className="w-16 h-16 rounded-2xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center mb-4 opacity-70">
-                                    <ShoppingBag size={28} />
-                                 </div>
-                                 <p className="font-black uppercase tracking-widest opacity-70">{t.empty_cart}</p>
-                                 <p className="text-xs font-bold mt-2 opacity-50 text-center">
-                                    {lang === 'ar' ? 'ابدأ بإضافة أصناف أو استخدم البحث السريع' : 'Start adding items or use quick search'}
-                                 </p>
-                                 <div className="flex items-center gap-2 mt-4">
-                                    <button
-                                       onClick={() => searchInputRef.current?.focus()}
-                                       className="px-3 py-2 rounded-xl bg-slate-100 dark:bg-slate-800 text-xs font-black uppercase tracking-wider hover:text-primary"
-                                    >
-                                       {lang === 'ar' ? 'بحث' : 'Search'}
-                                    </button>
-                                    {!hasCartItems && (
-                                       <button
-                                          onClick={() => setItemFilter('popular')}
-                                          className="px-3 py-2 rounded-xl bg-amber-50 dark:bg-amber-900/20 text-amber-600 dark:text-amber-300 text-xs font-black uppercase tracking-wider"
-                                       >
-                                          {lang === 'ar' ? 'الأكثر طلباً' : 'Popular'}
-                                       </button>
-                                    )}
-                                 </div>
-                              </div>
-                           )}
+                           </div>
                         </div>
-
-                        <PaymentSummary
-                           subtotal={cartSubtotal}
-                           discount={discount}
-                           tax={cartTotal - (cartTotal / 1.1)}
-                           total={cartTotal}
-                           currencySymbol={currencySymbol}
-                           paymentMethod={paymentMethod}
-                           onSetPaymentMethod={setPaymentMethod}
-                           onShowSplitModal={() => setShowSplitModal(true)}
-                           isTouchMode={isTouchMode}
-                           lang={lang}
-                           t={t}
-                           onVoid={handleVoidOrder}
-                           onSendKitchen={handleSendKitchen}
-                           onSubmit={handleSubmitOrder}
-                           onQuickPay={handleQuickPay}
-                           canSubmit={safeActiveCart.length > 0}
-                           couponCode={couponCode}
-                           activeCoupon={activeCoupon}
-                           isApplyingCoupon={isApplyingCoupon}
-                           onCouponCodeChange={setCouponCode}
-                           onApplyCoupon={handleApplyCoupon}
-                           onClearCoupon={() => { setCouponCode(''); clearCoupon(); }}
-                        />
                         </div>
                      )}
                      </div>

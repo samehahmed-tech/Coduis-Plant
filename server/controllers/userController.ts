@@ -35,6 +35,14 @@ export const createUser = async (req: Request, res: Response) => {
             passwordHash = await bcrypt.hash(body.password, 10);
         }
 
+        let pinCodeHash: string | undefined;
+        let pinLoginEnabled = false;
+        if (body.pin) {
+            const bcrypt = await import('bcryptjs');
+            pinCodeHash = await bcrypt.hash(String(body.pin), 10);
+            pinLoginEnabled = true;
+        }
+
         const newUser = await db.insert(users).values({
             id: body.id,
             name: body.name,
@@ -45,6 +53,8 @@ export const createUser = async (req: Request, res: Response) => {
             isActive: body.is_active !== false,
             managerPin: body.manager_pin || body.managerPin,
             passwordHash,
+            pinCodeHash,
+            pinLoginEnabled,
             createdAt: new Date(),
             updatedAt: new Date(),
         }).returning();

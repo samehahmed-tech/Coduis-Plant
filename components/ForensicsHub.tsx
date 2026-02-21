@@ -79,7 +79,7 @@ const ForensicsHub: React.FC = () => {
                         Forensics & Audit Hub
                     </h2>
                     <p className="text-slate-500 dark:text-slate-400 font-semibold italic text-sm mt-1">
-                        Immutable cryptographic audit trails for absolute system transparency.
+                        Activity log and audit trail for all operations.
                     </p>
                 </div>
 
@@ -88,7 +88,7 @@ const ForensicsHub: React.FC = () => {
                     className={`px-8 py-3.5 rounded-2xl font-black text-xs uppercase tracking-widest transition-all flex items-center gap-3 ${forensicMode ? 'bg-rose-600 text-white shadow-xl shadow-rose-600/30 ring-4 ring-rose-500/20' : 'bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-400 border border-slate-200 dark:border-slate-800 shadow-sm'}`}
                 >
                     <FileSearch size={18} />
-                    {forensicMode ? 'Active Forensic Analysis' : 'Engage Forensic Mode'}
+                    {forensicMode ? 'Details Mode Active' : 'Enable Details'}
                 </button>
             </div>
 
@@ -100,7 +100,7 @@ const ForensicsHub: React.FC = () => {
                             <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-indigo-600 transition-colors" size={18} />
                             <input
                                 type="text"
-                                placeholder="Scan cryptographic timeline..."
+                                placeholder="Search activity log..."
                                 className="w-full bg-slate-50 dark:bg-slate-800/50 border-2 border-transparent focus:border-indigo-500/30 rounded-2xl py-3.5 pl-12 pr-6 font-bold text-xs outline-none transition-all"
                                 value={searchQuery}
                                 onChange={e => setSearchQuery(e.target.value)}
@@ -111,7 +111,7 @@ const ForensicsHub: React.FC = () => {
                             value={filterType}
                             onChange={e => setFilterType(e.target.value as any)}
                         >
-                            <option value="ALL">All Event Protocols</option>
+                            <option value="ALL">All Events</option>
                             {Object.values(AuditEventType).map(v => (
                                 <option key={v} value={v}>{v.replace(/_/g, ' ')}</option>
                             ))}
@@ -127,7 +127,7 @@ const ForensicsHub: React.FC = () => {
                         ) : filteredLogs.length === 0 ? (
                             <div className="bg-white dark:bg-slate-900 rounded-[3rem] p-24 text-center border-2 border-dashed border-slate-200 dark:border-slate-800 opacity-40">
                                 <History size={48} className="mx-auto mb-6 text-slate-300" />
-                                <p className="font-black uppercase text-xs tracking-[0.2em]">No forensic matches in the timeline</p>
+                                <p className="font-black uppercase text-xs tracking-[0.2em]">No results found</p>
                             </div>
                         ) : (
                             <VirtualList
@@ -194,7 +194,7 @@ const ForensicsHub: React.FC = () => {
                                             <Maximize2 size={28} />
                                         </div>
                                         <div>
-                                            <h3 className="text-lg font-black text-slate-800 dark:text-white uppercase tracking-tight">Cortex Inspector</h3>
+                                            <h3 className="text-lg font-black text-slate-800 dark:text-white uppercase tracking-tight">Event Details</h3>
                                             <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.3em] mt-1">Metadate Deep-Scan</p>
                                         </div>
                                     </div>
@@ -202,7 +202,7 @@ const ForensicsHub: React.FC = () => {
                                         <p className="text-[10px] font-black text-indigo-600 uppercase tracking-widest">Integrity Seal</p>
                                         {selectedLog.signatureValid === true ? (
                                             <p className="text-[10px] font-black text-emerald-500 flex items-center justify-end gap-1 mt-1 bg-emerald-50 dark:bg-emerald-900/30 px-3 py-1 rounded-lg uppercase">
-                                                <CheckCircle2 size={12} /> Cryptographically Verified
+                                                <CheckCircle2 size={12} /> Verified
                                             </p>
                                         ) : selectedLog.signatureValid === false ? (
                                             <p className="text-[10px] font-black text-rose-500 flex items-center justify-end gap-1 mt-1 bg-rose-50 dark:bg-rose-900/30 px-3 py-1 rounded-lg uppercase animate-pulse">
@@ -272,7 +272,7 @@ const ForensicsHub: React.FC = () => {
                                     <div className="flex items-center gap-4 mb-4">
                                         <AlertTriangle className="text-rose-600" size={28} />
                                         <div>
-                                            <h4 className="text-xs font-black text-rose-500 uppercase tracking-widest">Anomaly Signature Detection...</h4>
+                                            <h4 className="text-xs font-black text-rose-500 uppercase tracking-widest">Irregularity Detection...</h4>
                                             <p className="text-[9px] font-black text-rose-400/60 uppercase tracking-[0.2em] mt-1">Cross-Branch Pattern Scan Active</p>
                                         </div>
                                     </div>
@@ -288,7 +288,7 @@ const ForensicsHub: React.FC = () => {
                                 <FileSearch size={48} />
                             </div>
                             <h3 className="text-xl font-black text-slate-800 dark:text-white uppercase tracking-tight">Inspector Idle</h3>
-                            <p className="text-xs font-bold text-slate-400 mt-4 max-w-xs mx-auto leading-relaxed uppercase tracking-[0.1em]">Await forensic selection to initiate metadata trace and state regression analysis.</p>
+                            <p className="text-xs font-bold text-slate-400 mt-4 max-w-xs mx-auto leading-relaxed uppercase tracking-[0.1em]">Select an event from the list to view details.</p>
                         </div>
                     )}
                 </div>

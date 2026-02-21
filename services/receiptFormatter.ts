@@ -74,25 +74,24 @@ export const formatReceipt = ({
     if (settings.phone) lines.push(center(`Tel: ${settings.phone}`));
 
     lines.push(boldLine);
-    lines.push(center(title || (lang === 'ar' ? 'Sales Receipt' : 'Sales Receipt')));
+    lines.push(center(title || t.order_receipt || (lang === 'ar' ? 'إيصال استلام' : 'Sales Receipt')));
     lines.push(boldLine);
 
     lines.push(row(`${t.order || 'Order'} #${order.id}`, createdAt.toLocaleDateString()));
     lines.push(row(`${t.order_type || 'Type'}: ${orderTypeText}`, createdAt.toLocaleTimeString()));
     if (order.tableId) lines.push(row(`${t.table || 'Table'}: ${order.tableId}`, ''));
-    if (order.customerName) lines.push(row(`${lang === 'ar' ? 'Customer' : 'Customer'}: ${cap(order.customerName, 18)}`, ''));
-    if (order.customerPhone) lines.push(row(`${lang === 'ar' ? 'Phone' : 'Phone'}: ${order.customerPhone}`, ''));
+    if (order.customerName) lines.push(row(`${t.customer || (lang === 'ar' ? 'العميل' : 'Customer')}: ${cap(order.customerName, 18)}`, ''));
+    if (order.customerPhone) lines.push(row(`${t.phone || (lang === 'ar' ? 'الهاتف' : 'Phone')}: ${order.customerPhone}`, ''));
     if (order.deliveryAddress) {
-        lines.push(row(lang === 'ar' ? 'Address' : 'Address', ''));
+        lines.push(row(t.address || (lang === 'ar' ? 'العنوان' : 'Address'), ''));
         wrapLabel(order.deliveryAddress, width).forEach(chunk => lines.push(chunk));
     }
 
     lines.push(line);
-    lines.push(row(lang === 'ar' ? 'Item' : 'Item', lang === 'ar' ? 'Total' : 'Total'));
+    lines.push(row(t.item || (lang === 'ar' ? 'الصنف' : 'Item'), t.total || (lang === 'ar' ? 'الإجمالي' : 'Total')));
     lines.push(line);
 
     (order.items || []).forEach(item => {
-        const mods = item.selectedModifiers?.map(m => `${m.optionName} (+${m.price})`).join(', ');
         const lineTotal = (item.price + (item.selectedModifiers || []).reduce((sum, m) => sum + m.price, 0)) * item.quantity;
         const label = `${item.quantity}x ${item.name}`;
         const totalText = `${currencySymbol}${lineTotal.toFixed(2)}`;
@@ -103,7 +102,11 @@ export const formatReceipt = ({
             lines.push(`${padRight(cap(labelLines[i], 24), 24)}${padLeft('', 18)}`);
         }
 
-        if (mods) lines.push(`  + ${mods}`);
+        if (item.selectedModifiers && item.selectedModifiers.length > 0) {
+            item.selectedModifiers.forEach(m => {
+                lines.push(`  + ${m.optionName} (+${m.price})`);
+            });
+        }
         if (item.notes) lines.push(`  * ${item.notes}`);
     });
 
@@ -111,14 +114,14 @@ export const formatReceipt = ({
     lines.push(row(t.subtotal || 'Subtotal', `${currencySymbol}${(order.subtotal ?? 0).toFixed(2)}`));
     lines.push(row(t.tax || 'Tax', `${currencySymbol}${(order.tax ?? 0).toFixed(2)}`));
     if ((order.discount || 0) > 0) {
-        const discountAmount = ((order.subtotal || 0) * (order.discount || 0)) / 100;
-        lines.push(row(t.discount || 'Discount', `-${currencySymbol}${discountAmount.toFixed(2)}`));
+        lines.push(row(t.discount || 'Discount', `-${currencySymbol}${(order.discount || 0).toFixed(2)}`));
     }
     lines.push(row(t.total || 'Total', `${currencySymbol}${(order.total ?? 0).toFixed(2)}`));
-    if (order.paymentMethod) lines.push(row(lang === 'ar' ? 'Payment' : 'Payment', String(order.paymentMethod)));
+    if (order.paymentMethod) lines.push(row(t.payment_method || (lang === 'ar' ? 'طريقة الدفع' : 'Payment'), String(t[order.paymentMethod.toLowerCase()] || order.paymentMethod)));
     lines.push(boldLine);
 
-    lines.push(center(lang === 'ar' ? 'Thank you for your order' : 'Thank you for your order'));
+    lines.push(center(lang === 'ar' ? 'شكراً لزيارتكم' : 'Thank you for your order'));
+
 
     if (settings.receiptQrUrl) {
         lines.push(center('[QR]'));

@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from 'react';
+﻿import React, { useState, useMemo, useEffect } from 'react';
 import {
   LayoutDashboard,
   UtensilsCrossed,
@@ -118,10 +118,9 @@ const Sidebar: React.FC = () => {
       ];
     }
 
-    // 2. Super Admin (Control Hub FOCUS) - Well-organized sections for easy navigation
+    // 2. Super Admin - full navigation
     if (isAdmin) {
       return [
-        // 🏠 القسم الرئيسي - Dashboard Only
         {
           title: lang === 'ar' ? 'الرئيسية' : 'Home',
           items: [
@@ -129,7 +128,6 @@ const Sidebar: React.FC = () => {
             { path: '/admin-dashboard', label: lang === 'ar' ? 'لوحة تحكم الإدارة' : 'Admin Dashboard', icon: Building2, permission: AppPermission.NAV_ADMIN_DASHBOARD, loaderKey: 'AdminDashboardPage' },
           ]
         },
-        // 🛒 العمليات التشغيلية - POS, KDS, Call Center
         {
           title: lang === 'ar' ? 'العمليات التشغيلية' : 'Operations',
           items: [
@@ -139,7 +137,6 @@ const Sidebar: React.FC = () => {
             { path: '/call-center-manager', label: lang === 'ar' ? 'إدارة الكول سنتر' : 'Call Center Control', icon: Headset, permission: AppPermission.NAV_CALL_CENTER, loaderKey: 'CallCenterManager' },
           ]
         },
-        // 📦 المخازن والإمداد - Inventory, Production, Recipes
         {
           title: lang === 'ar' ? 'المخازن والإمداد' : 'Inventory & Supply',
           items: [
@@ -148,7 +145,6 @@ const Sidebar: React.FC = () => {
             { path: '/recipes', label: t.recipes, icon: ChefHat, permission: AppPermission.NAV_RECIPES, loaderKey: 'RecipeManager' },
           ]
         },
-        // 💰 المالية والمحاسبة - Finance, Fiscal Compliance
         {
           title: lang === 'ar' ? 'المالية والمحاسبة' : 'Finance & Accounting',
           items: [
@@ -157,7 +153,6 @@ const Sidebar: React.FC = () => {
             { path: '/day-close', label: lang === 'ar' ? 'إغلاق اليوم' : 'Day Close', icon: ClipboardCheck, permission: AppPermission.NAV_REPORTS, loaderKey: 'DayCloseHub' },
           ]
         },
-        // 📊 التقارير والذكاء - Reports, AI Insights, Analytics
         {
           title: lang === 'ar' ? 'التقارير والتحليلات' : 'Reports & Analytics',
           items: [
@@ -168,7 +163,6 @@ const Sidebar: React.FC = () => {
             { path: '/forensics', label: t.forensics, icon: Fingerprint, permission: AppPermission.NAV_FORENSICS, loaderKey: 'ForensicsHub' },
           ]
         },
-        // 👥 الموارد البشرية والعملاء - HR, CRM
         {
           title: lang === 'ar' ? 'الموارد والعملاء' : 'People & Customers',
           items: [
@@ -176,7 +170,6 @@ const Sidebar: React.FC = () => {
             { path: '/crm', label: t.crm, icon: Users, permission: AppPermission.NAV_CRM, loaderKey: 'CRM' },
           ]
         },
-        // 🚚 التوصيل والتسويق - Dispatch, Marketing
         {
           title: lang === 'ar' ? 'التوصيل والتسويق' : 'Delivery & Marketing',
           items: [
@@ -184,7 +177,6 @@ const Sidebar: React.FC = () => {
             { path: '/marketing', label: lang === 'ar' ? 'حملات النمو' : 'Marketing', icon: Megaphone, permission: AppPermission.NAV_REPORTS, loaderKey: 'CampaignHub' },
           ]
         },
-        // ⚙️ إدارة النظام - Settings, Security, Printers, Menu Manager
         {
           title: lang === 'ar' ? 'إدارة النظام' : 'System Settings',
           items: [
@@ -193,21 +185,20 @@ const Sidebar: React.FC = () => {
             { path: '/settings', label: t.settings, icon: Settings, permission: AppPermission.NAV_SETTINGS, loaderKey: 'SettingsHub' },
             { path: '/security', label: t.security, icon: Shield, permission: AppPermission.NAV_SECURITY, loaderKey: 'SecurityHub' },
             { path: '/printers', label: t.printers, icon: PrinterIcon, permission: AppPermission.NAV_PRINTERS, loaderKey: 'PrinterManager' },
+            { path: '/go-live', label: lang === 'ar' ? 'جاهزية الإطلاق' : 'Go-Live Center', icon: ClipboardCheck, permission: AppPermission.NAV_SECURITY, loaderKey: 'GoLiveCenter' },
           ]
         }
       ];
     }
 
-    // 3. Default Operational UI (Cashier, Branch Manager, etc.) - Organized by function
+    // 3. Default Operational UI
     return [
-      // 🏠 الرئيسية
       {
         title: lang === 'ar' ? 'الرئيسية' : 'Home',
         items: [
           { path: '/', label: t.dashboard, icon: LayoutDashboard, permission: AppPermission.NAV_DASHBOARD, loaderKey: 'Dashboard' },
         ]
       },
-      // 🛒 العمليات التشغيلية
       {
         title: lang === 'ar' ? 'العمليات' : 'Operations',
         items: [
@@ -217,7 +208,6 @@ const Sidebar: React.FC = () => {
           { path: '/call-center-manager', label: lang === 'ar' ? 'إدارة الكول سنتر' : 'Call Center Control', icon: Headset, permission: AppPermission.NAV_CALL_CENTER, loaderKey: 'CallCenterManager' },
         ]
       },
-      // 📦 المخازن
       {
         title: lang === 'ar' ? 'المخازن' : 'Inventory',
         items: [
@@ -225,7 +215,6 @@ const Sidebar: React.FC = () => {
           { path: '/floor-designer', label: lang === 'ar' ? 'مصمم الصالة' : 'Floor Designer', icon: MapIcon, permission: AppPermission.NAV_FLOOR_PLAN, loaderKey: 'FloorDesigner' },
         ]
       },
-      // 👥 العملاء والذكاء
       {
         title: lang === 'ar' ? 'العملاء والمساعد' : 'Customers & AI',
         items: [
@@ -234,15 +223,14 @@ const Sidebar: React.FC = () => {
         ]
       },
       {
-        title: lang === 'ar' ? 'Reports & Compliance' : 'Reports & Compliance',
+        title: lang === 'ar' ? 'التقارير والامتثال' : 'Reports & Compliance',
         items: [
-          { path: '/reports', label: lang === 'ar' ? 'Reports' : 'Reports', icon: BarChart3, permission: AppPermission.NAV_REPORTS, loaderKey: 'Reports' },
+          { path: '/reports', label: lang === 'ar' ? 'التقارير' : 'Reports', icon: BarChart3, permission: AppPermission.NAV_REPORTS, loaderKey: 'Reports' },
           { path: '/day-close', label: lang === 'ar' ? 'إغلاق اليوم' : 'Day Close', icon: ClipboardCheck, permission: AppPermission.NAV_REPORTS, loaderKey: 'DayCloseHub' },
         ]
       }
     ];
   }, [isAdmin, isCallCenter, lang, t]);
-
   const filteredSections = useMemo(() => {
     const userRole = settings.currentUser?.role;
     // Admins and direct Call Center roles are already defined in sectionsToUse
@@ -316,7 +304,7 @@ const Sidebar: React.FC = () => {
       {/* Mobile menu button */}
       <button
         onClick={() => setIsMobileOpen(true)}
-        className={`lg:hidden fixed top-[max(0.75rem,var(--safe-top))] z-[60] p-2 bg-slate-900 text-white rounded-xl shadow-lg ${lang === 'ar' ? 'right-3' : 'left-3'}`}
+        className={`xl:hidden fixed top-[max(0.75rem,var(--safe-top))] z-[60] p-2 bg-slate-900 text-white rounded-xl shadow-lg ${lang === 'ar' ? 'right-3' : 'left-3'}`}
       >
         <Menu size={20} />
       </button>
@@ -324,7 +312,7 @@ const Sidebar: React.FC = () => {
       {/* Backdrop */}
       {isMobileOpen && (
         <div
-          className="lg:hidden fixed inset-0 bg-black/60 backdrop-blur-sm z-[70]"
+          className="xl:hidden fixed inset-0 bg-black/60 backdrop-blur-sm z-[70]"
           onClick={() => setIsMobileOpen(false)}
         />
       )}
@@ -335,12 +323,12 @@ const Sidebar: React.FC = () => {
         bg-sidebar/95 backdrop-blur-3xl text-main flex flex-col app-viewport h-screen 
         fixed top-0 shadow-[0_0_40px_rgba(0,0,0,0.08)] z-[80] transition-all duration-500
         ${lang === 'ar' ? 'right-0 border-l' : 'left-0 border-r'} border-border/50
-        ${isMobileOpen ? 'translate-x-0' : `${lang === 'ar' ? 'translate-x-full' : '-translate-x-full'} lg:translate-x-0`}
+        ${isMobileOpen ? 'translate-x-0' : `${lang === 'ar' ? 'translate-x-full' : '-translate-x-full'} xl:translate-x-0`}
       `}>
         {/* Close button for mobile */}
         <button
           onClick={() => setIsMobileOpen(false)}
-          className="lg:hidden absolute top-4 right-4 p-2 text-slate-400 hover:text-white"
+          className="xl:hidden absolute top-4 right-4 p-2 text-slate-400 hover:text-white"
         >
           <X size={20} />
         </button>
@@ -363,7 +351,7 @@ const Sidebar: React.FC = () => {
               <h2 className="text-[10px] font-black text-primary tracking-[0.4em] uppercase">{lang === 'ar' ? 'نقطة البيع' : 'POINT OF SALE'}</h2>
               <div className="flex items-center justify-center gap-1 mt-1">
                 <div className="w-1 h-1 rounded-full bg-primary animate-pulse" />
-                <span className="text-[7px] font-black text-muted uppercase tracking-widest">{activeShift ? (lang === 'ar' ? 'شفت مفتوح' : 'Active Shift') : (lang === 'ar' ? 'مغلق' : 'Closed')}</span>
+                <span className="text-[7px] font-black text-muted uppercase tracking-widest">{activeShift ? (lang === 'ar' ? 'وردية مفتوحة' : 'Active Shift') : (lang === 'ar' ? 'مغلقة' : 'Closed')}</span>
               </div>
             </div>
           )}
@@ -372,7 +360,7 @@ const Sidebar: React.FC = () => {
           <button
             onClick={toggleSidebar}
             className={`
-                hidden lg:flex absolute top-10 ${lang === 'ar' ? '-left-3' : '-right-3'} 
+                hidden xl:flex absolute top-10 ${lang === 'ar' ? '-left-3' : '-right-3'} 
                 w-7 h-10 bg-primary text-white rounded-xl items-center justify-center 
                 shadow-xl shadow-primary/30 hover:scale-110 active:scale-90 transition-all z-[100] 
                 border-2 border-white dark:border-slate-950 group
@@ -385,7 +373,7 @@ const Sidebar: React.FC = () => {
         {/* Navigation */}
         <nav className="flex-1 overflow-y-auto py-2 px-3 space-y-4 no-scrollbar scroll-smooth">
           {/* 
-             🛡️ POS VESSEL PROTOCOL - PROTECTED SECTION 
+             ًں›،ï¸ڈ POS VESSEL PROTOCOL - PROTECTED SECTION 
              This section is isolated from global design changes to maintain 
              cashier consistency. DO NOT MODIFY without Protocol Unlock.
           */}
@@ -395,7 +383,7 @@ const Sidebar: React.FC = () => {
               {!isCollapsed && (
                 <div className="px-4 pt-4 pb-3 flex justify-between items-center">
                   <h3 className="text-[11px] font-black text-primary/70 uppercase tracking-[0.22em]">
-                    {lang === 'ar' ? 'التحكم السريع' : 'Command Center'}
+                    {lang === 'ar' ? 'مركز التحكم' : 'Command Center'}
                   </h3>
                   <div className="flex gap-1">
                     <div className="w-1 h-1 rounded-full bg-primary animate-pulse" />
@@ -443,7 +431,7 @@ const Sidebar: React.FC = () => {
                       onClick={() => setDiscount(discount === 0 ? 10 : 0)}
                       className={`w-full flex flex-col items-center justify-center py-3 rounded-2xl border transition-all group ${discount > 0 ? 'bg-indigo-500/10 border-indigo-500/30 text-indigo-600' : 'bg-card/70 border-border/50 hover:border-indigo-500/30'}`}
                     >
-                      <span className="text-[9px] font-black uppercase opacity-70 mb-0.5">{lang === 'ar' ? 'خصم' : 'Discount'}</span>
+                      <span className="text-[9px] font-black uppercase opacity-70 mb-0.5">{lang === 'ar' ? 'ط®طµظ…' : 'Discount'}</span>
                       <span className="text-base font-black tracking-tighter">{discount}%</span>
                     </button>
                   </div>
@@ -485,11 +473,11 @@ const Sidebar: React.FC = () => {
                       className="p-3 bg-rose-500/10 text-rose-500 rounded-2xl border border-rose-500/20 hover:bg-rose-500 hover:text-white transition-all flex flex-col items-center justify-center gap-1 group"
                     >
                       <Zap size={14} className="group-hover:animate-pulse" />
-                      <span className="text-[8px] font-black uppercase tracking-wider">{lang === 'ar' ? 'إلغاء' : 'Void'}</span>
+                      <span className="text-[8px] font-black uppercase tracking-wider">{lang === 'ar' ? 'ط¥ظ„ط؛ط§ط،' : 'Void'}</span>
                     </button>
                     <button className="p-3 bg-elevated/70 rounded-2xl border border-border/50 hover:bg-main hover:text-sidebar transition-all flex flex-col items-center justify-center gap-1 group">
                       <PrinterIcon size={14} />
-                      <span className="text-[8px] font-black uppercase tracking-wider">{lang === 'ar' ? 'الأخير' : 'Last'}</span>
+                      <span className="text-[8px] font-black uppercase tracking-wider">{lang === 'ar' ? 'آخر' : 'Last'}</span>
                     </button>
                   </div>
                 </div>
@@ -500,7 +488,7 @@ const Sidebar: React.FC = () => {
                   <button onClick={() => setDiscount(discount === 0 ? 10 : 0)} className={`group relative p-3.5 rounded-2xl border transition-all ${discount > 0 ? 'bg-indigo-500 text-white shadow-lg' : 'bg-card border-border'}`}>
                     <Sparkles size={18} />
                     <div className={`absolute ${lang === 'ar' ? 'right-full mr-5' : 'left-full ml-5'} top-1/2 -translate-y-1/2 px-4 py-2 bg-elevated text-main shadow-2xl z-[100] border border-primary/20`}>
-                      {lang === 'ar' ? 'خصم 10%' : '10% Discount'}
+                      {lang === 'ar' ? 'ط®طµظ… 10%' : '10% Discount'}
                     </div>
                   </button>
                   <button onClick={() => setShowCalc(!showCalc)} className="group relative p-3.5 rounded-2xl bg-card border border-border hover:border-primary/50 transition-all">
@@ -520,14 +508,14 @@ const Sidebar: React.FC = () => {
             </div>
           )}
 
-          {/* 📞 CALL CENTER COMMAND CENTER */}
+          {/* ًں“‍ CALL CENTER COMMAND CENTER */}
           {isCallCenter && (
             <div className="mb-8 p-2 rounded-[2rem] bg-elevated/50 dark:bg-elevated/20 border border-primary/20 shadow-sm relative overflow-hidden">
               <div className="absolute top-0 left-0 w-full h-[1px] bg-gradient-to-r from-transparent via-indigo-400/30 to-transparent" />
               {!isCollapsed && (
                 <div className="px-4 pt-4 pb-3 flex justify-between items-center">
                   <h3 className="text-[10px] font-black text-indigo-600 dark:text-indigo-400 uppercase tracking-[0.2em]">
-                    {lang === 'ar' ? 'أدوات الاتصال' : 'Operator Tools'}
+                    {lang === 'ar' ? 'أدوات المشغّل' : 'Operator Tools'}
                   </h3>
                   <div className="flex gap-1">
                     <div className="w-1.5 h-1.5 rounded-full bg-indigo-500 animate-pulse" />
@@ -541,7 +529,7 @@ const Sidebar: React.FC = () => {
                   {/* Discount Quick Select */}
                   <div className="bg-elevated/70 dark:bg-card/40 rounded-2xl p-3 border border-primary/20">
                     <span className="text-[8px] font-black uppercase text-indigo-500 tracking-widest block mb-2">
-                      {lang === 'ar' ? 'خصم سريع' : 'Quick Discount'}
+                      {lang === 'ar' ? 'ط®طµظ… ط³ط±ظٹط¹' : 'Quick Discount'}
                     </span>
                     <div className="flex gap-1">
                       {[0, 5, 10, 15, 20].map(d => (
@@ -585,7 +573,7 @@ const Sidebar: React.FC = () => {
                         }`}
                     >
                       <Calculator size={16} />
-                      <span className="text-[8px] font-black uppercase">{lang === 'ar' ? 'حاسبة' : 'Calc'}</span>
+                      <span className="text-[8px] font-black uppercase">{lang === 'ar' ? 'ط­ط§ط³ط¨ط©' : 'Calc'}</span>
                     </button>
                     <button
                       onClick={handleToggleTouchMode}
@@ -614,13 +602,13 @@ const Sidebar: React.FC = () => {
                   <button onClick={() => setDiscount(discount === 0 ? 10 : 0)} className={`group relative p-3.5 rounded-2xl transition-all ${discount > 0 ? 'bg-primary text-white' : 'bg-card border border-border'}`}>
                     <Sparkles size={18} />
                     <div className={`absolute ${lang === 'ar' ? 'right-full mr-4' : 'left-full ml-4'} top-1/2 -translate-y-1/2 px-3 py-2 bg-elevated text-main shadow-2xl z-[100] border border-primary/20`}>
-                      {lang === 'ar' ? 'خصم' : 'Discount'}
+                      {lang === 'ar' ? 'ط®طµظ…' : 'Discount'}
                     </div>
                   </button>
                   <button onClick={() => setShowCalc(!showCalc)} className="group relative p-3.5 rounded-2xl bg-white/60 dark:bg-slate-800 border border-indigo-200 dark:border-indigo-800">
                     <Calculator size={18} className={showCalc ? 'text-indigo-600' : ''} />
                     <div className={`absolute ${lang === 'ar' ? 'right-full mr-4' : 'left-full ml-4'} top-1/2 -translate-y-1/2 px-3 py-2 bg-elevated text-main shadow-2xl z-[100] border border-primary/20`}>
-                      {lang === 'ar' ? 'حاسبة' : 'Calculator'}
+                      {lang === 'ar' ? 'ط­ط§ط³ط¨ط©' : 'Calculator'}
                     </div>
                   </button>
                 </div>
