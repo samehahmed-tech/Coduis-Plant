@@ -8,7 +8,7 @@ interface ItemGridProps {
     items: MenuItem[];
     onAddItem: (item: MenuItem) => void;
     onRemoveItem?: (itemId: string) => void;
-    cartItems?: any[]; // To track quantities
+    cartItems?: any[];
     currencySymbol: string;
     isTouchMode: boolean;
     density?: 'comfortable' | 'compact' | 'ultra';
@@ -29,17 +29,21 @@ const ItemGrid: React.FC<ItemGridProps> = React.memo(({
 }) => {
     const isUltra = density === 'ultra';
     const isCompact = density === 'compact';
+
+    // Tighter dimensions for better space usage
     const columnWidth = isUltra
-        ? (isTouchMode ? 210 : 188)
+        ? (isTouchMode ? 160 : 144)
         : isCompact
-            ? (isTouchMode ? 236 : 216)
-            : (isTouchMode ? 280 : 250);
+            ? (isTouchMode ? 185 : 170)
+            : (isTouchMode ? 210 : 190);
+
     const rowHeight = isUltra
-        ? (isTouchMode ? 232 : 218)
+        ? (isTouchMode ? 180 : 168)
         : isCompact
-            ? (isTouchMode ? 270 : 252)
-            : (isTouchMode ? 320 : 300);
-    const gap = isUltra ? 10 : (isCompact ? (isTouchMode ? 14 : 12) : (isTouchMode ? 24 : 16));
+            ? (isTouchMode ? 210 : 195)
+            : (isTouchMode ? 250 : 230);
+
+    const gap = isUltra ? 6 : (isCompact ? 8 : 10);
 
     const quantityByItemId = useMemo(() => {
         const map: Record<string, number> = {};
@@ -51,9 +55,9 @@ const ItemGrid: React.FC<ItemGridProps> = React.memo(({
 
     if (items.length === 0) {
         return (
-            <div className="h-full flex items-center justify-center text-slate-400 opacity-50 flex-col gap-4">
-                <Ban size={48} />
-                <p className="font-bold text-lg uppercase tracking-widest text-center">
+            <div className="h-full flex items-center justify-center text-muted opacity-40 flex-col gap-3">
+                <Ban size={40} />
+                <p className="font-bold text-sm uppercase tracking-widest text-center">
                     {lang === 'ar' ? 'لا يوجد أصناف مطابقة' : 'No items found'}
                 </p>
             </div>
@@ -66,7 +70,7 @@ const ItemGrid: React.FC<ItemGridProps> = React.memo(({
             columnWidth={columnWidth}
             rowHeight={rowHeight}
             gap={gap}
-            className="h-full pr-2 custom-scrollbar"
+            className="h-full custom-scrollbar"
             renderItem={(index) => {
                 const item = items[index];
                 return (

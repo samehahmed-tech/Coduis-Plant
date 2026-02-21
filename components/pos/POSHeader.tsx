@@ -31,107 +31,96 @@ const POSHeader: React.FC<POSHeaderProps> = React.memo(({
     onSetPriceList,
     isOnline,
 }) => {
+    const isRTL = lang === 'ar';
+
     return (
-        <div className="min-h-14 md:min-h-16 bg-card border-b border-border flex justify-between items-center px-3 md:px-5 py-2 z-20 transition-all duration-300 flex-wrap gap-2">
-            <div className="flex flex-wrap items-center gap-2.5 min-w-0">
+        <div className="h-11 md:h-12 bg-card border-b border-border/60 flex justify-between items-center px-2 md:px-4 py-1 z-20 shrink-0">
+            {/* Left: Order type context */}
+            <div className="flex items-center gap-2 min-w-0 overflow-hidden">
                 {activeMode === OrderType.DINE_IN && (
-                    <div className="flex items-center gap-2">
-                        <span className="text-base md:text-lg font-black text-main uppercase tracking-tighter">
-                            {t.dine_in}
-                        </span>
+                    <div className="flex items-center gap-1.5">
+                        <span className="text-sm font-black text-main uppercase tracking-tight">{t.dine_in}</span>
                         {selectedTableId ? (
-                            <div className="px-2.5 py-1 bg-primary/10 text-primary rounded-lg text-[10px] font-black flex items-center gap-1.5">
+                            <div className="px-2 py-0.5 bg-primary/10 text-primary rounded-md text-[10px] font-black flex items-center gap-1">
                                 {t.table} {selectedTableId}
-                                <button onClick={onClearTable} className="hover:text-red-600">
-                                    <X size={12} />
-                                </button>
+                                <button onClick={onClearTable} className="hover:text-red-500 transition-colors"><X size={10} /></button>
                             </div>
                         ) : (
-                            <span className="text-[10px] text-slate-400 font-bold uppercase tracking-widest animate-pulse">
-                                {t.select_table}
-                            </span>
+                            <span className="text-[9px] text-muted font-bold uppercase tracking-widest animate-pulse">{t.select_table}</span>
                         )}
                     </div>
                 )}
-
                 {activeMode === OrderType.TAKEAWAY && (
-                    <span className="text-base md:text-lg font-black text-emerald-600 uppercase tracking-tighter flex items-center gap-2">
-                        <ShoppingBag size={20} />
-                        {t.takeaway}
+                    <span className="text-sm font-black text-emerald-600 uppercase tracking-tight flex items-center gap-1.5">
+                        <ShoppingBag size={15} />{t.takeaway}
                     </span>
                 )}
-
                 {activeMode === OrderType.PICKUP && (
-                    <span className="text-base md:text-lg font-black text-teal-600 uppercase tracking-tighter flex items-center gap-2">
-                        <ShoppingBag size={20} />
-                        {t.pickup || 'Pickup'}
+                    <span className="text-sm font-black text-teal-600 uppercase tracking-tight flex items-center gap-1.5">
+                        <ShoppingBag size={15} />{t.pickup || 'Pickup'}
                     </span>
                 )}
-
                 {activeMode === OrderType.DELIVERY && (
-                    <div className="flex items-center gap-2.5">
-                        <span className="text-base md:text-lg font-black text-orange-600 uppercase tracking-tighter flex items-center gap-2">
-                            <Building2 size={20} />
-                            {t.delivery}
+                    <div className="flex items-center gap-1.5">
+                        <span className="text-sm font-black text-orange-600 uppercase tracking-tight flex items-center gap-1.5">
+                            <Building2 size={15} />{t.delivery}
                         </span>
                         {deliveryCustomer ? (
-                            <div className="px-2.5 py-1 bg-primary/10 text-primary rounded-lg text-[10px] font-black flex items-center gap-1.5 max-w-[180px] truncate">
+                            <div className="px-2 py-0.5 bg-primary/10 text-primary rounded-md text-[10px] font-black flex items-center gap-1 max-w-[140px]">
                                 <span className="truncate">{deliveryCustomer.name}</span>
-                                <button onClick={onClearCustomer} className="hover:text-red-600 shrink-0">
-                                    <X size={12} />
-                                </button>
+                                <button onClick={onClearCustomer} className="hover:text-red-500 shrink-0"><X size={10} /></button>
                             </div>
                         ) : (
-                            <span className="text-[10px] text-slate-400 font-bold uppercase tracking-widest animate-pulse">
-                                {t.select_customer}
-                            </span>
+                            <span className="text-[9px] text-muted font-bold uppercase tracking-widest animate-pulse">{t.select_customer}</span>
                         )}
                     </div>
                 )}
 
-                <div className="h-7 w-[1px] bg-border/50 mx-1 hidden sm:block" />
+                <div className="h-5 w-px bg-border/40 mx-0.5 hidden sm:block" />
 
-                <div className="flex items-center gap-2 bg-app rounded-xl px-2.5 py-1.5 border border-border/50 group hover:border-primary/30 transition-all cursor-pointer relative">
-                    <Tag size={13} className="text-primary" />
+                {/* Price list selector */}
+                <div className="hidden sm:flex items-center gap-1.5 bg-elevated/50 rounded-lg px-2 py-1 border border-border/30">
+                    <Tag size={11} className="text-primary shrink-0" />
                     <select
                         value={activePriceListId || 'standard'}
                         onChange={(e) => onSetPriceList(e.target.value === 'standard' ? null : e.target.value)}
-                        className="bg-transparent text-[9px] md:text-[10px] font-black uppercase tracking-widest outline-none cursor-pointer text-main appearance-none pr-4"
+                        className="bg-transparent text-[9px] font-black uppercase tracking-widest outline-none cursor-pointer text-main appearance-none"
                     >
-                        <option value="standard">Standard Pricing</option>
-                        <option value="delivery">Delivery Rates</option>
-                        <option value="vip">VIP Membership</option>
+                        <option value="standard">{isRTL ? 'تسعير قياسي' : 'Standard'}</option>
+                        <option value="delivery">{isRTL ? 'توصيل' : 'Delivery'}</option>
+                        <option value="vip">VIP</option>
                     </select>
                 </div>
             </div>
 
-            <div className="flex items-center gap-2 shrink-0">
+            {/* Right: Actions */}
+            <div className="flex items-center gap-1.5 shrink-0">
                 {onRecall && (
                     <button
                         onClick={onRecall}
-                        className="flex items-center gap-2 px-3 py-1.5 bg-elevated dark:bg-elevated/50 hover:bg-card dark:hover:bg-card text-muted rounded-xl transition-all text-[10px] font-black uppercase tracking-widest border border-border/50"
+                        className="flex items-center gap-1.5 px-2 py-1 bg-elevated/50 text-muted rounded-lg transition-colors text-[9px] font-black uppercase tracking-wider border border-border/30 hover:text-primary"
                         title="Recall Last Order"
                     >
-                        <RotateCcw size={13} />
+                        <RotateCcw size={11} />
                         <span className="hidden lg:inline">{t.recall || 'Recall'}</span>
                     </button>
                 )}
 
-                <div className="flex items-center gap-2 px-2.5 py-1.5 bg-card border border-border rounded-xl">
+                <div className="flex items-center gap-1 px-2 py-1 bg-elevated/50 border border-border/30 rounded-lg">
                     {isOnline ? (
-                        <div className="flex items-center gap-1.5 text-success">
-                            <Cloud size={13} />
+                        <div className="flex items-center gap-1 text-success">
+                            <Cloud size={11} />
                             <span className="text-[8px] font-black uppercase">Live</span>
                         </div>
                     ) : (
-                        <div className="flex items-center gap-1.5 text-danger animate-pulse">
-                            <CloudOff size={13} />
+                        <div className="flex items-center gap-1 text-danger animate-pulse">
+                            <CloudOff size={11} />
                             <span className="text-[8px] font-black uppercase">Local</span>
                         </div>
                     )}
                 </div>
 
-                <div className="w-8 h-8 rounded-full bg-primary/10 dark:bg-primary/20 flex items-center justify-center text-primary font-black text-xs">
+                <div className="w-7 h-7 rounded-full bg-primary/10 flex items-center justify-center text-primary font-black text-[10px]">
                     A
                 </div>
             </div>

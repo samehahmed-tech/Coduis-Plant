@@ -24,61 +24,60 @@ const CartItem: React.FC<CartItemProps> = React.memo(({
     const displayName = lang === 'ar' ? (item.nameAr || item.name) : item.name;
     const unitPrice = Number(item.price || 0);
     const lineTotal = unitPrice * Number(item.quantity || 0);
+    const btnSize = isTouchMode ? 'w-8 h-8' : 'w-6 h-6';
 
     return (
-        <div className="bg-card dark:bg-card p-2.5 rounded-xl border border-border/50 shadow-sm transition-all hover:border-primary/30">
-            <div className="flex justify-between items-start gap-2">
+        <div className="bg-card p-2 rounded-lg border border-border/30 transition-all hover:border-primary/20 group">
+            {/* Row 1: Name + price + delete */}
+            <div className="flex items-start gap-1.5">
                 <div className="flex-1 min-w-0">
-                    <h4 className="font-bold text-[13px] text-main dark:text-main leading-tight line-clamp-2">{displayName}</h4>
-                    <div className="flex items-center gap-2 mt-1">
-                        <span className="text-[10px] font-black px-2 py-0.5 rounded-full bg-elevated dark:bg-elevated/40 text-slate-500">
-                            {currencySymbol}{unitPrice.toFixed(2)} x {item.quantity}
+                    <h4 className="font-bold text-xs text-main leading-tight line-clamp-1">{displayName}</h4>
+                    <div className="flex items-center gap-1.5 mt-0.5">
+                        <span className="text-[9px] font-semibold text-muted" style={{ fontVariantNumeric: 'tabular-nums' }}>
+                            {currencySymbol}{unitPrice.toFixed(2)} × {item.quantity}
                         </span>
-                        <span className="text-xs font-black text-primary">
-                            {currencySymbol}{lineTotal.toFixed(2)}
+                        <span className="text-[11px] font-black text-primary" style={{ fontVariantNumeric: 'tabular-nums' }}>
+                            = {currencySymbol}{lineTotal.toFixed(2)}
                         </span>
                     </div>
-                    {item.notes && <p className="text-[10px] text-amber-600 font-bold mt-1.5 line-clamp-1">Note: {item.notes}</p>}
+                    {item.notes && (
+                        <p className="text-[9px] text-amber-600 font-semibold mt-0.5 line-clamp-1 italic">📝 {item.notes}</p>
+                    )}
                 </div>
                 <button
                     onClick={() => onRemove(item.cartId)}
-                    className={`${isTouchMode ? 'w-10 h-10' : 'w-7 h-7'} rounded-lg text-slate-300 hover:bg-red-50 hover:text-red-500 transition-colors flex items-center justify-center`}
+                    className={`${btnSize} shrink-0 rounded-md text-muted/40 hover:bg-red-50 hover:text-red-500 dark:hover:bg-red-900/20 transition-colors flex items-center justify-center opacity-0 group-hover:opacity-100`}
                 >
-                    <Trash2 size={13} />
+                    <Trash2 size={12} />
                 </button>
             </div>
 
-            <div className="flex items-center gap-1 mt-2">
+            {/* Row 2: Quantity controls + note */}
+            <div className="flex items-center gap-1 mt-1.5">
                 <button
-                    onClick={(e) => {
-                        e.stopPropagation();
-                        onEditNote(item.cartId, item.notes || '');
-                    }}
-                    className={`${isTouchMode ? 'w-10 h-10' : 'w-7 h-7'} rounded-lg text-slate-400 hover:bg-amber-50 hover:text-amber-500 transition-colors flex items-center justify-center`}
+                    onClick={(e) => { e.stopPropagation(); onEditNote(item.cartId, item.notes || ''); }}
+                    className={`${btnSize} rounded-md text-muted/60 hover:bg-amber-50 hover:text-amber-500 dark:hover:bg-amber-900/20 transition-colors flex items-center justify-center`}
                 >
-                    <Pencil size={13} />
+                    <Pencil size={11} />
                 </button>
-                <button
-                    onClick={(e) => {
-                        e.stopPropagation();
-                        onUpdateQuantity(item.cartId, -1);
-                    }}
-                    className={`${isTouchMode ? 'w-10 h-10' : 'w-7 h-7'} rounded-lg bg-elevated dark:bg-elevated/50 text-muted dark:text-muted flex items-center justify-center hover:bg-primary/20 hover:text-primary transition-all`}
-                >
-                    <Minus size={isTouchMode ? 16 : 13} />
-                </button>
-                <span className={`${isTouchMode ? 'w-9 text-base' : 'w-7 text-sm'} text-center font-black text-main dark:text-main`}>
-                    {item.quantity}
-                </span>
-                <button
-                    onClick={(e) => {
-                        e.stopPropagation();
-                        onUpdateQuantity(item.cartId, 1);
-                    }}
-                    className={`${isTouchMode ? 'w-10 h-10' : 'w-7 h-7'} rounded-lg bg-primary/10 text-primary dark:text-primary flex items-center justify-center hover:bg-primary hover:text-white transition-all`}
-                >
-                    <Plus size={isTouchMode ? 16 : 13} />
-                </button>
+
+                <div className="flex items-center gap-0.5 ml-auto bg-elevated/40 rounded-lg p-0.5">
+                    <button
+                        onClick={(e) => { e.stopPropagation(); onUpdateQuantity(item.cartId, -1); }}
+                        className={`${btnSize} rounded-md bg-card text-muted flex items-center justify-center hover:text-primary transition-colors`}
+                    >
+                        <Minus size={12} />
+                    </button>
+                    <span className="w-6 text-center text-xs font-black text-main" style={{ fontVariantNumeric: 'tabular-nums' }}>
+                        {item.quantity}
+                    </span>
+                    <button
+                        onClick={(e) => { e.stopPropagation(); onUpdateQuantity(item.cartId, 1); }}
+                        className={`${btnSize} rounded-md bg-primary/10 text-primary flex items-center justify-center hover:bg-primary hover:text-white transition-colors`}
+                    >
+                        <Plus size={12} />
+                    </button>
+                </div>
             </div>
         </div>
     );

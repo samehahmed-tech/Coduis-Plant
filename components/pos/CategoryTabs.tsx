@@ -1,5 +1,5 @@
 import React from 'react';
-import { Grid3X3, LayoutGrid } from 'lucide-react';
+import { LayoutGrid } from 'lucide-react';
 import { MenuCategory } from '../../types';
 
 interface CategoryTabsProps {
@@ -29,72 +29,46 @@ const CategoryTabs: React.FC<CategoryTabsProps> = React.memo(({
         .sort((a, b) => (a.sortOrder || 0) - (b.sortOrder || 0));
 
     const allCategories = [
-        {
-            id: 'all',
-            name: 'All Menu',
-            nameAr: 'كل المنيو',
-            icon: 'LayoutGrid',
-        },
+        { id: 'all', name: 'All Items', nameAr: 'الكل' },
         ...validCategories
     ];
+    const isRTL = lang === 'ar';
 
     return (
-        <div className="relative w-full bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800">
-            <div className="px-3 md:px-4 py-2.5">
-                <div className="md:hidden flex items-center gap-2 overflow-x-auto no-scrollbar">
-                    {allCategories.map((cat) => (
-                        <button
-                            key={cat.id}
-                            onClick={() => onSetCategory(cat.id)}
-                            disabled={hasActiveFiltering && cat.id !== 'all' && (counts[cat.id] || 0) === 0}
-                            className={`
-                                flex flex-col items-center justify-center gap-1.5 min-w-[96px] h-[92px] rounded-xl border shrink-0 transition-all
-                                ${activeCategory === cat.id
-                                    ? 'bg-primary border-primary text-white shadow-md'
-                                    : 'bg-slate-50 dark:bg-slate-800/50 border-transparent text-slate-600 dark:text-slate-300'}
-                                ${hasActiveFiltering && cat.id !== 'all' && (counts[cat.id] || 0) === 0 ? 'opacity-45 cursor-not-allowed' : ''}
-                            `}
-                            title={lang === 'ar' ? (cat.nameAr || cat.name) : cat.name}
-                        >
-                            <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${activeCategory === cat.id ? 'bg-white/20' : 'bg-white dark:bg-slate-800'}`}>
-                                {cat.id === 'all' ? <LayoutGrid size={18} /> : <Grid3X3 size={18} className={activeCategory === cat.id ? 'text-white' : 'text-primary/60'} />}
-                            </div>
-                            <span className="text-[10px] font-black tracking-tight text-center px-1 line-clamp-2 leading-tight">
-                                {lang === 'ar' ? cat.nameAr || cat.name : cat.name}
-                            </span>
-                        </button>
-                    ))}
-                </div>
+        <div className="w-full bg-card border-b border-border/40">
+            <div className="flex items-center gap-1.5 px-2 md:px-3 py-1.5 overflow-x-auto no-scrollbar">
+                {allCategories.map((cat) => {
+                    const isActive = activeCategory === cat.id;
+                    const count = cat.id === 'all' ? totalCount : (counts[cat.id] || 0);
+                    const isDisabled = hasActiveFiltering && cat.id !== 'all' && count === 0;
 
-                <div className="hidden md:grid grid-flow-col grid-rows-2 auto-cols-[minmax(170px,1fr)] gap-2 overflow-x-auto no-scrollbar">
-                    {allCategories.map((cat) => (
+                    return (
                         <button
                             key={cat.id}
                             onClick={() => onSetCategory(cat.id)}
-                            disabled={hasActiveFiltering && cat.id !== 'all' && (counts[cat.id] || 0) === 0}
+                            disabled={isDisabled}
                             className={`
-                                flex items-center justify-between gap-2 px-3 py-2 h-[64px] rounded-xl border transition-all min-w-[170px]
-                                ${activeCategory === cat.id
-                                    ? 'bg-primary border-primary text-white shadow-md'
-                                    : 'bg-slate-50 dark:bg-slate-800/40 border-transparent text-slate-700 dark:text-slate-200 hover:border-primary/25'}
-                                ${hasActiveFiltering && cat.id !== 'all' && (counts[cat.id] || 0) === 0 ? 'opacity-45 cursor-not-allowed' : ''}
+                                shrink-0 inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-bold transition-all duration-200
+                                ${isActive
+                                    ? 'bg-primary text-white shadow-sm shadow-primary/25'
+                                    : 'bg-elevated/50 text-muted hover:text-main hover:bg-elevated'
+                                }
+                                ${isDisabled ? 'opacity-40 cursor-not-allowed' : 'cursor-pointer'}
                             `}
-                            title={lang === 'ar' ? (cat.nameAr || cat.name) : cat.name}
                         >
-                            <div className="flex items-center gap-2 min-w-0">
-                                <div className={`w-7 h-7 rounded-md flex items-center justify-center ${activeCategory === cat.id ? 'bg-white/20' : 'bg-white dark:bg-slate-800'}`}>
-                                    {cat.id === 'all' ? <LayoutGrid size={15} /> : <Grid3X3 size={15} className={activeCategory === cat.id ? 'text-white' : 'text-primary/60'} />}
-                                </div>
-                                <span className="text-[12px] font-black tracking-tight leading-tight line-clamp-2 text-start">
-                                    {lang === 'ar' ? cat.nameAr || cat.name : cat.name}
-                                </span>
-                            </div>
-                            <span className={`text-[10px] px-1.5 py-0.5 rounded-md font-black shrink-0 ${activeCategory === cat.id ? 'bg-white/20 text-white' : 'bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-200'}`}>
-                                {cat.id === 'all' ? totalCount : (counts[cat.id] || 0)}
+                            {cat.id === 'all' && <LayoutGrid size={13} />}
+                            <span className="whitespace-nowrap">
+                                {isRTL ? ((cat as any).nameAr || cat.name) : cat.name}
                             </span>
+                            {hasActiveFiltering && (
+                                <span className={`text-[9px] font-black px-1.5 py-0.5 rounded-md ${isActive ? 'bg-white/20' : 'bg-elevated'
+                                    }`}>
+                                    {count}
+                                </span>
+                            )}
                         </button>
-                    ))}
-                </div>
+                    );
+                })}
             </div>
         </div>
     );

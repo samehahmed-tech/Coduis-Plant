@@ -1,8 +1,8 @@
 /**
  * POSItemsPanel — Left panel: Search bar + Category chips + Filter bar + Item Grid
- * Clean layout inspired by modern POS UI with compact vertical usage.
+ * Clean layout with compact vertical usage for maximum item visibility.
  */
-import React, { useMemo } from 'react';
+import React from 'react';
 import {
     Search, X, SlidersHorizontal, ArrowUpDown, LayoutGrid, Grid2x2, Plus, Sparkles
 } from 'lucide-react';
@@ -11,24 +11,20 @@ import ItemGrid from './ItemGrid';
 import type { MenuCategory, OrderItem } from '../../types';
 
 interface POSItemsPanelProps {
-    // Categories
     categories: MenuCategory[];
     activeCategory: string;
     onSetCategory: (id: string) => void;
     categoryResultCounts: Record<string, number>;
     totalMatchedCount: number;
     hasActiveFiltering: boolean;
-    // Items
     pricedItems: any[];
     cartItems: OrderItem[];
     onAddItem: (item: any) => void;
     onRemoveItem: (item: any) => void;
     highlightedItemId: string | null;
-    // Search
     searchQuery: string;
     onSearchChange: (q: string) => void;
     searchInputRef: React.RefObject<HTMLInputElement>;
-    // Filters
     itemFilter: 'all' | 'available' | 'popular';
     onSetFilter: (f: 'all' | 'available' | 'popular') => void;
     itemSort: 'smart' | 'name' | 'price_asc' | 'price_desc';
@@ -38,22 +34,17 @@ interface POSItemsPanelProps {
     showMobileFilters: boolean;
     onToggleFilters: () => void;
     onResetFilters: () => void;
-    // QuickPick
     quickPickItems: any[];
     upsellSuggestions: any[];
-    // Category strip
     showCategoryStrip: boolean;
     onToggleCategoryStrip: () => void;
     isTabletViewport: boolean;
-    // Quick category nav
     quickCategoryNav: any[];
-    // Layout
     isTouchMode: boolean;
     lang: string;
     t: any;
     currencySymbol: string;
     isCartVisible: boolean;
-    // Mobile mini cart
     cartStats: { lines: number; qty: number };
     cartTotal: number;
     currentOrderPreview: { id: string; name: string; quantity: number }[];
@@ -79,11 +70,11 @@ const POSItemsPanel: React.FC<POSItemsPanelProps> = ({
     const isRTL = lang === 'ar';
 
     return (
-        <div className={`min-w-0 flex flex-col h-full overflow-hidden min-h-0 bg-app transition-all duration-300 ${isCartVisible ? 'lg:rounded-xl lg:border lg:border-border/40 lg:mx-1.5 lg:my-1.5' : ''}`}>
+        <div className={`min-w-0 flex flex-col h-full overflow-hidden min-h-0 bg-app transition-all duration-200 ${isCartVisible ? 'lg:rounded-xl lg:border lg:border-border/30 lg:mx-1 lg:my-1' : ''}`}>
 
-            {/* ── Category Tabs ── */}
+            {/* ── Category Tabs (compact horizontal pills) ── */}
             {(!isTabletViewport || showCategoryStrip) && (
-                <div className="shrink-0 flex-col flex overflow-hidden">
+                <div className="shrink-0">
                     <CategoryTabs
                         categories={categories}
                         activeCategory={activeCategory}
@@ -97,84 +88,71 @@ const POSItemsPanel: React.FC<POSItemsPanelProps> = ({
                 </div>
             )}
 
-            {/* ── Search & Actions Strip ── */}
+            {/* ── Search & Controls ── */}
             <div className="flex-1 flex flex-col h-full overflow-hidden min-h-0">
-                <div className="px-2 md:px-3 py-2 flex flex-col gap-2 border-b border-border/40 bg-card">
-                    {/* Row 1: Category label + filter toggles */}
-                    <div className="flex items-center justify-between gap-2">
-                        <div className="flex items-center gap-2 min-w-0">
-                            <div className="w-1 h-5 bg-primary rounded-full shrink-0" />
-                            <h2 className="text-xs font-black uppercase tracking-widest text-muted truncate">
-                                {activeCategory === 'all'
-                                    ? (isRTL ? 'جميع الأصناف' : 'All Items')
-                                    : ((isRTL ? categories.find(c => c.id === activeCategory)?.nameAr : null) ||
-                                        categories.find(c => c.id === activeCategory)?.name ||
-                                        (isRTL ? 'القسم' : 'Category'))
-                                }
-                            </h2>
-                        </div>
-
-                        <div className="flex items-center gap-1.5 text-[10px] font-black uppercase tracking-wider">
-                            <span className="px-2 py-1 rounded-full bg-primary/10 text-primary">
-                                {pricedItems.length} {isRTL ? 'صنف' : 'items'}
-                            </span>
-                            {isTabletViewport && (
+                <div className="px-2 md:px-3 py-1.5 flex flex-col gap-1.5 border-b border-border/30 bg-card/80">
+                    {/* Search bar + controls row */}
+                    <div className="flex items-center gap-1.5">
+                        <div className="relative flex-1 min-w-0">
+                            <Search className={`absolute top-1/2 -translate-y-1/2 text-muted/40 w-3.5 h-3.5 ${isRTL ? 'right-2.5' : 'left-2.5'}`} />
+                            <input
+                                ref={searchInputRef}
+                                type="text"
+                                placeholder={t.search_placeholder}
+                                value={searchQuery}
+                                onChange={(e) => onSearchChange(e.target.value)}
+                                className={`w-full h-8 text-xs bg-elevated/40 border border-border/30 rounded-lg focus:ring-1 focus:ring-primary/30 focus:border-primary/40 font-semibold outline-none transition-all ${isRTL ? 'pr-8 pl-8 text-right' : 'pl-8 pr-8 text-left'}`}
+                            />
+                            {searchQuery && (
                                 <button
-                                    onClick={onToggleCategoryStrip}
-                                    className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-elevated text-muted hover:text-primary transition-colors"
+                                    onClick={() => onSearchChange('')}
+                                    className={`absolute top-1/2 -translate-y-1/2 text-muted hover:text-primary transition-colors ${isRTL ? 'left-2.5' : 'right-2.5'}`}
                                 >
-                                    <LayoutGrid size={11} />
-                                    {showCategoryStrip ? (isRTL ? 'إخفاء' : 'Hide') : (isRTL ? 'الأقسام' : 'Categories')}
+                                    <X size={12} />
                                 </button>
                             )}
-                            <button
-                                onClick={onToggleFilters}
-                                className={`inline-flex items-center gap-1 px-2 py-1 rounded-full transition-colors ${showMobileFilters ? 'bg-primary/10 text-primary' : 'bg-elevated text-muted hover:text-primary'}`}
-                            >
-                                <SlidersHorizontal size={11} />
-                                {isRTL ? 'فلاتر' : 'Filters'}
-                            </button>
                         </div>
-                    </div>
 
-                    {/* Row 2: Search */}
-                    <div className="relative w-full">
-                        <Search className={`absolute top-1/2 -translate-y-1/2 text-muted/40 w-4 h-4 ${isRTL ? 'right-3' : 'left-3'}`} />
-                        <input
-                            ref={searchInputRef}
-                            type="text"
-                            placeholder={t.search_placeholder}
-                            value={searchQuery}
-                            onChange={(e) => onSearchChange(e.target.value)}
-                            className={`w-full py-2.5 text-sm bg-elevated/50 border border-border/30 rounded-xl focus:ring-2 focus:ring-primary/30 focus:border-primary/40 font-semibold outline-none transition-all ${isRTL ? 'pr-10 pl-10 text-right' : 'pl-10 pr-10 text-left'}`}
-                        />
-                        {searchQuery && (
+                        {/* Compact action buttons */}
+                        <span className="text-[9px] font-black text-primary px-1.5 py-0.5 bg-primary/10 rounded-md whitespace-nowrap">
+                            {pricedItems.length}
+                        </span>
+
+                        {isTabletViewport && (
                             <button
-                                onClick={() => onSearchChange('')}
-                                className={`absolute top-1/2 -translate-y-1/2 text-muted hover:text-primary transition-colors ${isRTL ? 'left-3' : 'right-3'}`}
+                                onClick={onToggleCategoryStrip}
+                                className="shrink-0 w-7 h-7 rounded-lg bg-elevated/50 text-muted hover:text-primary flex items-center justify-center transition-colors"
+                                title={showCategoryStrip ? 'Hide categories' : 'Show categories'}
                             >
-                                <X size={14} />
+                                <LayoutGrid size={13} />
                             </button>
                         )}
+
+                        <button
+                            onClick={onToggleFilters}
+                            className={`shrink-0 w-7 h-7 rounded-lg flex items-center justify-center transition-colors ${showMobileFilters ? 'bg-primary/10 text-primary' : 'bg-elevated/50 text-muted hover:text-primary'}`}
+                        >
+                            <SlidersHorizontal size={13} />
+                        </button>
                     </div>
 
-                    {/* Row 3: Inline cart mini-bar (mobile, only when cart has items and not open) */}
+                    {/* Inline cart mini-bar (mobile only) */}
                     {isCartVisible && !isCartOpenMobile && (hasCartItems || selectedTableId) && (
-                        <div className="lg:hidden rounded-xl border border-border/50 bg-elevated/50 px-3 py-2">
+                        <div className="lg:hidden rounded-lg border border-border/40 bg-elevated/40 px-2.5 py-1.5">
                             <div className="flex items-center justify-between gap-2">
                                 <div className="min-w-0">
-                                    <p className="text-[10px] font-black uppercase tracking-widest text-muted">
+                                    <p className="text-[9px] font-black uppercase tracking-widest text-muted">
                                         {isRTL ? 'الأوردر الحالي' : 'Current Order'}
                                     </p>
-                                    <p className="text-xs font-black text-main truncate">
+                                    <p className="text-[11px] font-black text-main truncate">
                                         {hasCartItems
-                                            ? `${cartStats.lines} ${isRTL ? 'بنود' : 'lines'} • ${cartStats.qty} ${isRTL ? 'قطعة' : 'items'} • ${currencySymbol}${cartTotal.toFixed(2)}`
-                                            : (isRTL ? 'لا توجد بنود بعد' : 'No items yet')}
+                                            ? `${cartStats.lines} ${isRTL ? 'بنود' : 'lines'} • ${currencySymbol}${cartTotal.toFixed(2)}`
+                                            : (isRTL ? 'لا توجد بنود' : 'No items yet')}
                                     </p>
                                 </div>
                                 <button
                                     onClick={onOpenCart}
-                                    className="shrink-0 px-3 py-1.5 rounded-lg bg-primary text-white text-[10px] font-black uppercase tracking-wider"
+                                    className="shrink-0 px-2.5 py-1 rounded-lg bg-primary text-white text-[10px] font-black uppercase tracking-wider"
                                 >
                                     {isRTL ? 'مراجعة' : 'Review'}
                                 </button>
@@ -182,48 +160,20 @@ const POSItemsPanel: React.FC<POSItemsPanelProps> = ({
                         </div>
                     )}
 
-                    {/* Quick category chips */}
-                    <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar py-0.5">
-                        <button
-                            onClick={() => onSetCategory('all')}
-                            className={`shrink-0 px-2.5 py-1.5 rounded-full text-[10px] font-black uppercase tracking-wider transition-colors ${activeCategory === 'all'
-                                    ? 'bg-primary text-white'
-                                    : 'bg-elevated text-muted hover:text-primary'
-                                }`}
-                        >
-                            {isRTL ? 'الكل' : 'All'}
-                        </button>
-                        {quickCategoryNav.map((cat: any) => (
-                            <button
-                                key={`qcat-${cat.id}`}
-                                onClick={() => onSetCategory(cat.id)}
-                                className={`shrink-0 px-2.5 py-1.5 rounded-full text-[10px] font-black uppercase tracking-wider transition-colors ${activeCategory === cat.id
-                                        ? 'bg-primary text-white'
-                                        : 'bg-elevated text-muted hover:text-primary'
-                                    }`}
-                            >
-                                {isRTL ? (cat.nameAr || cat.name) : cat.name}
-                                <span className={`ml-1 text-[9px] ${activeCategory === cat.id ? 'text-white/80' : 'opacity-50'}`}>
-                                    {cat.count}
-                                </span>
-                            </button>
-                        ))}
-                    </div>
-
-                    {/* Filter controls */}
+                    {/* Filter controls (collapsed by default) */}
                     {showMobileFilters && (
                         <div className="flex flex-wrap items-center gap-1.5">
                             {/* Filter pills */}
-                            <div className="inline-flex bg-elevated rounded-lg p-0.5">
+                            <div className="inline-flex bg-elevated/60 rounded-lg p-0.5">
                                 {[
                                     { id: 'all', label: isRTL ? 'الكل' : 'All' },
                                     { id: 'available', label: isRTL ? 'متاح' : 'Available' },
-                                    { id: 'popular', label: isRTL ? 'الأكثر طلباً' : 'Popular' }
+                                    { id: 'popular', label: isRTL ? 'الأكثر' : 'Popular' },
                                 ].map((filter) => (
                                     <button
                                         key={filter.id}
                                         onClick={() => onSetFilter(filter.id as any)}
-                                        className={`px-2 py-1 rounded-md text-[10px] font-black uppercase tracking-wider transition-colors ${itemFilter === filter.id ? 'bg-card text-primary shadow-sm' : 'text-muted'}`}
+                                        className={`px-2 py-1 rounded-md text-[9px] font-black uppercase tracking-wider transition-colors ${itemFilter === filter.id ? 'bg-card text-primary shadow-sm' : 'text-muted'}`}
                                     >
                                         {filter.label}
                                     </button>
@@ -232,11 +182,11 @@ const POSItemsPanel: React.FC<POSItemsPanelProps> = ({
 
                             {/* Sort */}
                             <div className="relative">
-                                <ArrowUpDown size={12} className={`absolute top-1/2 -translate-y-1/2 text-muted ${isRTL ? 'right-2' : 'left-2'}`} />
+                                <ArrowUpDown size={10} className={`absolute top-1/2 -translate-y-1/2 text-muted ${isRTL ? 'right-1.5' : 'left-1.5'}`} />
                                 <select
                                     value={itemSort}
                                     onChange={(e) => onSetSort(e.target.value as any)}
-                                    className={`h-7 rounded-lg bg-elevated border-0 text-[10px] font-black uppercase tracking-wider text-muted ${isRTL ? 'pr-7 pl-2' : 'pl-7 pr-2'}`}
+                                    className={`h-6 rounded-md bg-elevated/60 border-0 text-[9px] font-black uppercase tracking-wider text-muted ${isRTL ? 'pr-5 pl-1.5' : 'pl-5 pr-1.5'}`}
                                 >
                                     <option value="smart">{isRTL ? 'ذكي' : 'Smart'}</option>
                                     <option value="name">{isRTL ? 'الاسم' : 'Name'}</option>
@@ -246,48 +196,48 @@ const POSItemsPanel: React.FC<POSItemsPanelProps> = ({
                             </div>
 
                             {/* Density */}
-                            <div className="inline-flex bg-elevated rounded-lg p-0.5">
-                                <button onClick={() => onSetDensity('comfortable')} className={`w-7 h-7 rounded-md flex items-center justify-center ${itemDensity === 'comfortable' ? 'bg-card text-primary shadow-sm' : 'text-muted'}`}>
-                                    <LayoutGrid size={13} />
+                            <div className="inline-flex bg-elevated/60 rounded-lg p-0.5">
+                                <button onClick={() => onSetDensity('comfortable')} className={`w-6 h-6 rounded-md flex items-center justify-center ${itemDensity === 'comfortable' ? 'bg-card text-primary shadow-sm' : 'text-muted'}`}>
+                                    <LayoutGrid size={11} />
                                 </button>
-                                <button onClick={() => onSetDensity('compact')} className={`w-7 h-7 rounded-md flex items-center justify-center ${itemDensity === 'compact' ? 'bg-card text-primary shadow-sm' : 'text-muted'}`}>
-                                    <Grid2x2 size={13} />
+                                <button onClick={() => onSetDensity('compact')} className={`w-6 h-6 rounded-md flex items-center justify-center ${itemDensity === 'compact' ? 'bg-card text-primary shadow-sm' : 'text-muted'}`}>
+                                    <Grid2x2 size={11} />
                                 </button>
-                                <button onClick={() => onSetDensity('ultra')} className={`w-7 h-7 rounded-md flex items-center justify-center ${itemDensity === 'ultra' ? 'bg-card text-primary shadow-sm' : 'text-muted'}`}>
-                                    <span className="text-[8px] font-black">UL</span>
+                                <button onClick={() => onSetDensity('ultra')} className={`w-6 h-6 rounded-md flex items-center justify-center ${itemDensity === 'ultra' ? 'bg-card text-primary shadow-sm' : 'text-muted'}`}>
+                                    <span className="text-[7px] font-black">UL</span>
                                 </button>
                             </div>
 
                             {(searchQuery || itemFilter !== 'all' || itemSort !== 'smart') && (
-                                <button onClick={onResetFilters} className="px-2 py-1 rounded-md bg-elevated text-muted hover:text-primary text-[10px] font-black uppercase tracking-wider">
-                                    {isRTL ? 'إعادة ضبط' : 'Reset'}
+                                <button onClick={onResetFilters} className="px-1.5 py-1 rounded-md text-muted hover:text-primary text-[9px] font-black uppercase">
+                                    {isRTL ? 'إعادة' : 'Reset'}
                                 </button>
                             )}
                         </div>
                     )}
 
-                    {/* Smart picks */}
+                    {/* Quick picks */}
                     {showMobileFilters && quickPickItems.length > 0 && (
-                        <div className="flex flex-wrap items-center gap-1.5 py-0.5">
-                            <span className="shrink-0 text-[10px] font-black uppercase tracking-wider text-muted flex items-center gap-1">
-                                <Sparkles size={10} /> {isRTL ? 'مقترحات' : 'Quick'}
+                        <div className="flex items-center gap-1 overflow-x-auto no-scrollbar">
+                            <span className="shrink-0 text-[9px] font-black uppercase tracking-wider text-muted flex items-center gap-0.5">
+                                <Sparkles size={9} /> {isRTL ? 'سريع' : 'Quick'}
                             </span>
                             {quickPickItems.map((item: any) => (
                                 <button
                                     key={`qp-${item.id}`}
                                     onClick={() => onAddItem(item)}
-                                    className="shrink-0 inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-elevated text-main hover:bg-primary hover:text-white transition-colors"
+                                    className="shrink-0 inline-flex items-center gap-0.5 px-2 py-1 rounded-full bg-elevated/60 text-main hover:bg-primary hover:text-white transition-colors"
                                 >
-                                    <Plus size={10} />
-                                    <span className="text-[10px] font-bold">{(item as any).displayName || item.name}</span>
+                                    <Plus size={9} />
+                                    <span className="text-[9px] font-bold whitespace-nowrap">{(item as any).displayName || item.name}</span>
                                 </button>
                             ))}
                         </div>
                     )}
                 </div>
 
-                {/* ── Item Grid ── */}
-                <div className="flex-1 overflow-y-auto p-2 md:p-3 min-h-0 bg-app">
+                {/* ── Item Grid (maximized area) ── */}
+                <div className="flex-1 overflow-y-auto p-1.5 md:p-2 min-h-0 bg-app custom-scrollbar">
                     <ItemGrid
                         items={pricedItems}
                         onAddItem={onAddItem}
