@@ -69,7 +69,14 @@ const FranchiseManager = React.lazy(loaders.FranchiseManager);
 const LazySetupWizard = React.lazy(loaders.SetupWizard);
 const GoLiveCenter = React.lazy(loaders.GoLiveCenter);
 
-const Loading = () => <div className="p-8 text-center text-slate-400 font-black uppercase tracking-widest text-[8px] opacity-40">Initializing Module...</div>;
+const Loading = () => (
+    <div className="p-8 flex flex-col items-center justify-center min-h-[60vh] animate-pulse">
+        <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-indigo-500/20 to-violet-500/20 flex items-center justify-center mb-6">
+            <div className="w-6 h-6 rounded-full border-2 border-indigo-500/40 border-t-indigo-500 animate-spin" />
+        </div>
+        <div className="h-2 w-32 rounded-full bg-gradient-to-r from-transparent via-indigo-500/20 to-transparent" />
+    </div>
+);
 
 const RequirePermission: React.FC<{ permission: AppPermission; children: React.ReactNode }> = ({ permission, children }) => {
     const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
