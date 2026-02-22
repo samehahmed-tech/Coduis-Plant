@@ -1419,7 +1419,7 @@ const POS: React.FC = () => {
             <div className="flex-1 flex overflow-hidden relative min-h-0 bg-app">
                {/* Cart Mobile Overlay */}
                {shouldShowCart && isCartOpenMobile && (
-                  <div className="xl:hidden fixed inset-0 bg-black/40 backdrop-blur-sm z-30 animate-in fade-in" onClick={() => setIsCartOpenMobile(false)} />
+                  <div className="xl:hidden fixed inset-0 bg-black/30 z-30 animate-in fade-in" onClick={() => setIsCartOpenMobile(false)} />
                )}
 
                {showMap ? (
