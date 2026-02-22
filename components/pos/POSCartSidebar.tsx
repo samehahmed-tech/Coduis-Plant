@@ -171,7 +171,7 @@ const POSCartSidebar: React.FC<POSCartSidebarProps> = ({
                     </div>
 
                     {/* Items list */}
-                    <div className="flex-1 overflow-y-auto p-2 pb-3 space-y-1.5 no-scrollbar min-h-0">
+                    <div className="flex-1 overflow-y-auto px-1 py-0.5 custom-scrollbar min-h-0">
                         {filteredCartItems.map(item => (
                             <CartItem
                                 key={item.cartId}

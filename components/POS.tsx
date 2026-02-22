@@ -26,6 +26,7 @@ import { ManagerApprovalModal } from './pos/ManagerApprovalModal';
 import TableManagementModal from './pos/TableManagementModal';
 import POSToolbar from './pos/POSToolbar';
 import POSItemsPanel from './pos/POSItemsPanel';
+import CategorySidebar from './pos/CategorySidebar';
 import POSCartSidebar from './pos/POSCartSidebar';
 import { printService } from '../src/services/printService';
 import { formatReceipt } from '../services/receiptFormatter';
@@ -113,7 +114,7 @@ const POS: React.FC = () => {
    const [searchQuery, setSearchQuery] = useState('');
    const [itemFilter, setItemFilter] = useState<'all' | 'available' | 'popular'>('all');
    const [itemSort, setItemSort] = useState<'smart' | 'name' | 'price_asc' | 'price_desc'>('smart');
-   const [itemDensity, setItemDensity] = useState<'comfortable' | 'compact' | 'ultra'>('compact');
+   const [itemDensity, setItemDensity] = useState<'comfortable' | 'compact' | 'ultra' | 'buttons'>('compact');
    const [editingItemId, setEditingItemId] = useState<string | null>(null);
    const [noteInput, setNoteInput] = useState('');
    const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>(PaymentMethod.CASH);
@@ -1327,16 +1328,16 @@ const POS: React.FC = () => {
    const hasCartItems = safeActiveCart.length > 0;
    const cartPanelWidthClass =
       cartPanelWidth === 'compact'
-         ? 'sm:w-[340px] lg:w-[360px]'
+         ? 'sm:w-[280px] lg:w-[310px]'
          : cartPanelWidth === 'wide'
-            ? 'sm:w-[420px] lg:w-[460px]'
-            : 'sm:w-[380px] lg:w-[420px]';
+            ? 'sm:w-[360px] lg:w-[400px]'
+            : 'sm:w-[320px] lg:w-[340px]';
    const desktopWorkspaceClass = shouldRenderCartPanel
       ? (cartPanelWidth === 'compact'
-         ? 'lg:grid-cols-[minmax(0,1fr)_360px] 2xl:grid-cols-[minmax(0,1fr)_380px]'
+         ? 'lg:grid-cols-[minmax(0,1fr)_310px] 2xl:grid-cols-[minmax(0,1fr)_330px]'
          : cartPanelWidth === 'wide'
-            ? 'lg:grid-cols-[minmax(0,1fr)_460px] 2xl:grid-cols-[minmax(0,1fr)_520px]'
-            : 'lg:grid-cols-[minmax(0,1fr)_420px] 2xl:grid-cols-[minmax(0,1fr)_460px]')
+            ? 'lg:grid-cols-[minmax(0,1fr)_400px] 2xl:grid-cols-[minmax(0,1fr)_430px]'
+            : 'lg:grid-cols-[minmax(0,1fr)_340px] 2xl:grid-cols-[minmax(0,1fr)_370px]')
       : 'lg:grid-cols-1';
 
    useEffect(() => {
@@ -1472,6 +1473,17 @@ const POS: React.FC = () => {
                ) : (
                   <>
                      <div className={`flex-1 min-h-0 h-full overflow-hidden grid grid-cols-1 ${desktopWorkspaceClass} gap-0`}>
+                        <div className="flex overflow-hidden min-h-0 min-w-0">
+                        {/* ═══ Category Sidebar (Desktop) ═══ */}
+                        <CategorySidebar
+                           categories={currentCategories}
+                           activeCategory={activeCategory}
+                           onSetCategory={setActiveCategory}
+                           lang={lang}
+                           counts={categoryResultCounts}
+                           totalCount={totalMatchedAcrossCategories}
+                        />
+
                         {/* ═══ Items Panel (Left) ═══ */}
                         <POSItemsPanel
                            categories={currentCategories}
@@ -1516,6 +1528,7 @@ const POS: React.FC = () => {
                            selectedTableId={selectedTableId}
                            hasCartItems={hasCartItems}
                         />
+                        </div>
 
                         {/* ═══ Mobile FAB (fixed bottom cart button) ═══ */}
                         {shouldRenderCartPanel && !isCartOpenMobile && !showMap && !showCustomerSelect && (
