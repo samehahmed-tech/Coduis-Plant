@@ -2,7 +2,6 @@ import React, { useMemo } from 'react';
 import { Ban } from 'lucide-react';
 import { MenuItem } from '../../types';
 import MenuItemCard from './MenuItemCard';
-import VirtualGrid from '../common/VirtualGrid';
 
 interface ItemGridProps {
     items: MenuItem[];
@@ -21,18 +20,10 @@ const ItemGrid: React.FC<ItemGridProps> = React.memo(({
     currencySymbol, isTouchMode,
     density = 'comfortable', lang = 'en', highlightedItemId = null,
 }) => {
-    const isUltra = density === 'ultra';
-    const isButtons = density === 'buttons';
-    const isCompact = density === 'compact';
-
-    const columnWidth = isCompact ? (isTouchMode ? 170 : 155) : (isTouchMode ? 200 : 180);
-    const rowHeight = isCompact ? (isTouchMode ? 175 : 160) : (isTouchMode ? 230 : 210);
-    const gap = isCompact ? 6 : 8;
-
     const quantityByItemId = useMemo(() => {
         const map: Record<string, number> = {};
-        for (const cartItem of cartItems) {
-            map[cartItem.id] = (map[cartItem.id] || 0) + (cartItem.quantity || 0);
+        for (const ci of cartItems) {
+            map[ci.id] = (map[ci.id] || 0) + (ci.quantity || 0);
         }
         return map;
     }, [cartItems]);
@@ -63,39 +54,26 @@ const ItemGrid: React.FC<ItemGridProps> = React.memo(({
         />
     );
 
-    // BUTTONS mode: tiny button grid, max items per screen
-    if (isButtons) {
-        return (
-            <div className="h-full overflow-y-auto custom-scrollbar">
-                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-1 p-0.5">
-                    {items.map(renderCard)}
-                </div>
-            </div>
-        );
-    }
+    // Grid class based on density — all use CSS grid now (simpler, more responsive)
+    const gridClass = (() => {
+        switch (density) {
+            case 'buttons':
+                return 'grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-7 gap-1';
+            case 'ultra':
+                return 'grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-1';
+            case 'compact':
+                return 'grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-5 xl:grid-cols-6 gap-1.5';
+            default: // comfortable
+                return 'grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-4 xl:grid-cols-5 gap-2';
+        }
+    })();
 
-    // ULTRA mode: list rows, responsive columns
-    if (isUltra) {
-        return (
-            <div className="h-full overflow-y-auto custom-scrollbar">
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-1 p-0.5">
-                    {items.map(renderCard)}
-                </div>
-            </div>
-        );
-    }
-
-    // IMAGE modes: virtualized grid for performance
     return (
-        <VirtualGrid
-            itemCount={items.length}
-            columnWidth={columnWidth}
-            rowHeight={rowHeight}
-            gap={gap}
-            className="h-full custom-scrollbar"
-            renderItem={(index) => renderCard(items[index])}
-            getKey={(index) => items[index]?.id || index}
-        />
+        <div className="h-full overflow-y-auto custom-scrollbar">
+            <div className={gridClass}>
+                {items.map(renderCard)}
+            </div>
+        </div>
     );
 });
 
