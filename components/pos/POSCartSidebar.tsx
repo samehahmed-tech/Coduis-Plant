@@ -83,7 +83,7 @@ const POSCartSidebar: React.FC<POSCartSidebarProps> = ({
     return (
         <div className={`
          fixed lg:sticky lg:top-1.5 inset-y-0 w-[85%] max-w-[380px] lg:w-full ${cartPanelWidthClass}
-         bg-card flex flex-col h-full lg:h-[calc(100dvh-5.5rem)] lg:max-h-[calc(100dvh-5.5rem)]
+         bg-card/80 backdrop-blur-xl flex flex-col h-full lg:h-[calc(100dvh-5.5rem)] lg:max-h-[calc(100dvh-5.5rem)]
          shadow-2xl z-40 transition-transform duration-300
          ${isRTL ? 'border-r left-0' : 'border-l right-0'} border-border/50
          ${shouldShowCart && isCartOpenMobile ? 'translate-x-0' : (isRTL ? '-translate-x-full' : 'translate-x-full')} lg:translate-x-0

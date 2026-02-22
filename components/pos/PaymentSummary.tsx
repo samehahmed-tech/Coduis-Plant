@@ -69,7 +69,7 @@ const PaymentSummary: React.FC<PaymentSummaryProps> = ({
         <div className="p-2.5 md:p-3 bg-elevated dark:bg-elevated/30 border-b border-border/50 space-y-2.5 shrink-0">
             <div className="flex items-center justify-between bg-card/70 dark:bg-card/40 border border-border/50 rounded-xl px-3 py-2">
                 <div className="min-w-0">
-                    <p className="text-[9px] font-black uppercase tracking-widest text-slate-400">{t.total} {itemCount > 0 ? `(${itemCount})` : ''}</p>
+                    <p className="text-xs font-black uppercase tracking-wider text-slate-400">{t.total} {itemCount > 0 ? `(${itemCount})` : ''}</p>
                     <p className="text-base md:text-lg font-black text-main">{currencySymbol}{total.toFixed(2)}</p>
                 </div>
                 {onToggleCollapsed && (
@@ -120,7 +120,7 @@ const PaymentSummary: React.FC<PaymentSummaryProps> = ({
                 <button
                     onClick={onSendKitchen}
                     disabled={!canSubmit}
-                    className="py-2.5 bg-slate-900 text-white rounded-xl font-black text-[10px] uppercase tracking-wider hover:bg-slate-800 shadow-xl shadow-slate-900/20 disabled:opacity-50 transition-all flex items-center justify-center gap-2 min-h-[44px]"
+                    className="py-2.5 bg-slate-800 text-white rounded-xl font-black text-xs uppercase tracking-wide hover:bg-slate-700 shadow-lg shadow-slate-900/20 disabled:opacity-50 transition-all flex items-center justify-center gap-2 min-h-[44px]"
                 >
                     <ChefHat size={15} />
                     <span>{t.send_kitchen}</span>
@@ -129,7 +129,7 @@ const PaymentSummary: React.FC<PaymentSummaryProps> = ({
                     onClick={onQuickPay}
                     disabled={!canSubmit}
                     title={lang === 'ar' ? 'Quick Pay (Cash)' : 'Quick Pay (Cash)'}
-                    className="py-2.5 bg-emerald-500 text-white rounded-xl hover:bg-emerald-600 shadow-xl shadow-emerald-500/20 disabled:opacity-50 transition-all flex items-center justify-center gap-2 min-h-[44px]"
+                    className="py-2.5 bg-orange-500 text-white rounded-xl hover:bg-orange-400 shadow-lg shadow-orange-500/20 disabled:opacity-50 transition-all flex items-center justify-center gap-2 min-h-[44px]"
                 >
                     <Zap size={18} className="animate-pulse" />
                     <span className="text-[10px] font-black uppercase tracking-widest">{lang === 'ar' ? 'Quick Pay' : 'Quick Pay'}</span>
@@ -137,7 +137,7 @@ const PaymentSummary: React.FC<PaymentSummaryProps> = ({
                 <button
                     onClick={onSubmit}
                     disabled={!canSubmit}
-                    className="py-2.5 bg-primary text-white rounded-xl font-black text-[10px] uppercase tracking-widest hover:bg-primary-hover shadow-xl shadow-primary/20 disabled:opacity-50 transition-all min-h-[44px]"
+                    className="py-3 bg-emerald-600 text-white rounded-xl font-black text-sm uppercase tracking-wide hover:bg-emerald-500 shadow-xl shadow-emerald-600/30 disabled:opacity-50 transition-all min-h-[48px] col-span-2"
                 >
                     {t.place_order}
                 </button>
@@ -158,7 +158,7 @@ const PaymentSummary: React.FC<PaymentSummaryProps> = ({
                             className={`shrink-0 min-w-[74px] flex flex-col items-center justify-center gap-1 rounded-xl border-2 transition-all active:scale-95 ${paymentMethod === btn.id ? 'bg-primary border-primary text-white shadow-lg' : 'bg-card border-border/50 text-muted hover:border-primary/30'} ${isTouchMode ? 'py-2.5 px-2' : 'py-2 px-2'}`}
                         >
                             <btn.icon size={isTouchMode ? 18 : 15} />
-                            <span className="text-[9px] font-black uppercase tracking-tight text-center leading-none">
+                            <span className="text-[10px] font-black uppercase tracking-tight text-center leading-none">
                                 {btn.label}
                             </span>
                         </button>

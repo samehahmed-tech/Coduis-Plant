@@ -12,24 +12,24 @@ interface CategorySidebarProps {
 }
 
 const iconMap: [RegExp, React.ReactNode][] = [
-    [/coffee|قهوة|ساخن/i, <Coffee size={20} />],
-    [/pizza|بيتزا/i, <Pizza size={20} />],
-    [/drink|مشروب|عصير|بارد/i, <GlassWater size={20} />],
-    [/ice|dessert|حلو|آيس|ايس/i, <IceCream size={20} />],
-    [/salad|سلط/i, <Salad size={20} />],
-    [/soup|شورب/i, <Soup size={20} />],
-    [/sandwich|ساندو|فطار|breakfast|ملاخن/i, <Sandwich size={20} />],
-    [/meat|لحم|ستيك|مشوي/i, <Beef size={20} />],
-    [/fish|سمك|بحر/i, <Fish size={20} />],
-    [/cake|كيك|تورت/i, <Cake size={20} />],
-    [/special|عرض|مميز/i, <Sparkles size={20} />],
+    [/coffee|قهوة|ساخن/i, <Coffee size={22} />],
+    [/pizza|بيتزا/i, <Pizza size={22} />],
+    [/drink|مشروب|عصير|بارد/i, <GlassWater size={22} />],
+    [/ice|dessert|حلو|آيس|ايس/i, <IceCream size={22} />],
+    [/salad|سلط/i, <Salad size={22} />],
+    [/soup|شورب/i, <Soup size={22} />],
+    [/sandwich|ساندو|فطار|breakfast|ملاخن/i, <Sandwich size={22} />],
+    [/meat|لحم|ستيك|مشوي/i, <Beef size={22} />],
+    [/fish|سمك|بحر/i, <Fish size={22} />],
+    [/cake|كيك|تورت/i, <Cake size={22} />],
+    [/special|عرض|مميز/i, <Sparkles size={22} />],
 ];
 
 const getIcon = (name: string) => {
     for (const [re, icon] of iconMap) {
         if (re.test(name)) return icon;
     }
-    return <Utensils size={20} />;
+    return <Utensils size={22} />;
 };
 
 const CategoryButton: React.FC<{
@@ -39,19 +39,19 @@ const CategoryButton: React.FC<{
     <button
         onClick={onClick}
         className={`
-            w-full flex flex-col items-center gap-1.5 px-1 py-2.5 rounded-xl transition-colors duration-75 relative
+            w-full flex flex-col items-center gap-1.5 px-1.5 py-3 rounded-xl transition-colors duration-75 relative
             ${isActive
                 ? 'bg-primary text-white shadow-md shadow-primary/20'
                 : 'text-muted hover:bg-elevated/50 hover:text-main'
             }
         `}
     >
-        <div className={`w-11 h-11 rounded-xl flex items-center justify-center overflow-hidden shrink-0 ${isActive ? 'bg-white/20' : 'bg-elevated/40'}`}>
+        <div className={`w-12 h-12 rounded-xl flex items-center justify-center overflow-hidden shrink-0 ${isActive ? 'bg-white/20' : 'bg-elevated/40'}`}>
             {image ? (
                 <img src={image} alt="" className="w-full h-full object-cover" loading="lazy" />
             ) : icon}
         </div>
-        <span className="text-[9px] font-bold text-center leading-tight line-clamp-2 w-full px-0.5">
+        <span className="text-[10px] font-bold text-center leading-tight line-clamp-2 w-full px-0.5">
             {label}
         </span>
         {isActive && (
@@ -74,13 +74,13 @@ const CategorySidebar: React.FC<CategorySidebarProps> = React.memo(({
     }, [onSetCategory]);
 
     return (
-        <div className={`hidden md:flex flex-col w-20 shrink-0 bg-card ${isRTL ? 'border-l' : 'border-r'} border-border/20 h-full overflow-hidden`}>
+        <div className={`hidden md:flex flex-col w-[88px] shrink-0 bg-card ${isRTL ? 'border-l' : 'border-r'} border-border/20 h-full overflow-hidden`}>
             {/* All */}
             <div className="shrink-0 px-1.5 pt-1.5 pb-1">
                 <CategoryButton
                     id="all"
                     label={isRTL ? 'الكل' : 'All'}
-                    icon={<LayoutGrid size={20} />}
+                    icon={<LayoutGrid size={22} />}
                     isActive={activeCategory === 'all'}
                     isRTL={isRTL}
                     onClick={() => handleClick('all')}
