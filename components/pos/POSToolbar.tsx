@@ -42,7 +42,7 @@ const POSToolbar: React.FC<POSToolbarProps> = ({
     const isRTL = lang === 'ar';
 
     return (
-        <div className="shrink-0 border-b border-border/40 bg-card/90 px-2 md:px-3 py-1">
+        <div className="shrink-0 border-b border-border/30 bg-card/90 px-2.5 md:px-4 py-1.5">
             <div className="flex items-center gap-1 overflow-x-auto no-scrollbar">
                 {/* Order mode pills */}
                 <div className="flex items-center bg-elevated/50 rounded-lg p-0.5 shrink-0">
@@ -50,7 +50,7 @@ const POSToolbar: React.FC<POSToolbarProps> = ({
                         <button
                             key={entry.mode}
                             onClick={() => onSetOrderMode(entry.mode)}
-                            className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-[10px] font-black uppercase tracking-wider transition-all duration-150
+                            className={`inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-[11px] font-black uppercase tracking-wide transition-all duration-150
                                 ${activeOrderType === entry.mode
                                     ? entry.colorActive
                                     : 'text-muted hover:text-main'
@@ -66,7 +66,7 @@ const POSToolbar: React.FC<POSToolbarProps> = ({
                 {activeOrderType === OrderType.DINE_IN && (
                     <button
                         onClick={onShowTables}
-                        className="shrink-0 inline-flex items-center gap-1.5 px-2 py-1.5 rounded-md bg-elevated/40 text-muted text-[10px] font-black uppercase tracking-wider hover:text-primary transition-colors"
+                        className="shrink-0 inline-flex items-center gap-1.5 px-2.5 py-2 rounded-lg bg-elevated/40 text-muted text-[11px] font-black uppercase tracking-wide hover:text-primary transition-colors"
                     >
                         <LayoutGrid size={12} />
                         <span className="hidden sm:inline">{isRTL ? 'الطاولات' : 'Tables'}</span>
@@ -75,7 +75,7 @@ const POSToolbar: React.FC<POSToolbarProps> = ({
                 {activeOrderType === OrderType.DELIVERY && (
                     <button
                         onClick={onShowCustomers}
-                        className="shrink-0 inline-flex items-center gap-1.5 px-2 py-1.5 rounded-md bg-elevated/40 text-muted text-[10px] font-black uppercase tracking-wider hover:text-primary transition-colors"
+                        className="shrink-0 inline-flex items-center gap-1.5 px-2.5 py-2 rounded-lg bg-elevated/40 text-muted text-[11px] font-black uppercase tracking-wide hover:text-primary transition-colors"
                     >
                         <Truck size={12} />
                         <span className="hidden sm:inline">{isRTL ? 'العملاء' : 'Customers'}</span>
@@ -85,7 +85,7 @@ const POSToolbar: React.FC<POSToolbarProps> = ({
                 {/* Search shortcut */}
                 <button
                     onClick={onFocusSearch}
-                    className="shrink-0 hidden md:inline-flex items-center gap-1 px-2 py-1.5 rounded-md bg-elevated/40 text-muted text-[10px] font-black hover:text-primary transition-colors"
+                    className="shrink-0 hidden md:inline-flex items-center gap-1 px-2.5 py-2 rounded-lg bg-elevated/40 text-muted text-[10px] font-black hover:text-primary transition-colors"
                 >
                     <Search size={12} />
                     <span className="text-[9px] px-1 py-0.5 rounded bg-elevated">/</span>
@@ -94,7 +94,7 @@ const POSToolbar: React.FC<POSToolbarProps> = ({
                 {/* Cart toggle (mobile/tablet) */}
                 <button
                     onClick={onToggleCart}
-                    className="shrink-0 lg:hidden inline-flex items-center gap-1 px-2 py-1.5 rounded-md bg-elevated/40 text-muted text-[10px] font-black hover:text-primary transition-colors relative"
+                    className="shrink-0 lg:hidden inline-flex items-center gap-1 px-2.5 py-2 rounded-lg bg-elevated/40 text-muted text-[10px] font-black hover:text-primary transition-colors relative"
                 >
                     <ShoppingBag size={13} />
                     {cartCount > 0 && (
@@ -110,7 +110,7 @@ const POSToolbar: React.FC<POSToolbarProps> = ({
                 {hasCartItems && (
                     <button
                         onClick={onQuickPay}
-                        className="shrink-0 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-600 text-white text-[10px] font-black uppercase tracking-wider hover:bg-emerald-500 transition-colors shadow-sm"
+                        className="shrink-0 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-600 text-white text-[11px] font-black uppercase tracking-wide hover:bg-emerald-500 transition-colors shadow-sm"
                     >
                         <Zap size={12} fill="currentColor" />
                         <span className="hidden sm:inline">{isRTL ? 'دفع سريع' : 'Quick Pay'}</span>

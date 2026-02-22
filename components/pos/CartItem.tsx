@@ -20,52 +20,52 @@ const CartItem: React.FC<CartItemProps> = React.memo(({
     const lineTotal = unitPrice * Number(item.quantity || 0);
 
     return (
-        <div className="group flex items-center gap-1.5 px-2 py-1.5 border-b border-border/20 hover:bg-elevated/20 transition-colors">
+        <div className="group flex items-center gap-2 px-2.5 py-2 border-b border-border/15 hover:bg-elevated/20 transition-colors">
             {/* Qty controls */}
             <div className="flex items-center gap-px shrink-0">
                 <button
                     onClick={(e) => { e.stopPropagation(); onUpdateQuantity(item.cartId, -1); }}
-                    className="w-5 h-5 rounded bg-elevated text-muted flex items-center justify-center hover:text-red-500 transition-colors"
+                    className="w-6 h-6 rounded-md bg-elevated text-muted flex items-center justify-center hover:text-red-500 transition-colors"
                 >
-                    <Minus size={9} />
+                    <Minus size={12} />
                 </button>
-                <span className="w-5 text-center text-[10px] font-black text-main" style={{ fontVariantNumeric: 'tabular-nums' }}>
+                <span className="w-6 text-center text-sm font-black text-main" style={{ fontVariantNumeric: 'tabular-nums' }}>
                     {item.quantity}
                 </span>
                 <button
                     onClick={(e) => { e.stopPropagation(); onUpdateQuantity(item.cartId, 1); }}
-                    className="w-5 h-5 rounded bg-primary/10 text-primary flex items-center justify-center hover:bg-primary hover:text-white transition-colors"
+                    className="w-6 h-6 rounded-md bg-primary/10 text-primary flex items-center justify-center hover:bg-primary hover:text-white transition-colors"
                 >
-                    <Plus size={9} />
+                    <Plus size={12} />
                 </button>
             </div>
 
-            {/* Name */}
+            {/* Name + note */}
             <div className="flex-1 min-w-0">
-                <span className="text-[11px] font-semibold text-main truncate block leading-tight">{displayName}</span>
+                <span className="text-sm font-semibold text-main truncate block">{displayName}</span>
                 {item.notes && (
-                    <span className="text-[8px] text-amber-600 truncate block leading-tight">📝 {item.notes}</span>
+                    <span className="text-[10px] text-amber-600 dark:text-amber-400 truncate block">📝 {item.notes}</span>
                 )}
             </div>
 
             {/* Price */}
-            <span className="shrink-0 text-[10px] font-black text-primary" style={{ fontVariantNumeric: 'tabular-nums' }}>
-                {currencySymbol}{lineTotal.toFixed(2)}
+            <span className="shrink-0 text-sm font-black text-primary tabular-nums">
+                {lineTotal.toFixed(2)}
             </span>
 
-            {/* Actions (show on hover) */}
-            <div className="flex items-center gap-px shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
+            {/* Actions — hover only */}
+            <div className="flex items-center gap-0.5 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
                 <button
                     onClick={(e) => { e.stopPropagation(); onEditNote(item.cartId, item.notes || ''); }}
-                    className="w-5 h-5 rounded text-muted/40 hover:text-amber-500 flex items-center justify-center transition-colors"
+                    className="w-6 h-6 rounded text-muted/50 hover:text-amber-500 flex items-center justify-center"
                 >
-                    <Pencil size={8} />
+                    <Pencil size={10} />
                 </button>
                 <button
                     onClick={(e) => { e.stopPropagation(); onRemove(item.cartId); }}
-                    className="w-5 h-5 rounded text-muted/40 hover:text-red-500 flex items-center justify-center transition-colors"
+                    className="w-6 h-6 rounded text-muted/50 hover:text-red-500 flex items-center justify-center"
                 >
-                    <Trash2 size={8} />
+                    <Trash2 size={10} />
                 </button>
             </div>
         </div>

@@ -162,10 +162,10 @@ const POSCartSidebar: React.FC<POSCartSidebarProps> = ({
                 <div className="min-h-0 flex flex-col border-b border-border/30">
                     {/* Section header */}
                     <div className="shrink-0 px-3 py-1.5 border-b border-border/20 flex items-center justify-between gap-2">
-                        <p className="text-[10px] font-black uppercase tracking-widest text-muted">
+                        <p className="text-xs font-black uppercase tracking-wider text-muted">
                             {isRTL ? 'تفاصيل الأوردر' : 'Order Details'}
                         </p>
-                        <p className="text-[10px] font-black uppercase tracking-widest text-primary">
+                        <p className="text-xs font-black uppercase tracking-wider text-primary">
                             {filteredCartItems.length}/{activeCart.length}
                         </p>
                     </div>

@@ -189,30 +189,30 @@ const POSItemsPanel: React.FC<POSItemsPanelProps> = ({
             </div>
 
             {/* Search bar row — clean and minimal */}
-            <div className="shrink-0 px-2 py-1 flex items-center gap-1.5 border-b border-border/20 bg-card/60">
+            <div className="shrink-0 px-2.5 py-1.5 flex items-center gap-2 border-b border-border/20 bg-card/60">
                 {/* Search */}
                 <div className="relative flex-1 min-w-0">
-                    <Search className={`absolute top-1/2 -translate-y-1/2 text-muted/40 w-3.5 h-3.5 ${isRTL ? 'right-2.5' : 'left-2.5'}`} />
+                    <Search className={`absolute top-1/2 -translate-y-1/2 text-muted/40 w-4 h-4 ${isRTL ? 'right-2.5' : 'left-2.5'}`} />
                     <input
                         ref={searchInputRef}
                         type="text"
                         placeholder={t.search_placeholder}
                         value={searchQuery}
                         onChange={(e) => onSearchChange(e.target.value)}
-                        className={`w-full h-8 text-xs bg-elevated/30 border border-border/20 rounded-lg focus:ring-1 focus:ring-primary/30 focus:border-primary/30 font-semibold outline-none transition-all ${isRTL ? 'pr-8 pl-8 text-right' : 'pl-8 pr-8 text-left'}`}
+                        className={`w-full h-10 text-sm bg-elevated/30 border border-border/20 rounded-lg focus:ring-1 focus:ring-primary/30 focus:border-primary/30 font-semibold outline-none transition-all ${isRTL ? 'pr-8 pl-8 text-right' : 'pl-8 pr-8 text-left'}`}
                     />
                     {searchQuery && (
                         <button
                             onClick={() => onSearchChange('')}
                             className={`absolute top-1/2 -translate-y-1/2 text-muted hover:text-primary transition-colors ${isRTL ? 'left-2' : 'right-2'}`}
                         >
-                            <X size={12} />
+                            <X size={14} />
                         </button>
                     )}
                 </div>
 
                 {/* Item count */}
-                <span className="text-[9px] font-black text-primary bg-primary/8 px-1.5 py-0.5 rounded-md shrink-0">
+                <span className="text-xs font-black text-primary bg-primary/8 px-2 py-1 rounded-lg shrink-0">
                     {pricedItems.length}
                 </span>
 
@@ -220,7 +220,7 @@ const POSItemsPanel: React.FC<POSItemsPanelProps> = ({
                 <div className="relative shrink-0">
                     <button
                         onClick={() => setToolsOpen(p => !p)}
-                        className={`w-7 h-7 rounded-lg flex items-center justify-center transition-colors ${toolsOpen ? 'bg-primary/10 text-primary' : 'bg-elevated/40 text-muted hover:text-primary'
+                        className={`w-9 h-9 rounded-lg flex items-center justify-center transition-colors ${toolsOpen ? 'bg-primary/10 text-primary' : 'bg-elevated/40 text-muted hover:text-primary'
                             }`}
                         title="Tools"
                     >
