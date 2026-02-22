@@ -112,6 +112,7 @@ const POS: React.FC = () => {
    // cart is now activeCart from store
    const [activeCategory, setActiveCategory] = useState<string>('all');
    const [searchQuery, setSearchQuery] = useState('');
+   const [categorySidebarCollapsed, setCategorySidebarCollapsed] = useState(false);
    const [itemFilter, setItemFilter] = useState<'all' | 'available' | 'popular'>('all');
    const [itemSort, setItemSort] = useState<'smart' | 'name' | 'price_asc' | 'price_desc'>('smart');
    const [itemDensity, setItemDensity] = useState<'comfortable' | 'compact' | 'ultra' | 'buttons'>('compact');
@@ -1482,6 +1483,8 @@ const POS: React.FC = () => {
                            lang={lang}
                            counts={categoryResultCounts}
                            totalCount={totalMatchedAcrossCategories}
+                           collapsed={categorySidebarCollapsed}
+                           onToggleCollapse={() => setCategorySidebarCollapsed(p => !p)}
                         />
 
                         {/* ═══ Items Panel (Left) ═══ */}
