@@ -70,7 +70,7 @@ const KeyboardHelp: React.FC<KeyboardHelpProps> = ({ lang }) => {
             onClick={() => setIsOpen(false)}
         >
             <div
-                className="bg-white dark:bg-slate-900 rounded-3xl shadow-2xl max-w-2xl w-full max-h-[80vh] overflow-hidden animate-in zoom-in-95 duration-300"
+                className="card-primary rounded-3xl shadow-2xl max-w-2xl w-full max-h-[80vh] overflow-hidden animate-in zoom-in-95 duration-300"
                 onClick={e => e.stopPropagation()}
             >
                 {/* Header */}
@@ -113,7 +113,7 @@ const KeyboardHelp: React.FC<KeyboardHelpProps> = ({ lang }) => {
                                             {shortcut.keys.map((key, kIdx) => (
                                                 <React.Fragment key={kIdx}>
                                                     {kIdx > 0 && <span className="text-xs text-slate-400 mx-1">+</span>}
-                                                    <kbd className="min-w-[28px] h-7 px-2 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-lg text-xs font-bold text-slate-700 dark:text-slate-200 flex items-center justify-center shadow-sm">
+                                                    <kbd className="min-w-[28px] h-7 px-2 card-primary rounded-lg text-xs font-bold text-slate-700 dark:text-slate-200 flex items-center justify-center shadow-sm">
                                                         {key === 'Command' ? <Command size={12} /> : key}
                                                     </kbd>
                                                 </React.Fragment>

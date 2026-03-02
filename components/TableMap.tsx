@@ -685,7 +685,7 @@ const TableMap: React.FC<TableMapProps> = ({
                             placeholder={lang === 'ar' ? 'بحث عن ترابيزة...' : 'Search tables...'}
                             value={searchQuery}
                             onChange={(e) => setSearchQuery(e.target.value)}
-                            className={`w-full lg:w-48 ${isRtl ? 'pr-10 pl-4' : 'pl-10 pr-4'} py-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-bold shadow-sm focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all`}
+                            className={`w-full lg:w-48 ${isRtl ? 'pr-10 pl-4' : 'pl-10 pr-4'} py-2.5 card-primary rounded-xl text-sm font-bold shadow-sm focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all`}
                         />
                     </div>
 
@@ -700,7 +700,7 @@ const TableMap: React.FC<TableMapProps> = ({
                                 onClick={() => setViewMode(mode as any)}
                                 title={label}
                                 className={`p-2.5 rounded-lg transition-all ${viewMode === mode
-                                    ? 'bg-white dark:bg-slate-700 shadow-md text-indigo-600 scale-105'
+                                    ? 'card-primary shadow-md text-indigo-600 scale-105'
                                     : 'text-slate-400 hover:text-slate-600 hover:bg-slate-200 dark:hover:bg-slate-700'}`}
                             >
                                 <Icon size={18} />
@@ -718,7 +718,7 @@ const TableMap: React.FC<TableMapProps> = ({
                         onClick={() => setActiveZone(zone.id)}
                         className={`px-5 py-2.5 rounded-xl text-[10px] font-black transition-all uppercase tracking-widest flex items-center gap-2 whitespace-nowrap ${activeZone === zone.id
                             ? 'bg-gradient-to-r from-indigo-600 to-purple-600 text-white shadow-lg shadow-indigo-500/30 scale-[1.02]'
-                            : 'bg-white dark:bg-slate-900 text-slate-500 hover:bg-slate-50 dark:hover:bg-slate-800 shadow-sm'
+                            : 'card-primary text-slate-500 hover:bg-slate-50 dark:hover:bg-slate-800 shadow-sm'
                             }`}
                     >
                         {zone.name}
@@ -793,7 +793,7 @@ const TableMap: React.FC<TableMapProps> = ({
                     { status: TableStatus.RESERVED, label: t.reserved || 'Reserved', color: 'bg-amber-500', gradient: 'from-amber-500 to-amber-400' },
                     { status: TableStatus.DIRTY, label: t.dirty || 'Dirty', color: 'bg-rose-500', gradient: 'from-rose-500 to-rose-400' }
                 ].map(item => (
-                    <div key={item.status} className="flex items-center gap-2 bg-white dark:bg-slate-800 px-3 py-1.5 rounded-lg shadow-sm">
+                    <div key={item.status} className="flex items-center gap-2 card-primary px-3 py-1.5 rounded-lg shadow-sm">
                         <div className={`w-3 h-3 rounded-full bg-gradient-to-r ${item.gradient}`} />
                         <span className="text-[10px] font-bold uppercase text-slate-600 dark:text-slate-300 tracking-wider">{item.label}</span>
                     </div>

@@ -85,7 +85,7 @@ const ForensicsHub: React.FC = () => {
 
                 <button
                     onClick={() => setForensicMode(!forensicMode)}
-                    className={`px-8 py-3.5 rounded-2xl font-black text-xs uppercase tracking-widest transition-all flex items-center gap-3 ${forensicMode ? 'bg-rose-600 text-white shadow-xl shadow-rose-600/30 ring-4 ring-rose-500/20' : 'bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-400 border border-slate-200 dark:border-slate-800 shadow-sm'}`}
+                    className={`px-8 py-3.5 rounded-2xl font-black text-xs uppercase tracking-widest transition-all flex items-center gap-3 ${forensicMode ? 'bg-rose-600 text-white shadow-xl shadow-rose-600/30 ring-4 ring-rose-500/20' : 'card-primary text-slate-600 dark:text-slate-400 border border-slate-200 dark:border-slate-800 shadow-sm'}`}
                 >
                     <FileSearch size={18} />
                     {forensicMode ? 'Details Mode Active' : 'Enable Details'}
@@ -95,7 +95,7 @@ const ForensicsHub: React.FC = () => {
             <div className="grid grid-cols-1 xl:grid-cols-12 gap-10">
                 {/* Logs Timeline */}
                 <div className="xl:col-span-7 space-y-6">
-                    <div className="bg-white dark:bg-slate-900 rounded-[2.5rem] p-6 shadow-sm border border-slate-200 dark:border-slate-800 flex flex-col md:flex-row gap-4 items-center">
+                    <div className="card-primary rounded-[2.5rem] p-6 shadow-sm border border-slate-200 dark:border-slate-800 flex flex-col md:flex-row gap-4 items-center">
                         <div className="relative flex-1 w-full group">
                             <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-indigo-600 transition-colors" size={18} />
                             <input
@@ -125,7 +125,7 @@ const ForensicsHub: React.FC = () => {
                                 <p className="font-black uppercase text-[10px] tracking-widest text-slate-500">Scanning State Registry...</p>
                             </div>
                         ) : filteredLogs.length === 0 ? (
-                            <div className="bg-white dark:bg-slate-900 rounded-[3rem] p-24 text-center border-2 border-dashed border-slate-200 dark:border-slate-800 opacity-40">
+                            <div className="card-primary rounded-[3rem] p-24 text-center border-2 border-dashed border-slate-200 dark:border-slate-800 opacity-40">
                                 <History size={48} className="mx-auto mb-6 text-slate-300" />
                                 <p className="font-black uppercase text-xs tracking-[0.2em]">No results found</p>
                             </div>
@@ -142,7 +142,7 @@ const ForensicsHub: React.FC = () => {
                                     return (
                                         <div
                                             onClick={() => setSelectedLogId(toSafeString(log.id))}
-                                            className={`w-full text-left p-6 rounded-[2rem] border-2 transition-all flex items-center gap-6 group cursor-pointer ${selectedLogId === toSafeString(log.id) ? 'bg-white dark:bg-slate-900 border-indigo-600 shadow-2xl relative z-10' : 'bg-white/50 dark:bg-slate-900/30 border-slate-100 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700'}`}
+                                            className={`w-full text-left p-6 rounded-[2rem] border-2 transition-all flex items-center gap-6 group cursor-pointer ${selectedLogId === toSafeString(log.id) ? 'card-primary border-indigo-600 shadow-2xl relative z-10' : 'bg-white/50 dark:bg-slate-900/30 border-slate-100 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700'}`}
                                         >
                                             <div className={`w-14 h-14 rounded-2xl flex items-center justify-center flex-shrink-0 transition-all ${selectedLogId === toSafeString(log.id) ? 'bg-indigo-50 dark:bg-indigo-900/30 scale-110 shadow-lg' : 'bg-slate-100 dark:bg-slate-800'}`}>
                                                 {getEventIcon(log.eventType)}
@@ -184,7 +184,7 @@ const ForensicsHub: React.FC = () => {
                 <div className="xl:col-span-5">
                     {selectedLog ? (
                         <div className="space-y-6 sticky top-24">
-                            <div className="bg-white dark:bg-slate-900 rounded-[3rem] p-10 border-t-[8px] border-indigo-600 shadow-2xl animate-in slide-in-from-right-8 duration-500 overflow-hidden relative">
+                            <div className="card-primary rounded-[3rem] p-10 border-t-[8px] border-indigo-600 shadow-2xl animate-in slide-in-from-right-8 duration-500 overflow-hidden relative">
                                 <div className="absolute top-0 right-0 p-8 opacity-5">
                                     <Fingerprint size={120} />
                                 </div>
@@ -283,7 +283,7 @@ const ForensicsHub: React.FC = () => {
                             )}
                         </div>
                     ) : (
-                        <div className="bg-white dark:bg-slate-900 rounded-[3rem] p-24 flex flex-col items-center justify-center text-center opacity-40 border-2 border-dashed border-slate-200 dark:border-slate-800">
+                        <div className="card-primary rounded-[3rem] p-24 flex flex-col items-center justify-center text-center opacity-40 border-2 border-dashed border-slate-200 dark:border-slate-800">
                             <div className="w-24 h-24 rounded-[2rem] bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-slate-300 mb-8 border-4 border-white dark:border-slate-900 shadow-xl">
                                 <FileSearch size={48} />
                             </div>

@@ -228,6 +228,8 @@ export interface OrderItem extends MenuItem {
   cartId: string;
   quantity: number;
   notes?: string;
+  seatNumber?: number;
+  course?: 'APPETIZER' | 'MAIN' | 'DESSERT' | 'DRINKS' | string;
   selectedModifiers: {
     groupName: string;
     optionName: string;
@@ -259,6 +261,7 @@ export interface Order {
   paymentMethod?: PaymentMethod;
   payments?: PaymentRecord[];
   notes?: string;
+  tipAmount?: number;
   kitchenNotes?: string; // Notes for kitchen staff
   deliveryNotes?: string;
   driverId?: string; // Link to the assigned driver

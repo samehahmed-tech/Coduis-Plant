@@ -14,105 +14,110 @@ interface MenuItemCardProps {
     highlighted?: boolean;
 }
 
-// ═══════════════════════════════════════════════════════════════
-// Quick Action Overlay — appears on tap when item has qty
-// ═══════════════════════════════════════════════════════════════
-const QuickOverlay: React.FC<{
-    quantity: number;
-    onAdd: () => void;
-    onRemove: () => void;
-    onClose: () => void;
-    lang: string;
-}> = ({ quantity, onAdd, onRemove, onClose, lang }) => (
-    <div
-        className="absolute inset-0 z-20 bg-black/60 backdrop-blur-sm rounded-2xl flex items-center justify-center animate-in fade-in duration-100"
-        onClick={(e) => { e.stopPropagation(); onClose(); }}
-    >
-        <div className="flex items-center gap-2" onClick={e => e.stopPropagation()}>
-            <button onClick={onRemove} className="w-11 h-11 rounded-full bg-white/90 text-red-500 flex items-center justify-center shadow-lg active:scale-90 transition-transform">
-                <Minus size={20} />
-            </button>
-            <span className="w-10 text-center text-2xl font-black text-white drop-shadow-lg">{quantity}</span>
-            <button onClick={onAdd} className="w-11 h-11 rounded-full bg-emerald-500 text-white flex items-center justify-center shadow-lg active:scale-90 transition-transform">
-                <Plus size={20} />
-            </button>
-        </div>
-    </div>
-);
-
-// ═══════════════════════════════════════════════════════════════
-// IMAGE CARD — clean: image + name + price. Tap to add.
-// ═══════════════════════════════════════════════════════════════
 const ImageCard: React.FC<{
     item: MenuItem; displayName: string; isAvailable: boolean; isCompact: boolean;
     quantity: number; currencySymbol: string; lang: string; highlighted: boolean;
     onAdd: () => void; onRemove: () => void; onCardClick: () => void;
 }> = ({ item, displayName, isAvailable, isCompact, quantity, currencySymbol, lang, highlighted, onAdd, onRemove, onCardClick }) => {
-    const [showOverlay, setShowOverlay] = useState(false);
-
     return (
         <div
-            onClick={() => {
+            onClick={(e) => {
                 if (!isAvailable) return;
-                if (quantity > 0) { setShowOverlay(true); return; }
-                onCardClick();
+                // Only trigger add if clicking the empty card (not the +/- buttons)
+                const target = e.target as HTMLElement;
+                if (!target.closest('button')) {
+                    onAdd();
+                }
             }}
             className={`
-                group relative flex flex-col overflow-hidden rounded-2xl border-2 transition-all duration-100
+                group relative flex flex-col overflow-hidden bg-white dark:bg-slate-900 rounded-2xl border transition-all duration-200 ease-out
                 ${isAvailable
-                    ? `cursor-pointer active:scale-[0.97] ${quantity > 0
-                        ? 'bg-emerald-50/60 dark:bg-emerald-950/20 border-emerald-400/40 shadow-sm'
-                        : 'bg-card border-border/15 hover:shadow-lg hover:border-emerald-300/30 hover:-translate-y-0.5'
+                    ? `cursor-pointer active:scale-[0.98] ${quantity > 0
+                        ? 'border-indigo-500 shadow-md shadow-indigo-500/10 ring-1 ring-indigo-500/20'
+                        : 'border-slate-200 dark:border-slate-800 shadow-sm hover:border-slate-300 dark:hover:border-slate-700 hover:shadow-md'
                     }`
-                    : 'opacity-35 bg-card border-border/15 cursor-not-allowed'
+                    : 'opacity-50 cursor-not-allowed grayscale'
                 }
-                ${highlighted ? 'ring-2 ring-amber-400 ring-offset-2' : ''}
+                ${highlighted ? 'ring-2 ring-indigo-500 ring-offset-2 ring-offset-app' : ''}
             `}
         >
-            {/* Image */}
-            {item.image ? (
-                <div className={`relative overflow-hidden ${isCompact ? 'h-20' : 'h-[90px]'}`}>
-                    <img src={item.image} alt={displayName} loading="lazy" className="w-full h-full object-cover" />
+            {/* Out of Stock Overlay */}
+            {!isAvailable && (
+                <div className="absolute inset-x-0 top-0 h-10 z-30 flex items-center justify-center bg-rose-500/90 text-white text-[10px] font-black uppercase tracking-widest backdrop-blur-sm">
+                    Sold Out
                 </div>
-            ) : (
-                <div className="h-1 bg-gradient-to-r from-emerald-400/30 via-teal-300/15 to-transparent" />
             )}
 
-            {/* Content — minimal: just name + price */}
-            <div className="flex flex-col flex-1 p-2.5 gap-1">
-                <h3 className={`${isCompact ? 'text-xs' : 'text-sm'} font-semibold text-main leading-snug line-clamp-2`}>{displayName}</h3>
-                <div className="mt-auto pt-0.5">
-                    <span className={`${isCompact ? 'text-sm' : 'text-base'} font-black text-emerald-700 dark:text-emerald-400`} style={{ fontVariantNumeric: 'tabular-nums' }}>
-                        {item.price.toFixed(2)}
-                        <span className="text-[9px] text-muted font-bold mx-0.5">{currencySymbol}</span>
-                    </span>
-                </div>
+            {/* Top section: Square Image + Name */}
+            <div className={`p-4 pb-2 flex-grow flex flex-col`}>
+                {item.image ? (
+                    <div className="w-full aspect-square rounded-xl overflow-hidden mb-3 bg-slate-50 dark:bg-slate-800">
+                        <img src={item.image} alt={displayName} className="w-full h-full object-cover" loading="lazy" />
+                    </div>
+                ) : (
+                    // Optional placeholder or empty space if no image
+                    <div className="w-full h-2 mb-2" />
+                )}
+
+                <h3 className={`text-sm font-semibold text-slate-800 dark:text-slate-200 leading-snug line-clamp-2`}>
+                    {displayName}
+                </h3>
             </div>
 
-            {/* Qty badge */}
-            {quantity > 0 && (
-                <div className={`absolute top-1.5 ${lang === 'ar' ? 'left-1.5' : 'right-1.5'} min-w-[1.5rem] h-6 px-1.5 rounded-full bg-emerald-600 text-white text-xs font-black flex items-center justify-center shadow-lg z-10`}>
-                    {quantity}
-                </div>
-            )}
+            {/* Price & Quantity Controls */}
+            <div className={`p-4 pt-0 flex flex-col justify-end mt-auto`}>
+                <div className="flex items-center justify-between mb-2">
+                    {/* Price — THE HERO */}
+                    <div className="flex items-baseline gap-1">
+                        <span className={`text-xl font-black text-indigo-600 dark:text-indigo-400`} style={{ fontVariantNumeric: 'tabular-nums' }}>
+                            {item.price.toFixed(2)}
+                        </span>
+                        <span className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">{currencySymbol}</span>
+                    </div>
 
-            {/* Popular */}
-            {item.isPopular && isAvailable && (
-                <div className={`absolute top-1.5 ${lang === 'ar' ? 'right-1.5' : 'left-1.5'} z-10`}>
-                    <Star size={14} fill="currentColor" className="text-amber-400 drop-shadow" />
+                    {/* Simple badge if popular */}
+                    {item.isPopular && isAvailable && (
+                        <div className="bg-amber-100 text-amber-700 px-2 py-0.5 rounded-md text-[9px] font-bold uppercase tracking-widest">
+                            Top
+                        </div>
+                    )}
                 </div>
-            )}
 
-            {/* Quick action overlay */}
-            {showOverlay && (
-                <QuickOverlay
-                    quantity={quantity}
-                    onAdd={() => { onAdd(); }}
-                    onRemove={() => { onRemove(); if (quantity <= 1) setShowOverlay(false); }}
-                    onClose={() => setShowOverlay(false)}
-                    lang={lang}
-                />
-            )}
+                {/* Inline +/- tap targets */}
+                <div className={`h-10 mt-1 flex items-center rounded-xl overflow-hidden transition-all ${quantity > 0 ? 'bg-indigo-50 border border-indigo-200 dark:bg-indigo-500/10 dark:border-indigo-500/30' : 'bg-slate-50 border border-slate-200 dark:bg-slate-800 dark:border-slate-700'}`}>
+                    {quantity > 0 ? (
+                        <>
+                            <button
+                                onClick={(e) => { e.stopPropagation(); onRemove(); }}
+                                className="h-full px-4 flex items-center justify-center text-indigo-600 hover:bg-indigo-100 active:bg-indigo-200 transition-colors"
+                            >
+                                <Minus size={18} />
+                            </button>
+                            <div className="flex-1 text-center font-black text-base text-indigo-700 dark:text-indigo-300 tabular-nums">
+                                {quantity}
+                            </div>
+                            <button
+                                onClick={(e) => { e.stopPropagation(); onAdd(); }}
+                                className="h-full px-4 flex items-center justify-center bg-indigo-600 text-white hover:bg-indigo-700 active:bg-indigo-800 transition-colors"
+                            >
+                                <Plus size={18} />
+                            </button>
+                        </>
+                    ) : (
+                        <button
+                            onClick={(e) => { e.stopPropagation(); onAdd(); }}
+                            disabled={!isAvailable}
+                            className={`w-full h-full flex items-center justify-center gap-2 text-xs font-bold uppercase tracking-widest transition-colors ${isAvailable
+                                    ? 'text-slate-600 hover:text-indigo-600 hover:bg-slate-100 dark:text-slate-400 dark:hover:text-indigo-400 dark:hover:bg-slate-800'
+                                    : 'text-slate-400'
+                                }`}
+                        >
+                            <Plus size={14} />
+                            <span>Add</span>
+                        </button>
+                    )}
+                </div>
+            </div>
         </div>
     );
 };

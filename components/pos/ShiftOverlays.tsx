@@ -64,7 +64,7 @@ export const ShiftOverlays: React.FC<ShiftOverlaysProps> = ({ onOpen }) => {
         return (
             <div className="fixed inset-0 z-[200] flex items-center justify-center p-6 sm:p-20">
                 <div className="absolute inset-0 bg-slate-950/80 backdrop-blur-xl" />
-                <div className="relative w-full max-w-lg bg-white dark:bg-slate-900 rounded-[2.5rem] shadow-2xl border border-white/10 overflow-hidden animate-in zoom-in duration-300">
+                <div className="relative w-full max-w-lg card-primary rounded-[2.5rem] shadow-2xl border border-white/10 overflow-hidden animate-in zoom-in duration-300">
                     <div className="p-8 md:p-12 text-center">
                         <div className="w-24 h-24 bg-indigo-600/10 rounded-full flex items-center justify-center mx-auto mb-8 border border-indigo-500/20">
                             <Lock className="w-12 h-12 text-indigo-500" />
@@ -126,7 +126,8 @@ export const CloseShiftModal: React.FC<{ isOpen: boolean; onClose: () => void }>
     const activeShift = useFinanceStore(state => state.activeShift);
     const setShift = useFinanceStore(state => state.setShift);
     const settings = useAuthStore(state => state.settings);
-    const t = translations[settings.language];
+    const lang = (settings.language || 'en') as 'en' | 'ar';
+    const t = translations[lang] || translations.en;
     const { showToast } = useToast();
 
     const [actualBalance, setActualBalance] = useState('0');
@@ -160,7 +161,7 @@ export const CloseShiftModal: React.FC<{ isOpen: boolean; onClose: () => void }>
             <div className="absolute inset-0 bg-slate-950/80 backdrop-blur-xl" onClick={onClose} />
 
             {!report ? (
-                <div className="relative w-full max-w-xl bg-white dark:bg-slate-900 rounded-[2.5rem] p-8 md:p-10 shadow-2xl border border-white/10 transform animate-in slide-in-from-bottom duration-300">
+                <div className="relative w-full max-w-xl card-primary rounded-[2.5rem] p-8 md:p-10 shadow-2xl border border-white/10 transform animate-in slide-in-from-bottom duration-300">
                     <div className="flex items-center gap-6 mb-10">
                         <div className="w-16 h-16 bg-red-600/10 rounded-2xl flex items-center justify-center border border-red-500/20">
                             <LogOut className="w-8 h-8 text-red-500" />
@@ -187,7 +188,7 @@ export const CloseShiftModal: React.FC<{ isOpen: boolean; onClose: () => void }>
                             {t.counted_cash || 'Actual Cash in Drawer (EGP)'}
                         </label>
                         <div className="relative">
-                            <div className="absolute left-6 top-1/2 -translate-y-1/2 w-10 h-10 bg-white dark:bg-slate-800 rounded-xl flex items-center justify-center shadow-sm">
+                            <div className="absolute left-6 top-1/2 -translate-y-1/2 w-10 h-10 card-primary rounded-xl flex items-center justify-center shadow-sm">
                                 <Calculator className="text-indigo-500 w-5 h-5" />
                             </div>
                             <input
@@ -223,26 +224,24 @@ export const CloseShiftModal: React.FC<{ isOpen: boolean; onClose: () => void }>
                     </div>
                 </div>
             ) : (
-                <div className="relative w-full max-w-sm bg-white dark:bg-slate-900 rounded-[3rem] p-10 text-center shadow-2xl border border-white/10 transform animate-in zoom-in duration-500">
+                <div className="relative w-full max-w-sm card-primary rounded-[3rem] p-10 text-center shadow-2xl border border-white/10 transform animate-in zoom-in duration-500">
                     <div className="w-20 h-20 bg-green-500/10 rounded-full flex items-center justify-center mx-auto mb-8 border border-green-500/20">
                         <CheckCircle2 className="w-10 h-10 text-green-500" />
                     </div>
-                    <h3 className="text-2xl font-black text-slate-900 dark:text-white uppercase tracking-tight mb-2">Shift Reconciled</h3>
-                    <p className="text-slate-500 dark:text-slate-400 font-bold mb-8">Wait for Z-Report sync...</p>
+                    <h3 className="text-2xl font-black text-slate-900 dark:text-white uppercase tracking-tight mb-2">
+                        {lang === 'ar' ? 'تم إغلاق الوردية' : 'Shift Closed'}
+                    </h3>
+                    <p className="text-slate-500 dark:text-slate-400 font-bold mb-8">
+                        {lang === 'ar' ? 'جاري التحضير (إغلاق أعمى)...' : 'Verifying (Blind Close)...'}
+                    </p>
 
                     <div className="space-y-3 mb-8">
-                        <div className="flex justify-between items-center py-4 border-b border-slate-100 dark:border-slate-800">
-                            <span className="text-xs font-black text-slate-400 uppercase tracking-widest">Expected</span>
-                            <span className="text-lg font-black text-slate-700 dark:text-slate-300">{report.expectedBalance?.toFixed(2)} EGP</span>
-                        </div>
-                        <div className="flex justify-between items-center py-4 border-b border-slate-100 dark:border-slate-800">
-                            <span className="text-xs font-black text-slate-400 uppercase tracking-widest">Actual</span>
-                            <span className="text-lg font-black text-green-600">{report.actualBalance?.toFixed(2)} EGP</span>
-                        </div>
-                        <div className="flex justify-between items-center py-4">
-                            <span className="text-xs font-black text-slate-400 uppercase tracking-widest">Variance</span>
-                            <span className={`text-lg font-black ${report.actualBalance - report.expectedBalance < 0 ? 'text-red-500' : 'text-indigo-500'}`}>
-                                {(report.actualBalance - report.expectedBalance).toFixed(2)} EGP
+                        <div className="flex justify-center items-center py-4 border-b border-slate-100 dark:border-slate-800 flex-col gap-2">
+                            <span className="text-xs font-black text-slate-400 uppercase tracking-widest">
+                                {lang === 'ar' ? 'النقدية المسجلة فعلياً' : 'Declared Cash'}
+                            </span>
+                            <span className="text-3xl font-black text-indigo-600 dark:text-indigo-400">
+                                {report.actualBalance?.toFixed(2)} EGP
                             </span>
                         </div>
                     </div>

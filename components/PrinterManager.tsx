@@ -200,7 +200,7 @@ const PrinterManager: React.FC = () => {
                         placeholder="Search by name or address..."
                         value={searchQuery}
                         onChange={(e) => setSearchQuery(e.target.value)}
-                        className="w-full pl-16 pr-8 py-5 bg-white dark:bg-slate-900 border-2 border-transparent focus:border-indigo-500/20 rounded-[2.5rem] outline-none shadow-sm font-bold text-sm"
+                        className="w-full pl-16 pr-8 py-5 card-primary border-2 border-transparent focus:border-indigo-500/20 rounded-[2.5rem] outline-none shadow-sm font-bold text-sm"
                     />
                 </div>
                 <div className="bg-emerald-50 dark:bg-emerald-900/10 border border-emerald-100 dark:border-emerald-900/20 p-6 rounded-[2.5rem] flex flex-col items-center justify-center shadow-sm">
@@ -209,7 +209,7 @@ const PrinterManager: React.FC = () => {
                 </div>
             </div>
 
-            <div className="bg-white dark:bg-slate-900 rounded-[2.5rem] border border-slate-200 dark:border-slate-800 p-6 shadow-sm">
+            <div className="card-primary rounded-[2.5rem] border border-slate-200 dark:border-slate-800 p-6 shadow-sm">
                 <div className="mb-5 grid grid-cols-1 lg:grid-cols-2 gap-4">
                     <div className="rounded-2xl border border-slate-200 dark:border-slate-800 p-4">
                         <p className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] mb-2">Primary Cashier Printer</p>
@@ -255,14 +255,14 @@ const PrinterManager: React.FC = () => {
                                     placeholder="Logo URL"
                                     value={brandingByType[type]?.logoUrl || ''}
                                     onChange={(e) => updateBranding(type, 'logoUrl', e.target.value)}
-                                    className="w-full mb-2 p-2 rounded-lg bg-white dark:bg-slate-900 text-[11px] font-bold outline-none"
+                                    className="w-full mb-2 p-2 rounded-lg card-primary text-[11px] font-bold outline-none"
                                 />
                                 <input
                                     type="text"
                                     placeholder="QR URL"
                                     value={brandingByType[type]?.qrUrl || ''}
                                     onChange={(e) => updateBranding(type, 'qrUrl', e.target.value)}
-                                    className="w-full p-2 rounded-lg bg-white dark:bg-slate-900 text-[11px] font-bold outline-none"
+                                    className="w-full p-2 rounded-lg card-primary text-[11px] font-bold outline-none"
                                 />
                             </div>
                         ))}
@@ -321,7 +321,7 @@ const PrinterManager: React.FC = () => {
                 {filteredPrinters.map(printer => {
                     const branch = branches.find(b => b.id === printer.branchId);
                     return (
-                        <div key={printer.id} className="group bg-white dark:bg-slate-900 rounded-[3rem] border border-slate-200 dark:border-slate-800 p-8 shadow-sm hover:shadow-2xl transition-all relative overflow-hidden flex flex-col border-b-[8px] border-b-indigo-600/5 hover:border-b-indigo-600 duration-500">
+                        <div key={printer.id} className="group card-primary rounded-[3rem] border border-slate-200 dark:border-slate-800 p-8 shadow-sm hover:shadow-2xl transition-all relative overflow-hidden flex flex-col border-b-[8px] border-b-indigo-600/5 hover:border-b-indigo-600 duration-500">
                             <div className="flex justify-between items-start mb-8">
                                 <div className={`p-5 rounded-3xl shadow-lg transition-all ${printer.isActive ? 'bg-indigo-600 text-white shadow-indigo-200' : 'bg-slate-100 dark:bg-slate-800 text-slate-400'}`}>
                                     {printer.type === 'NETWORK' ? <Network size={28} /> : <Monitor size={28} />}
@@ -380,7 +380,7 @@ const PrinterManager: React.FC = () => {
             {/* Printer Modal */}
             {printerModal && (
                 <div className="fixed inset-0 bg-slate-950/60 backdrop-blur-xl flex items-end sm:items-center justify-center z-[110] p-2 sm:p-4 animate-in fade-in duration-300">
-                    <div className="bg-white dark:bg-slate-900 w-full max-w-xl rounded-[2rem] sm:rounded-[3.5rem] shadow-[0_50px_100px_-20px_rgba(0,0,0,0.5)] overflow-hidden flex flex-col transform animate-in zoom-in-95 duration-400 max-h-[92vh]">
+                    <div className="card-primary w-full max-w-xl rounded-[2rem] sm:rounded-[3.5rem] shadow-[0_50px_100px_-20px_rgba(0,0,0,0.5)] overflow-hidden flex flex-col transform animate-in zoom-in-95 duration-400 max-h-[92vh]">
                         <div className="p-4 sm:p-10 border-b border-slate-100 dark:border-slate-800 flex justify-between items-start sm:items-center gap-3 sm:gap-4 bg-slate-50/50 dark:bg-slate-950/20">
                             <div className="flex items-center gap-3 sm:gap-6 min-w-0">
                                 <div className="p-3 sm:p-5 bg-indigo-600 text-white rounded-2xl sm:rounded-[2rem] shadow-2xl shadow-indigo-600/30 shrink-0">
@@ -392,7 +392,7 @@ const PrinterManager: React.FC = () => {
                                     <p className="text-[9px] sm:text-[10px] font-black text-slate-400 tracking-[0.2em] sm:tracking-[0.3em] uppercase mt-1 truncate">Printer settings and connection details</p>
                                 </div>
                             </div>
-                            <button onClick={() => setPrinterModal(null)} className="p-2 sm:p-4 bg-white dark:bg-slate-800 text-slate-400 rounded-xl sm:rounded-2xl shadow-sm hover:rotate-90 hover:text-rose-500 transition-all shrink-0"><X size={20} className="sm:hidden" /><X size={24} className="hidden sm:block" /></button>
+                            <button onClick={() => setPrinterModal(null)} className="p-2 sm:p-4 card-primary text-slate-400 rounded-xl sm:rounded-2xl shadow-sm hover:rotate-90 hover:text-rose-500 transition-all shrink-0"><X size={20} className="sm:hidden" /><X size={24} className="hidden sm:block" /></button>
                         </div>
 
                         <div className="p-4 sm:p-10 space-y-6 sm:space-y-10 overflow-y-auto">
@@ -503,7 +503,7 @@ const PrinterManager: React.FC = () => {
                             <button
                                 onClick={() => setPrinterModal(null)}
                                 disabled={isSaving}
-                                className="w-full sm:flex-1 py-4 sm:py-5 bg-white dark:bg-slate-800 text-slate-500 rounded-xl sm:rounded-2xl font-black text-[10px] uppercase tracking-widest border border-slate-200 dark:border-slate-800 hover:bg-slate-100 transition-all shadow-sm"
+                                className="w-full sm:flex-1 py-4 sm:py-5 card-primary text-slate-500 rounded-xl sm:rounded-2xl font-black text-[10px] uppercase tracking-widest border border-slate-200 dark:border-slate-800 hover:bg-slate-100 transition-all shadow-sm"
                             >
                                 Cancel
                             </button>

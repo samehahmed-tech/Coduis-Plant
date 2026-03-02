@@ -10,26 +10,38 @@ import { useOrderStore } from './stores/useOrderStore';
 
 // Loading Screen Component
 const LoadingScreen: React.FC<{ isConnected: boolean }> = ({ isConnected }) => (
-  <div className="min-h-screen bg-gradient-to-br from-slate-900 via-indigo-950 to-slate-900 flex items-center justify-center">
-    <div className="text-center">
-      <div className="relative mb-8">
-        <div className="w-24 h-24 mx-auto rounded-3xl bg-gradient-to-br from-indigo-500 to-violet-600 flex items-center justify-center shadow-2xl shadow-indigo-500/30">
-          <span className="text-4xl font-black text-white">CZ</span>
+  <div className="min-h-screen bg-slate-900 bg-[radial-gradient(ellipse_80%_80%_at_50%_-20%,rgba(120,119,198,0.3),rgba(255,255,255,0))] flex items-center justify-center overflow-hidden relative">
+    {/* Floating Orbs Background */}
+    <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-indigo-500/20 rounded-full blur-[100px] animate-pulse" />
+    <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-cyan-500/20 rounded-full blur-[100px] animate-pulse delay-1000" />
+
+    <div className="text-center relative z-10 animate-fade-in-up">
+      <div className="relative mb-10 w-32 h-32 mx-auto">
+        <div className="absolute inset-0 bg-gradient-to-br from-indigo-500 to-cyan-500 rounded-[2.5rem] blur-xl opacity-60 animate-pulse" />
+        <div className="relative w-full h-full bg-slate-900/80 backdrop-blur-xl rounded-[2.5rem] flex items-center justify-center border border-white/10 shadow-[0_8px_32px_0_rgba(0,0,0,0.4)]">
+          <span className="text-5xl font-black text-transparent bg-clip-text bg-gradient-to-br from-white to-indigo-200 tracking-tighter">CZ</span>
         </div>
-        <div className="absolute -bottom-2 -right-2 w-8 h-8 rounded-xl bg-emerald-500 flex items-center justify-center animate-pulse">
-          <Loader2 size={16} className="text-white animate-spin" />
+        <div className="absolute -bottom-3 -right-3 w-10 h-10 rounded-2xl bg-gradient-to-br from-emerald-400 to-emerald-600 flex items-center justify-center shadow-lg shadow-emerald-500/30 animate-bounce">
+          <Loader2 size={18} className="text-white animate-spin" />
         </div>
       </div>
-      <h1 className="text-2xl font-black text-white mb-2">Coduis Zen</h1>
-      <p className="text-sm text-slate-400 mb-4">جاري تحميل البيانات...</p>
-      <div className="flex items-center justify-center gap-2 text-xs">
+
+      <h1 className="text-3xl font-black text-white mb-2 tracking-tight">Coduis Zen</h1>
+      <p className="text-sm text-indigo-200/60 font-medium tracking-wide mb-6 uppercase">Initializing System Assets...</p>
+
+      <div className="flex items-center justify-center gap-2 text-xs font-bold uppercase tracking-widest bg-white/5 backdrop-blur-sm px-4 py-2 rounded-xl border border-white/10 w-fit mx-auto">
         {isConnected ? (
-          <span className="flex items-center gap-1.5 text-emerald-400">
-            <Wifi size={12} /> متصل بقاعدة البيانات
+          <span className="flex items-center gap-2 text-emerald-400">
+            <div className="relative flex h-2 w-2">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+              <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+            </div>
+            <Wifi size={14} className="opacity-80" /> Database Connected
           </span>
         ) : (
-          <span className="flex items-center gap-1.5 text-amber-400">
-            <WifiOff size={12} /> وضع غير متصل
+          <span className="flex items-center gap-2 text-amber-400">
+            <div className="w-2 h-2 rounded-full bg-amber-500 animate-pulse" />
+            <WifiOff size={14} className="opacity-80" /> Offline Mode
           </span>
         )}
       </div>

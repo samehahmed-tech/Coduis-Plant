@@ -48,49 +48,38 @@ const ItemGrid: React.FC<ItemGridProps> = React.memo(({
         );
     }
 
-    const renderCard = (item: MenuItem, isLarge?: boolean) => (
-        <div
+    const renderCard = (item: MenuItem) => (
+        <MenuItemCard
             key={item.id}
-            className={isLarge ? 'col-span-2 row-span-2' : ''}
-        >
-            <MenuItemCard
-                item={item}
-                onAddItem={onAddItem}
-                onRemoveItem={onRemoveItem}
-                quantity={quantityByItemId[item.id] || 0}
-                currencySymbol={currencySymbol}
-                isTouchMode={isTouchMode}
-                density={density}
-                lang={lang}
-                highlighted={highlightedItemId === item.id}
-            />
-        </div>
+            item={item}
+            onAddItem={onAddItem}
+            onRemoveItem={onRemoveItem}
+            quantity={quantityByItemId[item.id] || 0}
+            currencySymbol={currencySymbol}
+            isTouchMode={isTouchMode}
+            density={density}
+            lang={lang}
+            highlighted={highlightedItemId === item.id}
+        />
     );
 
     // Grid config by density
     const gridClass = (() => {
         switch (density) {
             case 'buttons':
-                return 'grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-7 gap-1 p-1';
+                return 'grid grid-cols-4 sm:grid-cols-5 md:grid-cols-6 lg:grid-cols-6 xl:grid-cols-7 2xl:grid-cols-8 gap-2 p-3 auto-rows-fr';
             case 'ultra':
-                return 'grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-1 p-1';
             case 'compact':
-                return 'grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-5 xl:grid-cols-6 gap-1.5 p-1';
-            default: // comfortable — popular items get double size
-                return 'grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-4 xl:grid-cols-5 gap-2 p-1 auto-rows-fr';
+                return 'grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-5 xl:grid-cols-6 2xl:grid-cols-7 gap-2.5 p-3 auto-rows-fr';
+            default: // comfortable — stable large smart tiles, 3-4 columns mostly
+                return 'grid grid-cols-2 sm:grid-cols-3 md:grid-cols-3 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-4 p-4 auto-rows-fr';
         }
     })();
-
-    // In comfortable mode, first few popular items get double-size cards
-    const useDoubleSize = density === 'comfortable' && popularIds.size > 0 && items.length > 6;
 
     return (
         <div className="h-full overflow-y-auto custom-scrollbar">
             <div className={gridClass}>
-                {items.map((item, i) => {
-                    const isLarge = useDoubleSize && popularIds.has(item.id) && i < 8;
-                    return renderCard(item, isLarge);
-                })}
+                {items.map((item) => renderCard(item))}
             </div>
         </div>
     );

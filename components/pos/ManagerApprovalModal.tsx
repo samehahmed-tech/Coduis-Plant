@@ -55,7 +55,7 @@ export const ManagerApprovalModal: React.FC<ManagerApprovalModalProps> = ({ isOp
     return (
         <div className="fixed inset-0 z-[300] flex items-center justify-center p-6">
             <div className="absolute inset-0 bg-slate-950/90 backdrop-blur-md" onClick={onClose} />
-            <div className="relative w-full max-w-sm bg-white dark:bg-slate-900 rounded-[2.5rem] p-8 shadow-2xl border border-white/10 animate-in zoom-in-95 duration-300">
+            <div className="relative w-full max-w-sm card-primary rounded-[2.5rem] p-8 shadow-2xl border border-white/10 animate-in zoom-in-95 duration-300">
                 <div className="text-center mb-8">
                     <div className="w-16 h-16 bg-amber-500/10 rounded-2xl flex items-center justify-center mx-auto mb-6 border border-amber-500/20">
                         <ShieldCheck className="w-8 h-8 text-amber-500" />

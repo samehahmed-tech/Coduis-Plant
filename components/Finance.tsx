@@ -168,15 +168,15 @@ const Finance: React.FC = () => {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
-        <div className="bg-white dark:bg-slate-900 p-6 rounded-2xl border border-slate-200 dark:border-slate-800">
+        <div className="card-primary p-6 rounded-2xl border border-slate-200 dark:border-slate-800">
           <p className="text-[10px] font-black text-slate-400 uppercase">Trial Balance Debit</p>
           <h3 className="text-2xl font-black text-slate-800 dark:text-white mt-1">{isLoading ? '...' : (trialBalance?.debit || 0).toFixed(2)}</h3>
         </div>
-        <div className="bg-white dark:bg-slate-900 p-6 rounded-2xl border border-slate-200 dark:border-slate-800">
+        <div className="card-primary p-6 rounded-2xl border border-slate-200 dark:border-slate-800">
           <p className="text-[10px] font-black text-slate-400 uppercase">Trial Balance Credit</p>
           <h3 className="text-2xl font-black text-slate-800 dark:text-white mt-1">{isLoading ? '...' : (trialBalance?.credit || 0).toFixed(2)}</h3>
         </div>
-        <div className="bg-white dark:bg-slate-900 p-6 rounded-2xl border border-slate-200 dark:border-slate-800">
+        <div className="card-primary p-6 rounded-2xl border border-slate-200 dark:border-slate-800">
           <p className="text-[10px] font-black text-slate-400 uppercase">Status</p>
           <h3 className={`text-2xl font-black mt-1 ${trialBalance?.balanced ? 'text-emerald-600' : 'text-rose-600'}`}>
             {trialBalance?.balanced ? 'Balanced' : 'Unbalanced'}
@@ -185,7 +185,7 @@ const Finance: React.FC = () => {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div className="lg:col-span-2 bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 overflow-hidden">
+        <div className="lg:col-span-2 card-primary rounded-3xl border border-slate-200 dark:border-slate-800 overflow-hidden">
           <div className="p-6 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between">
             <h3 className="text-lg font-black text-slate-800 dark:text-white flex items-center gap-2">
               <BookText size={20} className="text-indigo-600" />
@@ -206,7 +206,7 @@ const Finance: React.FC = () => {
           </div>
         </div>
 
-        <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 overflow-hidden">
+        <div className="card-primary rounded-3xl border border-slate-200 dark:border-slate-800 overflow-hidden">
           <div className="p-6 border-b border-slate-100 dark:border-slate-800">
             <h3 className="text-lg font-black text-slate-800 dark:text-white flex items-center gap-2">
               <History size={20} className="text-indigo-600" />
@@ -232,7 +232,7 @@ const Finance: React.FC = () => {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-6">
-        <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 overflow-hidden">
+        <div className="card-primary rounded-3xl border border-slate-200 dark:border-slate-800 overflow-hidden">
           <div className="p-6 border-b border-slate-100 dark:border-slate-800">
             <h3 className="text-lg font-black text-slate-800 dark:text-white">Reconciliations</h3>
           </div>
@@ -257,7 +257,7 @@ const Finance: React.FC = () => {
             ))}
           </div>
         </div>
-        <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 overflow-hidden">
+        <div className="card-primary rounded-3xl border border-slate-200 dark:border-slate-800 overflow-hidden">
           <div className="p-6 border-b border-slate-100 dark:border-slate-800">
             <h3 className="text-lg font-black text-slate-800 dark:text-white">Closed Periods</h3>
           </div>
@@ -275,7 +275,7 @@ const Finance: React.FC = () => {
 
       {journalModal && (
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center p-4 z-[120]">
-          <div className="w-full max-w-md bg-white dark:bg-slate-900 rounded-2xl p-5 border border-slate-200 dark:border-slate-800 space-y-3">
+          <div className="w-full max-w-md card-primary rounded-2xl p-5 border border-slate-200 dark:border-slate-800 space-y-3">
             <h4 className="text-sm font-black uppercase">Manual Journal Entry</h4>
             <input className="w-full px-3 py-2 rounded-xl bg-slate-100 dark:bg-slate-800" placeholder="Description" value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} />
             <input type="number" className="w-full px-3 py-2 rounded-xl bg-slate-100 dark:bg-slate-800" placeholder="Amount" value={form.amount} onChange={(e) => setForm({ ...form, amount: Number(e.target.value || 0) })} />
@@ -295,7 +295,7 @@ const Finance: React.FC = () => {
 
       {reconModal && (
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center p-4 z-[120]">
-          <div className="w-full max-w-md bg-white dark:bg-slate-900 rounded-2xl p-5 border border-slate-200 dark:border-slate-800 space-y-3">
+          <div className="w-full max-w-md card-primary rounded-2xl p-5 border border-slate-200 dark:border-slate-800 space-y-3">
             <h4 className="text-sm font-black uppercase">Create Reconciliation</h4>
             <select className="w-full px-3 py-2 rounded-xl bg-slate-100 dark:bg-slate-800" value={reconForm.accountCode} onChange={(e) => setReconForm({ ...reconForm, accountCode: e.target.value })}>
               {flatAccounts.map(a => <option key={`r-${a.id}`} value={a.code}>{a.code} - {a.name}</option>)}
@@ -313,7 +313,7 @@ const Finance: React.FC = () => {
 
       {closeModal && (
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center p-4 z-[120]">
-          <div className="w-full max-w-md bg-white dark:bg-slate-900 rounded-2xl p-5 border border-slate-200 dark:border-slate-800 space-y-3">
+          <div className="w-full max-w-md card-primary rounded-2xl p-5 border border-slate-200 dark:border-slate-800 space-y-3">
             <h4 className="text-sm font-black uppercase">Close Accounting Period</h4>
             <input type="date" className="w-full px-3 py-2 rounded-xl bg-slate-100 dark:bg-slate-800" value={closeForm.periodStart} onChange={(e) => setCloseForm({ ...closeForm, periodStart: e.target.value })} />
             <input type="date" className="w-full px-3 py-2 rounded-xl bg-slate-100 dark:bg-slate-800" value={closeForm.periodEnd} onChange={(e) => setCloseForm({ ...closeForm, periodEnd: e.target.value })} />

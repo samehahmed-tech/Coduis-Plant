@@ -803,7 +803,7 @@ const KDS: React.FC = () => {
         })}
 
         {activeOrders.length === 0 && (
-          <div className="col-span-full flex flex-col items-center justify-center h-96 text-slate-400 dark:text-slate-500 border-2 border-dashed border-slate-200 dark:border-slate-800 rounded-[3rem] bg-white dark:bg-slate-900/50">
+          <div className="col-span-full flex flex-col items-center justify-center h-96 text-slate-400 dark:text-slate-500 border-2 border-dashed border-slate-200 dark:border-slate-800 rounded-[3rem] card-primary/50">
             <div className="w-20 h-20 rounded-full bg-slate-50 dark:bg-slate-800 flex items-center justify-center mb-6">
               <Clock size={40} className="opacity-20" />
             </div>
@@ -815,7 +815,7 @@ const KDS: React.FC = () => {
 
       {isStationSettingsOpen && (
         <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-md z-[300] flex items-center justify-center p-6 animate-in fade-in duration-300">
-          <div className="bg-white dark:bg-slate-900 w-full max-w-2xl rounded-[2.5rem] p-8 shadow-2xl space-y-6">
+          <div className="card-primary w-full max-w-2xl rounded-[2.5rem] p-8 shadow-2xl space-y-6">
             <div className="flex items-center justify-between">
               <div>
                 <h3 className="text-xl font-black text-slate-800 dark:text-white uppercase tracking-tight">Stations Setup</h3>
@@ -928,7 +928,7 @@ const KDS: React.FC = () => {
                       <select
                         value={printerStationMap[printer.id] || 'GRILL'}
                         onChange={(e) => setPrinterStationMap(prev => ({ ...prev, [printer.id]: e.target.value as Station }))}
-                        className="w-full p-2 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-[11px] font-black"
+                        className="w-full p-2 rounded-lg card-primary text-[11px] font-black"
                       >
                         {['GRILL', 'BAR', 'DESSERT', 'FRYER', 'SALAD', 'BAKERY'].map((station) => (
                           <option key={station} value={station}>{station}</option>

@@ -17,7 +17,7 @@ const CustomerSelectView: React.FC<CustomerSelectViewProps> = ({
 }) => {
     return (
         <div className="flex-1 flex flex-col items-center justify-center bg-slate-50 dark:bg-slate-950 p-10">
-            <div className="max-w-md w-full bg-white dark:bg-slate-900 rounded-3xl p-8 shadow-2xl text-center">
+            <div className="max-w-md w-full card-primary rounded-3xl p-8 shadow-2xl text-center">
                 <div className="w-20 h-20 bg-orange-100 text-orange-600 rounded-full flex items-center justify-center mx-auto mb-6">
                     <Users size={32} />
                 </div>

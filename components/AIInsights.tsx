@@ -85,12 +85,12 @@ const AIInsights: React.FC = () => {
 
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-10">
                 {/* Menu Engineering Analysis */}
-                <div className="bg-white dark:bg-slate-900 rounded-[3rem] border border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden flex flex-col group">
+                <div className="card-primary rounded-[3rem] border border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden flex flex-col group">
                     <div className="p-8 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center bg-slate-50/50 dark:bg-slate-950/30">
                         <h3 className="text-xl font-black text-slate-800 dark:text-white flex items-center gap-3 uppercase tracking-tight">
                             <BarChart3 size={24} className="text-indigo-600" /> Menu Engineering
                         </h3>
-                        <div className="w-10 h-10 rounded-xl bg-white dark:bg-slate-800 flex items-center justify-center border border-slate-200 dark:border-slate-700 shadow-sm">
+                        <div className="w-10 h-10 rounded-xl card-primary flex items-center justify-center border border-slate-200 dark:border-slate-700 shadow-sm">
                             <PieChart size={18} className="text-slate-400" />
                         </div>
                     </div>
@@ -115,12 +115,12 @@ const AIInsights: React.FC = () => {
                 </div>
 
                 {/* Supply Chain & Forecast Analysis */}
-                <div className="bg-white dark:bg-slate-900 rounded-[3rem] border border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden flex flex-col group">
+                <div className="card-primary rounded-[3rem] border border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden flex flex-col group">
                     <div className="p-8 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center bg-slate-50/50 dark:bg-slate-950/30">
                         <h3 className="text-xl font-black text-slate-800 dark:text-white flex items-center gap-3 uppercase tracking-tight">
                             <TrendingUp size={24} className="text-emerald-600" /> Supply & Forecast
                         </h3>
-                        <div className="w-10 h-10 rounded-xl bg-white dark:bg-slate-800 flex items-center justify-center border border-slate-200 dark:border-slate-700 shadow-sm">
+                        <div className="w-10 h-10 rounded-xl card-primary flex items-center justify-center border border-slate-200 dark:border-slate-700 shadow-sm">
                             <AlertTriangle size={18} className="text-amber-500" />
                         </div>
                     </div>

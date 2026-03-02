@@ -12,7 +12,8 @@ import {
     json,
     uuid,
     varchar,
-    uniqueIndex
+    uniqueIndex,
+    index
 } from 'drizzle-orm/pg-core';
 
 // ============================================================================
@@ -282,7 +283,9 @@ export const orders = pgTable('orders', {
     deliveryFee: real('delivery_fee').default(0),
     serviceCharge: real('service_charge').default(0),
     total: real('total').notNull(),
-    // Flags
+    tipAmount: real('tip_amount').default(0),
+
+    // Details
     freeDelivery: boolean('free_delivery').default(false),
     isUrgent: boolean('is_urgent').default(false),
     isPaid: boolean('is_paid').default(false),
@@ -344,6 +347,8 @@ export const orderItems = pgTable('order_items', {
     status: text('status').default('PENDING'), // PENDING, PREPARING, READY, SERVED
     preparedAt: timestamp('prepared_at'),
     servedAt: timestamp('served_at'),
+    seatNumber: integer('seat_number'),
+    course: text('course'),
 });
 
 // Order Status History (for tracking)
@@ -426,6 +431,32 @@ export const stockMovements = pgTable('stock_movements', {
     referenceId: text('reference_id'), // Order ID, PO ID, etc.
     reason: text('reason'),
     performedBy: text('performed_by'),
+    createdAt: timestamp('created_at').defaultNow(),
+});
+
+export const inventoryBatches = pgTable('inventory_batches', {
+    id: text('id').primaryKey(),
+    itemId: text('item_id').references(() => inventoryItems.id).notNull(),
+    warehouseId: text('warehouse_id').references(() => warehouses.id).notNull(),
+    batchNumber: text('batch_number').notNull(),
+    receivedDate: timestamp('received_date').notNull().defaultNow(),
+    expiryDate: timestamp('expiry_date').notNull(),
+    initialQty: real('initial_qty').notNull(),
+    currentQty: real('current_qty').notNull(),
+    unitCost: real('unit_cost').notNull(),
+    supplierId: text('supplier_id'), // Optional foreign key if linking to suppliers
+    status: text('status').default('ACTIVE').notNull(), // ACTIVE, DEPLETED, EXPIRED, QUARANTINE
+    createdAt: timestamp('created_at').defaultNow(),
+}, (table) => ({
+    fefoIdx: index('fefo_idx').on(table.itemId, table.warehouseId, table.expiryDate, table.status),
+}));
+
+export const batchTransactions = pgTable('batch_transactions', {
+    id: serial('id').primaryKey(),
+    batchId: text('batch_id').references(() => inventoryBatches.id).notNull(),
+    stockMovementId: integer('stock_movement_id').references(() => stockMovements.id).notNull(),
+    quantityUsed: real('quantity_used').notNull(),
+    costAtTime: real('cost_at_time').notNull(),
     createdAt: timestamp('created_at').defaultNow(),
 });
 
@@ -656,6 +687,86 @@ export const managerApprovals = pgTable('manager_approvals', {
 });
 
 // ============================================================================
+// 🏦 ACCOUNTING CORE (GL ENGINE)
+// ============================================================================
+
+export const costCenters = pgTable('cost_centers', {
+    id: text('id').primaryKey(),
+    branchId: text('branch_id').references(() => branches.id).notNull(),
+    code: text('code').notNull().unique(), // e.g., 'CC-MAADI-01'
+    name: text('name').notNull(),
+    isActive: boolean('is_active').default(true),
+    createdAt: timestamp('created_at').defaultNow(),
+});
+
+export const fiscalPeriods = pgTable('fiscal_periods', {
+    id: text('id').primaryKey(),
+    name: text('name').notNull(), // e.g., 'Jan 2026'
+    startDate: timestamp('start_date').notNull(),
+    endDate: timestamp('end_date').notNull(),
+    status: text('status').default('OPEN').notNull(), // OPEN, CLOSED, LOCKED
+    closedBy: text('closed_by').references(() => users.id),
+    closedAt: timestamp('closed_at'),
+    createdAt: timestamp('created_at').defaultNow(),
+});
+
+export const chartOfAccounts = pgTable('chart_of_accounts', {
+    id: text('id').primaryKey(),
+    code: text('code').notNull().unique(), // typical hierachical code 1000, 1100
+    name: text('name').notNull(),
+    nameAr: text('name_ar'),
+    type: text('type').notNull(), // ASSET, LIABILITY, EQUITY, REVENUE, EXPENSE
+    normalBalance: text('normal_balance').notNull(), // DEBIT, CREDIT
+    // To support tree structure, parentId needs explicit mapping to the same table if used via relations later
+    parentId: text('parent_id'),
+    isActive: boolean('is_active').default(true),
+    isControlAccount: boolean('is_control_account').default(false), // e.g., Accounts Receivable
+    allowManualJournals: boolean('allow_manual_journals').default(true),
+    createdAt: timestamp('created_at').defaultNow(),
+});
+
+export const paymentMethodAccounts = pgTable('payment_method_accounts', {
+    id: serial('id').primaryKey(),
+    paymentMethod: text('payment_method').notNull().unique(), // CASH, VISA, VODAFONE_CASH
+    accountId: text('account_id').references(() => chartOfAccounts.id).notNull(),
+    branchId: text('branch_id').references(() => branches.id), // Nullable for global fallback
+});
+
+export const taxAccounts = pgTable('tax_accounts', {
+    id: serial('id').primaryKey(),
+    taxType: text('tax_type').notNull(), // INPUT_VAT, OUTPUT_VAT, WITHHOLDING
+    accountId: text('account_id').references(() => chartOfAccounts.id).notNull(),
+    rate: real('rate').notNull(), // Percentage
+});
+
+export const journalEntries = pgTable('journal_entries', {
+    id: text('id').primaryKey(),
+    entryNumber: serial('entry_number'),
+    date: timestamp('date').notNull().defaultNow(),
+    reference: text('reference'), // Order ID, PO ID, Shift ID
+    referenceType: text('reference_type').notNull(), // ORDER, PAYMENT, GRN, WASTE, MANUAL
+    description: text('description').notNull(),
+    status: text('status').default('POSTED').notNull(), // POSTED, REVERSED
+    fiscalPeriodId: text('fiscal_period_id'), // Removed rigid foreign key to allow flexible period linking if period hasn't been strictly generated yet
+    createdBy: text('created_by'),
+    createdAt: timestamp('created_at').defaultNow(),
+}, (table) => ({
+    refIdx: index('je_ref_idx').on(table.reference, table.referenceType),
+}));
+
+export const journalLines = pgTable('journal_lines', {
+    id: serial('id').primaryKey(),
+    journalEntryId: text('journal_entry_id').references(() => journalEntries.id).notNull(),
+    accountId: text('account_id').references(() => chartOfAccounts.id).notNull(),
+    costCenterId: text('cost_center_id').references(() => costCenters.id), // Branch-level reporting
+    debit: real('debit').default(0).notNull(),
+    credit: real('credit').default(0).notNull(),
+    description: text('description'),
+}, (table) => ({
+    accCcIdx: index('jl_acc_cc_idx').on(table.accountId, table.costCenterId),
+}));
+
+// ============================================================================
 // 🚚 DELIVERY & LOGISTICS
 // ============================================================================
 
@@ -732,6 +843,12 @@ export type ManagerApproval = typeof managerApprovals.$inferSelect;
 
 export type InventoryItem = typeof inventoryItems.$inferSelect;
 export type StockMovement = typeof stockMovements.$inferSelect;
+export type InventoryBatch = typeof inventoryBatches.$inferSelect;
+export type BatchTransaction = typeof batchTransactions.$inferSelect;
+
+export type ChartOfAccount = typeof chartOfAccounts.$inferSelect;
+export type JournalEntry = typeof journalEntries.$inferSelect;
+export type JournalLine = typeof journalLines.$inferSelect;
 
 export type AuditLog = typeof auditLogs.$inferSelect;
 export type Image = typeof images.$inferSelect;

@@ -188,7 +188,7 @@ const Production: React.FC = () => {
 
             {isCreateModalOpen && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-                    <div className="w-full max-w-lg bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 p-6 space-y-4">
+                    <div className="w-full max-w-lg card-primary rounded-3xl border border-slate-200 dark:border-slate-800 p-6 space-y-4">
                         <h3 className="text-lg font-black">Create Production Order</h3>
                         <select className="w-full px-3 py-2 rounded-xl bg-slate-100 dark:bg-slate-800" value={targetItemId} onChange={(e) => setTargetItemId(e.target.value)}>
                             <option value="">Select Composite Item</option>

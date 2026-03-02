@@ -82,7 +82,7 @@ const ItemModal: React.FC<ItemModalProps> = ({ isOpen, onClose, onSave, lang, wa
 
     return (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center z-[110] p-4">
-            <div className="bg-white dark:bg-slate-900 w-full max-w-4xl rounded-[2rem] shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
+            <div className="card-primary w-full max-w-4xl rounded-[2rem] shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
                 <div className="p-6 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center bg-slate-50 dark:bg-slate-900/50">
                     <div className="flex items-center gap-3">
                         <div className="w-12 h-12 rounded-2xl bg-indigo-600 text-white flex items-center justify-center">
@@ -234,7 +234,7 @@ const ItemModal: React.FC<ItemModalProps> = ({ isOpen, onClose, onSave, lang, wa
                                                 onClick={() => setFormData({ ...formData, auditFrequency: freq as any })}
                                                 className={`px-4 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${formData.auditFrequency === freq
                                                         ? 'bg-indigo-600 text-white'
-                                                        : 'bg-white dark:bg-slate-800 text-slate-500 border border-slate-200 dark:border-slate-700'
+                                                        : 'card-primary text-slate-500 border border-slate-200 dark:border-slate-700'
                                                     }`}
                                             >
                                                 {freq}
@@ -274,7 +274,7 @@ const ItemModal: React.FC<ItemModalProps> = ({ isOpen, onClose, onSave, lang, wa
                                             <select
                                                 value={ing.itemId}
                                                 onChange={e => handleUpdateIngredient(idx, 'itemId', e.target.value)}
-                                                className="flex-1 px-4 py-2.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl outline-none text-sm font-bold"
+                                                className="flex-1 px-4 py-2.5 card-primary rounded-xl outline-none text-sm font-bold"
                                             >
                                                 <option value="">{lang === 'ar' ? 'اختر صنف...' : 'Select item...'}</option>
                                                 {existingItems.filter(i => i.id !== formData.id).map(item => (
@@ -286,7 +286,7 @@ const ItemModal: React.FC<ItemModalProps> = ({ isOpen, onClose, onSave, lang, wa
                                                 placeholder="Qty"
                                                 value={ing.quantity}
                                                 onChange={e => handleUpdateIngredient(idx, 'quantity', Number(e.target.value))}
-                                                className="w-24 px-4 py-2.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl outline-none text-sm font-bold"
+                                                className="w-24 px-4 py-2.5 card-primary rounded-xl outline-none text-sm font-bold"
                                             />
                                             <span className="text-xs font-black text-slate-400 w-12">{existingItems.find(i => i.id === ing.itemId)?.unit || '-'}</span>
                                             <button
@@ -315,7 +315,7 @@ const ItemModal: React.FC<ItemModalProps> = ({ isOpen, onClose, onSave, lang, wa
                     <button
                         type="button"
                         onClick={onClose}
-                        className="flex-1 py-4 bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-400 font-black text-xs uppercase tracking-widest rounded-2xl border border-slate-200 dark:border-slate-800 hover:bg-slate-50 transition-all"
+                        className="flex-1 py-4 card-primary text-slate-600 dark:text-slate-400 font-black text-xs uppercase tracking-widest rounded-2xl border border-slate-200 dark:border-slate-800 hover:bg-slate-50 transition-all"
                     >
                         {lang === 'ar' ? 'إلغاء' : 'Cancel'}
                     </button>

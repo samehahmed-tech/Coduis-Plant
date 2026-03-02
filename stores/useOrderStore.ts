@@ -27,9 +27,11 @@ interface OrderState {
     tables: Table[];
     zones: FloorZone[];
     isLoading: boolean;
+    isApplyingCoupon: boolean;
     error: string | null;
 
     // POS State
+    tipAmount: number;
     discount: number;
     activeCoupon: string | null;
     recalledOrder: HeldOrder | null;
@@ -48,6 +50,9 @@ interface OrderState {
     removeFromCart: (itemId: string) => void;
     updateCartItemQuantity: (itemId: string, delta: number) => void;
     updateCartItemNotes: (itemId: string, notes: string) => void;
+    updateCartItemSeat: (itemId: string, seatNumber: number) => void;
+    updateCartItemCourse: (itemId: string, course: string) => void;
+    setTipAmount: (amount: number) => void;
     clearCart: () => void;
     saveTableDraft: (tableId: string, cart: OrderItem[], discount: number) => void;
     loadTableDraft: (tableId: string) => void;
@@ -77,6 +82,7 @@ const INITIAL_ZONES: FloorZone[] = [
 ];
 import { persist } from 'zustand/middleware';
 import { eventBus } from '../services/eventBus';
+import { PaymentMethod } from '../types';
 
 const isCompletionStatus = (status?: string) => status === OrderStatus.DELIVERED || status === 'COMPLETED';
 
@@ -120,7 +126,9 @@ export const useOrderStore = create<OrderState>()(
             activeCoupon: null,
             recalledOrder: null,
             isLoading: false,
+            isApplyingCoupon: false,
             error: null,
+            tipAmount: 0,
 
             // ============ API Actions ============
 
@@ -143,11 +151,14 @@ export const useOrderStore = create<OrderState>()(
                             items: (o.items || []).map((item: any, index: number) => ({
                                 ...item,
                                 cartId: item.cartId || item.id || `${o.id}-${index}`,
+                                course: item.course,
                                 selectedModifiers: item.selectedModifiers || item.modifiers || [],
                             })),
                             status: o.status as OrderStatus,
                             subtotal: o.subtotal,
                             tax: o.tax,
+                            tipAmount: o.tipAmount,
+                            serviceCharge: o.serviceCharge,
                             total: o.total,
                             discount: o.discount,
                             freeDelivery: o.free_delivery,
@@ -221,6 +232,10 @@ export const useOrderStore = create<OrderState>()(
             placeOrder: async (order) => {
                 set({ isLoading: true, error: null });
                 try {
+                    const state = get(); // Get current state to access tipAmount
+                    const totalAmount = order.total + state.tipAmount; // Assuming totalAmount is calculated here
+                    const activeMethod = order.payments?.[0]; // Assuming activeMethod is derived from payments
+
                     const payload = {
                         id: order.id,
                         type: order.type,
@@ -236,7 +251,9 @@ export const useOrderStore = create<OrderState>()(
                         subtotal: order.subtotal,
                         discount: order.discount,
                         tax: order.tax,
-                        total: order.total,
+                        total: totalAmount,
+                        tip_amount: state.tipAmount || 0,
+                        delivery_fee: Number(order.deliveryFee || 0),
                         free_delivery: order.freeDelivery,
                         is_urgent: order.isUrgent,
                         payment_method: order.paymentMethod,
@@ -249,6 +266,8 @@ export const useOrderStore = create<OrderState>()(
                             price: item.price,
                             quantity: item.quantity,
                             notes: item.notes,
+                            seat_number: item.seatNumber,
+                            course: item.course,
                             modifiers: item.selectedModifiers,
                         }))
                     };
@@ -392,7 +411,27 @@ export const useOrderStore = create<OrderState>()(
                 )
             })),
 
-            clearCart: () => set({ activeCart: [], discount: 0, activeCoupon: null }),
+            updateCartItemSeat: (itemId, seatNumber) => set((state) => ({
+                activeCart: state.activeCart.map(item =>
+                    item.cartId === itemId ? { ...item, seatNumber } : item
+                )
+            })),
+
+            updateCartItemCourse: (itemId, course) => set((state) => ({
+                activeCart: state.activeCart.map(item =>
+                    item.cartId === itemId ? { ...item, course } : item
+                )
+            })),
+
+            setTipAmount: (amount) => set({ tipAmount: amount }),
+
+            clearCart: () => set({
+                activeCart: [],
+                discount: 0,
+                activeCoupon: null,
+                isApplyingCoupon: false,
+                tipAmount: 0,
+            }),
 
             saveTableDraft: (tableId, cart, discount) => set((state) => ({
                 tableDrafts: {

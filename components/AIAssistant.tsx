@@ -245,14 +245,14 @@ const AIAssistant: React.FC = () => {
               key={message.id}
               className={`flex items-start gap-4 ${message.sender === 'user' ? 'flex-row-reverse' : ''} animate-in fade-in slide-in-from-bottom-2 duration-300`}
             >
-              <div className={`w-10 h-10 rounded-2xl flex items-center justify-center shrink-0 shadow-lg ${message.sender === 'ai' ? 'bg-indigo-600 text-white' : 'bg-white dark:bg-slate-800 text-slate-600'
+              <div className={`w-10 h-10 rounded-2xl flex items-center justify-center shrink-0 shadow-lg ${message.sender === 'ai' ? 'bg-indigo-600 text-white' : 'card-primary text-slate-600'
                 }`}>
                 {message.sender === 'ai' ? <Bot size={20} /> : <User size={20} />}
               </div>
 
               <div className={`max-w-[80%] flex flex-col gap-3 ${message.sender === 'user' ? 'items-end' : 'items-start'}`}>
                 <div className={`p-4 md:p-6 rounded-[2rem] shadow-sm border ${message.sender === 'ai'
-                  ? 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-slate-800 dark:text-slate-100'
+                  ? 'card-primary border-slate-200 dark:border-slate-800 text-slate-800 dark:text-slate-100'
                   : 'bg-indigo-600 border-indigo-500 text-white'
                   }`}>
                   <p className="text-sm md:text-base leading-relaxed whitespace-pre-wrap">{message.text}</p>
@@ -285,7 +285,7 @@ const AIAssistant: React.FC = () => {
             </div>
           ))}
           {pendingActions.length > 0 && (
-            <div className="max-w-4xl mx-auto w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-4 space-y-4">
+            <div className="max-w-4xl mx-auto w-full card-primary rounded-2xl p-4 space-y-4">
               <div className="text-[10px] font-black uppercase tracking-widest text-slate-400">
                 AI Suggested Actions (Approval Required)
               </div>
@@ -327,7 +327,7 @@ const AIAssistant: React.FC = () => {
                       value={actionReason[guarded.id] || ''}
                       onChange={(e) => setActionReason(prev => ({ ...prev, [guarded.id]: e.target.value }))}
                       placeholder={lang === 'ar' ? 'سبب التنفيذ (اختياري)' : 'Reason for approval (optional)'}
-                      className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2 text-xs font-bold"
+                      className="w-full card-primary rounded-xl px-3 py-2 text-xs font-bold"
                     />
 
                     <div className="flex items-center justify-end gap-2">
@@ -355,7 +355,7 @@ const AIAssistant: React.FC = () => {
               <div className="w-10 h-10 rounded-2xl bg-indigo-600 text-white flex items-center justify-center shrink-0">
                 <Bot size={20} />
               </div>
-              <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-4 rounded-2xl flex items-center gap-2">
+              <div className="card-primary p-4 rounded-2xl flex items-center gap-2">
                 <Loader2 size={16} className="animate-spin text-indigo-600" />
                 <span className="text-xs font-black text-slate-400 uppercase tracking-widest">Assistant is thinking...</span>
               </div>
@@ -373,7 +373,7 @@ const AIAssistant: React.FC = () => {
             onChange={(e) => setInput(e.target.value)}
             onKeyPress={(e) => e.key === 'Enter' && handleSend()}
             placeholder={lang === 'ar' ? 'اكتب تساؤلك هنا... (مثال: ما هي الأصناف الأكثر ربحية؟)' : 'Type your query... (e.g., Which items are most profitable?)'}
-            className="w-full bg-white dark:bg-slate-900 border-2 border-slate-200 dark:border-slate-800 rounded-[2rem] py-5 px-8 pr-20 text-sm md:text-base font-bold outline-none focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-600 transition-all shadow-xl group-hover:shadow-2xl"
+            className="w-full card-primary border-2 border-slate-200 dark:border-slate-800 rounded-[2rem] py-5 px-8 pr-20 text-sm md:text-base font-bold outline-none focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-600 transition-all shadow-xl group-hover:shadow-2xl"
           />
           <button
             onClick={handleSend}

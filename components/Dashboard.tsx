@@ -241,33 +241,37 @@ const Dashboard: React.FC = () => {
 
   return (
     <div className="p-4 md:p-6 lg:p-8 space-y-6 animate-fade-in transition-colors duration-200 min-h-screen pb-20">
-      <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4">
+      <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4 mb-6 relative z-10">
         <div>
-          <h2 className="heading-lg text-main uppercase flex items-center gap-3">
-            {lang === 'ar' ? 'لوحة التحكم' : 'Dashboard'}
-            <div className={`w-2.5 h-2.5 rounded-full ${hasData ? 'bg-emerald-500' : 'bg-amber-500'} animate-pulse`} />
+          <h2 className="text-xl md:text-2xl font-black text-transparent bg-clip-text bg-gradient-to-r from-indigo-500 to-cyan-500 uppercase flex items-center gap-3 tracking-tighter">
+            {lang === 'ar' ? 'لوحة القيادة' : 'Command Center'}
+            <div className={`relative flex h-2.5 w-2.5 ml-1.5`}>
+              <span className={`animate-ping absolute inline-flex h-full w-full rounded-full ${hasData ? 'bg-emerald-400' : 'bg-amber-400'} opacity-75`}></span>
+              <span className={`relative inline-flex rounded-full h-2.5 w-2.5 ${hasData ? 'bg-emerald-500' : 'bg-amber-500'}`}></span>
+            </div>
           </h2>
-          <p className="text-sm text-muted font-semibold">
-            {lang === 'ar' ? 'تفاصيل تشغيلية لحظية للمبيعات والعمليات' : 'Live operational and financial breakdown'}
+          <p className="text-xs md:text-sm text-muted font-bold tracking-wide mt-0.5">
+            {lang === 'ar' ? 'نظرة شاملة لحظية للأداء والعمليات' : 'Real-time operational & financial intelligence'}
           </p>
         </div>
 
-        <div className="flex flex-wrap items-center gap-2 w-full lg:w-auto">
+        <div className="flex flex-wrap items-center gap-2 w-full lg:w-auto bg-card/60 backdrop-blur-md p-1.5 rounded-[1.2rem] border border-white/5 shadow-sm">
           {(['DAILY', 'WEEKLY', 'MONTHLY', 'ALL'] as Scope[]).map(scope => (
             <button
               key={scope}
               onClick={() => setViewScope(scope)}
-              className={`px-3 py-2 rounded-xl text-xs font-black uppercase tracking-wider border transition-all ${viewScope === scope ? 'bg-primary text-white border-primary' : 'bg-elevated text-main border-border/40'}`}
+              className={`px-4 py-2 rounded-[1rem] text-[10px] md:text-xs font-black uppercase tracking-widest transition-all duration-300 ${viewScope === scope ? 'bg-indigo-500 text-white shadow-[0_4px_12px_rgba(99,102,241,0.3)]' : 'bg-transparent text-muted hover:text-main hover:bg-elevated/40'}`}
             >
               {scope}
             </button>
           ))}
+          <div className="w-[1px] h-6 bg-border mx-1 hidden md:block" />
           <button
             onClick={handleGenerateInsight}
-            className="flex items-center gap-2 bg-primary/10 text-primary px-4 py-2 rounded-xl font-bold text-xs uppercase tracking-wider hover:bg-primary/20 transition-all"
+            className="flex items-center justify-center gap-2 bg-gradient-to-r from-indigo-500/10 to-cyan-500/10 hover:from-indigo-500/20 hover:to-cyan-500/20 border border-indigo-500/20 text-indigo-600 dark:text-indigo-400 px-5 py-2 rounded-[1rem] font-black text-[10px] md:text-xs uppercase tracking-widest transition-all duration-300 w-full md:w-auto shadow-sm group"
           >
-            <Sparkles size={14} />
-            {loadingInsight ? 'Loading...' : 'AI Intel'}
+            <Sparkles size={14} className="group-hover:animate-pulse" />
+            {loadingInsight ? 'Analyzing...' : 'AI Intel'}
           </button>
         </div>
       </div>
@@ -323,35 +327,39 @@ const Dashboard: React.FC = () => {
 
       {!loading && hasData && (
         <>
-          <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
+          <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-3 lg:gap-5 mb-6">
             {[
-              { label: lang === 'ar' ? 'الإيرادات' : 'Revenue', value: `${totals.revenue.toLocaleString()} ${currencySymbol}`, icon: DollarSign, color: 'text-emerald-500', bg: 'bg-emerald-500/10', accent: 'from-emerald-500 to-emerald-600', perm: AppPermission.DATA_VIEW_REVENUE },
-              { label: lang === 'ar' ? 'المحصّل' : 'Collected', value: `${totals.paidRevenue.toLocaleString()} ${currencySymbol}`, icon: Wallet, color: 'text-blue-500', bg: 'bg-blue-500/10', accent: 'from-blue-500 to-blue-600', perm: AppPermission.DATA_VIEW_REVENUE },
-              { label: lang === 'ar' ? 'الطلبات' : 'Orders', value: String(totals.orderCount), icon: ShoppingBag, color: 'text-indigo-500', bg: 'bg-indigo-500/10', accent: 'from-indigo-500 to-indigo-600', perm: AppPermission.DATA_VIEW_REVENUE },
-              { label: lang === 'ar' ? 'متوسط الفاتورة' : 'Avg Ticket', value: `${totals.avgTicket.toFixed(1)} ${currencySymbol}`, icon: TrendingUp, color: 'text-violet-500', bg: 'bg-violet-500/10', accent: 'from-violet-500 to-violet-600', perm: AppPermission.DATA_VIEW_REVENUE },
-              { label: lang === 'ar' ? 'الضيوف' : 'Guests', value: String(totals.uniqueCustomers), icon: Users, color: 'text-cyan-500', bg: 'bg-cyan-500/10', accent: 'from-cyan-500 to-cyan-600', perm: AppPermission.DATA_VIEW_CUSTOMER_SENSITIVE },
-              { label: lang === 'ar' ? 'الأصناف المباعة' : 'Items Sold', value: String(totals.itemsSold), icon: Package, color: 'text-amber-500', bg: 'bg-amber-500/10', accent: 'from-amber-500 to-amber-600', perm: AppPermission.DATA_VIEW_REVENUE },
+              { label: lang === 'ar' ? 'الإيرادات' : 'Revenue', value: `${totals.revenue.toLocaleString()} ${currencySymbol}`, icon: DollarSign, color: 'text-emerald-400', bg: 'bg-emerald-500/10', glow: 'from-emerald-500/0 via-emerald-500/20 to-emerald-500/0', accent: 'bg-gradient-to-r from-emerald-500 to-teal-400', shadow: 'shadow-emerald-500/20', perm: AppPermission.DATA_VIEW_REVENUE },
+              { label: lang === 'ar' ? 'المحصّل' : 'Collected', value: `${totals.paidRevenue.toLocaleString()} ${currencySymbol}`, icon: Wallet, color: 'text-blue-400', bg: 'bg-blue-500/10', glow: 'from-blue-500/0 via-blue-500/20 to-blue-500/0', accent: 'bg-gradient-to-r from-blue-500 to-indigo-400', shadow: 'shadow-blue-500/20', perm: AppPermission.DATA_VIEW_REVENUE },
+              { label: lang === 'ar' ? 'الطلبات' : 'Orders', value: String(totals.orderCount), icon: ShoppingBag, color: 'text-indigo-400', bg: 'bg-indigo-500/10', glow: 'from-indigo-500/0 via-indigo-500/20 to-indigo-500/0', accent: 'bg-gradient-to-r from-indigo-500 to-cyan-400', shadow: 'shadow-indigo-500/20', perm: AppPermission.DATA_VIEW_REVENUE },
+              { label: lang === 'ar' ? 'متوسط الفاتورة' : 'Avg Ticket', value: `${totals.avgTicket.toFixed(1)} ${currencySymbol}`, icon: TrendingUp, color: 'text-violet-400', bg: 'bg-violet-500/10', glow: 'from-violet-500/0 via-violet-500/20 to-violet-500/0', accent: 'bg-gradient-to-r from-violet-500 to-purple-400', shadow: 'shadow-violet-500/20', perm: AppPermission.DATA_VIEW_REVENUE },
+              { label: lang === 'ar' ? 'الضيوف' : 'Guests', value: String(totals.uniqueCustomers), icon: Users, color: 'text-cyan-400', bg: 'bg-cyan-500/10', glow: 'from-cyan-500/0 via-cyan-500/20 to-cyan-500/0', accent: 'bg-gradient-to-r from-cyan-500 to-blue-400', shadow: 'shadow-cyan-500/20', perm: AppPermission.DATA_VIEW_CUSTOMER_SENSITIVE },
+              { label: lang === 'ar' ? 'الأصناف المباعة' : 'Items Sold', value: String(totals.itemsSold), icon: Package, color: 'text-amber-400', bg: 'bg-amber-500/10', glow: 'from-amber-500/0 via-amber-500/20 to-amber-500/0', accent: 'bg-gradient-to-r from-amber-500 to-orange-400', shadow: 'shadow-amber-500/20', perm: AppPermission.DATA_VIEW_REVENUE },
             ].map((stat, index) => (
               <div
                 key={index}
-                className="relative overflow-hidden bg-card border border-border/50 rounded-2xl p-5 hover:-translate-y-1 hover:shadow-xl transition-all duration-300 group"
+                className={`relative overflow-hidden bg-card/60 backdrop-blur-xl border border-white/5 rounded-[1.5rem] p-4 lg:p-5 hover:-translate-y-1 hover:shadow-xl ${stat.shadow} transition-all duration-300 ease-out group`}
                 style={{ animationDelay: `${index * 60}ms` }}
               >
-                {/* Gradient accent strip */}
-                <div className={`absolute top-0 ${lang === 'ar' ? 'right-0' : 'left-0'} w-1 h-full bg-gradient-to-b ${stat.accent} rounded-full`} />
-                {/* Hover shine */}
-                <div className="absolute inset-0 bg-gradient-to-br from-white/[0.02] to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+                {/* Glowing orb background */}
+                <div className={`absolute -right-6 -top-6 w-24 h-24 rounded-full ${stat.bg} blur-2xl opacity-40 group-hover:opacity-80 transition-opacity duration-500`} />
 
-                <div className="flex justify-between items-start gap-2 relative">
+                {/* Animated Gradient border glow on hover */}
+                <div className={`absolute inset-0 bg-gradient-to-tr ${stat.glow} opacity-0 group-hover:opacity-100 transition-opacity duration-500`} />
+
+                {/* Gradient accent top strip */}
+                <div className={`absolute top-0 left-0 w-full h-[2px] ${stat.accent} opacity-40 group-hover:opacity-100 transition-opacity duration-300`} />
+
+                <div className="flex justify-between items-center gap-2 relative z-10">
                   <div className="min-w-0">
-                    <p className="text-[10px] font-black uppercase tracking-[0.15em] text-muted truncate">{stat.label}</p>
-                    <h3 className="text-lg xl:text-xl font-black text-main mt-1.5" style={{ fontVariantNumeric: 'tabular-nums' }}>
+                    <p className="text-[10px] lg:text-[11px] font-black uppercase tracking-[0.1em] text-muted truncate mb-0.5">{stat.label}</p>
+                    <h3 className="text-xl lg:text-2xl font-black text-main tracking-tight drop-shadow-sm" style={{ fontVariantNumeric: 'tabular-nums' }}>
                       <SensitiveData permission={stat.perm} hasPermission={hasPermission} lang={lang}>
                         {stat.value}
                       </SensitiveData>
                     </h3>
                   </div>
-                  <div className={`p-2.5 rounded-xl ${stat.bg} shrink-0 group-hover:scale-110 transition-transform duration-300`}>
+                  <div className={`p-3 rounded-2xl ${stat.bg} shrink-0 group-hover:scale-105 transition-transform duration-300 shadow-inner`}>
                     <stat.icon size={20} className={stat.color} />
                   </div>
                 </div>
@@ -359,59 +367,62 @@ const Dashboard: React.FC = () => {
             ))}
           </div>
 
-          <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
-            <div className="xl:col-span-2 space-y-6">
-              <div className="card-primary p-6 rounded-3xl">
-                <div className="flex items-center justify-between mb-6">
-                  <h3 className="text-lg font-black text-main">{lang === 'ar' ? 'اتجاه المبيعات' : 'Revenue Trend'}</h3>
-                  <div className="text-xs text-muted font-bold">{viewScope}</div>
+          <div className="grid grid-cols-1 xl:grid-cols-3 gap-5">
+            <div className="xl:col-span-2 space-y-5">
+              <div className="relative overflow-hidden bg-card/60 backdrop-blur-xl p-5 lg:p-6 rounded-[1.8rem] border border-white/5 shadow-xl group">
+                <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-700 pointer-events-none" />
+                <div className="flex items-center justify-between mb-4 relative z-10">
+                  <h3 className="text-lg font-black text-main tracking-tight">{lang === 'ar' ? 'اتجاه المبيعات' : 'Revenue Trend'}</h3>
+                  <div className="text-[9px] font-black uppercase tracking-widest text-primary bg-primary/10 px-3 py-1.5 rounded-xl border border-primary/20">{viewScope}</div>
                 </div>
-                <div className="h-[320px]">
+                <div className="h-[280px] relative z-10">
                   <ResponsiveContainer width="100%" height="100%" minWidth={0}>
                     <LineChart data={trendData}>
-                      <CartesianGrid strokeDasharray="3 3" stroke={gridColor} />
-                      <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: chartTextColor, fontSize: 11, fontWeight: 700 }} />
-                      <YAxis axisLine={false} tickLine={false} tick={{ fill: chartTextColor, fontSize: 11, fontWeight: 700 }} />
-                      <Tooltip contentStyle={tooltipStyle} />
-                      <Line type="monotone" dataKey="revenue" stroke={primaryColor} strokeWidth={3} dot={{ r: 3 }} activeDot={{ r: 5 }} />
+                      <CartesianGrid strokeDasharray="3 3" stroke={gridColor} vertical={false} />
+                      <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: chartTextColor, fontSize: 10, fontWeight: 700 }} dy={10} />
+                      <YAxis axisLine={false} tickLine={false} tick={{ fill: chartTextColor, fontSize: 10, fontWeight: 700 }} dx={-10} />
+                      <Tooltip contentStyle={tooltipStyle} cursor={{ stroke: 'rgba(var(--primary-rgb), 0.1)', strokeWidth: 2 }} />
+                      <Line type="monotone" dataKey="revenue" stroke={primaryColor} strokeWidth={3} dot={{ r: 3, strokeWidth: 2, fill: 'var(--bg-card)' }} activeDot={{ r: 6, strokeWidth: 2, stroke: primaryColor }} animationDuration={1000} />
                     </LineChart>
                   </ResponsiveContainer>
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                <div className="card-primary p-6 rounded-3xl">
-                  <h3 className="text-sm font-black text-main mb-4 uppercase tracking-widest">Payments Mix</h3>
-                  <div className="h-[240px]">
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+                <div className="relative overflow-hidden bg-card/60 backdrop-blur-xl p-5 lg:p-6 rounded-[1.8rem] border border-white/5 shadow-xl group">
+                  <div className="absolute inset-0 bg-gradient-to-tr from-accent/5 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-700 pointer-events-none" />
+                  <h3 className="text-[10px] font-black text-muted mb-4 uppercase tracking-[0.2em] relative z-10">Payments Mix</h3>
+                  <div className="h-[200px] relative z-10">
                     <ResponsiveContainer width="100%" height="100%" minWidth={0}>
                       <PieChart>
-                        <Pie data={paymentBreakdown} dataKey="value" nameKey="name" innerRadius={55} outerRadius={85} paddingAngle={4}>
-                          {paymentBreakdown.map((_, i) => <Cell key={i} fill={COLORS[i % COLORS.length]} />)}
+                        <Pie data={paymentBreakdown} dataKey="value" nameKey="name" innerRadius={50} outerRadius={80} paddingAngle={5} cornerRadius={4} animationDuration={1000}>
+                          {paymentBreakdown.map((_, i) => <Cell key={i} fill={COLORS[i % COLORS.length]} stroke="rgba(0,0,0,0)" />)}
                         </Pie>
                         <Tooltip contentStyle={tooltipStyle} />
                       </PieChart>
                     </ResponsiveContainer>
                   </div>
-                  <div className="grid grid-cols-2 gap-2 mt-4">
+                  <div className="grid grid-cols-2 gap-2 mt-4 relative z-10">
                     {paymentBreakdown.map((p, i) => (
-                      <div key={i} className="flex items-center gap-2 px-2 py-1.5 rounded-xl bg-elevated/60 border border-border/40">
-                        <div className="w-2 h-2 rounded-full" style={{ backgroundColor: COLORS[i % COLORS.length] }} />
+                      <div key={i} className="flex items-center gap-2 px-3 py-2 rounded-xl bg-elevated/40 border border-white/5 backdrop-blur-sm">
+                        <div className="w-2.5 h-2.5 rounded-full shadow-sm" style={{ backgroundColor: COLORS[i % COLORS.length] }} />
                         <span className="text-[10px] font-bold text-main truncate">{p.name}</span>
                       </div>
                     ))}
                   </div>
                 </div>
 
-                <div className="card-primary p-6 rounded-3xl">
-                  <h3 className="text-sm font-black text-main mb-4 uppercase tracking-widest">Order Types</h3>
-                  <div className="h-[240px]">
+                <div className="relative overflow-hidden bg-card/60 backdrop-blur-xl p-5 lg:p-6 rounded-[1.8rem] border border-white/5 shadow-xl group">
+                  <div className="absolute inset-0 bg-gradient-to-bl from-primary/5 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-700 pointer-events-none" />
+                  <h3 className="text-[10px] font-black text-muted mb-4 uppercase tracking-[0.2em] relative z-10">Order Types</h3>
+                  <div className="h-[200px] relative z-10">
                     <ResponsiveContainer width="100%" height="100%" minWidth={0}>
                       <BarChart data={orderTypeBreakdown}>
                         <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={gridColor} />
-                        <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: chartTextColor, fontSize: 11, fontWeight: 700 }} />
-                        <YAxis axisLine={false} tickLine={false} tick={{ fill: chartTextColor, fontSize: 11, fontWeight: 700 }} />
-                        <Tooltip contentStyle={tooltipStyle} />
-                        <Bar dataKey="value" fill={primaryColor} radius={[8, 8, 0, 0]} />
+                        <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: chartTextColor, fontSize: 10, fontWeight: 700 }} dy={10} />
+                        <YAxis axisLine={false} tickLine={false} tick={{ fill: chartTextColor, fontSize: 10, fontWeight: 700 }} dx={-10} />
+                        <Tooltip contentStyle={tooltipStyle} cursor={{ fill: 'rgba(var(--primary-rgb), 0.05)' }} />
+                        <Bar dataKey="value" fill={primaryColor} radius={[6, 6, 0, 0]} animationDuration={1000} />
                       </BarChart>
                     </ResponsiveContainer>
                   </div>
@@ -419,20 +430,20 @@ const Dashboard: React.FC = () => {
               </div>
 
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                <div className="card-primary p-6 rounded-3xl">
-                  <h3 className="text-sm font-black text-main mb-4 uppercase tracking-widest flex items-center gap-2">
-                    <Building2 size={14} className="text-primary" />
+                <div className="card-primary p-6 rounded-[2rem] border-white/5 backdrop-blur-3xl bg-card/60">
+                  <h3 className="text-[11px] font-black text-muted mb-4 uppercase tracking-[0.2em] flex items-center gap-2">
+                    <Building2 size={16} className="text-primary" />
                     Branch Performance
                   </h3>
                   <div className="space-y-3">
                     {branchPerformance.length === 0 && <p className="text-xs text-muted">No branch data.</p>}
                     {branchPerformance.map((b) => (
-                      <div key={b.branchId} className="p-3 rounded-xl bg-elevated/50 border border-border/40">
-                        <div className="flex justify-between items-center">
-                          <p className="text-xs font-black text-main">{b.branchName}</p>
-                          <p className="text-[11px] font-black text-emerald-600">{b.revenue.toLocaleString()} {currencySymbol}</p>
+                      <div key={b.branchId} className="p-3.5 rounded-2xl bg-elevated/40 border border-white/5 hover:border-primary/30 transition-colors shadow-sm">
+                        <div className="flex justify-between items-center mb-1">
+                          <p className="text-[13px] font-bold text-main">{b.branchName}</p>
+                          <p className="text-[12px] font-black text-emerald-500 drop-shadow-sm">{b.revenue.toLocaleString()} {currencySymbol}</p>
                         </div>
-                        <div className="flex justify-between mt-1 text-[10px] text-muted font-bold">
+                        <div className="flex justify-between text-[10px] text-muted font-bold uppercase tracking-wider">
                           <span>{b.orders} orders</span>
                           <span>Avg {b.avgTicket.toFixed(1)}</span>
                         </div>
@@ -441,17 +452,17 @@ const Dashboard: React.FC = () => {
                   </div>
                 </div>
 
-                <div className="card-primary p-6 rounded-3xl">
-                  <h3 className="text-sm font-black text-main mb-4 uppercase tracking-widest">Top Selling Items</h3>
+                <div className="card-primary p-6 rounded-[2rem] border-white/5 backdrop-blur-3xl bg-card/60">
+                  <h3 className="text-[11px] font-black text-muted mb-4 uppercase tracking-[0.2em]">Top Selling Items</h3>
                   <div className="space-y-2">
                     {topItems.length === 0 && <p className="text-xs text-muted">No item sales yet.</p>}
                     {topItems.map((item, i) => (
-                      <div key={`${item.name}-${i}`} className="flex items-center justify-between p-2.5 rounded-xl bg-elevated/50 border border-border/40">
+                      <div key={`${item.name}-${i}`} className="flex items-center justify-between p-3.5 rounded-2xl bg-elevated/40 border border-white/5 shadow-sm hover:border-primary/30 transition-colors">
                         <div>
-                          <p className="text-xs font-black text-main">{item.name}</p>
-                          <p className="text-[10px] text-muted">{item.qty} units</p>
+                          <p className="text-[13px] font-bold text-main">{item.name}</p>
+                          <p className="text-[10px] uppercase tracking-widest text-muted font-bold mt-0.5">{item.qty} units</p>
                         </div>
-                        <p className="text-[11px] font-black text-emerald-600">{item.revenue.toLocaleString()} {currencySymbol}</p>
+                        <p className="text-[12px] font-black text-emerald-500 drop-shadow-sm">{item.revenue.toLocaleString()} {currencySymbol}</p>
                       </div>
                     ))}
                   </div>
@@ -462,55 +473,68 @@ const Dashboard: React.FC = () => {
             <div className="space-y-6">
               <AIAlertsWidget />
 
-              <div className="bg-gradient-to-br from-indigo-700 via-indigo-600 to-indigo-800 p-6 rounded-3xl text-white shadow-2xl shadow-indigo-500/20 relative overflow-hidden">
-                <div className="space-y-4 relative z-10">
-                  <div className="flex items-center gap-3">
-                    <div className="p-2.5 bg-white/20 rounded-xl">
-                      <Sparkles size={18} />
+              <div className="bg-gradient-to-br from-indigo-900 via-indigo-700 to-indigo-900 p-8 rounded-[2.5rem] text-white shadow-[0_20px_40px_rgba(99,102,241,0.25)] relative overflow-hidden group border border-indigo-500/30">
+                {/* Animated tech background */}
+                <div className="absolute inset-0 opacity-[0.05]" style={{ backgroundImage: 'linear-gradient(rgba(255,255,255,0.1) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.1) 1px, transparent 1px)', backgroundSize: '20px 20px' }} />
+                <div className="absolute top-0 right-0 w-64 h-64 bg-indigo-400/30 rounded-full blur-[80px] group-hover:opacity-100 opacity-50 transition-all duration-1000" />
+                <div className="absolute bottom-[-10%] left-[-10%] w-48 h-48 bg-cyan-400/20 rounded-full blur-[60px] opacity-60" />
+
+                <div className="space-y-6 relative z-10">
+                  <div className="flex items-center gap-4">
+                    <div className="p-3.5 bg-white/10 backdrop-blur-md rounded-2xl ring-1 ring-white/20 shadow-[0_0_15px_rgba(255,255,255,0.1)]">
+                      <Sparkles size={24} className="text-cyan-300 drop-shadow-sm" />
                     </div>
-                    <h4 className="font-black text-base uppercase tracking-tight">AI Advisor</h4>
+                    <h4 className="font-black text-xl uppercase tracking-widest text-transparent bg-clip-text bg-gradient-to-r from-white to-indigo-200 drop-shadow-sm">AI Horizon</h4>
                   </div>
-                  {loadingInsight ? (
-                    <p className="text-sm opacity-80">Generating recommendation...</p>
-                  ) : (
-                    <p className="text-sm leading-relaxed font-medium min-h-[66px]">{insight || 'Run AI Intel to generate an executive summary for current scope.'}</p>
-                  )}
-                  <button onClick={() => navigate('/ai-insights')} className="w-full py-2.5 bg-white text-indigo-700 rounded-xl font-black text-xs uppercase tracking-widest hover:bg-slate-100 transition-all">
-                    Full Analysis
+
+                  <div className="bg-black/25 backdrop-blur-xl rounded-2xl p-5 ring-1 ring-white/10 shadow-inner">
+                    {loadingInsight ? (
+                      <div className="flex flex-col gap-3">
+                        <div className="h-4 w-3/4 bg-white/20 rounded-full animate-pulse" />
+                        <div className="h-4 w-1/2 bg-white/20 rounded-full animate-pulse" />
+                        <p className="text-[10px] font-black uppercase tracking-widest text-indigo-200 mt-2">Computing variables...</p>
+                      </div>
+                    ) : (
+                      <p className="text-[13px] leading-relaxed font-semibold min-h-[66px] text-indigo-50">{insight || 'Initiate AI Intel to compute an operational strategy tailored to this scope.'}</p>
+                    )}
+                  </div>
+
+                  <button onClick={() => navigate('/ai-insights')} className="w-full py-4 bg-white text-indigo-900 rounded-2xl font-black text-[11px] uppercase tracking-[0.2em] shadow-xl hover:shadow-2xl hover:-translate-y-1 hover:bg-indigo-50 transition-all duration-300 flex items-center justify-center gap-2">
+                    Deep Dive Analysis <Sparkles size={16} />
                   </button>
                 </div>
               </div>
 
-              <div className="card-primary p-6 rounded-3xl">
-                <h3 className="text-sm font-black text-main mb-4 uppercase tracking-widest">Operational Snapshot</h3>
-                <div className="space-y-3">
-                  <div className="flex items-center justify-between text-sm">
-                    <div className="flex items-center gap-2 text-muted"><Clock3 size={14} /> Pending Orders</div>
+              <div className="card-primary p-6 rounded-[2rem] border-white/5 backdrop-blur-3xl bg-card/60 shadow-xl">
+                <h3 className="text-[11px] font-black text-muted mb-4 uppercase tracking-[0.2em]">Operational Snapshot</h3>
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between text-sm p-3 rounded-2xl bg-elevated/40 border border-white/5 shadow-sm">
+                    <div className="flex items-center gap-2.5 text-muted font-bold"><div className="p-1.5 rounded-lg bg-orange-500/10 text-orange-500"><Clock3 size={16} /></div> Pending</div>
                     <span className="font-black text-main">{totals.pending}</span>
                   </div>
-                  <div className="flex items-center justify-between text-sm">
-                    <div className="flex items-center gap-2 text-muted"><AlertCircle size={14} /> Cancelled</div>
-                    <span className="font-black text-rose-600">{totals.cancelled} ({totals.cancelRate.toFixed(1)}%)</span>
+                  <div className="flex items-center justify-between text-sm p-3 rounded-2xl bg-elevated/40 border border-white/5 shadow-sm">
+                    <div className="flex items-center gap-2.5 text-muted font-bold"><div className="p-1.5 rounded-lg bg-rose-500/10 text-rose-500"><AlertCircle size={16} /></div> Cancelled</div>
+                    <span className="font-black text-rose-500">{totals.cancelled} <span className="opacity-60 text-[11px]">({totals.cancelRate.toFixed(1)}%)</span></span>
                   </div>
-                  <div className="flex items-center justify-between text-sm">
-                    <div className="flex items-center gap-2 text-muted"><ShoppingBag size={14} /> Delivered</div>
-                    <span className="font-black text-emerald-600">{totals.delivered}</span>
+                  <div className="flex items-center justify-between text-sm p-3 rounded-2xl bg-elevated/40 border border-white/5 shadow-sm">
+                    <div className="flex items-center gap-2.5 text-muted font-bold"><div className="p-1.5 rounded-lg bg-emerald-500/10 text-emerald-500"><ShoppingBag size={16} /></div> Delivered</div>
+                    <span className="font-black text-emerald-500">{totals.delivered}</span>
                   </div>
-                  <div className="flex items-center justify-between text-sm">
-                    <div className="flex items-center gap-2 text-muted"><DollarSign size={14} /> Discounts</div>
-                    <span className="font-black text-amber-600">{totals.discounts.toLocaleString()} {currencySymbol}</span>
+                  <div className="flex items-center justify-between text-sm p-3 rounded-2xl bg-elevated/40 border border-white/5 shadow-sm">
+                    <div className="flex items-center gap-2.5 text-muted font-bold"><div className="p-1.5 rounded-lg bg-amber-500/10 text-amber-500"><DollarSign size={16} /></div> Discounts</div>
+                    <span className="font-black text-amber-500">{totals.discounts.toLocaleString()} {currencySymbol}</span>
                   </div>
                 </div>
               </div>
 
               {alerts.length > 0 && (
-                <div className="card-primary p-6 rounded-3xl border-rose-200/40">
-                  <h3 className="text-sm font-black text-main mb-4 uppercase tracking-widest">Needs Attention</h3>
+                <div className="card-primary p-6 rounded-[2rem] border-rose-500/20 backdrop-blur-3xl bg-rose-500/5 shadow-lg shadow-rose-500/5">
+                  <h3 className="text-[11px] font-black text-rose-500 mb-4 uppercase tracking-[0.2em]">Needs Attention</h3>
                   <div className="space-y-2">
                     {alerts.map((a, i) => (
-                      <div key={i} className="flex items-center gap-2 p-2.5 rounded-xl bg-rose-50/60 dark:bg-rose-900/10 border border-rose-200/30">
-                        <AlertCircle size={14} className="text-rose-500" />
-                        <p className="text-xs font-bold text-main">{a}</p>
+                      <div key={i} className="flex items-center gap-3 p-3 rounded-2xl bg-rose-500/10 border border-rose-500/20">
+                        <AlertCircle size={16} className="text-rose-500 shrink-0" />
+                        <p className="text-[12px] font-bold text-rose-600 dark:text-rose-400">{a}</p>
                       </div>
                     ))}
                   </div>
@@ -518,16 +542,16 @@ const Dashboard: React.FC = () => {
               )}
 
               {categoryData.length > 0 && (
-                <div className="card-primary p-6 rounded-3xl">
-                  <h3 className="text-sm font-black text-main mb-4 uppercase tracking-widest">Top Categories</h3>
+                <div className="card-primary p-6 rounded-[2rem] border-white/5 backdrop-blur-3xl bg-card/60 shadow-xl">
+                  <h3 className="text-[11px] font-black text-muted mb-4 uppercase tracking-[0.2em]">Top Categories</h3>
                   <div className="space-y-2">
                     {categoryData.map((c, i) => (
-                      <div key={c.name} className="flex items-center justify-between p-2.5 rounded-xl bg-elevated/60 border border-border/40">
-                        <div className="flex items-center gap-2">
-                          <div className="w-2 h-2 rounded-full" style={{ backgroundColor: COLORS[i % COLORS.length] }} />
-                          <span className="text-xs font-bold text-main">{c.name}</span>
+                      <div key={c.name} className="flex items-center justify-between p-3.5 rounded-2xl bg-elevated/40 border border-white/5 shadow-sm hover:border-primary/30 transition-colors">
+                        <div className="flex items-center gap-3">
+                          <div className="w-2.5 h-2.5 rounded-full shadow-sm" style={{ backgroundColor: COLORS[i % COLORS.length] }} />
+                          <span className="text-[13px] font-bold text-main">{c.name}</span>
                         </div>
-                        <span className="text-xs font-black text-emerald-600">{c.value.toLocaleString()} {currencySymbol}</span>
+                        <span className="text-[12px] font-black text-emerald-500 drop-shadow-sm">{c.value.toLocaleString()} {currencySymbol}</span>
                       </div>
                     ))}
                   </div>
@@ -535,16 +559,16 @@ const Dashboard: React.FC = () => {
               )}
 
               {topCustomers.length > 0 && (
-                <div className="card-primary p-6 rounded-3xl">
-                  <h3 className="text-sm font-black text-main mb-4 uppercase tracking-widest">Top Customers</h3>
+                <div className="card-primary p-6 rounded-[2rem] border-white/5 backdrop-blur-3xl bg-card/60 shadow-xl">
+                  <h3 className="text-[11px] font-black text-muted mb-4 uppercase tracking-[0.2em]">Top Customers</h3>
                   <div className="space-y-2">
                     {topCustomers.map((customer, i) => (
-                      <div key={`${customer.id}-${i}`} className="flex justify-between items-center p-2.5 rounded-xl bg-elevated/60 border border-border/40">
+                      <div key={`${customer.id}-${i}`} className="flex justify-between items-center p-3.5 rounded-2xl bg-elevated/40 border border-white/5 shadow-sm hover:border-primary/30 transition-colors">
                         <div>
-                          <p className="text-xs font-black text-main">{customer.name}</p>
-                          <p className="text-[10px] text-muted">{customer.visits || 0} visits</p>
+                          <p className="text-[13px] font-bold text-main">{customer.name}</p>
+                          <p className="text-[10px] uppercase tracking-widest text-muted font-bold mt-0.5">{customer.visits || 0} visits</p>
                         </div>
-                        <p className="text-xs font-black text-emerald-600">{(customer.totalSpent || 0).toLocaleString()} {currencySymbol}</p>
+                        <p className="text-[12px] font-black text-emerald-500 drop-shadow-sm">{(customer.totalSpent || 0).toLocaleString()} {currencySymbol}</p>
                       </div>
                     ))}
                   </div>

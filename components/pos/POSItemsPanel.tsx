@@ -6,7 +6,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import {
     Search, X, SlidersHorizontal, LayoutGrid, Grid2x2, List, Grid3x3,
-    ShoppingBag, Flame, Star, CheckCircle
+    ShoppingBag, Flame, Star, CheckCircle, Clock, Heart
 } from 'lucide-react';
 import CategoryTabs from './CategoryTabs';
 import ItemGrid from './ItemGrid';
@@ -92,7 +92,7 @@ const ToolsDropdown: React.FC<{
                         <button
                             key={v.id}
                             onClick={() => { onSetDensity(v.id); onClose(); }}
-                            className={`flex-1 flex flex-col items-center gap-0.5 py-2 rounded-lg text-[9px] font-bold transition-colors ${itemDensity === v.id ? 'bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600' : 'text-muted hover:bg-elevated/50'
+                            className={`flex-1 flex flex-col items-center gap-1 py-3 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all ${itemDensity === v.id ? 'bg-indigo-500/10 text-indigo-500 shadow-sm' : 'text-muted hover:bg-elevated/80 hover:text-main'
                                 }`}
                         >
                             {v.icon}
@@ -117,7 +117,7 @@ const ToolsDropdown: React.FC<{
                 </select>
             </div>
 
-            <button onClick={onReset} className="w-full py-1.5 rounded-lg bg-elevated/40 text-muted hover:text-emerald-600 text-[10px] font-bold transition-colors">
+            <button onClick={onReset} className="w-full py-2.5 rounded-xl bg-rose-500/10 text-rose-500 hover:bg-rose-500/20 hover:text-rose-600 text-[10px] font-black uppercase tracking-widest transition-all mt-2">
                 {isRTL ? 'إعادة ضبط' : 'Reset All'}
             </button>
         </div>
@@ -142,73 +142,55 @@ const POSItemsPanel: React.FC<POSItemsPanelProps> = ({
 
     return (
         <div className="min-w-0 flex flex-col h-full overflow-hidden min-h-0 bg-app">
-            {/* Mobile-only: horizontal category strip */}
-            <div className="md:hidden shrink-0">
-                <CategoryTabs
-                    categories={categories}
-                    activeCategory={activeCategory}
-                    onSetCategory={onSetCategory}
-                    isTouchMode={isTouchMode}
-                    lang={lang as any}
-                    counts={categoryResultCounts}
-                    totalCount={totalMatchedCount}
-                    hasActiveFiltering={hasActiveFiltering}
-                />
-            </div>
-
-            {/* ═══ Search + Inline Filters — single compact row ═══ */}
-            <div className="shrink-0 px-2 py-1.5 flex items-center gap-1.5 border-b border-border/15 bg-card/50">
-                {/* Search input */}
-                <div className="relative flex-1 min-w-0">
-                    <Search className={`absolute top-1/2 -translate-y-1/2 text-muted/40 w-4 h-4 ${isRTL ? 'right-2.5' : 'left-2.5'}`} />
+            {/* ═══ Quick Action Ribbon ═══ */}
+            <div className="shrink-0 px-3 py-2 flex items-center gap-2 border-b border-border/30 bg-white/60 dark:bg-slate-900/60 backdrop-blur-xl relative z-20">
+                {/* Search input — prominent */}
+                <div className="relative flex-1 min-w-0 group">
+                    <Search className={`absolute top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-indigo-500 transition-colors w-4.5 h-4.5 ${isRTL ? 'right-3.5' : 'left-3.5'}`} />
                     <input
                         ref={searchInputRef}
                         type="text"
                         placeholder={t.search_placeholder}
                         value={searchQuery}
                         onChange={(e) => onSearchChange(e.target.value)}
-                        className={`w-full h-9 text-sm bg-elevated/20 border border-border/15 rounded-xl focus:ring-1 focus:ring-emerald-400/30 focus:border-emerald-400/30 font-semibold outline-none transition-all ${isRTL ? 'pr-8 pl-8 text-right' : 'pl-8 pr-8 text-left'}`}
+                        className={`w-full h-10 text-sm bg-slate-50 dark:bg-slate-800/80 border border-slate-200/80 dark:border-slate-700/50 rounded-xl focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500/50 font-semibold outline-none transition-all placeholder-slate-400 shadow-sm ${isRTL ? 'pr-10 pl-9 text-right' : 'pl-10 pr-9 text-left'}`}
                     />
                     {searchQuery && (
-                        <button onClick={() => onSearchChange('')} className={`absolute top-1/2 -translate-y-1/2 text-muted hover:text-emerald-600 transition-colors ${isRTL ? 'left-2' : 'right-2'}`}>
-                            <X size={14} />
+                        <button onClick={() => onSearchChange('')} className={`absolute top-1/2 -translate-y-1/2 p-1 rounded-md text-slate-400 hover:bg-rose-500/10 hover:text-rose-500 transition-all ${isRTL ? 'left-2' : 'right-2'}`}>
+                            <X size={16} />
                         </button>
                     )}
                 </div>
 
-                {/* Inline quick filter chips */}
-                <div className="hidden sm:flex items-center gap-1 shrink-0">
+                {/* Quick filter chips */}
+                <div className="hidden sm:flex items-center gap-1.5 shrink-0">
                     <button
                         onClick={() => onSetFilter(itemFilter === 'popular' ? 'all' : 'popular')}
-                        className={`inline-flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-bold transition-colors ${itemFilter === 'popular' ? 'bg-amber-100 dark:bg-amber-900/20 text-amber-600' : 'bg-elevated/30 text-muted hover:text-amber-500'
-                            }`}
+                        className={`inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all ${itemFilter === 'popular' ? 'bg-amber-500 text-white shadow-md shadow-amber-500/25' : 'bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 hover:bg-amber-50 hover:text-amber-500 dark:hover:bg-amber-500/10'}`}
                     >
-                        <Star size={10} fill={itemFilter === 'popular' ? 'currentColor' : 'none'} />
-                        {isRTL ? 'مميز' : 'Popular'}
+                        <Star size={14} fill={itemFilter === 'popular' ? 'currentColor' : 'none'} />
+                        {isRTL ? 'الأكثر' : 'Top'}
                     </button>
                     <button
                         onClick={() => onSetFilter(itemFilter === 'available' ? 'all' : 'available')}
-                        className={`inline-flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-bold transition-colors ${itemFilter === 'available' ? 'bg-emerald-100 dark:bg-emerald-900/20 text-emerald-600' : 'bg-elevated/30 text-muted hover:text-emerald-500'
-                            }`}
+                        className={`inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all ${itemFilter === 'available' ? 'bg-emerald-500 text-white shadow-md shadow-emerald-500/25' : 'bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 hover:bg-emerald-50 hover:text-emerald-500 dark:hover:bg-emerald-500/10'}`}
                     >
-                        <CheckCircle size={10} />
+                        <CheckCircle size={14} />
                         {isRTL ? 'متاح' : 'Available'}
                     </button>
                 </div>
 
-                {/* Count badge */}
-                <span className="text-xs font-black text-emerald-600 bg-emerald-50 dark:bg-emerald-900/20 px-2 py-0.5 rounded-lg shrink-0 tabular-nums">
+                {/* Count + Tools */}
+                <span className="text-[11px] font-black text-indigo-500 bg-indigo-500/10 px-2.5 py-1.5 rounded-lg tabular-nums shrink-0">
                     {pricedItems.length}
                 </span>
 
-                {/* Tools */}
                 <div className="relative shrink-0">
                     <button
                         onClick={() => setToolsOpen(p => !p)}
-                        className={`w-8 h-8 rounded-lg flex items-center justify-center transition-colors ${toolsOpen ? 'bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600' : 'bg-elevated/30 text-muted hover:text-emerald-600'
-                            }`}
+                        className={`w-10 h-10 rounded-xl flex items-center justify-center transition-all ${toolsOpen ? 'bg-indigo-500/10 text-indigo-500' : 'bg-slate-100 dark:bg-slate-800 text-slate-400 hover:text-indigo-500 active:scale-95'}`}
                     >
-                        <SlidersHorizontal size={14} />
+                        <SlidersHorizontal size={18} />
                     </button>
                     <ToolsDropdown
                         isOpen={toolsOpen}
@@ -224,13 +206,27 @@ const POSItemsPanel: React.FC<POSItemsPanelProps> = ({
 
                 {/* Cart toggle (mobile) */}
                 {isCartVisible && !isCartOpenMobile && hasCartItems && (
-                    <button onClick={onOpenCart} className="lg:hidden shrink-0 w-8 h-8 rounded-lg bg-emerald-600 text-white flex items-center justify-center relative shadow-sm">
-                        <ShoppingBag size={14} />
-                        <span className="absolute -top-1 -right-1 min-w-[15px] h-4 px-0.5 rounded-full bg-amber-400 text-black text-[8px] font-black flex items-center justify-center">
+                    <button onClick={onOpenCart} className="lg:hidden shrink-0 w-10 h-10 rounded-xl bg-gradient-to-r from-indigo-500 to-cyan-500 text-white flex items-center justify-center relative shadow-lg shadow-indigo-500/25 active:scale-95 transition-all">
+                        <ShoppingBag size={18} />
+                        <span className="absolute -top-1 -right-1 min-w-[20px] h-5 px-1 rounded-full bg-amber-400 text-black text-[10px] font-black flex items-center justify-center shadow-md animate-in zoom-in">
                             {cartStats.qty}
                         </span>
                     </button>
                 )}
+            </div>
+
+            {/* ═══ Category Tabs ═══ */}
+            <div className="shrink-0 bg-white/40 dark:bg-slate-900/40 backdrop-blur-md border-b border-border/20 px-2 py-2.5">
+                <CategoryTabs
+                    categories={categories}
+                    activeCategory={activeCategory}
+                    onSetCategory={onSetCategory}
+                    isTouchMode={isTouchMode}
+                    lang={lang as any}
+                    counts={categoryResultCounts}
+                    totalCount={totalMatchedCount}
+                    hasActiveFiltering={hasActiveFiltering}
+                />
             </div>
 
             {/* ═══ Item Grid ═══ */}

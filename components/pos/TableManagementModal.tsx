@@ -101,8 +101,8 @@ const TableManagementModal: React.FC<TableManagementModalProps> = ({
                     <ShoppingCart size={24} />
                 </div>
                 <div>
-                    <h2 className="text-xl font-black text-slate-800 dark:text-white uppercase tracking-tight">{t.title}</h2>
-                    <p className="text-[10px] font-black text-indigo-500 uppercase tracking-widest">
+                    <h2 className="text-xl font-black text-white uppercase tracking-tight">{t.title}</h2>
+                    <p className={`text-[10px] font-black uppercase tracking-widest mt-1 ${activeOrder ? 'text-indigo-500 dark:text-indigo-400' : 'text-amber-500 dark:text-amber-400'}`}>
                         {activeOrder
                             ? `${(activeOrder.items?.length ?? 0)} ${t.items} • ج.م ${(activeOrder.total ?? 0).toFixed(2)}`
                             : t.no_order}
@@ -116,13 +116,13 @@ const TableManagementModal: React.FC<TableManagementModalProps> = ({
     );
 
     const renderActions = () => (
-        <div className="p-6 grid grid-cols-1 gap-4">
+        <div className="p-6 grid grid-cols-1 gap-3">
             <button
                 onClick={onEditOrder}
-                className="w-full p-6 bg-emerald-500 text-white rounded-3xl flex items-center justify-between group hover:scale-[1.02] transition-all shadow-xl shadow-emerald-500/20"
+                className="w-full p-5 bg-emerald-500 text-white rounded-3xl flex items-center justify-between group hover:scale-[1.02] transition-all shadow-xl shadow-emerald-500/20"
             >
                 <div className="flex items-center gap-4">
-                    <div className="w-12 h-12 bg-white/20 rounded-2xl flex items-center justify-center"><CheckCircle2 size={24} /></div>
+                    <div className="w-10 h-10 bg-white/20 rounded-2xl flex items-center justify-center"><CheckCircle2 size={24} /></div>
                     <span className="font-black text-sm uppercase tracking-widest">{t.edit}</span>
                 </div>
                 <ChevronRight size={20} />
@@ -131,10 +131,10 @@ const TableManagementModal: React.FC<TableManagementModalProps> = ({
             <button
                 onClick={() => onCloseTable(sourceTable.id)}
                 disabled={!activeOrder}
-                className="w-full p-6 bg-slate-900 text-white rounded-3xl flex items-center justify-between group hover:scale-[1.02] transition-all shadow-xl shadow-slate-900/20 disabled:opacity-50 disabled:cursor-not-allowed"
+                className="w-full p-5 border border-slate-200 dark:border-slate-700 bg-slate-900 dark:bg-slate-800 text-white rounded-3xl flex items-center justify-between group hover:scale-[1.02] transition-all shadow-xl hover:shadow-slate-900/20 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
             >
                 <div className="flex items-center gap-4">
-                    <div className="w-12 h-12 bg-white/20 rounded-2xl flex items-center justify-center"><CheckCircle2 size={24} /></div>
+                    <div className="w-10 h-10 bg-white/10 rounded-2xl flex items-center justify-center"><CheckCircle2 size={24} /></div>
                     <span className="font-black text-sm uppercase tracking-widest">
                         {lang === 'ar' ? 'إغلاق الترابيزة وطباعة الحساب' : 'Close Table & Print Bill'}
                     </span>
@@ -142,38 +142,49 @@ const TableManagementModal: React.FC<TableManagementModalProps> = ({
                 <ChevronRight size={20} />
             </button>
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <button
-                    onClick={() => setMode('TRANSFER_ALL')}
-                    className="p-6 bg-indigo-50 dark:bg-slate-800/50 hover:bg-indigo-600 hover:text-white rounded-3xl flex flex-col items-center gap-3 transition-all group"
-                >
-                    <ArrowLeftRight size={32} className="group-hover:scale-110 transition-transform" />
-                    <span className="text-[10px] font-black uppercase tracking-widest text-center">{t.transfer_all}</span>
-                </button>
-                <button
-                    onClick={() => setMode('TRANSFER_ITEMS')}
-                    className="p-6 bg-amber-50 dark:bg-slate-800/50 hover:bg-amber-500 hover:text-white rounded-3xl flex flex-col items-center gap-3 transition-all group"
-                >
-                    <Move size={32} className="group-hover:scale-110 transition-transform" />
-                    <span className="text-[10px] font-black uppercase tracking-widest text-center">{t.transfer_items}</span>
-                </button>
-                <button
-                    onClick={() => setMode('SPLIT')}
-                    className="p-6 bg-rose-50 dark:bg-slate-800/50 hover:bg-rose-500 hover:text-white rounded-3xl flex flex-col items-center gap-3 transition-all group"
-                >
-                    <Split size={32} className="group-hover:scale-110 transition-transform" />
-                    <span className="text-[10px] font-black uppercase tracking-widest text-center">{t.split}</span>
-                </button>
-            </div>
             <button
-                onClick={() => setMode('MERGE')}
-                className="w-full p-5 bg-slate-100 dark:bg-slate-800/50 hover:bg-slate-900 hover:text-white rounded-3xl flex items-center justify-between transition-all group"
+                onClick={() => setMode('TRANSFER_ALL')}
+                disabled={!activeOrder}
+                className="w-full p-5 bg-indigo-50 dark:bg-slate-800/50 hover:bg-indigo-600 hover:text-white dark:hover:bg-indigo-600 text-slate-700 dark:text-slate-200 rounded-3xl flex items-center justify-between transition-all group disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-indigo-50 disabled:dark:hover:bg-slate-800/50 disabled:hover:text-slate-700 disabled:dark:hover:text-slate-200"
             >
                 <div className="flex items-center gap-4">
-                    <div className="w-10 h-10 bg-white/40 rounded-2xl flex items-center justify-center"><ArrowLeftRight size={22} /></div>
-                    <span className="font-black text-[10px] uppercase tracking-widest">{t.merge}</span>
+                    <div className="w-10 h-10 bg-white/50 dark:bg-slate-700/50 rounded-2xl flex items-center justify-center text-indigo-600 dark:text-indigo-400 group-hover:text-white dark:group-hover:text-white"><ArrowLeftRight size={22} /></div>
+                    <span className="font-black text-xs uppercase tracking-widest">{t.transfer_all}</span>
                 </div>
-                <ChevronRight size={20} />
+                <ChevronRight size={20} className="group-hover:translate-x-1 transition-transform" />
+            </button>
+            <button
+                onClick={() => setMode('TRANSFER_ITEMS')}
+                disabled={!activeOrder}
+                className="w-full p-5 bg-amber-50 dark:bg-slate-800/50 hover:bg-amber-500 hover:text-white dark:hover:bg-amber-500 text-slate-700 dark:text-slate-200 rounded-3xl flex items-center justify-between transition-all group disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-amber-50 disabled:dark:hover:bg-slate-800/50 disabled:hover:text-slate-700 disabled:dark:hover:text-slate-200"
+            >
+                <div className="flex items-center gap-4">
+                    <div className="w-10 h-10 bg-white/50 dark:bg-slate-700/50 rounded-2xl flex items-center justify-center text-amber-500 group-hover:text-white dark:group-hover:text-white"><Move size={22} /></div>
+                    <span className="font-black text-xs uppercase tracking-widest">{t.transfer_items}</span>
+                </div>
+                <ChevronRight size={20} className="group-hover:translate-x-1 transition-transform" />
+            </button>
+            <button
+                onClick={() => setMode('SPLIT')}
+                disabled={!activeOrder}
+                className="w-full p-5 bg-rose-50 dark:bg-slate-800/50 hover:bg-rose-500 hover:text-white dark:hover:bg-rose-500 text-slate-700 dark:text-slate-200 rounded-3xl flex items-center justify-between transition-all group disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-rose-50 disabled:dark:hover:bg-slate-800/50 disabled:hover:text-slate-700 disabled:dark:hover:text-slate-200"
+            >
+                <div className="flex items-center gap-4">
+                    <div className="w-10 h-10 bg-white/50 dark:bg-slate-700/50 rounded-2xl flex items-center justify-center text-rose-500 group-hover:text-white dark:group-hover:text-white"><Split size={22} /></div>
+                    <span className="font-black text-xs uppercase tracking-widest">{t.split}</span>
+                </div>
+                <ChevronRight size={20} className="group-hover:translate-x-1 transition-transform" />
+            </button>
+            <button
+                onClick={() => setMode('MERGE')}
+                disabled={!activeOrder}
+                className="w-full p-5 bg-slate-100 dark:bg-slate-800/50 hover:bg-slate-900 hover:text-white dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 rounded-3xl flex items-center justify-between transition-all group disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-slate-100 disabled:dark:hover:bg-slate-800/50 disabled:hover:text-slate-700 disabled:dark:hover:text-slate-200"
+            >
+                <div className="flex items-center gap-4">
+                    <div className="w-10 h-10 bg-white/50 dark:bg-slate-700/50 rounded-2xl flex items-center justify-center text-slate-600 dark:text-slate-400 group-hover:text-white dark:group-hover:text-white"><ArrowLeftRight size={22} /></div>
+                    <span className="font-black text-xs uppercase tracking-widest">{t.merge}</span>
+                </div>
+                <ChevronRight size={20} className="group-hover:translate-x-1 transition-transform" />
             </button>
         </div>
     );
@@ -189,8 +200,8 @@ const TableManagementModal: React.FC<TableManagementModalProps> = ({
                         key={table.id}
                         onClick={() => setTargetTableId(table.id)}
                         className={`p-4 rounded-2xl border-2 flex flex-col items-center gap-1 transition-all ${targetTableId === table.id
-                                ? 'border-primary bg-primary/10 scale-105'
-                                : 'border-slate-100 dark:border-slate-800 hover:border-primary/30'
+                            ? 'border-primary bg-primary/10 scale-105'
+                            : 'border-slate-100 dark:border-slate-800 hover:border-primary/30'
                             }`}
                     >
                         <span className="font-black text-sm">{table.name}</span>
@@ -237,8 +248,8 @@ const TableManagementModal: React.FC<TableManagementModalProps> = ({
                         key={item.cartId}
                         onClick={() => toggleItem(item.cartId)}
                         className={`p-4 rounded-2xl border-2 cursor-pointer transition-all flex items-center justify-between ${selectedItems.includes(item.cartId)
-                                ? 'border-indigo-500 bg-indigo-50 dark:bg-indigo-950/20'
-                                : 'border-slate-100 dark:border-slate-800 hover:border-slate-200'
+                            ? 'border-indigo-500 bg-indigo-50 dark:bg-indigo-950/20'
+                            : 'border-slate-100 dark:border-slate-800 hover:border-slate-200'
                             }`}
                     >
                         <div className="flex items-center gap-3">
@@ -272,7 +283,7 @@ const TableManagementModal: React.FC<TableManagementModalProps> = ({
 
     return (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[300] flex items-center justify-center p-4">
-            <div className="bg-white dark:bg-slate-900 w-full max-w-2xl rounded-[3rem] shadow-2xl overflow-hidden animate-in zoom-in-95 duration-300">
+            <div className="card-primary w-full max-w-2xl rounded-[3rem] shadow-2xl overflow-hidden animate-in zoom-in-95 duration-300">
                 {renderHeader()}
 
                 {mode === 'ACTIONS' && renderActions()}

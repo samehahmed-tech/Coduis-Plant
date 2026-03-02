@@ -90,7 +90,7 @@ export const ModalProvider: React.FC<{ children: ReactNode }> = ({ children }) =
                     onClick={handleCancel}
                 >
                     <div
-                        className="bg-white dark:bg-slate-900 rounded-3xl shadow-2xl max-w-md w-full p-6 animate-in zoom-in-95 slide-in-from-bottom-4 duration-300"
+                        className="card-primary rounded-3xl shadow-2xl max-w-md w-full p-6 animate-in zoom-in-95 slide-in-from-bottom-4 duration-300"
                         onClick={e => e.stopPropagation()}
                     >
                         {/* Icon Header */}

@@ -33,7 +33,7 @@ const StockAdjustmentModal: React.FC<StockAdjustmentModalProps> = ({ isOpen, onC
 
     return (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center z-[110] p-4">
-            <div className="bg-white dark:bg-slate-900 w-full max-w-lg rounded-[2.5rem] shadow-2xl overflow-hidden flex flex-col">
+            <div className="card-primary w-full max-w-lg rounded-[2.5rem] shadow-2xl overflow-hidden flex flex-col">
                 <div className="p-6 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center bg-amber-50 dark:bg-amber-950/20">
                     <div className="flex items-center gap-3">
                         <div className="w-12 h-12 rounded-2xl bg-amber-500 text-white flex items-center justify-center">
@@ -101,7 +101,7 @@ const StockAdjustmentModal: React.FC<StockAdjustmentModalProps> = ({ isOpen, onC
                                         step="0.001"
                                         value={quantity}
                                         onChange={e => setQuantity(Number(e.target.value))}
-                                        className="w-full pl-12 pr-4 py-3.5 bg-white dark:bg-slate-900 border border-amber-200 dark:border-amber-900 rounded-2xl focus:ring-2 focus:ring-amber-500 outline-none transition-all font-bold"
+                                        className="w-full pl-12 pr-4 py-3.5 card-primary border border-amber-200 dark:border-amber-900 rounded-2xl focus:ring-2 focus:ring-amber-500 outline-none transition-all font-bold"
                                     />
                                 </div>
                             </div>

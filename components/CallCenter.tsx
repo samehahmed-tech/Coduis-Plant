@@ -119,23 +119,23 @@ const DriverAssignmentModal: React.FC<{
     if (!isOpen) return null;
 
     return (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-6">
-            <div className="absolute inset-0 bg-slate-950/90 backdrop-blur-md" onClick={onClose} />
-            <div className="relative w-full max-w-md bg-white dark:bg-slate-900 rounded-[2.5rem] p-8 shadow-2xl border border-white/10 animate-in zoom-in-95 duration-300">
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-6 bg-app/80 backdrop-blur-md">
+            <div className="absolute inset-0" onClick={onClose} />
+            <div className="relative w-full max-w-md bg-card/90 backdrop-blur-xl rounded-[2.5rem] p-8 shadow-2xl border border-border/50 animate-in zoom-in-95 duration-300">
                 <div className="text-center mb-8">
-                    <h2 className="text-xl font-black text-slate-800 dark:text-white uppercase tracking-tight">Assign Dispatcher</h2>
-                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-1">Select driver for branch: {branchId} {orderId ? `| Order ${orderId}` : ''}</p>
+                    <h2 className="text-xl font-black text-main uppercase tracking-tight">Assign Dispatcher</h2>
+                    <p className="text-[10px] font-black text-muted uppercase tracking-widest mt-1">Select driver for branch: {branchId} {orderId ? `| Order ${orderId}` : ''}</p>
                 </div>
 
-                <div className="space-y-3">
+                <div className="space-y-3 max-h-[60vh] overflow-y-auto pr-2 custom-scrollbar">
                     {isLoading && (
-                        <div className="p-6 text-center text-xs font-bold text-slate-500">Loading drivers...</div>
+                        <div className="p-6 text-center text-xs font-bold text-muted">Loading drivers...</div>
                     )}
                     {!isLoading && errorMessage && (
-                        <div className="p-4 rounded-xl bg-rose-50 text-rose-700 text-xs font-bold">{errorMessage}</div>
+                        <div className="p-4 rounded-[1.2rem] bg-rose-500/10 border border-rose-500/20 text-rose-500 text-xs font-bold">{errorMessage}</div>
                     )}
                     {!isLoading && !errorMessage && drivers.length === 0 && (
-                        <div className="p-6 text-center text-xs font-bold text-slate-500">No drivers available for this branch.</div>
+                        <div className="p-6 text-center text-xs font-bold text-muted">No drivers available for this branch.</div>
                     )}
                     {!isLoading && !errorMessage && drivers.map(driver => {
                         const isAvailable = String(driver.status || '').toUpperCase() === 'AVAILABLE';
@@ -156,13 +156,13 @@ const DriverAssignmentModal: React.FC<{
                                         setAssigningDriverId(null);
                                     }
                                 }}
-                                className={`w-full p-6 rounded-2xl flex items-center justify-between transition-all ${isAvailable ? 'bg-slate-50 dark:bg-slate-800 hover:bg-indigo-600 hover:text-white group' : 'opacity-40 cursor-not-allowed bg-slate-100 dark:bg-slate-900'}`}
+                                className={`w-full p-5 rounded-[1.5rem] flex items-center justify-between transition-all border shadow-sm ${isAvailable ? 'bg-elevated/80 border-border/50 hover:bg-indigo-500/5 hover:border-indigo-500/30 hover:shadow-indigo-500/10 group' : 'opacity-50 cursor-not-allowed bg-card/30 border-transparent'}`}
                             >
                                 <div className="text-left">
-                                    <p className="font-black uppercase text-xs tracking-tight">{driver.name || driver.fullName || 'Driver'}</p>
-                                    <p className="text-[10px] font-bold opacity-60 tracking-widest">{driver.phone || '-'}</p>
+                                    <p className="font-black uppercase text-sm tracking-tight text-main">{driver.name || driver.fullName || 'Driver'}</p>
+                                    <p className="text-[10px] font-bold text-muted tracking-widest mt-0.5">{driver.phone || '-'}</p>
                                 </div>
-                                <div className={`px-3 py-1 rounded-lg text-[9px] font-black uppercase tracking-widest ${isAvailable ? 'bg-emerald-500/10 text-emerald-600 group-hover:bg-white group-hover:text-indigo-600' : 'bg-slate-200 text-slate-500'}`}>
+                                <div className={`px-3 py-1.5 rounded-xl text-[9px] font-black uppercase tracking-widest border ${isAvailable ? 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20 group-hover:bg-indigo-500/10 group-hover:text-indigo-500 group-hover:border-indigo-500/20' : 'bg-muted/10 text-muted border-transparent'}`}>
                                     {isAssigningThisDriver ? 'ASSIGNING' : String(driver.status || 'UNKNOWN')}
                                 </div>
                             </button>
@@ -170,7 +170,7 @@ const DriverAssignmentModal: React.FC<{
                     })}
                 </div>
 
-                <button onClick={onClose} className="w-full mt-8 py-4 text-[10px] font-black uppercase text-slate-400 tracking-widest hover:text-slate-600 transition-colors">Cancel Dispatch</button>
+                <button onClick={onClose} className="w-full mt-8 py-4 text-[10px] font-black uppercase text-muted tracking-widest hover:text-rose-500 transition-colors">Cancel Dispatch</button>
             </div>
         </div>
     );
@@ -216,71 +216,76 @@ const CustomerRegistrationModal: React.FC<{
     };
 
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm animate-in fade-in">
-            <div className="bg-white dark:bg-slate-900 rounded-3xl w-full max-w-lg shadow-2xl animate-in zoom-in-95 slide-in-from-bottom-4">
-                <div className="p-6 border-b border-slate-200 dark:border-slate-800 flex justify-between items-center">
-                    <div className="flex items-center gap-3">
-                        <div className="w-12 h-12 rounded-2xl bg-indigo-500/10 flex items-center justify-center">
-                            <UserPlus size={24} className="text-indigo-600" />
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-app/80 backdrop-blur-md animate-in fade-in">
+            <div className="absolute inset-0" onClick={onClose} />
+            <div className="bg-card/90 backdrop-blur-xl rounded-[2.5rem] w-full max-w-lg shadow-2xl border border-border/50 animate-in zoom-in-95 slide-in-from-bottom-4 relative z-10">
+                <div className="p-6 border-b border-border/50 flex justify-between items-center relative">
+                    <div className="absolute inset-0 bg-gradient-to-r from-indigo-500/5 to-cyan-500/5 pointer-events-none rounded-t-[2.5rem]" />
+                    <div className="flex items-center gap-4 relative z-10">
+                        <div className="w-14 h-14 rounded-[1.5rem] bg-indigo-500/10 flex items-center justify-center border border-indigo-500/20 shadow-inner">
+                            <UserPlus size={28} className="text-indigo-500" />
                         </div>
                         <div>
-                            <h3 className="text-lg font-black text-slate-800 dark:text-white">{lang === 'ar' ? 'تسجيل عميل جديد' : 'New Customer'}</h3>
-                            <p className="text-xs text-slate-400">{lang === 'ar' ? 'أدخل بيانات العميل' : 'Enter customer details'}</p>
+                            <h3 className="text-xl font-black text-main uppercase tracking-tight">{lang === 'ar' ? 'تسجيل عميل جديد' : 'New Customer'}</h3>
+                            <p className="text-[10px] font-bold text-muted uppercase tracking-widest mt-0.5">{lang === 'ar' ? 'أدخل بيانات العميل' : 'Enter customer details'}</p>
                         </div>
                     </div>
-                    <button onClick={onClose} className="p-2 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors">
-                        <X size={20} className="text-slate-400" />
+                    <button onClick={onClose} className="p-3.5 rounded-[1.2rem] bg-elevated hover:bg-rose-500/10 hover:text-rose-500 text-muted transition-all border border-border/50 relative z-10 active:scale-95">
+                        <X size={20} />
                     </button>
                 </div>
 
-                <div className="p-6 space-y-4 max-h-[60vh] overflow-y-auto">
+                <div className="p-6 space-y-5 max-h-[60vh] overflow-y-auto custom-scrollbar">
                     <div className="grid grid-cols-2 gap-4">
-                        <div className="col-span-2">
-                            <label className="text-[10px] font-black uppercase text-slate-400 tracking-widest mb-1 block">{lang === 'ar' ? 'الاسم *' : 'Name *'}</label>
-                            <input type="text" value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} className="w-full bg-slate-100 dark:bg-slate-800 rounded-xl py-3 px-4 text-sm font-bold outline-none focus:ring-2 focus:ring-indigo-500/50" placeholder={lang === 'ar' ? 'اسم العميل' : 'Customer name'} />
+                        <div className="col-span-2 group">
+                            <label className="text-[9px] font-black uppercase text-muted tracking-[0.2em] mb-1.5 block group-focus-within:text-indigo-500 transition-colors">{lang === 'ar' ? 'الاسم *' : 'Name *'}</label>
+                            <input type="text" value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} className="w-full bg-elevated rounded-[1.2rem] py-3.5 px-5 text-sm font-bold outline-none border border-border/50 focus:border-indigo-500/50 focus:ring-4 focus:ring-indigo-500/10 transition-all text-main placeholder-muted" placeholder={lang === 'ar' ? 'اسم العميل' : 'Customer name'} />
                         </div>
-                        <div>
-                            <label className="text-[10px] font-black uppercase text-slate-400 tracking-widest mb-1 block">{lang === 'ar' ? 'الهاتف *' : 'Phone *'}</label>
-                            <input type="tel" value={form.phone} onChange={e => setForm({ ...form, phone: e.target.value })} className="w-full bg-slate-100 dark:bg-slate-800 rounded-xl py-3 px-4 text-sm font-bold outline-none focus:ring-2 focus:ring-indigo-500/50" />
+                        <div className="group">
+                            <label className="text-[9px] font-black uppercase text-muted tracking-[0.2em] mb-1.5 block group-focus-within:text-indigo-500 transition-colors">{lang === 'ar' ? 'الهاتف *' : 'Phone *'}</label>
+                            <input type="tel" value={form.phone} onChange={e => setForm({ ...form, phone: e.target.value })} className="w-full bg-elevated rounded-[1.2rem] py-3.5 px-5 text-sm font-bold outline-none border border-border/50 focus:border-indigo-500/50 focus:ring-4 focus:ring-indigo-500/10 transition-all text-main" />
                         </div>
-                        <div>
-                            <label className="text-[10px] font-black uppercase text-slate-400 tracking-widest mb-1 block">{lang === 'ar' ? 'البريد' : 'Email'}</label>
-                            <input type="email" value={form.email} onChange={e => setForm({ ...form, email: e.target.value })} className="w-full bg-slate-100 dark:bg-slate-800 rounded-xl py-3 px-4 text-sm font-bold outline-none focus:ring-2 focus:ring-indigo-500/50" />
+                        <div className="group">
+                            <label className="text-[9px] font-black uppercase text-muted tracking-[0.2em] mb-1.5 block group-focus-within:text-indigo-500 transition-colors">{lang === 'ar' ? 'البريد' : 'Email'}</label>
+                            <input type="email" value={form.email} onChange={e => setForm({ ...form, email: e.target.value })} className="w-full bg-elevated rounded-[1.2rem] py-3.5 px-5 text-sm font-bold outline-none border border-border/50 focus:border-indigo-500/50 focus:ring-4 focus:ring-indigo-500/10 transition-all text-main placeholder-muted" placeholder="optional@email.com" />
                         </div>
                     </div>
 
-                    <div className="pt-4 border-t border-slate-100 dark:border-slate-800">
-                        <h4 className="text-xs font-black uppercase text-slate-500 mb-3">{lang === 'ar' ? 'عنوان التوصيل' : 'Delivery Address'}</h4>
+                    <div className="pt-5 border-t border-border/50">
+                        <div className="flex items-center gap-2 mb-4">
+                            <MapPin size={16} className="text-cyan-500" />
+                            <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-cyan-500">{lang === 'ar' ? 'عنوان التوصيل' : 'Delivery Address'}</h4>
+                        </div>
                         <div className="grid grid-cols-2 gap-3">
-                            <div className="col-span-2">
-                                <input type="text" value={form.area} onChange={e => setForm({ ...form, area: e.target.value })} className="w-full bg-slate-100 dark:bg-slate-800 rounded-xl py-2.5 px-4 text-sm font-bold outline-none focus:ring-2 focus:ring-indigo-500/50" placeholder={lang === 'ar' ? 'المنطقة' : 'Area/District'} />
+                            <div className="col-span-2 group">
+                                <input type="text" value={form.area} onChange={e => setForm({ ...form, area: e.target.value })} className="w-full bg-elevated rounded-[1.2rem] py-3.5 px-5 text-sm font-bold outline-none border border-border/50 focus:border-cyan-500/50 focus:ring-4 focus:ring-cyan-500/10 transition-all text-main placeholder-muted" placeholder={lang === 'ar' ? 'المنطقة' : 'Area/District'} />
                             </div>
-                            <div className="col-span-2">
-                                <input type="text" value={form.address} onChange={e => setForm({ ...form, address: e.target.value })} className="w-full bg-slate-100 dark:bg-slate-800 rounded-xl py-2.5 px-4 text-sm font-bold outline-none focus:ring-2 focus:ring-indigo-500/50" placeholder={lang === 'ar' ? 'الشارع والعنوان *' : 'Street Address *'} />
+                            <div className="col-span-2 group">
+                                <input type="text" value={form.address} onChange={e => setForm({ ...form, address: e.target.value })} className="w-full bg-elevated/50 border border-cyan-500/30 rounded-[1.2rem] py-3.5 px-5 text-sm font-bold outline-none focus:border-cyan-500 focus:ring-4 focus:ring-cyan-500/20 transition-all text-main placeholder-cyan-500/50" placeholder={lang === 'ar' ? 'الشارع والعنوان *' : 'Street Address *'} />
                             </div>
-                            <input type="text" value={form.building} onChange={e => setForm({ ...form, building: e.target.value })} className="w-full bg-slate-100 dark:bg-slate-800 rounded-xl py-2.5 px-4 text-sm font-bold outline-none focus:ring-2 focus:ring-indigo-500/50" placeholder={lang === 'ar' ? 'المبنى' : 'Building'} />
+                            <input type="text" value={form.building} onChange={e => setForm({ ...form, building: e.target.value })} className="w-full bg-elevated rounded-[1.2rem] py-3.5 px-5 text-sm font-bold outline-none border border-border/50 focus:border-cyan-500/50 focus:ring-4 focus:ring-cyan-500/10 transition-all text-main placeholder-muted" placeholder={lang === 'ar' ? 'المبنى' : 'Building'} />
                             <div className="flex gap-2">
-                                <input type="text" value={form.floor} onChange={e => setForm({ ...form, floor: e.target.value })} className="w-full bg-slate-100 dark:bg-slate-800 rounded-xl py-2.5 px-3 text-sm font-bold outline-none focus:ring-2 focus:ring-indigo-500/50" placeholder={lang === 'ar' ? 'الدور' : 'Floor'} />
-                                <input type="text" value={form.apartment} onChange={e => setForm({ ...form, apartment: e.target.value })} className="w-full bg-slate-100 dark:bg-slate-800 rounded-xl py-2.5 px-3 text-sm font-bold outline-none focus:ring-2 focus:ring-indigo-500/50" placeholder={lang === 'ar' ? 'الشقة' : 'Apt'} />
+                                <input type="text" value={form.floor} onChange={e => setForm({ ...form, floor: e.target.value })} className="w-full bg-elevated rounded-[1.2rem] py-3.5 px-4 text-sm font-bold outline-none border border-border/50 focus:border-cyan-500/50 focus:ring-4 focus:ring-cyan-500/10 transition-all text-main placeholder-muted" placeholder={lang === 'ar' ? 'الدور' : 'Floor'} />
+                                <input type="text" value={form.apartment} onChange={e => setForm({ ...form, apartment: e.target.value })} className="w-full bg-elevated rounded-[1.2rem] py-3.5 px-4 text-sm font-bold outline-none border border-border/50 focus:border-cyan-500/50 focus:ring-4 focus:ring-cyan-500/10 transition-all text-main placeholder-muted" placeholder={lang === 'ar' ? 'الشقة' : 'Apt'} />
                             </div>
                             <div className="col-span-2">
-                                <input type="text" value={form.landmark} onChange={e => setForm({ ...form, landmark: e.target.value })} className="w-full bg-slate-100 dark:bg-slate-800 rounded-xl py-2.5 px-4 text-sm font-bold outline-none focus:ring-2 focus:ring-indigo-500/50" placeholder={lang === 'ar' ? 'علامة مميزة' : 'Landmark'} />
+                                <input type="text" value={form.landmark} onChange={e => setForm({ ...form, landmark: e.target.value })} className="w-full bg-elevated rounded-[1.2rem] py-3.5 px-5 text-sm font-bold outline-none border border-border/50 focus:border-cyan-500/50 focus:ring-4 focus:ring-cyan-500/10 transition-all text-main placeholder-muted" placeholder={lang === 'ar' ? 'علامة مميزة' : 'Landmark'} />
                             </div>
                         </div>
                     </div>
 
-                    <div>
-                        <label className="text-[10px] font-black uppercase text-slate-400 tracking-widest mb-1 block">{lang === 'ar' ? 'ملاحظات' : 'Notes'}</label>
-                        <textarea value={form.notes} onChange={e => setForm({ ...form, notes: e.target.value })} className="w-full bg-slate-100 dark:bg-slate-800 rounded-xl py-3 px-4 text-sm font-bold outline-none focus:ring-2 focus:ring-indigo-500/50 resize-none h-20" placeholder={lang === 'ar' ? 'ملاحظات إضافية...' : 'Additional notes...'} />
+                    <div className="group">
+                        <label className="text-[9px] font-black uppercase text-muted tracking-[0.2em] mb-1.5 block group-focus-within:text-indigo-500 transition-colors">{lang === 'ar' ? 'ملاحظات' : 'Notes'}</label>
+                        <textarea value={form.notes} onChange={e => setForm({ ...form, notes: e.target.value })} className="w-full bg-elevated rounded-[1.2rem] py-3.5 px-5 text-sm font-bold outline-none border border-border/50 focus:border-indigo-500/50 focus:ring-4 focus:ring-indigo-500/10 transition-all text-main placeholder-muted resize-none h-24" placeholder={lang === 'ar' ? 'ملاحظات إضافية...' : 'Additional notes...'} />
                     </div>
                 </div>
 
-                <div className="p-6 border-t border-slate-200 dark:border-slate-800 flex gap-3">
-                    <button onClick={onClose} className="flex-1 py-3 rounded-xl border-2 border-slate-200 dark:border-slate-700 text-slate-600 font-bold hover:bg-slate-50 transition-colors">
+                <div className="p-6 border-t border-border/50 flex gap-4 bg-app/50 rounded-b-[2.5rem]">
+                    <button onClick={onClose} className="flex-1 py-4 rounded-[1.2rem] border border-border/50 bg-elevated text-muted font-black tracking-[0.2em] text-[10px] uppercase hover:bg-rose-500/10 hover:text-rose-500 hover:border-rose-500/50 transition-all active:scale-95 shadow-sm">
                         {lang === 'ar' ? 'إلغاء' : 'Cancel'}
                     </button>
-                    <button onClick={handleSubmit} disabled={!form.name || !form.phone || !form.address} className="flex-1 py-3 rounded-xl bg-indigo-600 text-white font-bold hover:bg-indigo-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2">
-                        <Save size={16} /> {lang === 'ar' ? 'حفظ وبدء الطلب' : 'Save & Start Order'}
+                    <button onClick={handleSubmit} disabled={!form.name || !form.phone || !form.address} className="flex-1 py-4 rounded-[1.2rem] bg-gradient-to-r from-indigo-500 to-cyan-500 text-white font-black tracking-[0.2em] text-[10px] uppercase hover:opacity-90 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 shadow-xl shadow-indigo-500/25 active:scale-95 disabled:active:scale-100">
+                        <Save size={16} /> {lang === 'ar' ? 'حفظ وبدء الطلب' : 'Save & Start'}
                     </button>
                 </div>
             </div>
@@ -290,19 +295,19 @@ const CustomerRegistrationModal: React.FC<{
 
 // Order Status Badge Component
 const OrderStatusBadge: React.FC<{ status: OrderStatus; lang: 'en' | 'ar' }> = ({ status, lang }) => {
-    const config: Record<OrderStatus, { bg: string; text: string; icon: any; label: { en: string; ar: string } }> = {
-        [OrderStatus.PENDING]: { bg: 'bg-amber-100 dark:bg-amber-900/30', text: 'text-amber-600', icon: Clock, label: { en: 'Pending', ar: 'جديد' } },
-        [OrderStatus.PREPARING]: { bg: 'bg-blue-100 dark:bg-blue-900/30', text: 'text-blue-600', icon: ChefHat, label: { en: 'Preparing', ar: 'قيد التحضير' } },
-        [OrderStatus.READY]: { bg: 'bg-purple-100 dark:bg-purple-900/30', text: 'text-purple-600', icon: Package, label: { en: 'Ready', ar: 'جاهز' } },
-        [OrderStatus.OUT_FOR_DELIVERY]: { bg: 'bg-indigo-100 dark:bg-indigo-900/30', text: 'text-indigo-600', icon: Bike, label: { en: 'On the Way', ar: 'في الطريق' } },
-        [OrderStatus.DELIVERED]: { bg: 'bg-emerald-100 dark:bg-emerald-900/30', text: 'text-emerald-600', icon: CheckCircle, label: { en: 'Delivered', ar: 'تم التوصيل' } },
-        [OrderStatus.CANCELLED]: { bg: 'bg-rose-100 dark:bg-rose-900/30', text: 'text-rose-600', icon: XCircle, label: { en: 'Cancelled', ar: 'ملغي' } },
+    const config: Record<OrderStatus, { bg: string; text: string; border: string; icon: any; label: { en: string; ar: string } }> = {
+        [OrderStatus.PENDING]: { bg: 'bg-amber-500/10', border: 'border-amber-500/20', text: 'text-amber-500', icon: Clock, label: { en: 'Pending', ar: 'جديد' } },
+        [OrderStatus.PREPARING]: { bg: 'bg-cyan-500/10', border: 'border-cyan-500/20', text: 'text-cyan-500', icon: ChefHat, label: { en: 'Preparing', ar: 'تحضير' } },
+        [OrderStatus.READY]: { bg: 'bg-indigo-500/10', border: 'border-indigo-500/20', text: 'text-indigo-500', icon: Package, label: { en: 'Ready', ar: 'جاهز' } },
+        [OrderStatus.OUT_FOR_DELIVERY]: { bg: 'bg-violet-500/10', border: 'border-violet-500/20', text: 'text-violet-500', icon: Bike, label: { en: 'On the Way', ar: 'في الطريق' } },
+        [OrderStatus.DELIVERED]: { bg: 'bg-emerald-500/10', border: 'border-emerald-500/20', text: 'text-emerald-500', icon: CheckCircle, label: { en: 'Delivered', ar: 'مكتمل' } },
+        [OrderStatus.CANCELLED]: { bg: 'bg-rose-500/10', border: 'border-rose-500/20', text: 'text-rose-500', icon: XCircle, label: { en: 'Cancelled', ar: 'ملغي' } },
     };
     const c = config[status];
     const Icon = c.icon;
     return (
-        <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[10px] font-black uppercase ${c.bg} ${c.text}`}>
-            <Icon size={12} /> {c.label[lang]}
+        <span className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[9px] font-black uppercase tracking-widest border ${c.bg} ${c.text} ${c.border} shadow-sm`}>
+            <Icon size={12} className={status === OrderStatus.PENDING || status === OrderStatus.PREPARING || status === OrderStatus.OUT_FOR_DELIVERY ? 'animate-pulse' : ''} /> {c.label[lang]}
         </span>
     );
 };
@@ -568,27 +573,28 @@ const CallCenter: React.FC = () => {
     // ========================================================================
 
     return (
-        <div className="flex flex-col app-viewport overflow-hidden bg-gradient-to-br from-slate-50 via-indigo-50/30 to-slate-50 dark:from-slate-950 dark:via-indigo-950/20 dark:to-slate-950">
+        <div className="flex flex-col min-h-screen app-viewport overflow-hidden bg-app">
 
             {/* ==================== TOP HEADER ==================== */}
-            <div className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl border-b border-slate-200/50 dark:border-slate-800/50 px-6 py-3 shrink-0 shadow-sm z-30">
-                <div className="max-w-[1800px] mx-auto px-4 md:px-6 flex flex-col lg:flex-row lg:items-center gap-4">
+            <div className="bg-card/80 backdrop-blur-xl border-b border-border/50 px-6 py-4 shrink-0 shadow-sm z-30 relative">
+                <div className="absolute inset-0 bg-gradient-to-r from-indigo-500/5 to-cyan-500/5 pointer-events-none" />
+                <div className="max-w-[1800px] mx-auto px-4 md:px-6 flex flex-col lg:flex-row lg:items-center gap-6 relative z-10">
 
                     {/* View Switcher */}
-                    <div className="flex bg-slate-100 dark:bg-slate-800 rounded-2xl p-1">
+                    <div className="flex bg-card/50 backdrop-blur-md rounded-[1.5rem] p-1.5 border border-border/50 shadow-sm">
                         <button
                             onClick={() => setActiveView('order')}
-                            className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-black uppercase transition-all ${activeView === 'order' ? 'bg-indigo-600 text-white shadow-lg' : 'text-slate-500 hover:text-slate-700'}`}
+                            className={`flex items-center gap-2 px-6 py-3 rounded-2xl text-[10px] md:text-xs font-black uppercase tracking-[0.2em] transition-all duration-300 ${activeView === 'order' ? 'bg-gradient-to-r from-indigo-500 to-cyan-500 text-white shadow-lg shadow-indigo-500/25 scale-105' : 'text-muted hover:text-main'}`}
                         >
-                            <Headset size={14} /> {lang === 'ar' ? 'طلب جديد' : 'New Order'}
+                            <Headset size={16} /> {lang === 'ar' ? 'طلب جديد' : 'New Order'}
                         </button>
                         <button
                             onClick={() => setActiveView('tracking')}
-                            className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-black uppercase transition-all ${activeView === 'tracking' ? 'bg-indigo-600 text-white shadow-lg' : 'text-slate-500 hover:text-slate-700'}`}
+                            className={`flex items-center gap-3 px-6 py-3 rounded-2xl text-[10px] md:text-xs font-black uppercase tracking-[0.2em] transition-all duration-300 ${activeView === 'tracking' ? 'bg-gradient-to-r from-indigo-500 to-cyan-500 text-white shadow-lg shadow-indigo-500/25 scale-105' : 'text-muted hover:text-main'}`}
                         >
-                            <Activity size={14} /> {lang === 'ar' ? 'متابعة الطلبات' : 'Order Tracking'}
+                            <Activity size={16} /> {lang === 'ar' ? 'متابعة الطلبات' : 'Order Tracking'}
                             {pendingCount > 0 && (
-                                <span className="bg-amber-500 text-white text-[10px] font-black px-1.5 py-0.5 rounded-full animate-pulse">{pendingCount}</span>
+                                <span className="bg-white text-indigo-500 text-[9px] font-black px-2 py-0.5 rounded-full shadow-md animate-pulse">{pendingCount}</span>
                             )}
                         </button>
                     </div>
@@ -596,53 +602,54 @@ const CallCenter: React.FC = () => {
                     {activeView === 'order' && (
                         <>
                             {/* Call Status Indicator */}
-                            <div className={`flex items-center gap-3 px-4 py-2 rounded-2xl border transition-all ${isCallActive ? 'bg-emerald-500/10 border-emerald-500/30' : 'bg-slate-100 dark:bg-slate-800 border-slate-200 dark:border-slate-700'}`}>
-                                <button onClick={() => setIsCallActive(!isCallActive)} className={`p-2 rounded-xl transition-all ${isCallActive ? 'bg-emerald-500 text-white animate-pulse' : 'bg-slate-200 dark:bg-slate-700 text-slate-500'}`}>
-                                    {isCallActive ? <PhoneCall size={16} /> : <PhoneOff size={16} />}
+                            <div className={`flex items-center gap-4 px-5 py-2.5 rounded-[1.5rem] border transition-all duration-300 shadow-sm ${isCallActive ? 'bg-emerald-500/10 border-emerald-500/30 shadow-emerald-500/10' : 'bg-card/50 border-border/50'}`}>
+                                <button onClick={() => setIsCallActive(!isCallActive)} className={`p-3 rounded-2xl transition-all duration-300 ${isCallActive ? 'bg-emerald-500 text-white animate-pulse shadow-lg shadow-emerald-500/30' : 'bg-elevated text-muted hover:bg-emerald-500/10 hover:text-emerald-500'}`}>
+                                    {isCallActive ? <PhoneCall size={18} /> : <PhoneOff size={18} />}
                                 </button>
-                                <div className="text-center">
-                                    <p className={`text-xl font-black tracking-tight ${isCallActive ? 'text-emerald-600' : 'text-slate-400'}`}>{formatDuration(callDuration)}</p>
-                                    <p className="text-[8px] font-black uppercase tracking-[0.2em] text-slate-400">{isCallActive ? (lang === 'ar' ? 'مكالمة نشطة' : 'Active') : (lang === 'ar' ? 'انتظار' : 'Idle')}</p>
+                                <div className="text-center min-w-[60px]">
+                                    <p className={`text-2xl font-black tracking-tighter ${isCallActive ? 'text-emerald-500' : 'text-muted'}`}>{formatDuration(callDuration)}</p>
+                                    <p className="text-[9px] font-black uppercase tracking-[0.2em] text-muted">{isCallActive ? (lang === 'ar' ? 'مكالمة نشطة' : 'Active') : (lang === 'ar' ? 'انتظار' : 'Idle')}</p>
                                 </div>
                             </div>
 
                             {/* Customer Search */}
-                            <div className="flex-1 relative">
-                                <Phone size={16} className={`absolute top-1/2 -translate-y-1/2 text-slate-400 ${lang === 'ar' ? 'right-4' : 'left-4'}`} />
+                            <div className="flex-1 relative group">
+                                <div className="absolute inset-0 bg-gradient-to-r from-indigo-500 to-cyan-500 rounded-[1.5rem] blur opacity-20 group-focus-within:opacity-40 transition-opacity" />
+                                <Phone size={18} className={`absolute top-1/2 -translate-y-1/2 text-muted group-focus-within:text-indigo-500 transition-colors z-10 ${lang === 'ar' ? 'right-5' : 'left-5'}`} />
                                 <input
                                     id="customer-search"
                                     type="text"
                                     placeholder={lang === 'ar' ? 'أدخل رقم الهاتف (F1)...' : 'Enter Phone Number (F1)...'}
-                                    className={`w-full bg-slate-100 dark:bg-slate-800 border-none rounded-2xl py-3.5 ${lang === 'ar' ? 'pr-12 pl-4 text-right' : 'pl-12 pr-4'} font-bold text-sm outline-none focus:ring-2 focus:ring-indigo-500/50 transition-all`}
+                                    className={`relative w-full bg-card/90 backdrop-blur-sm border border-border/50 rounded-[1.5rem] py-4 ${lang === 'ar' ? 'pr-14 pl-5 text-right' : 'pl-14 pr-5'} font-bold text-sm outline-none focus:ring-2 focus:ring-indigo-500/50 transition-all shadow-sm text-main`}
                                     value={phoneSearch}
                                     onChange={(e) => { setPhoneSearch(e.target.value); setCustomerSearched(false); }}
                                     onKeyPress={(e) => e.key === 'Enter' && handleCustomerSearch()}
                                 />
                             </div>
 
-                            <button onClick={handleCustomerSearch} className="h-12 bg-indigo-600 text-white px-6 rounded-2xl font-black uppercase text-xs flex items-center gap-2 hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-600/20 active:scale-95">
-                                <Search size={16} /> {lang === 'ar' ? 'بحث' : 'Search'}
+                            <button onClick={handleCustomerSearch} className="h-[56px] bg-gradient-to-r from-indigo-500 to-cyan-500 text-white px-8 rounded-[1.5rem] font-black uppercase text-xs tracking-[0.2em] flex items-center justify-center gap-2 hover:opacity-90 transition-all shadow-xl shadow-indigo-500/25 active:scale-95 shrink-0">
+                                <Search size={18} /> {lang === 'ar' ? 'بحث' : 'Search'}
                             </button>
                         </>
                     )}
 
                     {/* Quick Stats */}
-                    <div className="hidden xl:flex items-center gap-3 px-4 py-2 bg-slate-100 dark:bg-slate-800 rounded-2xl">
-                        <div className="text-center px-3 border-r border-slate-200 dark:border-slate-700">
-                            <p className="text-lg font-black text-amber-500">{pendingCount}</p>
-                            <p className="text-[8px] font-black uppercase text-slate-400">{lang === 'ar' ? 'جديد' : 'New'}</p>
+                    <div className="hidden xl:flex items-center gap-4 px-6 py-3 bg-card/50 backdrop-blur-md border border-border/50 rounded-[1.5rem] shadow-sm">
+                        <div className="text-center px-4 border-r border-border/50">
+                            <p className="text-xl font-black text-amber-500">{pendingCount}</p>
+                            <p className="text-[9px] font-black uppercase tracking-widest text-muted">{lang === 'ar' ? 'جديد' : 'New'}</p>
                         </div>
-                        <div className="text-center px-3 border-r border-slate-200 dark:border-slate-700">
-                            <p className="text-lg font-black text-blue-500">{preparingCount}</p>
-                            <p className="text-[8px] font-black uppercase text-slate-400">{lang === 'ar' ? 'تحضير' : 'Prep'}</p>
+                        <div className="text-center px-4 border-r border-border/50">
+                            <p className="text-xl font-black text-cyan-500">{preparingCount}</p>
+                            <p className="text-[9px] font-black uppercase tracking-widest text-muted">{lang === 'ar' ? 'تحضير' : 'Prep'}</p>
                         </div>
-                        <div className="text-center px-3 border-r border-slate-200 dark:border-slate-700">
-                            <p className="text-lg font-black text-indigo-500">{outForDeliveryCount}</p>
-                            <p className="text-[8px] font-black uppercase text-slate-400">{lang === 'ar' ? 'توصيل' : 'OFD'}</p>
+                        <div className="text-center px-4 border-r border-border/50">
+                            <p className="text-xl font-black text-indigo-500">{outForDeliveryCount}</p>
+                            <p className="text-[9px] font-black uppercase tracking-widest text-muted">{lang === 'ar' ? 'توصيل' : 'OFD'}</p>
                         </div>
-                        <div className="text-center px-3">
-                            <p className="text-lg font-black text-emerald-500">{deliveredTodayCount}</p>
-                            <p className="text-[8px] font-black uppercase text-slate-400">{lang === 'ar' ? 'تم' : 'Done'}</p>
+                        <div className="text-center px-4">
+                            <p className="text-xl font-black text-emerald-500">{deliveredTodayCount}</p>
+                            <p className="text-[9px] font-black uppercase tracking-widest text-muted">{lang === 'ar' ? 'تم' : 'Done'}</p>
                         </div>
                     </div>
 
@@ -660,17 +667,17 @@ const CallCenter: React.FC = () => {
                     {/* Customer Context or "Not Found" Message */}
                     {customerSearched && !selectedCustomer && !showRegistrationModal && (
                         <div className="bg-amber-500/10 border-b border-amber-500/20 px-6 py-4 animate-in slide-in-from-top-2">
-                            <div className="max-w-[1800px] mx-auto px-4 md:px-6 flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3">
-                                <div className="flex items-center gap-3">
-                                    <div className="w-12 h-12 rounded-2xl bg-amber-500/20 flex items-center justify-center">
-                                        <AlertCircle size={24} className="text-amber-600" />
+                            <div className="max-w-[1800px] mx-auto px-4 md:px-6 flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+                                <div className="flex items-center gap-4">
+                                    <div className="w-14 h-14 rounded-[1.5rem] bg-amber-500/20 flex items-center justify-center border border-amber-500/30 shadow-inner">
+                                        <AlertCircle size={28} className="text-amber-500" />
                                     </div>
                                     <div>
-                                        <p className="text-sm font-black text-slate-800 dark:text-white">{lang === 'ar' ? 'العميل غير مسجل' : 'Customer Not Found'}</p>
-                                        <p className="text-xs text-slate-500">{lang === 'ar' ? 'هل تريد تسجيل عميل جديد بهذا الرقم؟' : 'Would you like to register a new customer?'}</p>
+                                        <p className="text-base font-black text-main uppercase tracking-tight">{lang === 'ar' ? 'العميل غير مسجل' : 'Customer Not Found'}</p>
+                                        <p className="text-xs font-bold text-muted mt-0.5">{lang === 'ar' ? 'هل تريد تسجيل عميل جديد بهذا الرقم؟' : 'Would you like to register a new customer?'}</p>
                                     </div>
                                 </div>
-                                <button onClick={() => setShowRegistrationModal(true)} className="flex items-center gap-2 px-5 py-3 bg-indigo-600 text-white rounded-xl font-bold text-sm hover:bg-indigo-700 transition-all">
+                                <button onClick={() => setShowRegistrationModal(true)} className="flex items-center justify-center gap-2 px-6 py-3.5 bg-gradient-to-r from-indigo-500 to-cyan-500 text-white rounded-[1.5rem] font-black tracking-[0.2em] text-[10px] uppercase hover:opacity-90 transition-all shadow-xl shadow-indigo-500/25 active:scale-95">
                                     <UserPlus size={16} /> {lang === 'ar' ? 'تسجيل عميل جديد' : 'Register New Customer'}
                                 </button>
                             </div>
@@ -678,42 +685,43 @@ const CallCenter: React.FC = () => {
                     )}
 
                     {selectedCustomer && (
-                        <div className="bg-gradient-to-r from-indigo-500/5 via-violet-500/5 to-indigo-500/5 dark:from-indigo-900/20 dark:via-violet-900/20 dark:to-indigo-900/20 border-b border-indigo-200/30 dark:border-indigo-800/30 px-6 py-4 animate-in slide-in-from-top-2 duration-300">
-                            <div className="max-w-[1800px] mx-auto px-4 md:px-6 flex flex-col lg:flex-row lg:items-center gap-4">
+                        <div className="bg-card/90 backdrop-blur-xl border-b border-border/50 px-6 py-4 animate-in slide-in-from-top-2 duration-300 relative">
+                            <div className="absolute inset-0 bg-gradient-to-r from-indigo-500/5 via-cyan-500/5 to-indigo-500/5 pointer-events-none" />
+                            <div className="max-w-[1800px] mx-auto px-4 md:px-6 flex flex-col lg:flex-row lg:items-center gap-6 relative z-10">
                                 <div className="flex items-center gap-4">
-                                    <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-indigo-500 to-violet-600 text-white flex items-center justify-center font-black text-xl shadow-lg shadow-indigo-500/30">
+                                    <div className="w-16 h-16 rounded-[1.5rem] bg-gradient-to-br from-indigo-500 to-cyan-500 text-white flex items-center justify-center font-black text-2xl shadow-lg shadow-indigo-500/30">
                                         {selectedCustomer.name?.charAt(0) || 'C'}
                                     </div>
                                     <div>
-                                        <p className="text-sm font-black text-slate-800 dark:text-white uppercase tracking-tight">{selectedCustomer.name}</p>
-                                        <p className="text-xs text-slate-500 font-bold">{selectedCustomer.phone}</p>
+                                        <p className="text-lg font-black text-main uppercase tracking-tight">{selectedCustomer.name}</p>
+                                        <p className="text-sm text-muted font-bold tracking-widest">{selectedCustomer.phone}</p>
                                     </div>
                                 </div>
 
-                                <div className="flex items-center gap-2 bg-amber-500/10 border border-amber-500/20 px-4 py-2 rounded-2xl">
-                                    <Star size={14} className="text-amber-500" />
+                                <div className="flex items-center gap-3 bg-amber-500/10 border border-amber-500/20 px-5 py-3 rounded-[1.5rem] shadow-inner">
+                                    <Star size={20} className="text-amber-500 animate-pulse" />
                                     <div>
-                                        <p className="text-[9px] font-black uppercase tracking-widest text-amber-600">{lang === 'ar' ? 'الولاء' : 'Loyalty'}</p>
-                                        <p className="text-xs font-black text-slate-800 dark:text-white">{selectedCustomer.loyaltyTier || 'Bronze'} • {selectedCustomer.visits || 0} {lang === 'ar' ? 'طلب' : 'orders'}</p>
+                                        <p className="text-[9px] font-black uppercase tracking-[0.2em] text-amber-600">{lang === 'ar' ? 'الولاء' : 'Loyalty'}</p>
+                                        <p className="text-sm font-black text-main">{selectedCustomer.loyaltyTier || 'Bronze'} • {selectedCustomer.visits || 0} {lang === 'ar' ? 'طلب' : 'orders'}</p>
                                     </div>
                                 </div>
 
-                                <div className="flex-1">
-                                    <p className="text-[8px] font-black uppercase tracking-[0.2em] text-slate-400 mb-1">{lang === 'ar' ? 'العنوان' : 'Address'}</p>
-                                    <div className="flex items-center gap-2 bg-white dark:bg-slate-800 px-4 py-2 rounded-xl">
-                                        <MapPinned size={14} className="text-indigo-500" />
+                                <div className="flex-1 group">
+                                    <p className="text-[9px] font-black uppercase tracking-[0.2em] text-muted mb-1.5">{lang === 'ar' ? 'العنوان' : 'Address'}</p>
+                                    <div className="flex items-center gap-3 bg-elevated/50 px-5 py-3 rounded-[1.5rem] border border-border/50 group-focus-within:border-indigo-500/50 transition-colors shadow-sm">
+                                        <MapPinned size={18} className="text-indigo-500" />
                                         <input
                                             type="text"
                                             value={deliveryAddress}
                                             onChange={(e) => setDeliveryAddress(e.target.value)}
-                                            className="flex-1 bg-transparent text-sm font-bold outline-none"
+                                            className="flex-1 bg-transparent text-sm font-bold outline-none text-main placeholder-muted"
                                             placeholder={lang === 'ar' ? 'أدخل العنوان...' : 'Enter address...'}
                                         />
                                     </div>
                                 </div>
 
-                                <button onClick={() => { setSelectedCustomer(null); setIsCallActive(false); setCustomerSearched(false); }} className="p-2.5 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-400 hover:text-rose-500 transition-all">
-                                    <X size={16} />
+                                <button onClick={() => { setSelectedCustomer(null); setIsCallActive(false); setCustomerSearched(false); }} className="p-3.5 rounded-[1.5rem] bg-elevated hover:bg-rose-500/10 text-muted hover:text-rose-500 transition-all border border-border/50 shadow-sm active:scale-95">
+                                    <X size={20} />
                                 </button>
                             </div>
                         </div>
@@ -724,11 +732,11 @@ const CallCenter: React.FC = () => {
                         <div className="flex-1 flex flex-col lg:flex-row overflow-hidden">
                             {/* Menu Area */}
                             <div className="flex-1 flex flex-col min-w-0">
-                                <div className="bg-white/60 dark:bg-slate-900/60 backdrop-blur-sm px-6 py-4 border-b border-slate-200/50 dark:border-slate-800/50 flex flex-wrap justify-between items-center gap-4">
+                                <div className="bg-card/60 backdrop-blur-xl px-6 py-4 border-b border-border/50 flex flex-wrap justify-between items-center gap-4 relative z-10">
                                     <CategoryTabs categories={categories} activeCategory={activeCategory} onSetCategory={setActiveCategory} isTouchMode={false} lang={lang} t={t} />
-                                    <div className="relative w-72">
-                                        <Search className={`absolute top-1/2 -translate-y-1/2 text-slate-400 ${lang === 'ar' ? 'right-4' : 'left-4'}`} size={16} />
-                                        <input id="item-search" type="text" placeholder={lang === 'ar' ? 'بحث عن منتج (F2)...' : 'Search Product (F2)...'} className={`w-full bg-slate-100 dark:bg-slate-800 border-none rounded-xl py-2.5 ${lang === 'ar' ? 'pr-12 pl-4' : 'pl-10 pr-4'} text-xs font-bold outline-none focus:ring-2 focus:ring-indigo-500/30`} value={itemSearchQuery} onChange={(e) => setItemSearchQuery(e.target.value)} />
+                                    <div className="relative w-80 group">
+                                        <Search className={`absolute top-1/2 -translate-y-1/2 text-muted group-focus-within:text-indigo-500 transition-colors z-10 ${lang === 'ar' ? 'right-5' : 'left-5'}`} size={18} />
+                                        <input id="item-search" type="text" placeholder={lang === 'ar' ? 'بحث عن منتج (F2)...' : 'Search Product (F2)...'} className={`w-full bg-elevated/50 border border-border/50 rounded-[1.5rem] py-3.5 ${lang === 'ar' ? 'pr-12 pl-5' : 'pl-12 pr-5'} text-sm font-bold outline-none focus:ring-2 focus:ring-indigo-500/50 shadow-sm transition-all text-main`} value={itemSearchQuery} onChange={(e) => setItemSearchQuery(e.target.value)} />
                                     </div>
                                 </div>
 
@@ -744,7 +752,7 @@ const CallCenter: React.FC = () => {
                                                 <span className="text-xs font-black uppercase">{lang === 'ar' ? 'معلقة' : 'Held'} ({heldOrders.length})</span>
                                             </div>
                                             {heldOrders.map(order => (
-                                                <button key={order.id} onClick={() => recallOrder(order.id)} className="shrink-0 flex items-center gap-2 px-4 py-2 bg-white dark:bg-slate-800 rounded-xl border border-amber-300 dark:border-amber-800 hover:bg-amber-50 transition-all">
+                                                <button key={order.id} onClick={() => recallOrder(order.id)} className="shrink-0 flex items-center gap-2 px-4 py-2 card-primary rounded-xl border border-amber-300 dark:border-amber-800 hover:bg-amber-50 transition-all">
                                                     <Play size={12} className="text-amber-600" />
                                                     <span className="text-xs font-bold text-slate-700 dark:text-white">{order.customer?.name || 'Guest'}</span>
                                                 </button>
@@ -755,12 +763,12 @@ const CallCenter: React.FC = () => {
                             </div>
 
                             {/* Right Panel: Cart */}
-                            <div className="w-full lg:w-[420px] bg-white dark:bg-slate-900 border-l border-slate-200 dark:border-slate-800 flex flex-col shadow-2xl">
-                                <div className="px-6 py-4 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center">
-                                    <h3 className="text-lg font-black text-slate-800 dark:text-white uppercase flex items-center gap-2">
-                                        <ShoppingBag size={20} className="text-indigo-600" /> {lang === 'ar' ? 'السلة' : 'Cart'}
+                            <div className="w-full lg:w-[480px] bg-card/90 backdrop-blur-2xl border-l border-border/50 flex flex-col shadow-2xl relative z-20">
+                                <div className="px-6 py-5 border-b border-border/50 flex justify-between items-center">
+                                    <h3 className="text-lg font-black text-main uppercase tracking-widest flex items-center gap-3">
+                                        <ShoppingBag size={22} className="text-indigo-500" /> {lang === 'ar' ? 'السلة' : 'Cart'}
                                     </h3>
-                                    <span className="bg-slate-100 dark:bg-slate-800 px-3 py-1.5 rounded-xl text-[10px] font-black">{cart.length}</span>
+                                    <span className="bg-indigo-500/10 text-indigo-500 px-4 py-1.5 rounded-full text-[10px] font-black tracking-widest border border-indigo-500/20">{cart.length} ITEMS</span>
                                 </div>
 
                                 <div className="flex-1 overflow-y-auto px-4 py-3 space-y-2 no-scrollbar">
@@ -770,46 +778,46 @@ const CallCenter: React.FC = () => {
                                             <p className="text-xs font-black uppercase opacity-50">{t.empty_cart}</p>
                                         </div>
                                     ) : cart.map(item => (
-                                        <CartItem key={item.cartId} item={item} currencySymbol={currencySymbol} isTouchMode={false} lang={lang} onEditNote={(id, note) => { setEditingItemId(id); setNoteInput(note); }} onRemove={removeFromCart} onUpdateQuantity={updateQuantity} />
+                                        <CartItem key={item.cartId} item={item} currencySymbol={currencySymbol} isTouchMode={false} lang={lang} onEditNote={(id, note) => { setEditingItemId(id); setNoteInput(note); }} onEditSeat={() => { }} onRemove={removeFromCart} onUpdateQuantity={updateQuantity} />
                                     ))}
                                 </div>
 
                                 {/* Quick Actions */}
-                                <div className="px-4 py-3 border-t border-slate-100 dark:border-slate-800 space-y-3">
-                                    <div className="grid grid-cols-5 gap-1">
+                                <div className="px-5 py-4 border-t border-border/50 space-y-4 bg-app/50">
+                                    <div className="grid grid-cols-5 gap-2">
                                         {[0, 5, 10, 15, 20].map(d => (
-                                            <button key={d} onClick={() => setDiscount(d)} className={`py-2 rounded-lg text-[10px] font-black transition-all ${discount === d ? 'bg-indigo-600 text-white' : 'bg-slate-100 dark:bg-slate-800 text-slate-500 hover:bg-indigo-100'}`}>{d}%</button>
+                                            <button key={d} onClick={() => setDiscount(d)} className={`py-2.5 rounded-[1rem] text-[10px] font-black transition-all ${discount === d ? 'bg-gradient-to-r from-indigo-500 to-cyan-500 text-white shadow-md' : 'bg-elevated text-muted hover:bg-indigo-500/10 border border-border/50 hover:text-indigo-500'}`}>{d}%</button>
                                         ))}
                                     </div>
-                                    <div className="grid grid-cols-2 gap-2">
-                                        <button onClick={() => setFreeDelivery(!freeDelivery)} className={`flex items-center justify-center gap-2 py-2.5 rounded-xl text-[10px] font-black uppercase transition-all ${freeDelivery ? 'bg-emerald-500 text-white' : 'bg-slate-100 dark:bg-slate-800 text-slate-500'}`}>
-                                            <Bike size={14} /> {lang === 'ar' ? 'توصيل مجاني' : 'Free Delivery'}
+                                    <div className="grid grid-cols-2 gap-3">
+                                        <button onClick={() => setFreeDelivery(!freeDelivery)} className={`flex items-center justify-center gap-2 py-3.5 rounded-[1.2rem] text-[10px] font-black uppercase tracking-widest transition-all ${freeDelivery ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-500/25' : 'bg-elevated text-muted border border-border/50 hover:border-emerald-500/30'}`}>
+                                            <Bike size={16} /> {lang === 'ar' ? 'توصيل مجاني' : 'Free Delivery'}
                                         </button>
-                                        <button onClick={() => setUrgentFlag(!urgentFlag)} className={`flex items-center justify-center gap-2 py-2.5 rounded-xl text-[10px] font-black uppercase transition-all ${urgentFlag ? 'bg-rose-500 text-white animate-pulse' : 'bg-slate-100 dark:bg-slate-800 text-slate-500'}`}>
-                                            <Zap size={14} /> {lang === 'ar' ? 'عاجل' : 'Urgent'}
+                                        <button onClick={() => setUrgentFlag(!urgentFlag)} className={`flex items-center justify-center gap-2 py-3.5 rounded-[1.2rem] text-[10px] font-black uppercase tracking-widest transition-all ${urgentFlag ? 'bg-rose-500 text-white animate-pulse shadow-lg shadow-rose-500/25' : 'bg-elevated text-muted border border-border/50 hover:border-rose-500/30'}`}>
+                                            <Zap size={16} /> {lang === 'ar' ? 'عاجل' : 'Urgent'}
                                         </button>
                                     </div>
-                                    <input type="text" placeholder={lang === 'ar' ? 'ملاحظات التوصيل...' : 'Delivery notes...'} value={orderNotes} onChange={(e) => setOrderNotes(e.target.value)} className="w-full bg-slate-100 dark:bg-slate-800 rounded-xl py-2.5 px-4 text-xs font-bold outline-none" />
-                                    <select value={selectedBranchId} onChange={(e) => setSelectedBranchId(e.target.value)} className="w-full bg-slate-100 dark:bg-slate-800 rounded-xl py-2.5 px-4 text-xs font-bold outline-none">
+                                    <input type="text" placeholder={lang === 'ar' ? 'ملاحظات التوصيل...' : 'Delivery notes...'} value={orderNotes} onChange={(e) => setOrderNotes(e.target.value)} className="w-full bg-elevated rounded-[1.2rem] py-3.5 px-5 text-sm font-bold outline-none border border-border/50 focus:border-indigo-500/50 text-main placeholder-muted" />
+                                    <select value={selectedBranchId} onChange={(e) => setSelectedBranchId(e.target.value)} className="w-full bg-elevated rounded-[1.2rem] py-3.5 px-5 text-sm font-bold outline-none border border-border/50 focus:border-indigo-500/50 text-main">
                                         {branches.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
                                     </select>
                                 </div>
 
                                 {/* Pricing & Submit */}
-                                <div className="px-4 py-4 bg-slate-50 dark:bg-slate-800/50 border-t border-slate-200 dark:border-slate-700">
-                                    <div className="space-y-1 mb-4">
-                                        <div className="flex justify-between text-[10px] font-bold text-slate-400"><span>Subtotal</span><span>{subtotal.toFixed(2)}</span></div>
-                                        {discount > 0 && <div className="flex justify-between text-[10px] font-bold text-emerald-500"><span>Discount ({discount}%)</span><span>-{discountAmount.toFixed(2)}</span></div>}
-                                        <div className="flex justify-between text-[10px] font-bold text-slate-400"><span>Tax (14%)</span><span>{tax.toFixed(2)}</span></div>
-                                        <div className="flex justify-between text-[10px] font-bold text-slate-400"><span>Delivery</span><span>{freeDelivery ? 'FREE' : deliveryFee.toFixed(2)}</span></div>
-                                        <div className="flex justify-between text-lg font-black text-indigo-600 pt-2 border-t border-slate-200 dark:border-slate-700"><span>Total</span><span>{total.toFixed(2)} {currencySymbol}</span></div>
+                                <div className="px-6 py-5 bg-card/80 backdrop-blur-xl border-t border-border/50 relative z-20">
+                                    <div className="space-y-1.5 mb-5">
+                                        <div className="flex justify-between text-[11px] font-black tracking-widest uppercase text-muted"><span>Subtotal</span><span className="text-main">{subtotal.toFixed(2)}</span></div>
+                                        {discount > 0 && <div className="flex justify-between text-[11px] font-black tracking-widest uppercase text-emerald-500"><span>Discount ({discount}%)</span><span>-{discountAmount.toFixed(2)}</span></div>}
+                                        <div className="flex justify-between text-[11px] font-black tracking-widest uppercase text-muted"><span>Tax (14%)</span><span className="text-main">{tax.toFixed(2)}</span></div>
+                                        <div className="flex justify-between text-[11px] font-black tracking-widest uppercase text-muted"><span>Delivery</span><span className={freeDelivery ? 'text-emerald-500' : 'text-main'}>{freeDelivery ? 'FREE' : deliveryFee.toFixed(2)}</span></div>
+                                        <div className="flex justify-between text-2xl font-black text-indigo-500 pt-3 border-t border-border/50 mt-2"><span>Total</span><span>{total.toFixed(2)} <span className="text-sm font-bold opacity-50">{currencySymbol}</span></span></div>
                                     </div>
-                                    <div className="grid grid-cols-2 gap-2">
-                                        <button onClick={holdCurrentOrder} disabled={cart.length === 0} className="h-12 rounded-xl font-black uppercase text-xs bg-amber-500/10 text-amber-600 border border-amber-500/30 disabled:opacity-30 flex items-center justify-center gap-2">
-                                            <Pause size={14} /> Hold (F4)
+                                    <div className="grid grid-cols-2 gap-3">
+                                        <button onClick={holdCurrentOrder} disabled={cart.length === 0} className="h-14 rounded-[1.2rem] font-black uppercase tracking-[0.2em] text-[10px] bg-amber-500/10 text-amber-500 border border-amber-500/30 disabled:opacity-30 disabled:pointer-events-none hover:bg-amber-500/20 transition-all flex items-center justify-center gap-2">
+                                            <Pause size={16} /> Hold (F4)
                                         </button>
-                                        <button onClick={handleSubmitOrder} disabled={cart.length === 0} className={`h-12 rounded-xl font-black uppercase text-xs flex items-center justify-center gap-2 ${cart.length === 0 ? 'bg-slate-200 text-slate-400' : 'bg-indigo-600 text-white shadow-lg'}`}>
-                                            Send (F3) <ArrowRight size={14} />
+                                        <button onClick={handleSubmitOrder} disabled={cart.length === 0} className={`h-14 rounded-[1.2rem] font-black uppercase tracking-[0.2em] text-[10px] flex items-center justify-center gap-2 transition-all ${cart.length === 0 ? 'bg-elevated text-muted' : 'bg-gradient-to-r from-indigo-500 to-cyan-500 text-white shadow-xl shadow-indigo-500/25 hover:opacity-90 active:scale-95'}`}>
+                                            Send (F3) <ArrowRight size={16} />
                                         </button>
                                     </div>
                                 </div>
@@ -832,10 +840,12 @@ const CallCenter: React.FC = () => {
 
             {/* ==================== TRACKING VIEW ==================== */}
             {activeView === 'tracking' && (
-                <div className="flex-1 flex flex-col overflow-hidden">
+                <div className="flex-1 flex flex-col overflow-hidden relative z-10">
+                    <div className="absolute inset-0 bg-gradient-to-br from-indigo-500/5 to-cyan-500/5 pointer-events-none" />
+
                     {/* Filters Bar */}
-                    <div className="bg-white/60 dark:bg-slate-900/60 backdrop-blur-sm px-6 py-4 border-b border-slate-200/50 dark:border-slate-800/50 flex items-center gap-4">
-                        <div className="flex bg-slate-100 dark:bg-slate-800 rounded-xl p-1">
+                    <div className="bg-card/60 backdrop-blur-xl px-6 py-4 border-b border-border/50 flex flex-wrap items-center gap-4 relative z-20">
+                        <div className="flex bg-elevated rounded-[1.5rem] p-1.5 border border-border/50">
                             {[
                                 { value: 'all', label: lang === 'ar' ? 'الكل' : 'All', count: callCenterOrders.length },
                                 { value: OrderStatus.PENDING, label: lang === 'ar' ? 'جديد' : 'New', count: pendingCount },
@@ -843,103 +853,109 @@ const CallCenter: React.FC = () => {
                                 { value: OrderStatus.OUT_FOR_DELIVERY, label: lang === 'ar' ? 'توصيل' : 'OFD', count: outForDeliveryCount },
                                 { value: OrderStatus.DELIVERED, label: lang === 'ar' ? 'تم' : 'Done', count: callCenterOrders.filter(o => o.status === OrderStatus.DELIVERED).length },
                             ].map(f => (
-                                <button key={f.value} onClick={() => setTrackingFilter(f.value as any)} className={`px-4 py-2 rounded-lg text-xs font-black uppercase transition-all flex items-center gap-2 ${trackingFilter === f.value ? 'bg-indigo-600 text-white' : 'text-slate-500 hover:text-slate-700'}`}>
+                                <button key={f.value} onClick={() => setTrackingFilter(f.value as any)} className={`px-5 py-2.5 rounded-[1.2rem] text-[10px] md:text-xs font-black uppercase tracking-[0.2em] transition-all flex items-center gap-2 ${trackingFilter === f.value ? 'bg-indigo-500 text-white shadow-md' : 'text-muted hover:text-main'}`}>
                                     {f.label}
-                                    <span className={`text-[10px] px-1.5 py-0.5 rounded-full ${trackingFilter === f.value ? 'bg-white/20' : 'bg-slate-200 dark:bg-slate-700'}`}>{f.count}</span>
+                                    <span className={`text-[9px] px-2 py-0.5 rounded-full font-black tracking-widest ${trackingFilter === f.value ? 'bg-white/20 text-white' : 'bg-card text-muted'}`}>{f.count}</span>
                                 </button>
                             ))}
                         </div>
 
                         <div className="flex-1" />
 
-                        <select value={trackingBranch} onChange={(e) => setTrackingBranch(e.target.value)} className="bg-slate-100 dark:bg-slate-800 rounded-xl py-2.5 px-4 text-xs font-bold outline-none">
+                        <select value={trackingBranch} onChange={(e) => setTrackingBranch(e.target.value)} className="bg-elevated rounded-[1.2rem] py-3.5 px-5 text-sm font-bold outline-none border border-border/50 focus:border-indigo-500/50 text-main transition-colors shadow-sm">
                             <option value="all">{lang === 'ar' ? 'كل الفروع' : 'All Branches'}</option>
                             {branches.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
                         </select>
 
-                        <div className="flex bg-slate-100 dark:bg-slate-800 rounded-xl p-1">
-                            <button onClick={() => setTrackingView('grid')} className={`p-2 rounded-lg transition-all ${trackingView === 'grid' ? 'bg-white dark:bg-slate-700 shadow' : ''}`}><LayoutGrid size={16} /></button>
-                            <button onClick={() => setTrackingView('list')} className={`p-2 rounded-lg transition-all ${trackingView === 'list' ? 'bg-white dark:bg-slate-700 shadow' : ''}`}><List size={16} /></button>
+                        <div className="flex bg-elevated rounded-[1.2rem] p-1.5 border border-border/50 shadow-sm">
+                            <button onClick={() => setTrackingView('grid')} className={`p-2.5 rounded-xl transition-all ${trackingView === 'grid' ? 'bg-card shadow-sm text-indigo-500' : 'text-muted hover:text-main'}`}><LayoutGrid size={18} /></button>
+                            <button onClick={() => setTrackingView('list')} className={`p-2.5 rounded-xl transition-all ${trackingView === 'list' ? 'bg-card shadow-sm text-indigo-500' : 'text-muted hover:text-main'}`}><List size={18} /></button>
                         </div>
                     </div>
 
                     {/* Orders Grid/List */}
-                    <div className="flex-1 overflow-y-auto p-6 no-scrollbar">
+                    <div className="flex-1 overflow-y-auto p-6 no-scrollbar relative z-20">
                         {filteredTrackingOrders.length === 0 ? (
-                            <div className="h-full flex flex-col items-center justify-center text-slate-400">
-                                <Package size={48} className="mb-4 opacity-30" />
-                                <p className="text-sm font-bold">{lang === 'ar' ? 'لا توجد طلبات' : 'No orders found'}</p>
+                            <div className="h-full flex flex-col items-center justify-center text-muted">
+                                <Package size={64} className="mb-6 opacity-20" />
+                                <p className="text-xl font-black uppercase tracking-widest">{lang === 'ar' ? 'لا توجد طلبات' : 'No orders found'}</p>
                             </div>
                         ) : trackingView === 'grid' ? (
-                            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-4">
+                            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-6">
                                 {filteredTrackingOrders.map(order => (
-                                    <div key={order.id} className={`bg-white dark:bg-slate-900 rounded-2xl border p-4 hover:shadow-lg transition-all ${order.isUrgent ? 'border-rose-500/50 ring-2 ring-rose-500/20' : 'border-slate-200 dark:border-slate-800'}`}>
-                                        <div className="flex justify-between items-start mb-3">
+                                    <div key={order.id} className={`bg-card/80 backdrop-blur-md rounded-[2rem] border p-6 hover:-translate-y-1 hover:shadow-2xl transition-all duration-300 relative overflow-hidden group ${order.isUrgent ? 'border-rose-500/50 shadow-[0_0_15px_rgba(244,63,94,0.15)] ring-1 ring-rose-500/20' : 'border-border/50 shadow-sm'}`}>
+                                        <div className="absolute inset-0 bg-gradient-to-br from-white/5 to-transparent pointer-events-none" />
+                                        <div className="flex justify-between items-start mb-4 relative z-10">
                                             <div>
-                                                <p className="text-xs font-black text-indigo-600">#{order.id}</p>
-                                                <p className="text-[10px] text-slate-400 mt-0.5">{new Date(order.createdAt).toLocaleTimeString()}</p>
+                                                <p className="text-sm font-black text-indigo-500">#{order.id}</p>
+                                                <p className="text-[10px] font-bold text-muted mt-1 uppercase tracking-widest">{new Date(order.createdAt).toLocaleTimeString()}</p>
                                             </div>
                                             <OrderStatusBadge status={order.status} lang={lang} />
                                         </div>
 
-                                        <div className="space-y-2 mb-3">
-                                            <div className="flex items-center gap-2">
-                                                <User size={12} className="text-slate-400" />
-                                                <span className="text-xs font-bold text-slate-700 dark:text-white">{order.customerName || 'Guest'}</span>
+                                        <div className="space-y-3 mb-5 relative z-10">
+                                            <div className="flex items-center gap-3">
+                                                <div className="w-8 h-8 rounded-full bg-indigo-500/10 flex items-center justify-center border border-indigo-500/20 shrink-0"><User size={14} className="text-indigo-500" /></div>
+                                                <span className="text-sm font-black text-main">{order.customerName || 'Guest'}</span>
                                             </div>
-                                            <div className="flex items-center gap-2">
-                                                <Phone size={12} className="text-slate-400" />
-                                                <span className="text-[11px] text-slate-500">{order.customerPhone}</span>
+                                            <div className="flex items-center gap-3">
+                                                <div className="w-8 h-8 rounded-full bg-cyan-500/10 flex items-center justify-center border border-cyan-500/20 shrink-0"><Phone size={14} className="text-cyan-500" /></div>
+                                                <span className="text-xs font-bold text-muted">{order.customerPhone}</span>
                                             </div>
-                                            <div className="flex items-start gap-2">
-                                                <MapPin size={12} className="text-slate-400 mt-0.5" />
-                                                <span className="text-[11px] text-slate-500 line-clamp-2">{order.deliveryAddress}</span>
+                                            <div className="flex items-start gap-3">
+                                                <div className="w-8 h-8 rounded-full bg-emerald-500/10 flex items-center justify-center border border-emerald-500/20 shrink-0 mt-0.5"><MapPin size={14} className="text-emerald-500" /></div>
+                                                <span className="text-xs font-bold text-muted line-clamp-2 pt-1.5">{order.deliveryAddress}</span>
                                             </div>
                                         </div>
 
-                                        <div className="flex items-center justify-between pt-3 border-t border-slate-100 dark:border-slate-800">
-                                            <div className="flex items-center gap-2">
-                                                <Building2 size={12} className="text-slate-400" />
-                                                <span className="text-[10px] font-bold text-slate-500">{branches.find(b => b.id === order.branchId)?.name}</span>
+                                        <div className="flex items-center justify-between pt-4 border-t border-border/50 relative z-10">
+                                            <div className="flex items-center gap-2 bg-elevated px-3 py-1.5 rounded-xl border border-border/50">
+                                                <Building2 size={12} className="text-muted" />
+                                                <span className="text-[10px] font-black uppercase tracking-widest text-muted">{branches.find(b => b.id === order.branchId)?.name}</span>
                                             </div>
-                                            <span className="text-sm font-black text-indigo-600">{order.total?.toFixed(2)} {currencySymbol}</span>
+                                            <span className="text-xl font-black text-main">{order.total?.toFixed(2)} <span className="text-[10px] tracking-widest opacity-50">{currencySymbol}</span></span>
                                         </div>
 
                                         {order.isUrgent && (
-                                            <div className="mt-2 flex items-center gap-1 text-rose-500">
-                                                <Zap size={12} />
-                                                <span className="text-[10px] font-black uppercase">{lang === 'ar' ? 'عاجل' : 'Urgent'}</span>
+                                            <div className="mt-4 flex items-center justify-center gap-2 text-rose-500 bg-rose-500/10 py-2 rounded-xl border border-rose-500/20 relative z-10">
+                                                <Zap size={14} className="animate-pulse" />
+                                                <span className="text-[10px] font-black uppercase tracking-[0.2em]">{lang === 'ar' ? 'عاجل' : 'Urgent'}</span>
                                             </div>
                                         )}
                                     </div>
                                 ))}
                             </div>
                         ) : (
-                            <div className="space-y-2">
+                            <div className="space-y-3 relative z-10">
                                 {filteredTrackingOrders.map(order => (
-                                    <div key={order.id} className={`bg-white dark:bg-slate-900 rounded-xl border p-4 flex items-center gap-6 hover:shadow-lg transition-all ${order.isUrgent ? 'border-rose-500/50' : 'border-slate-200 dark:border-slate-800'}`}>
-                                        <div className="w-24">
-                                            <p className="text-xs font-black text-indigo-600">#{order.id}</p>
-                                            <p className="text-[10px] text-slate-400">{new Date(order.createdAt).toLocaleTimeString()}</p>
+                                    <div key={order.id} className={`bg-card/80 backdrop-blur-md rounded-[1.5rem] border p-5 flex items-center gap-6 hover:-translate-y-0.5 hover:shadow-xl transition-all duration-300 overflow-hidden relative group ${order.isUrgent ? 'border-rose-500/50 shadow-[0_0_15px_rgba(244,63,94,0.1)]' : 'border-border/50 shadow-sm'}`}>
+                                        <div className="absolute inset-0 bg-gradient-to-r from-white/5 to-transparent pointer-events-none" />
+                                        <div className="w-24 relative z-10">
+                                            <p className="text-sm font-black text-indigo-500">#{order.id}</p>
+                                            <p className="text-[10px] font-bold text-muted mt-0.5 uppercase tracking-widest">{new Date(order.createdAt).toLocaleTimeString()}</p>
                                         </div>
-                                        <div className="flex-1">
-                                            <p className="text-sm font-bold text-slate-700 dark:text-white">{order.customerName}</p>
-                                            <p className="text-xs text-slate-400">{order.deliveryAddress}</p>
+                                        <div className="flex-1 relative z-10">
+                                            <p className="text-sm font-black text-main">{order.customerName}</p>
+                                            <p className="text-xs font-bold text-muted truncate">{order.deliveryAddress}</p>
                                         </div>
-                                        <div className="text-center">
-                                            <p className="text-[10px] text-slate-400 mb-1">{lang === 'ar' ? 'الفرع' : 'Branch'}</p>
-                                            <p className="text-xs font-bold">{branches.find(b => b.id === order.branchId)?.name}</p>
+                                        <div className="text-center relative z-10">
+                                            <p className="text-[10px] font-black uppercase tracking-widest text-muted mb-1">{lang === 'ar' ? 'الفرع' : 'Branch'}</p>
+                                            <p className="text-xs font-bold text-main">{branches.find(b => b.id === order.branchId)?.name}</p>
                                         </div>
-                                        <OrderStatusBadge status={order.status} lang={lang} />
+                                        <div className="relative z-10">
+                                            <OrderStatusBadge status={order.status} lang={lang} />
+                                        </div>
                                         {order.status === OrderStatus.READY && (
                                             <button
                                                 onClick={() => { setSelectedTrackingOrder(order); setShowDriverModal(true); }}
-                                                className="px-4 py-2 bg-indigo-600 text-white rounded-xl text-[10px] font-black uppercase tracking-widest hover:scale-105 transition-all shadow-lg shadow-indigo-500/20"
+                                                className="px-6 py-3 bg-gradient-to-r from-indigo-500 to-cyan-500 text-white rounded-[1.2rem] text-[10px] font-black uppercase tracking-[0.2em] hover:opacity-90 active:scale-95 transition-all shadow-xl shadow-indigo-500/25 relative z-10"
                                             >
                                                 Dispatch
                                             </button>
                                         )}
-                                        <p className="text-lg font-black text-indigo-600 w-28 text-right">{order.total?.toFixed(2)} {currencySymbol}</p>
+                                        <p className="text-2xl font-black text-main w-36 text-right relative z-10">
+                                            {order.total?.toFixed(2)} <span className="text-[10px] font-black uppercase tracking-widest opacity-50">{currencySymbol}</span>
+                                        </p>
                                     </div>
                                 ))}
                             </div>

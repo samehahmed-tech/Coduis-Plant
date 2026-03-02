@@ -94,19 +94,19 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ lang, rows, isLoading, 
     ];
 
     return (
-        <div className="p-4 md:p-8 bg-slate-50 dark:bg-slate-950 min-h-screen animate-in fade-in duration-500">
-            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-8">
+        <div className="p-4 md:p-6 lg:p-8 space-y-6 min-h-screen animate-fade-in transition-colors duration-200 pb-20">
+            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 mb-8 relative z-10">
                 <div>
-                    <h2 className="text-2xl md:text-3xl font-black text-slate-800 dark:text-white uppercase tracking-tight flex items-center gap-3">
-                        <Store className="text-indigo-600" />
+                    <h2 className="text-2xl md:text-3xl font-black text-transparent bg-clip-text bg-gradient-to-r from-indigo-500 to-cyan-500 uppercase flex items-center gap-3 tracking-tighter">
+                        <Store className="text-indigo-500 shadow-xl" />
                         {lang === 'ar' ? 'لوحة أداء الفروع' : 'Branch Performance Dashboard'}
                     </h2>
-                    <p className="text-sm text-slate-500 font-bold">
+                    <p className="text-sm md:text-base text-muted font-bold tracking-wide mt-1">
                         {lang === 'ar' ? 'مؤشرات تشغيلية ومالية حية لكل الفروع.' : 'Live operational and financial KPIs across branches.'}
                     </p>
                 </div>
-                <div className="flex items-center gap-2 bg-white dark:bg-slate-900 p-2 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm text-xs font-black text-slate-500">
-                    <Calendar size={14} />
+                <div className="flex items-center gap-2 bg-card/60 backdrop-blur-md p-2 px-4 rounded-xl border border-border/50 shadow-sm text-xs font-black text-main uppercase tracking-widest">
+                    <Calendar size={14} className="text-indigo-500" />
                     {periodLabel}
                 </div>
             </div>
@@ -119,36 +119,46 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ lang, rows, isLoading, 
             )}
 
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-                {stats.map((stat) => (
-                    <div key={stat.title} className="card-primary !p-6">
-                        <div className="flex justify-between items-start mb-4">
-                            <div className={`${stat.bg} ${stat.color} w-12 h-12 rounded-2xl flex items-center justify-center`}>
-                                <stat.icon size={22} />
+                {stats.map((stat, index) => (
+                    <div
+                        key={stat.title}
+                        className="relative overflow-hidden bg-card/80 backdrop-blur-xl border border-border/50 rounded-[2rem] p-6 hover:-translate-y-1.5 hover:shadow-2xl transition-all duration-500 group"
+                        style={{ animationDelay: `${index * 60}ms` }}
+                    >
+                        {/* Glowing orb background */}
+                        <div className={`absolute -right-8 -top-8 w-32 h-32 rounded-full ${stat.bg} blur-3xl opacity-50 group-hover:opacity-100 transition-opacity duration-500`} />
+
+                        {/* Gradient accent top strip */}
+                        <div className={`absolute top-0 left-0 w-full h-[2px] bg-gradient-to-r from-transparent via-${stat.color.split('-')[1]}-500 to-transparent opacity-50 group-hover:opacity-100 transition-opacity`} />
+
+                        <div className="flex justify-between items-start gap-4 relative z-10 mb-4">
+                            <div className={`p-3.5 rounded-2xl ${stat.bg} shrink-0 group-hover:scale-110 group-hover:rotate-6 transition-all duration-300 ring-1 ring-white/10 shadow-inner`}>
+                                <stat.icon size={24} className={stat.color} />
                             </div>
                         </div>
-                        <h3 className="text-[10px] font-black uppercase text-slate-400 tracking-wider mb-1">{stat.title}</h3>
-                        <p className="text-2xl font-black text-slate-800 dark:text-white">{stat.value}</p>
+                        <h3 className="text-[11px] font-black uppercase tracking-[0.2em] text-muted truncate mb-1.5 z-10 relative">{stat.title}</h3>
+                        <p className="text-2xl xl:text-3xl font-black text-main tracking-tight z-10 relative" style={{ fontVariantNumeric: 'tabular-nums' }}>{stat.value}</p>
                     </div>
                 ))}
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-8">
-                <div className="lg:col-span-2 card-primary !p-6">
-                    <h3 className="font-black text-slate-800 dark:text-white uppercase tracking-tight mb-6">
+                <div className="lg:col-span-2 card-primary rounded-3xl p-6">
+                    <h3 className="text-sm font-black text-main uppercase tracking-widest mb-6 border-b border-border/50 pb-4">
                         {lang === 'ar' ? 'مقارنة الإيراد حسب الفرع' : 'Revenue by Branch'}
                     </h3>
                     <div className="min-h-[260px] md:h-[320px] lg:h-80 w-full">
                         <ResponsiveContainer width="100%" height="100%" minHeight={300}>
                             <BarChart data={chartData}>
-                                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E2E8F0" opacity={0.5} />
-                                <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 10, fontWeight: 900, fill: '#64748B' }} dy={10} />
-                                <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 10, fontWeight: 900, fill: '#64748B' }} />
+                                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="rgba(var(--border-color), 0.2)" />
+                                <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 10, fontWeight: 900, fill: 'rgba(var(--text-muted))' }} dy={10} />
+                                <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 10, fontWeight: 900, fill: 'rgba(var(--text-muted))' }} />
                                 <Tooltip
                                     formatter={(value: any, key: any) => {
                                         if (key === 'revenue') return [formatMoney(Number(value || 0), lang), lang === 'ar' ? 'إيراد' : 'Revenue'];
                                         return [formatCompact(Number(value || 0)), lang === 'ar' ? 'طلبات' : 'Orders'];
                                     }}
-                                    contentStyle={{ borderRadius: '16px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)', fontWeight: 'bold' }}
+                                    contentStyle={{ backgroundColor: 'rgba(15, 23, 42, 0.95)', color: 'white', borderRadius: '16px', border: '1px solid rgba(255,255,255,0.1)', fontWeight: 'bold' }}
                                 />
                                 <Bar dataKey="revenue" fill="#6366f1" radius={[8, 8, 0, 0]} />
                                 <Bar dataKey="orders" fill="#10b981" radius={[8, 8, 0, 0]} />
@@ -157,56 +167,58 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ lang, rows, isLoading, 
                     </div>
                 </div>
 
-                <div className="card-primary !p-6">
-                    <h3 className="font-black text-slate-800 dark:text-white uppercase tracking-tight mb-4">
+                <div className="card-primary rounded-3xl p-6 flex flex-col justify-center">
+                    <h3 className="text-sm font-black text-main uppercase tracking-widest mb-6 border-b border-border/50 pb-4">
                         {lang === 'ar' ? 'مخاطر تشغيلية' : 'Operational Risks'}
                     </h3>
-                    <div className="space-y-3">
-                        <div className="p-4 rounded-2xl bg-amber-50 border border-amber-200 text-amber-800 text-sm font-bold">
-                            {lang === 'ar' ? 'طلبات ملغاة' : 'Cancelled Orders'}: {formatCompact(totals.totalCancelled)}
+                    <div className="space-y-4">
+                        <div className="flex items-center justify-between p-5 rounded-2xl bg-amber-500/10 border border-amber-500/20 group hover:bg-amber-500/20 transition-all">
+                            <span className="text-amber-600 dark:text-amber-500 text-sm font-black uppercase tracking-wider">{lang === 'ar' ? 'طلبات ملغاة' : 'Cancelled Orders'}</span>
+                            <span className="text-xl font-black text-amber-600 bg-amber-500/20 px-3 py-1 rounded-xl">{formatCompact(totals.totalCancelled)}</span>
                         </div>
-                        <div className="p-4 rounded-2xl bg-rose-50 border border-rose-200 text-rose-800 text-sm font-bold">
-                            {lang === 'ar' ? 'أصناف منخفضة المخزون' : 'Low Stock Alerts'}: {formatCompact(totals.totalLowStock)}
+                        <div className="flex items-center justify-between p-5 rounded-2xl bg-rose-500/10 border border-rose-500/20 group hover:bg-rose-500/20 transition-all">
+                            <span className="text-rose-600 dark:text-rose-500 text-sm font-black uppercase tracking-wider">{lang === 'ar' ? 'أصناف منخفضة المخزون' : 'Low Stock Alerts'}</span>
+                            <span className="text-xl font-black text-rose-600 bg-rose-500/20 px-3 py-1 rounded-xl">{formatCompact(totals.totalLowStock)}</span>
                         </div>
                     </div>
                 </div>
             </div>
 
-            <div className="card-primary !p-0 overflow-hidden">
-                <div className="p-6 border-b border-slate-100 dark:border-slate-800">
-                    <h3 className="font-black text-slate-800 dark:text-white uppercase tracking-tight">
+            <div className="card-primary rounded-3xl overflow-hidden border border-border/50 shadow-xl">
+                <div className="p-6 border-b border-border/50 bg-card">
+                    <h3 className="font-black text-main uppercase tracking-widest text-sm">
                         {lang === 'ar' ? 'تفاصيل الأداء لكل فرع' : 'Branch Performance Details'}
                     </h3>
                 </div>
                 <div className="overflow-x-auto">
                     <table className="w-full text-left">
                         <thead>
-                            <tr className="bg-slate-50 dark:bg-slate-950/50 text-slate-500 dark:text-slate-400 text-[10px] uppercase font-black tracking-widest">
-                                <th className="px-6 py-4">{lang === 'ar' ? 'الفرع' : 'Branch'}</th>
+                            <tr className="bg-elevated/50 text-muted text-[10px] uppercase font-black tracking-widest">
+                                <th className="px-6 py-4 rounded-tl-xl">{lang === 'ar' ? 'الفرع' : 'Branch'}</th>
                                 <th className="px-6 py-4">{lang === 'ar' ? 'الإيراد' : 'Revenue'}</th>
                                 <th className="px-6 py-4">{lang === 'ar' ? 'الطلبات' : 'Orders'}</th>
                                 <th className="px-6 py-4">{lang === 'ar' ? 'متوسط الفاتورة' : 'Avg Ticket'}</th>
                                 <th className="px-6 py-4">{lang === 'ar' ? 'الطلبات النشطة' : 'Active'}</th>
                                 <th className="px-6 py-4">{lang === 'ar' ? 'الإلغاءات' : 'Cancelled'}</th>
-                                <th className="px-6 py-4">{lang === 'ar' ? 'تنبيهات المخزون' : 'Low Stock'}</th>
+                                <th className="px-6 py-4 rounded-tr-xl">{lang === 'ar' ? 'تنبيهات المخزون' : 'Low Stock'}</th>
                             </tr>
                         </thead>
-                        <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                        <tbody className="divide-y divide-border/30 bg-card">
                             {rows.map((row) => (
-                                <tr key={row.branchId} className="hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors">
-                                    <td className="px-6 py-4 font-black text-sm text-slate-800 dark:text-white">{row.branchName}</td>
-                                    <td className="px-6 py-4 font-mono font-bold text-slate-700 dark:text-slate-300">{formatMoney(row.revenue, lang)}</td>
-                                    <td className="px-6 py-4 font-mono text-xs text-slate-500">{formatCompact(row.ordersCount)}</td>
-                                    <td className="px-6 py-4 font-mono text-xs text-slate-500">{formatMoney(row.avgTicket, lang)}</td>
-                                    <td className="px-6 py-4 text-xs font-black text-indigo-600">{formatCompact(row.activeOrders)}</td>
+                                <tr key={row.branchId} className="hover:bg-elevated/50 transition-colors group">
+                                    <td className="px-6 py-4 font-black text-sm text-main">{row.branchName}</td>
+                                    <td className="px-6 py-4 font-black text-emerald-500">{formatMoney(row.revenue, lang)}</td>
+                                    <td className="px-6 py-4 font-black text-xs text-indigo-400 group-hover:text-indigo-500">{formatCompact(row.ordersCount)}</td>
+                                    <td className="px-6 py-4 font-black text-xs text-muted">{formatMoney(row.avgTicket, lang)}</td>
+                                    <td className="px-6 py-4 text-xs font-black text-blue-500">{formatCompact(row.activeOrders)}</td>
                                     <td className="px-6 py-4 text-xs font-black text-rose-500">{formatCompact(row.cancelled)}</td>
-                                    <td className="px-6 py-4 text-xs font-black text-amber-600">{formatCompact(row.lowStock)}</td>
+                                    <td className="px-6 py-4 text-xs font-black text-amber-500">{formatCompact(row.lowStock)}</td>
                                 </tr>
                             ))}
                         </tbody>
                     </table>
                     {!isLoading && rows.length === 0 && (
-                        <div className="px-6 py-12 text-center text-sm font-bold text-slate-400">
+                        <div className="px-6 py-12 text-center text-sm font-black text-muted uppercase tracking-widest">
                             {lang === 'ar' ? 'لا توجد بيانات أداء للفروع في الفترة الحالية.' : 'No branch performance data for the selected period.'}
                         </div>
                     )}

@@ -33,16 +33,16 @@ const toCouponRules = (raw: unknown): CouponRule[] => {
         .map((item: any): CouponRule => {
             const discountType: 'PERCENT' | 'FIXED' = String(item?.type || 'PERCENT').toUpperCase() === 'FIXED' ? 'FIXED' : 'PERCENT';
             return {
-            code: String(item?.code || '').trim().toUpperCase(),
-            type: discountType,
-            value: Number(item?.value || 0),
-            active: item?.active !== false,
-            minSubtotal: item?.minSubtotal !== undefined ? Number(item.minSubtotal) : undefined,
-            maxDiscount: item?.maxDiscount !== undefined ? Number(item.maxDiscount) : undefined,
-            branchIds: Array.isArray(item?.branchIds) ? item.branchIds.map((v: any) => String(v)) : undefined,
-            orderTypes: Array.isArray(item?.orderTypes) ? item.orderTypes.map((v: any) => String(v).toUpperCase()) : undefined,
-            startAt: item?.startAt ? String(item.startAt) : undefined,
-            endAt: item?.endAt ? String(item.endAt) : undefined,
+                code: String(item?.code || '').trim().toUpperCase(),
+                type: discountType,
+                value: Number(item?.value || 0),
+                active: item?.active !== false,
+                minSubtotal: item?.minSubtotal !== undefined ? Number(item.minSubtotal) : undefined,
+                maxDiscount: item?.maxDiscount !== undefined ? Number(item.maxDiscount) : undefined,
+                branchIds: Array.isArray(item?.branchIds) ? item.branchIds.map((v: any) => String(v)) : undefined,
+                orderTypes: Array.isArray(item?.orderTypes) ? item.orderTypes.map((v: any) => String(v).toUpperCase()) : undefined,
+                startAt: item?.startAt ? String(item.startAt) : undefined,
+                endAt: item?.endAt ? String(item.endAt) : undefined,
             };
         })
         .filter((c) => Boolean(c.code) && Number(c.value) > 0);
@@ -199,6 +199,8 @@ export const getAllOrders = async (req: Request, res: Response) => {
                 price: item.price,
                 quantity: item.quantity,
                 notes: item.notes,
+                seatNumber: item.seatNumber,
+                course: item.course,
                 modifiers: item.modifiers,
                 selectedModifiers: item.modifiers || [],
             });
@@ -319,6 +321,7 @@ export const createOrder = async (req: Request, res: Response) => {
             discountType: bodyData.discount_type || bodyData.discountType,
             discountReason: bodyData.discount_reason || bodyData.discountReason,
             tax: bodyData.tax,
+            tipAmount: bodyData.tip_amount || bodyData.tipAmount,
             deliveryFee: bodyData.delivery_fee || bodyData.deliveryFee,
             serviceCharge: bodyData.service_charge || bodyData.serviceCharge,
             total: bodyData.total,
@@ -401,6 +404,7 @@ export const createOrder = async (req: Request, res: Response) => {
                 subtotal, // Recalculated/Verified subtotal
                 discount: discountAmount,
                 tax,
+                tipAmount: orderData.tipAmount || 0,
                 serviceCharge: serviceCharge,
                 total,    // Recalculated/Verified total
                 shiftId: activeShift.id, // Link order to shift
@@ -424,6 +428,8 @@ export const createOrder = async (req: Request, res: Response) => {
                     price: item.price,
                     quantity: item.quantity,
                     notes: item.notes,
+                    seatNumber: item.seatNumber,
+                    course: item.course,
                     modifiers: item.modifiers,
                 });
 

@@ -54,7 +54,7 @@ const ReceiptModal: React.FC<ReceiptModalProps> = ({ isOpen, onClose, onSave, la
 
     return (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center z-[110] p-4">
-            <div className="bg-white dark:bg-slate-900 w-full max-w-3xl rounded-[2.5rem] shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
+            <div className="card-primary w-full max-w-3xl rounded-[2.5rem] shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
                 <div className="p-6 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center bg-emerald-50 dark:bg-emerald-950/20">
                     <div className="flex items-center gap-3">
                         <div className="w-12 h-12 rounded-2xl bg-emerald-600 text-white flex items-center justify-center">
@@ -125,7 +125,7 @@ const ReceiptModal: React.FC<ReceiptModalProps> = ({ isOpen, onClose, onSave, la
                                         <select
                                             value={item.itemId}
                                             onChange={e => handleUpdateItem(idx, 'itemId', e.target.value)}
-                                            className="w-full px-4 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl outline-none text-sm font-bold appearance-none"
+                                            className="w-full px-4 py-2 card-primary rounded-xl outline-none text-sm font-bold appearance-none"
                                         >
                                             <option value="">{lang === 'ar' ? 'اختر...' : 'Select...'}</option>
                                             {inventory.map(i => (
@@ -140,7 +140,7 @@ const ReceiptModal: React.FC<ReceiptModalProps> = ({ isOpen, onClose, onSave, la
                                             step="0.001"
                                             value={item.quantity}
                                             onChange={e => handleUpdateItem(idx, 'quantity', Number(e.target.value))}
-                                            className="w-full px-4 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl outline-none text-sm font-bold"
+                                            className="w-full px-4 py-2 card-primary rounded-xl outline-none text-sm font-bold"
                                         />
                                     </div>
                                     <div className="space-y-1.5">
@@ -150,7 +150,7 @@ const ReceiptModal: React.FC<ReceiptModalProps> = ({ isOpen, onClose, onSave, la
                                             step="0.01"
                                             value={item.costPrice}
                                             onChange={e => handleUpdateItem(idx, 'costPrice', Number(e.target.value))}
-                                            className="w-full px-4 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl outline-none text-sm font-bold"
+                                            className="w-full px-4 py-2 card-primary rounded-xl outline-none text-sm font-bold"
                                         />
                                     </div>
                                     <button
@@ -177,7 +177,7 @@ const ReceiptModal: React.FC<ReceiptModalProps> = ({ isOpen, onClose, onSave, la
                     <button
                         type="button"
                         onClick={onClose}
-                        className="px-8 py-4 bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-400 font-black text-xs uppercase tracking-widest rounded-2xl border border-slate-200 dark:border-slate-800 hover:bg-slate-50 transition-all"
+                        className="px-8 py-4 card-primary text-slate-600 dark:text-slate-400 font-black text-xs uppercase tracking-widest rounded-2xl border border-slate-200 dark:border-slate-800 hover:bg-slate-50 transition-all"
                     >
                         {lang === 'ar' ? 'إلغاء' : 'Cancel'}
                     </button>

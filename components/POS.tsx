@@ -27,6 +27,8 @@ import TableManagementModal from './pos/TableManagementModal';
 import POSToolbar from './pos/POSToolbar';
 import POSItemsPanel from './pos/POSItemsPanel';
 import CategorySidebar from './pos/CategorySidebar';
+import SeatModal from './pos/SeatModal';
+import CourseModal from './pos/CourseModal';
 import POSCartSidebar from './pos/POSCartSidebar';
 import { printService } from '../src/services/printService';
 import { formatReceipt } from '../services/receiptFormatter';
@@ -64,12 +66,16 @@ const POS: React.FC = () => {
    const removeFromCart = useOrderStore(state => state.removeFromCart);
    const updateCartItemQuantity = useOrderStore(state => state.updateCartItemQuantity);
    const updateCartItemNotes = useOrderStore(state => state.updateCartItemNotes);
+   const updateCartItemSeat = useOrderStore(state => state.updateCartItemSeat);
+   const updateCartItemCourse = useOrderStore(state => state.updateCartItemCourse);
    const clearCart = useOrderStore(state => state.clearCart);
    const placeOrder = useOrderStore(state => state.placeOrder);
    const activeOrderType = useOrderStore(state => state.activeOrderType);
    const setOrderMode = useOrderStore(state => state.setOrderMode);
    const discount = useOrderStore(state => state.discount);
    const setDiscount = useOrderStore(state => state.setDiscount);
+   const tipAmount = useOrderStore(state => state.tipAmount) || 0;
+   const setTipAmount = useOrderStore(state => state.setTipAmount);
    const activeCoupon = useOrderStore(state => state.activeCoupon);
    const applyCoupon = useOrderStore(state => state.applyCoupon);
    const clearCoupon = useOrderStore(state => state.clearCoupon);
@@ -112,7 +118,13 @@ const POS: React.FC = () => {
    // cart is now activeCart from store
    const [activeCategory, setActiveCategory] = useState<string>('all');
    const [searchQuery, setSearchQuery] = useState('');
-   const [categorySidebarCollapsed, setCategorySidebarCollapsed] = useState(false);
+   const [editingSeatItemId, setEditingSeatItemId] = useState<string | null>(null);
+   const [seatInput, setSeatInput] = useState<number | undefined>(undefined);
+
+   const [editingCourseItemId, setEditingCourseItemId] = useState<string | null>(null);
+   const [courseInput, setCourseInput] = useState<string | undefined>(undefined);
+
+   const [categorySidebarCollapsed, setCategorySidebarCollapsed] = useState(() => false);
    const [itemFilter, setItemFilter] = useState<'all' | 'available' | 'popular'>('all');
    const [itemSort, setItemSort] = useState<'smart' | 'name' | 'price_asc' | 'price_desc'>('smart');
    const [itemDensity, setItemDensity] = useState<'comfortable' | 'compact' | 'ultra' | 'buttons'>('compact');
@@ -545,9 +557,9 @@ const POS: React.FC = () => {
          return acc + ((item.price + modsPrice) * item.quantity);
       }, 0);
       const afterDiscount = subtotal * (1 - discount / 100);
-      const total = afterDiscount * 1.1; // 10% tax
+      const total = afterDiscount * 1.1 + tipAmount; // 10% tax + tip
       return { cartSubtotal: subtotal, cartTotal: total };
-   }, [safeActiveCart, discount]);
+   }, [safeActiveCart, discount, tipAmount]);
 
    const cartQuery = useMemo(() => cartSearchQuery.trim().toLowerCase(), [cartSearchQuery]);
    const filteredCartItems = useMemo(() => {
@@ -792,7 +804,21 @@ const POS: React.FC = () => {
             }
          }
 
-         if (isInput || isTextarea) {
+         // Ctrl+F = Focus search
+          if ((e.ctrlKey || e.metaKey) && e.key === 'f') {
+             e.preventDefault();
+             searchInputRef.current?.focus();
+             return;
+          }
+
+          // Enter = Quick Pay (outside inputs)
+          if (e.key === 'Enter' && safeActiveCart.length > 0 && scannerBufferRef.current.length < 4) {
+             e.preventDefault();
+             handleQuickPay();
+             return;
+          }
+
+          if (isInput || isTextarea) {
             if (e.key === 'Escape') {
                (e.target as HTMLElement).blur();
                if (showSplitModal) setShowSplitModal(false);
@@ -1193,6 +1219,8 @@ const POS: React.FC = () => {
       }
    };
 
+
+
    const handleSubmitOrder = async () => {
       if (safeActiveCart.length === 0) return;
       if (paymentMethod === PaymentMethod.SPLIT) {
@@ -1329,16 +1357,16 @@ const POS: React.FC = () => {
    const hasCartItems = safeActiveCart.length > 0;
    const cartPanelWidthClass =
       cartPanelWidth === 'compact'
-         ? 'sm:w-[280px] lg:w-[310px]'
+         ? 'sm:w-[340px] lg:w-[360px]'
          : cartPanelWidth === 'wide'
-            ? 'sm:w-[360px] lg:w-[400px]'
-            : 'sm:w-[320px] lg:w-[340px]';
+            ? 'sm:w-[440px] lg:w-[480px]'
+            : 'sm:w-[380px] lg:w-[420px]';
    const desktopWorkspaceClass = shouldRenderCartPanel
       ? (cartPanelWidth === 'compact'
-         ? 'lg:grid-cols-[minmax(0,1fr)_310px] 2xl:grid-cols-[minmax(0,1fr)_330px]'
+         ? 'lg:grid-cols-[minmax(0,1fr)_360px] 2xl:grid-cols-[minmax(0,1fr)_380px]'
          : cartPanelWidth === 'wide'
-            ? 'lg:grid-cols-[minmax(0,1fr)_400px] 2xl:grid-cols-[minmax(0,1fr)_430px]'
-            : 'lg:grid-cols-[minmax(0,1fr)_340px] 2xl:grid-cols-[minmax(0,1fr)_370px]')
+            ? 'lg:grid-cols-[minmax(0,1fr)_480px] 2xl:grid-cols-[minmax(0,1fr)_500px]'
+            : 'lg:grid-cols-[minmax(0,1fr)_420px] 2xl:grid-cols-[minmax(0,1fr)_450px]')
       : 'lg:grid-cols-1';
 
    useEffect(() => {
@@ -1403,6 +1431,8 @@ const POS: React.FC = () => {
                onQuickPay={handleQuickPay}
                onFocusSearch={() => searchInputRef.current?.focus()}
                hasCartItems={safeActiveCart.length > 0}
+               cartTotal={cartTotal}
+               currencySymbol={currencySymbol}
             />
 
             <NoteModal
@@ -1416,6 +1446,34 @@ const POS: React.FC = () => {
                }}
                lang={lang}
                t={t}
+            />
+
+            <SeatModal
+               isOpen={!!editingSeatItemId}
+               onClose={() => setEditingSeatItemId(null)}
+               seatNumber={seatInput}
+               onSeatChange={setSeatInput}
+               onSave={() => {
+                  if (editingSeatItemId && seatInput !== undefined) {
+                     updateCartItemSeat(editingSeatItemId, seatInput);
+                  }
+                  setEditingSeatItemId(null);
+               }}
+               lang={lang}
+            />
+
+            <CourseModal
+               isOpen={!!editingCourseItemId}
+               onClose={() => setEditingCourseItemId(null)}
+               currentCourse={courseInput}
+               onSave={(courseVal) => {
+                  if (editingCourseItemId) {
+                     updateCartItemCourse(editingCourseItemId, courseVal || '');
+                     // using '' to clear it if undefined, or keep as string
+                  }
+                  setEditingCourseItemId(null);
+               }}
+               lang={lang}
             />
 
             <div className="flex-1 flex overflow-hidden relative min-h-0 bg-app">
@@ -1475,88 +1533,79 @@ const POS: React.FC = () => {
                   <>
                      <div className={`flex-1 min-h-0 h-full overflow-hidden grid grid-cols-1 ${desktopWorkspaceClass} gap-0`}>
                         <div className="flex overflow-hidden min-h-0 min-w-0">
-                        {/* ═══ Category Sidebar (Desktop) ═══ */}
-                        <CategorySidebar
-                           categories={currentCategories}
-                           activeCategory={activeCategory}
-                           onSetCategory={setActiveCategory}
-                           lang={lang}
-                           counts={categoryResultCounts}
-                           totalCount={totalMatchedAcrossCategories}
-                           collapsed={categorySidebarCollapsed}
-                           onToggleCollapse={() => setCategorySidebarCollapsed(p => !p)}
-                        />
+                           
 
-                        {/* ═══ Items Panel (Left) ═══ */}
-                        <POSItemsPanel
-                           categories={currentCategories}
-                           activeCategory={activeCategory}
-                           onSetCategory={setActiveCategory}
-                           categoryResultCounts={categoryResultCounts}
-                           totalMatchedCount={totalMatchedAcrossCategories}
-                           hasActiveFiltering={Boolean(normalizedSearchQuery || itemFilter !== 'all')}
-                           pricedItems={pricedItems}
-                           cartItems={safeActiveCart}
-                           onAddItem={handleAddItem}
-                           onRemoveItem={handleRemoveOneFromCart}
-                           highlightedItemId={lastAddedItemId}
-                           searchQuery={searchQuery}
-                           onSearchChange={setSearchQuery}
-                           searchInputRef={searchInputRef}
-                           itemFilter={itemFilter}
-                           onSetFilter={setItemFilter}
-                           itemSort={itemSort}
-                           onSetSort={setItemSort}
-                           itemDensity={itemDensity}
-                           onSetDensity={setItemDensity}
-                           showMobileFilters={showMobileFilters}
-                           onToggleFilters={() => setShowMobileFilters(prev => !prev)}
-                           onResetFilters={() => { setSearchQuery(''); setItemFilter('all'); setItemSort('smart'); }}
-                           quickPickItems={quickPickItems}
-                           upsellSuggestions={upsellSuggestions}
-                           showCategoryStrip={showCategoryStrip}
-                           onToggleCategoryStrip={() => setShowCategoryStrip(prev => !prev)}
-                           isTabletViewport={isTabletViewport}
-                           quickCategoryNav={quickCategoryNav}
-                           isTouchMode={isTouchMode}
-                           lang={lang}
-                           t={t}
-                           currencySymbol={currencySymbol}
-                           isCartVisible={shouldRenderCartPanel}
-                           cartStats={cartStats}
-                           cartTotal={cartTotal}
-                           currentOrderPreview={currentOrderPreview}
-                           isCartOpenMobile={isCartOpenMobile}
-                           onOpenCart={() => setIsCartOpenMobile(true)}
-                           selectedTableId={selectedTableId}
-                           hasCartItems={hasCartItems}
-                        />
+                           {/* ═══ Items Panel (Left) ═══ */}
+                           <POSItemsPanel
+                              categories={currentCategories}
+                              activeCategory={activeCategory}
+                              onSetCategory={setActiveCategory}
+                              categoryResultCounts={categoryResultCounts}
+                              totalMatchedCount={totalMatchedAcrossCategories}
+                              hasActiveFiltering={Boolean(normalizedSearchQuery || itemFilter !== 'all')}
+                              pricedItems={pricedItems}
+                              cartItems={safeActiveCart}
+                              onAddItem={handleAddItem}
+                              onRemoveItem={handleRemoveOneFromCart}
+                              highlightedItemId={lastAddedItemId}
+                              searchQuery={searchQuery}
+                              onSearchChange={setSearchQuery}
+                              searchInputRef={searchInputRef}
+                              itemFilter={itemFilter}
+                              onSetFilter={setItemFilter}
+                              itemSort={itemSort}
+                              onSetSort={setItemSort}
+                              itemDensity={itemDensity}
+                              onSetDensity={setItemDensity}
+                              showMobileFilters={showMobileFilters}
+                              onToggleFilters={() => setShowMobileFilters(prev => !prev)}
+                              onResetFilters={() => { setSearchQuery(''); setItemFilter('all'); setItemSort('smart'); }}
+                              quickPickItems={quickPickItems}
+                              upsellSuggestions={upsellSuggestions}
+                              showCategoryStrip={showCategoryStrip}
+                              onToggleCategoryStrip={() => setShowCategoryStrip(prev => !prev)}
+                              isTabletViewport={isTabletViewport}
+                              quickCategoryNav={quickCategoryNav}
+                              isTouchMode={isTouchMode}
+                              lang={lang}
+                              t={t}
+                              currencySymbol={currencySymbol}
+                              isCartVisible={shouldRenderCartPanel}
+                              cartStats={cartStats}
+                              currentOrderPreview={currentOrderPreview}
+                              isCartOpenMobile={isCartOpenMobile}
+                              onOpenCart={() => setIsCartOpenMobile(true)}
+                              selectedTableId={selectedTableId}
+                              hasCartItems={hasCartItems}
+                              cartTotal={cartTotal}
+                           />
                         </div>
 
                         {/* ═══ Mobile FAB (fixed bottom cart button) ═══ */}
                         {shouldRenderCartPanel && !isCartOpenMobile && !showMap && !showCustomerSelect && (
-                           <div className={`md:hidden fixed bottom-[max(1rem,var(--safe-bottom))] ${lang === 'ar' ? 'right-4 left-4' : 'left-4 right-4'} z-40`}>
+                           <div className={`xl:hidden fixed bottom-[max(1rem,var(--safe-bottom))] ${lang === 'ar' ? 'right-4 left-4' : 'left-4 right-4'} z-40`}>
                               <button
                                  onClick={() => setIsCartOpenMobile(true)}
-                                 className="w-full h-12 px-4 rounded-xl bg-slate-900/90 backdrop-blur-md text-white shadow-2xl border border-slate-700/50 flex items-center justify-between"
+                                 className="w-full h-14 px-4 rounded-[1.2rem] bg-card/80 backdrop-blur-xl border border-border/50 shadow-[0_8px_30px_rgb(0,0,0,0.12)] flex items-center justify-between active:scale-[0.98] transition-all overflow-hidden relative group"
                               >
-                                 <div className="min-w-0 flex items-center gap-3">
-                                    <div className="w-8 h-8 rounded-lg bg-primary/20 flex items-center justify-center">
-                                       <ShoppingBag size={14} className="text-primary" />
+                                 <div className="absolute inset-0 bg-gradient-to-r from-indigo-500/10 to-cyan-500/5 opacity-50 pointer-events-none" />
+                                 <div className="min-w-0 flex items-center gap-3 relative z-10">
+                                    <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-500 to-cyan-500 flex items-center justify-center shadow-lg shadow-indigo-500/25 border border-white/20">
+                                       <ShoppingBag size={18} className="text-white relative z-10" />
                                     </div>
                                     <div className="text-left min-w-0">
-                                       <p className="text-[9px] font-black uppercase tracking-widest text-white/60">
+                                       <p className="text-[10px] font-black uppercase tracking-[0.2em] text-indigo-500 drop-shadow-sm">
                                           {lang === 'ar' ? 'الطلب الحالي' : 'Current Order'}
                                        </p>
-                                       <p className="text-xs font-black truncate">
+                                       <p className="text-sm font-black truncate text-transparent bg-clip-text bg-gradient-to-r from-indigo-500 to-cyan-500">
                                           {safeActiveCart.length > 0
-                                             ? `${safeActiveCart.length} ${lang === 'ar' ? 'بنود' : 'lines'} • ${currencySymbol}${cartTotal.toFixed(2)}`
+                                             ? `${safeActiveCart.length} ${lang === 'ar' ? 'بنود' : 'lines'} • ${currencySymbol}{(cartTotal || 0).toFixed(2)}`
                                              : (lang === 'ar' ? 'السلة فارغة' : 'Cart empty')}
                                        </p>
                                     </div>
                                  </div>
-                                 <span className="text-[9px] font-black uppercase tracking-widest text-primary">
-                                    {lang === 'ar' ? 'فتح' : 'Open'}
+                                 <span className="text-[10px] font-black uppercase tracking-[0.2em] text-white bg-gradient-to-r from-indigo-500 to-cyan-500 px-3 py-1.5 rounded-lg shadow-sm relative z-10 hidden sm:inline-block">
+                                    {lang === 'ar' ? 'فتح السلة' : 'Open Cart'}
                                  </span>
                               </button>
                            </div>
@@ -1583,6 +1632,8 @@ const POS: React.FC = () => {
                               onSetPaymentMethod={handleSetPaymentMethod}
                               isPaymentPanelCollapsed={isPaymentPanelCollapsed}
                               onTogglePaymentCollapsed={() => setIsPaymentPanelCollapsed(prev => !prev)}
+                              tipAmount={tipAmount}
+                              onSetTipAmount={setTipAmount}
                               couponCode={couponCode}
                               activeCoupon={activeCoupon}
                               isApplyingCoupon={isApplyingCoupon}
@@ -1590,6 +1641,8 @@ const POS: React.FC = () => {
                               onApplyCoupon={handleApplyCoupon}
                               onClearCoupon={() => { setCouponCode(''); clearCoupon(); }}
                               onEditNote={(cartId, note) => { setEditingItemId(cartId); setNoteInput(note); }}
+                              onEditSeat={(cartId, curSeat) => { setEditingSeatItemId(cartId); setSeatInput(curSeat); }}
+                              onEditCourse={(cartId, curCourse) => { setEditingCourseItemId(cartId); setCourseInput(curCourse); }}
                               onUpdateQuantity={handleUpdateQuantity}
                               onRemoveItem={(cartId) => removeFromCart(cartId)}
                               onVoid={handleVoidOrder}

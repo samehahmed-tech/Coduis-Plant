@@ -129,7 +129,7 @@ const SecurityHub: React.FC = () => {
                     </h2>
                     <p className="text-slate-500 dark:text-slate-400 font-semibold italic">Manage staff, roles and permissions.</p>
                 </div>
-                <div className="flex bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-1.5 rounded-2xl shadow-sm">
+                <div className="flex card-primary p-1.5 rounded-2xl shadow-sm">
                     <button
                         onClick={() => setActiveTab('USERS')}
                         className={`px-6 py-2.5 rounded-xl text-xs font-black uppercase transition-all flex items-center gap-2 ${activeTab === 'USERS' ? 'bg-indigo-600 text-white shadow-lg' : 'text-slate-500 hover:text-slate-800'}`}
@@ -148,7 +148,7 @@ const SecurityHub: React.FC = () => {
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-10">
                 {/* User List Panel */}
                 <div className="lg:col-span-12 xl:col-span-8 space-y-6">
-                    <div className="bg-white dark:bg-slate-900 rounded-[2.5rem] p-8 border border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden">
+                    <div className="card-primary rounded-[2.5rem] p-8 border border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden">
                         <div className="flex flex-col md:flex-row gap-6 mb-8 items-center">
                             <div className="flex-1 relative w-full group">
                                 <Search size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-indigo-600 transition-colors" />
@@ -226,7 +226,7 @@ const SecurityHub: React.FC = () => {
                 {/* Permission Customization Drawer */}
                 <div className="lg:col-span-12 xl:col-span-4">
                     {selectedUser ? (
-                        <div className="bg-white dark:bg-slate-900 rounded-[2.5rem] p-8 border border-slate-200 dark:border-slate-800 shadow-2xl animate-in slide-in-from-right-4 duration-300 sticky top-24">
+                        <div className="card-primary rounded-[2.5rem] p-8 border border-slate-200 dark:border-slate-800 shadow-2xl animate-in slide-in-from-right-4 duration-300 sticky top-24">
                             <div className="flex justify-between items-center mb-10 pb-6 border-b border-slate-100 dark:border-slate-800">
                                 <div className="flex items-center gap-4">
                                     <div className="w-14 h-14 rounded-[1.25rem] bg-indigo-600 text-white flex items-center justify-center shadow-xl shadow-indigo-600/30">
@@ -279,7 +279,7 @@ const SecurityHub: React.FC = () => {
                                                             <div
                                                                 key={perm}
                                                                 onClick={() => togglePermission(selectedUser, perm)}
-                                                                className={`flex items-center justify-between p-4 rounded-2xl border-2 cursor-pointer transition-all ${isEnabled ? 'bg-indigo-50/50 dark:bg-indigo-900/10 border-indigo-500/30 shadow-sm' : 'bg-white dark:bg-slate-900 border-slate-100 dark:border-slate-800/50'}`}
+                                                                className={`flex items-center justify-between p-4 rounded-2xl border-2 cursor-pointer transition-all ${isEnabled ? 'bg-indigo-50/50 dark:bg-indigo-900/10 border-indigo-500/30 shadow-sm' : 'card-primary border-slate-100 dark:border-slate-800/50'}`}
                                                             >
                                                                 <div className="flex items-center gap-4">
                                                                     <div className={`w-10 h-10 rounded-xl flex items-center justify-center transition-colors ${isEnabled ? 'bg-indigo-100 dark:bg-indigo-900/60 text-indigo-600' : 'bg-slate-50 dark:bg-slate-800 text-slate-300'}`}>
@@ -314,7 +314,7 @@ const SecurityHub: React.FC = () => {
                             </div>
                         </div>
                     ) : (
-                        <div className="bg-white dark:bg-slate-900 rounded-[3rem] p-16 flex flex-col items-center justify-center text-center opacity-40 border-2 border-dashed border-slate-200 dark:border-slate-800">
+                        <div className="card-primary rounded-[3rem] p-16 flex flex-col items-center justify-center text-center opacity-40 border-2 border-dashed border-slate-200 dark:border-slate-800">
                             <div className="w-24 h-24 rounded-[2rem] bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-slate-300 mb-8 border-4 border-white dark:border-slate-900 shadow-xl">
                                 <Shield size={48} />
                             </div>
@@ -328,7 +328,7 @@ const SecurityHub: React.FC = () => {
             {/* Create User Modal */}
             {showCreateModal && (
                 <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-md z-[300] flex items-center justify-center p-4 animate-in fade-in duration-200">
-                    <div className="bg-white dark:bg-slate-900 w-full max-w-lg rounded-[2.5rem] p-8 shadow-2xl space-y-6 border border-slate-200 dark:border-slate-800">
+                    <div className="card-primary w-full max-w-lg rounded-[2.5rem] p-8 shadow-2xl space-y-6 border border-slate-200 dark:border-slate-800">
                         <div className="flex items-center justify-between pb-4 border-b border-slate-100 dark:border-slate-800">
                             <div className="flex items-center gap-3">
                                 <div className="w-12 h-12 rounded-2xl bg-indigo-600 text-white flex items-center justify-center shadow-lg shadow-indigo-600/30">

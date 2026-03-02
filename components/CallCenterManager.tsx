@@ -355,7 +355,7 @@ const CallCenterManager: React.FC = () => {
                 <div className="flex flex-wrap items-center gap-2">
                     <button
                         onClick={() => setShowFilters((prev) => !prev)}
-                        className="lg:hidden px-3 py-2 rounded-xl border border-slate-200 bg-white dark:bg-slate-900 text-xs font-black text-slate-700 dark:text-slate-200"
+                        className="lg:hidden px-3 py-2 rounded-xl border border-slate-200 card-primary text-xs font-black text-slate-700 dark:text-slate-200"
                     >
                         {showFilters ? (lang === 'ar' ? 'إخفاء الفلاتر' : 'Hide Filters') : (lang === 'ar' ? 'إظهار الفلاتر' : 'Show Filters')}
                     </button>
@@ -365,15 +365,15 @@ const CallCenterManager: React.FC = () => {
                     <select
                         value={selectedBranch}
                         onChange={(e) => setSelectedBranch(e.target.value)}
-                        className="px-3 py-2 rounded-xl border border-slate-200 bg-white dark:bg-slate-900 text-xs font-bold"
+                        className="px-3 py-2 rounded-xl border border-slate-200 card-primary text-xs font-bold"
                     >
                         <option value="">{lang === 'ar' ? 'كل الفروع' : 'All branches'}</option>
                         {branches.map((b) => (
                             <option key={b.id} value={b.id}>{b.name}</option>
                         ))}
                     </select>
-                    <input type="date" value={fromDate} onChange={(e) => setFromDate(e.target.value)} className="px-3 py-2 rounded-xl border border-slate-200 bg-white dark:bg-slate-900 text-xs font-bold" />
-                    <input type="date" value={toDate} onChange={(e) => setToDate(e.target.value)} className="px-3 py-2 rounded-xl border border-slate-200 bg-white dark:bg-slate-900 text-xs font-bold" />
+                    <input type="date" value={fromDate} onChange={(e) => setFromDate(e.target.value)} className="px-3 py-2 rounded-xl border border-slate-200 card-primary text-xs font-bold" />
+                    <input type="date" value={toDate} onChange={(e) => setToDate(e.target.value)} className="px-3 py-2 rounded-xl border border-slate-200 card-primary text-xs font-bold" />
                     <button onClick={load} disabled={isLoading} className="px-3 py-2 rounded-xl bg-indigo-600 text-white text-xs font-black flex items-center gap-2 disabled:opacity-60">
                         <RefreshCw size={14} className={isLoading ? 'animate-spin' : ''} />
                         {lang === 'ar' ? 'تحديث' : 'Refresh'}
@@ -386,7 +386,7 @@ const CallCenterManager: React.FC = () => {
 
             <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4 mb-6">
                 {kpis.map((k) => (
-                    <div key={k.label} className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-4">
+                    <div key={k.label} className="card-primary rounded-2xl p-4">
                         <div className="flex items-center justify-between mb-2">
                             <k.icon size={18} className="text-indigo-600" />
                         </div>
@@ -397,7 +397,7 @@ const CallCenterManager: React.FC = () => {
             </div>
 
             <div className="grid grid-cols-1 xl:grid-cols-2 gap-6 mb-6">
-                <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-4">
+                <div className="card-primary rounded-2xl p-4">
                     <h2 className="text-sm font-black uppercase tracking-widest text-slate-600 mb-3 flex items-center gap-2">
                         <Users size={14} /> {lang === 'ar' ? 'أداء موظفي الكول سنتر' : 'Agent Performance'}
                     </h2>
@@ -439,7 +439,7 @@ const CallCenterManager: React.FC = () => {
                     </div>
                 </div>
 
-                <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-4">
+                <div className="card-primary rounded-2xl p-4">
                     <h2 className="text-sm font-black uppercase tracking-widest text-slate-600 mb-3 flex items-center gap-2">
                         <Route size={14} /> {lang === 'ar' ? 'متابعة الطيارين' : 'Driver Tracking'}
                     </h2>
@@ -471,7 +471,7 @@ const CallCenterManager: React.FC = () => {
                 </div>
             </div>
 
-            <div className="mt-6 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-4">
+            <div className="mt-6 card-primary rounded-2xl p-4">
                 <h2 className="text-sm font-black uppercase tracking-widest text-slate-600 mb-3">
                     {lang === 'ar' ? 'ملاحظات التدريب للموظفين' : 'Agent Coaching Notes'}
                 </h2>
@@ -479,7 +479,7 @@ const CallCenterManager: React.FC = () => {
                     <select
                         value={coachingAgentId}
                         onChange={(e) => setCoachingAgentId(e.target.value)}
-                        className="px-3 py-2 rounded-xl border border-slate-200 bg-white dark:bg-slate-900 text-xs font-bold"
+                        className="px-3 py-2 rounded-xl border border-slate-200 card-primary text-xs font-bold"
                     >
                         <option value="">{lang === 'ar' ? 'اختر موظف' : 'Select agent'}</option>
                         {agentStats.map((a) => (
@@ -490,7 +490,7 @@ const CallCenterManager: React.FC = () => {
                         value={coachingNoteInput}
                         onChange={(e) => setCoachingNoteInput(e.target.value)}
                         placeholder={lang === 'ar' ? 'اكتب ملاحظة تدريب قصيرة...' : 'Write a coaching note...'}
-                        className="px-3 py-2 rounded-xl border border-slate-200 bg-white dark:bg-slate-900 text-xs font-bold"
+                        className="px-3 py-2 rounded-xl border border-slate-200 card-primary text-xs font-bold"
                     />
                     <button
                         onClick={saveCoachingNote}
@@ -519,7 +519,7 @@ const CallCenterManager: React.FC = () => {
                 </div>
             </div>
 
-            <div className="mt-6 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-4">
+            <div className="mt-6 card-primary rounded-2xl p-4">
                 <h2 className="text-sm font-black uppercase tracking-widest text-slate-600 mb-3">
                     {lang === 'ar' ? 'مراقبة إساءة الخصومات' : 'Discount Abuse Monitor'}
                 </h2>
@@ -563,7 +563,7 @@ const CallCenterManager: React.FC = () => {
             </div>
 
             <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
-                <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-4">
+                <div className="card-primary rounded-2xl p-4">
                     <h2 className="text-sm font-black uppercase tracking-widest text-slate-600 mb-3 flex items-center gap-2">
                         <Clock3 size={14} /> {lang === 'ar' ? 'الأوردرات المعلقة' : 'Pending Orders'}
                     </h2>
@@ -599,7 +599,7 @@ const CallCenterManager: React.FC = () => {
                     </div>
                 </div>
 
-                <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-4">
+                <div className="card-primary rounded-2xl p-4">
                     <h2 className="text-sm font-black uppercase tracking-widest text-slate-600 mb-3 flex items-center gap-2">
                         <Ban size={14} /> {lang === 'ar' ? 'آخر الإلغاءات' : 'Latest Cancellations'}
                     </h2>
@@ -618,7 +618,7 @@ const CallCenterManager: React.FC = () => {
                 </div>
             </div>
 
-            <div className="mt-6 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-4">
+            <div className="mt-6 card-primary rounded-2xl p-4">
                 <div className="mb-3 flex items-center justify-between gap-2">
                     <h2 className="text-sm font-black uppercase tracking-widest text-slate-600 flex items-center gap-2">
                         <AlertTriangle size={14} /> {lang === 'ar' ? 'قائمة التصعيدات المفتوحة' : 'Open Escalations Queue'}

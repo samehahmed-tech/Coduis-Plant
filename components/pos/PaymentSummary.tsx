@@ -14,6 +14,8 @@ interface PaymentSummaryProps {
     isTouchMode: boolean;
     lang: 'en' | 'ar';
     t: any;
+    tipAmount: number;
+    onSetTipAmount: (amount: number) => void;
     onVoid: () => void;
     onSubmit: () => void;
     onQuickPay: () => void;
@@ -42,6 +44,8 @@ const PaymentSummary: React.FC<PaymentSummaryProps> = ({
     isTouchMode,
     lang,
     t,
+    tipAmount,
+    onSetTipAmount,
     onVoid,
     onSubmit,
     onQuickPay,
@@ -66,151 +70,183 @@ const PaymentSummary: React.FC<PaymentSummaryProps> = ({
     ];
 
     return (
-        <div className="p-2.5 md:p-3 bg-elevated dark:bg-elevated/30 border-b border-border/50 space-y-2.5 shrink-0">
-            <div className="flex items-center justify-between bg-card/70 dark:bg-card/40 border border-border/50 rounded-xl px-3 py-2">
-                <div className="min-w-0">
-                    <p className="text-xs font-black uppercase tracking-wider text-slate-400">{t.total} {itemCount > 0 ? `(${itemCount})` : ''}</p>
-                    <p className="text-base md:text-lg font-black text-main">{currencySymbol}{total.toFixed(2)}</p>
+        <div className="p-3 md:p-4 bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl border-t border-slate-200/50 dark:border-slate-700/30 space-y-3 shrink-0 relative z-30 shadow-[0_-8px_30px_rgba(0,0,0,0.06)]">
+            {/* ═══ TOTAL — Clean & Bold (No Box) ═══ */}
+            <div className="px-2 pt-2 pb-4">
+                <div className="flex items-end justify-between">
+                    <div>
+                        <p className="text-[11px] font-black uppercase tracking-[0.2em] text-slate-500 dark:text-slate-400 mb-1">
+                            {t.total} {itemCount > 0 ? `(${itemCount})` : ''}
+                        </p>
+                        <p className="text-4xl md:text-5xl font-black text-slate-900 dark:text-white leading-none tracking-tight" style={{ fontVariantNumeric: 'tabular-nums' }}>
+                            {currencySymbol}{total.toFixed(2)}
+                        </p>
+                    </div>
+                    {onToggleCollapsed && (
+                        <button
+                            onClick={onToggleCollapsed}
+                            className="p-2 rounded-xl text-slate-400 hover:text-slate-800 dark:hover:text-white transition-colors active:scale-95"
+                            title={collapsed ? 'Expand' : 'Collapse'}
+                        >
+                            {collapsed ? <ChevronDown size={24} /> : <ChevronUp size={24} />}
+                        </button>
+                    )}
                 </div>
-                {onToggleCollapsed && (
-                    <button
-                        onClick={onToggleCollapsed}
-                        className="p-2 rounded-xl bg-elevated dark:bg-elevated/50 text-slate-500 hover:text-primary transition-colors"
-                        title={collapsed ? 'Expand' : 'Collapse'}
-                    >
-                        {collapsed ? <ChevronDown size={16} /> : <ChevronUp size={16} />}
-                    </button>
-                )}
             </div>
 
             {collapsed ? (
-                <div className="grid grid-cols-3 gap-2">
+                <div className="grid grid-cols-2 gap-3 relative z-10">
                     <button
                         onClick={onSendKitchen}
                         disabled={!canSubmit}
-                        className="py-2 bg-slate-900 text-white rounded-xl font-black text-[10px] uppercase tracking-wider hover:bg-slate-800 disabled:opacity-50 transition-all"
+                        className="py-3.5 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 rounded-xl font-bold text-xs uppercase tracking-widest hover:bg-slate-200 dark:hover:bg-slate-700 disabled:opacity-40 transition-all active:scale-95"
                     >
                         {lang === 'ar' ? 'مطبخ' : 'Kitchen'}
                     </button>
                     <button
-                        onClick={onQuickPay}
-                        disabled={!canSubmit}
-                        className="py-2 bg-emerald-500 text-white rounded-xl font-black text-[10px] uppercase tracking-wider hover:bg-emerald-600 disabled:opacity-50 transition-all"
-                    >
-                        {lang === 'ar' ? 'دفع سريع' : 'Quick Pay'}
-                    </button>
-                    <button
                         onClick={onSubmit}
                         disabled={!canSubmit}
-                        className="py-2 bg-primary text-white rounded-xl font-black text-[10px] uppercase tracking-wider hover:bg-primary-hover disabled:opacity-50 transition-all"
+                        className="py-3.5 bg-indigo-600 text-white rounded-xl font-black text-xs uppercase tracking-widest hover:bg-indigo-700 disabled:opacity-40 transition-all active:scale-95 shadow-md shadow-indigo-600/20"
                     >
-                        {lang === 'ar' ? 'تنفيذ' : 'Submit'}
+                        {lang === 'ar' ? 'تنفيذ' : 'Pay'} {currencySymbol}{total.toFixed(2)}
                     </button>
                 </div>
             ) : (
                 <>
-            <div className="grid grid-cols-2 gap-2">
-                <button
-                    onClick={onVoid}
-                    className="py-2.5 bg-card dark:bg-elevated/50 text-muted rounded-xl font-black text-[10px] uppercase tracking-wider hover:bg-danger/10 hover:text-danger transition-all flex items-center justify-center gap-2 border border-border/50 min-h-[44px]"
-                >
-                    <Trash size={14} />
-                    <span>{t.void}</span>
-                </button>
-                <button
-                    onClick={onSendKitchen}
-                    disabled={!canSubmit}
-                    className="py-2.5 bg-slate-800 text-white rounded-xl font-black text-xs uppercase tracking-wide hover:bg-slate-700 shadow-lg shadow-slate-900/20 disabled:opacity-50 transition-all flex items-center justify-center gap-2 min-h-[44px]"
-                >
-                    <ChefHat size={15} />
-                    <span>{t.send_kitchen}</span>
-                </button>
-                <button
-                    onClick={onQuickPay}
-                    disabled={!canSubmit}
-                    title={lang === 'ar' ? 'Quick Pay (Cash)' : 'Quick Pay (Cash)'}
-                    className="py-2.5 bg-orange-500 text-white rounded-xl hover:bg-orange-400 shadow-lg shadow-orange-500/20 disabled:opacity-50 transition-all flex items-center justify-center gap-2 min-h-[44px]"
-                >
-                    <Zap size={18} className="animate-pulse" />
-                    <span className="text-[10px] font-black uppercase tracking-widest">{lang === 'ar' ? 'Quick Pay' : 'Quick Pay'}</span>
-                </button>
-                <button
-                    onClick={onSubmit}
-                    disabled={!canSubmit}
-                    className="py-3 bg-emerald-600 text-white rounded-xl font-black text-sm uppercase tracking-wide hover:bg-emerald-500 shadow-xl shadow-emerald-600/30 disabled:opacity-50 transition-all min-h-[48px] col-span-2"
-                >
-                    {t.place_order}
-                </button>
-            </div>
-
-            <div className="space-y-2">
-                <h4 className="text-[9px] font-black uppercase text-slate-400 tracking-widest px-1">
-                    {t.payment_method}
-                </h4>
-                <div className="flex items-stretch gap-2 overflow-x-auto no-scrollbar pb-0.5">
-                    {paymentMethods.map(btn => (
-                        <button
-                            key={btn.id}
-                            onClick={() => {
-                                onSetPaymentMethod(btn.id);
-                                if (btn.id === PaymentMethod.SPLIT) onShowSplitModal();
-                            }}
-                            className={`shrink-0 min-w-[74px] flex flex-col items-center justify-center gap-1 rounded-xl border-2 transition-all active:scale-95 ${paymentMethod === btn.id ? 'bg-primary border-primary text-white shadow-lg' : 'bg-card border-border/50 text-muted hover:border-primary/30'} ${isTouchMode ? 'py-2.5 px-2' : 'py-2 px-2'}`}
-                        >
-                            <btn.icon size={isTouchMode ? 18 : 15} />
-                            <span className="text-[10px] font-black uppercase tracking-tight text-center leading-none">
-                                {btn.label}
-                            </span>
-                        </button>
-                    ))}
-                </div>
-            </div>
-
-            <div className="space-y-1.5 bg-card/70 dark:bg-card/40 border border-border/50 rounded-xl p-2.5">
-                <div className="flex items-center gap-2 mb-1.5">
-                    <input
-                        type="text"
-                        placeholder={lang === 'ar' ? 'Coupon Code' : 'Coupon Code'}
-                        value={couponCode}
-                        onChange={(e) => onCouponCodeChange(e.target.value)}
-                        className="flex-1 px-3 py-2 rounded-xl bg-elevated dark:bg-elevated/50 border border-border/50 text-xs font-black uppercase tracking-wider outline-none focus:border-primary/50"
-                    />
+                    {/* ═══ PRIMARY ACTION — Process Payment ═══ */}
                     <button
-                        onClick={onApplyCoupon}
-                        disabled={!couponCode.trim() || isApplyingCoupon}
-                        className="px-3 py-2 rounded-xl bg-indigo-600 text-white text-[10px] font-black uppercase tracking-widest disabled:opacity-50 hover:bg-indigo-700 transition-colors"
+                        onClick={onSubmit}
+                        disabled={!canSubmit}
+                        className="w-full py-4 bg-indigo-600 hover:bg-indigo-700 text-white rounded-[1.2rem] font-black text-base uppercase tracking-widest disabled:opacity-40 transition-all active:scale-[0.98] shadow-lg shadow-indigo-600/20 flex items-center justify-center gap-3"
                     >
-                        {isApplyingCoupon ? '...' : (lang === 'ar' ? 'Apply' : 'Apply')}
+                        <span>{lang === 'ar' ? 'تنفيذ الدفع' : 'PROCESS PAYMENT'}</span>
+                        <div className="w-1.5 h-1.5 rounded-full bg-white/50" />
+                        <span style={{ fontVariantNumeric: 'tabular-nums' }}>{currencySymbol}{total.toFixed(2)}</span>
                     </button>
-                    {activeCoupon && (
+
+                    {/* Secondary actions row */}
+                    <div className="grid grid-cols-3 gap-2">
                         <button
-                            onClick={onClearCoupon}
-                            className="p-2 rounded-xl bg-red-50 text-red-500 hover:bg-red-100 transition-colors"
-                            title={lang === 'ar' ? 'Clear Coupon' : 'Clear Coupon'}
+                            onClick={onVoid}
+                            className="py-2.5 bg-slate-100 dark:bg-slate-800 text-slate-500 rounded-xl font-bold text-[10px] uppercase tracking-wider hover:bg-rose-50 hover:text-rose-600 dark:hover:bg-rose-500/10 transition-all flex items-center justify-center gap-1.5 active:scale-95"
                         >
-                            <X size={16} />
+                            <Trash size={14} />
+                            <span>{t.void}</span>
                         </button>
-                    )}
-                </div>
-                <div className="flex justify-between text-[10px] font-bold text-muted uppercase tracking-wider">
-                    <span>{t.subtotal}</span>
-                    <span>{currencySymbol}{subtotal.toFixed(2)}</span>
-                </div>
-                {discount > 0 && (
-                    <div className="flex justify-between text-[10px] font-bold text-green-600 uppercase tracking-wider">
-                        <span>{t.discount} ({discount.toFixed(2)}%) {activeCoupon ? `- ${activeCoupon}` : ''}</span>
-                        <span>-{currencySymbol}{(subtotal * discount / 100).toFixed(2)}</span>
+                        <button
+                            onClick={onSendKitchen}
+                            disabled={!canSubmit}
+                            className="py-2.5 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 rounded-xl font-bold text-[10px] uppercase tracking-wider hover:bg-indigo-50 hover:text-indigo-600 dark:hover:bg-indigo-500/10 disabled:opacity-40 transition-all flex items-center justify-center gap-1.5 active:scale-95"
+                        >
+                            <ChefHat size={14} />
+                            <span>{t.send_kitchen}</span>
+                        </button>
+                        <button
+                            onClick={onQuickPay}
+                            disabled={!canSubmit}
+                            className="py-2.5 bg-emerald-600 text-white rounded-xl font-black text-[10px] uppercase tracking-wider hover:bg-emerald-700 disabled:opacity-40 transition-all flex items-center justify-center gap-1.5 active:scale-95"
+                        >
+                            <Zap size={14} />
+                            <span>{lang === 'ar' ? 'كاش سريع' : 'Quick Pay'}</span>
+                        </button>
                     </div>
-                )}
-                <div className="flex justify-between text-[10px] font-bold text-muted uppercase tracking-wider">
-                    <span>{t.tax}</span>
-                    <span>{currencySymbol}{tax.toFixed(2)}</span>
-                </div>
-                <div className="flex justify-between text-lg md:text-xl font-black text-main pt-1.5 border-t border-border/50">
-                    <span>{t.total}</span>
-                    <span>{currencySymbol}{total.toFixed(2)}</span>
-                </div>
-            </div>
+
+                    <div className="space-y-2">
+                        <h4 className="text-[9px] font-black uppercase text-muted tracking-[0.2em] px-1">
+                            {t.payment_method}
+                        </h4>
+                        <div className="flex items-stretch gap-2.5 overflow-x-auto no-scrollbar pb-1">
+                            {paymentMethods.map(btn => (
+                                <button
+                                    key={btn.id}
+                                    onClick={() => {
+                                        onSetPaymentMethod(btn.id);
+                                        if (btn.id === PaymentMethod.SPLIT) onShowSplitModal();
+                                    }}
+                                    className={`shrink-0 min-w-[80px] flex flex-col items-center justify-center gap-1.5 rounded-[1.2rem] border-2 transition-all active:scale-95 ${paymentMethod === btn.id ? 'bg-indigo-500/10 border-indigo-500/50 text-indigo-500 shadow-[0_0_15px_rgba(99,102,241,0.15)]' : 'bg-elevated border-border/50 text-muted hover:border-indigo-500/30 hover:bg-indigo-500/5'} ${isTouchMode ? 'py-3 px-2' : 'py-2.5 px-2'}`}
+                                >
+                                    <btn.icon size={isTouchMode ? 20 : 16} strokeWidth={2.5} />
+                                    <span className="text-[9px] font-black uppercase tracking-widest text-center leading-none">
+                                        {btn.label}
+                                    </span>
+                                </button>
+                            ))}
+                        </div>
+                    </div>
+
+                    <div className="space-y-2 bg-card/60 backdrop-blur-md border border-border/50 rounded-[1.5rem] p-3.5 shadow-sm">
+                        <div className="flex items-center gap-2 mb-2 bg-elevated/50 p-1.5 rounded-[1.2rem] border border-border/30">
+                            <input
+                                type="text"
+                                placeholder={lang === 'ar' ? 'كوبون الخصم' : 'Coupon Code'}
+                                value={couponCode}
+                                onChange={(e) => onCouponCodeChange(e.target.value)}
+                                className="flex-1 px-3 py-2 rounded-xl bg-transparent text-xs font-black uppercase tracking-wider outline-none text-main placeholder-muted"
+                            />
+                            <button
+                                onClick={onApplyCoupon}
+                                disabled={!couponCode.trim() || isApplyingCoupon}
+                                className="px-4 py-2 rounded-[1rem] bg-indigo-500/10 text-indigo-500 border border-indigo-500/20 text-[10px] font-black uppercase tracking-widest disabled:opacity-50 hover:bg-indigo-500/20 transition-all active:scale-95"
+                            >
+                                {isApplyingCoupon ? '...' : (lang === 'ar' ? 'تطبيق' : 'Apply')}
+                            </button>
+                            {activeCoupon && (
+                                <button
+                                    onClick={onClearCoupon}
+                                    className="p-2 rounded-[1rem] bg-rose-500/10 text-rose-500 border border-rose-500/20 hover:bg-rose-500/20 transition-all active:scale-95"
+                                    title={lang === 'ar' ? 'Clear Coupon' : 'Clear Coupon'}
+                                >
+                                    <X size={16} />
+                                </button>
+                            )}
+                        </div>
+                        <div className="flex justify-between text-[10px] font-black text-muted uppercase tracking-widest px-1">
+                            <span>{t.subtotal}</span>
+                            <span>{currencySymbol}{subtotal.toFixed(2)}</span>
+                        </div>
+                        {discount > 0 && (
+                            <div className="flex justify-between text-[10px] font-black text-emerald-500 uppercase tracking-widest px-1 bg-emerald-500/5 rounded-lg py-1 border border-emerald-500/10">
+                                <span>{t.discount} ({discount.toFixed(2)}%) {activeCoupon ? `- ${activeCoupon}` : ''}</span>
+                                <span>-{currencySymbol}{(subtotal * discount / 100).toFixed(2)}</span>
+                            </div>
+                        )}
+                        <div className="flex justify-between text-[10px] font-black text-muted uppercase tracking-widest px-1">
+                            <span>{t.tax}</span>
+                            <span>{currencySymbol}{tax.toFixed(2)}</span>
+                        </div>
+
+                        {/* Tips Section */}
+                        <div className="border-t border-border/50 pt-2 space-y-2 mt-1 -mx-1 px-2">
+                            <div className="flex justify-between text-[10px] items-center mb-1">
+                                <span className="font-black text-muted uppercase tracking-[0.2em]">{lang === 'ar' ? 'إكرامية (Tip)' : 'Tip Amount'}</span>
+                                <div className="flex gap-1.5">
+                                    {[0, Math.round(subtotal * 0.05), Math.round(subtotal * 0.1), Math.round(subtotal * 0.15)].map((amt) => {
+                                        const isSelected = tipAmount === amt;
+                                        return (
+                                            <button
+                                                key={amt}
+                                                onClick={() => onSetTipAmount(amt)}
+                                                className={`px-2 py-1 text-[9px] font-black uppercase tracking-widest rounded-lg transition-all ${isSelected ? 'bg-indigo-500/10 text-indigo-500 border border-indigo-500/30 shadow-sm' : 'bg-elevated border border-border/50 text-muted hover:border-indigo-500/30'}`}
+                                            >
+                                                {amt === 0 ? (lang === 'ar' ? 'بدون' : '0') : `+${amt}`}
+                                            </button>
+                                        );
+                                    })}
+                                </div>
+                            </div>
+                            {tipAmount > 0 && (
+                                <div className="flex justify-between text-[10px] font-black text-cyan-500 uppercase tracking-widest bg-cyan-500/5 border border-cyan-500/10 rounded-lg p-1.5">
+                                    <span>{lang === 'ar' ? 'الإكرامية المضافة' : 'Added Tip'}</span>
+                                    <span>{currencySymbol}{tipAmount.toFixed(2)}</span>
+                                </div>
+                            )}
+                        </div>
+
+                        <div className="flex justify-between text-lg md:text-xl font-black text-main pt-1.5 border-t border-border/50">
+                            <span>{t.total}</span>
+                            <span>{currencySymbol}{total.toFixed(2)}</span>
+                        </div>
+                    </div>
                 </>
             )}
         </div>

@@ -33,7 +33,7 @@ const StockTransferModal: React.FC<StockTransferModalProps> = ({ isOpen, onClose
 
     return (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center z-[110] p-4">
-            <div className="bg-white dark:bg-slate-900 w-full max-w-xl rounded-[2.5rem] shadow-2xl overflow-hidden flex flex-col">
+            <div className="card-primary w-full max-w-xl rounded-[2.5rem] shadow-2xl overflow-hidden flex flex-col">
                 <div className="p-6 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center bg-indigo-50 dark:bg-indigo-950/20">
                     <div className="flex items-center gap-3">
                         <div className="w-12 h-12 rounded-2xl bg-indigo-600 text-white flex items-center justify-center">
@@ -120,7 +120,7 @@ const StockTransferModal: React.FC<StockTransferModalProps> = ({ isOpen, onClose
                                     max={currentQty}
                                     value={quantity}
                                     onChange={e => setQuantity(Number(e.target.value))}
-                                    className="w-full pl-12 pr-4 py-4 bg-white dark:bg-slate-900 border-2 border-indigo-100 dark:border-indigo-900 rounded-2xl focus:ring-4 focus:ring-indigo-500/10 outline-none transition-all font-black text-xl text-center"
+                                    className="w-full pl-12 pr-4 py-4 card-primary border-2 border-indigo-100 dark:border-indigo-900 rounded-2xl focus:ring-4 focus:ring-indigo-500/10 outline-none transition-all font-black text-xl text-center"
                                 />
                             </div>
                             {quantity > currentQty && (

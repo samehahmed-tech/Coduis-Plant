@@ -125,70 +125,70 @@ const Inventory: React.FC = () => {
   // --- TAB CONTENT RENDERERS ---
 
   const renderStock = () => (
-    <div className="overflow-x-auto">
-      <table className="w-full text-left">
+    <div className="overflow-x-auto relative z-10 w-full">
+      <table className="w-full text-left border-collapse">
         <thead>
-          <tr className="bg-elevated dark:bg-elevated/30 text-muted text-[10px] uppercase tracking-wider font-semibold">
-            <th className="px-6 py-4">{lang === 'ar' ? 'الصنف' : 'Item Name'}</th>
-            <th className="px-6 py-4">{lang === 'ar' ? 'التوزيع' : 'Warehouses'}</th>
-            <th className="px-6 py-4">{lang === 'ar' ? 'الكمية الإجمالية' : 'Total Qty'}</th>
-            <th className="px-6 py-4">{lang === 'ar' ? 'سعر الشراء' : 'Purchase Price'}</th>
-            <th className="px-6 py-4">{lang === 'ar' ? 'التكلفة' : 'Cost'}</th>
-            <th className="px-6 py-4">{lang === 'ar' ? 'إجراءات' : 'Actions'}</th>
+          <tr className="bg-elevated/30 border-b border-white/5 text-muted text-[10px] uppercase font-black tracking-widest">
+            <th className="px-8 py-5 whitespace-nowrap">{lang === 'ar' ? 'الصنف' : 'Item Name'}</th>
+            <th className="px-6 py-5 whitespace-nowrap">{lang === 'ar' ? 'التوزيع' : 'Warehouses'}</th>
+            <th className="px-6 py-5 whitespace-nowrap">{lang === 'ar' ? 'الكمية الإجمالية' : 'Total Qty'}</th>
+            <th className="px-6 py-5 whitespace-nowrap">{lang === 'ar' ? 'سعر الشراء' : 'Purchase Price'}</th>
+            <th className="px-6 py-5 whitespace-nowrap">{lang === 'ar' ? 'التكلفة' : 'Cost'}</th>
+            <th className="px-8 py-5 whitespace-nowrap text-right">{lang === 'ar' ? 'إجراءات' : 'Actions'}</th>
           </tr>
         </thead>
-        <tbody className="divide-y border-border/50">
+        <tbody className="divide-y divide-white/5">
           {inventory.filter(i => (i.name + (i.nameAr || '')).toLowerCase().includes(searchQuery.toLowerCase())).map((item) => {
             const totalQty = item.warehouseQuantities.reduce((acc, curr) => acc + curr.quantity, 0);
             const isLow = totalQty <= item.threshold;
             return (
-              <tr key={item.id} className="hover:bg-elevated transition-colors group">
-                <td className="px-6 py-4">
-                  <div className="flex items-center gap-3">
-                    <div className={`p-2 rounded-xl bg-slate-100 dark:bg-slate-800 ${item.isComposite ? 'text-violet-500' : 'text-slate-400'}`}>
-                      {item.isComposite ? <Layers size={18} /> : <Package size={18} />}
+              <tr key={item.id} className="hover:bg-emerald-500/5 transition-colors group">
+                <td className="px-8 py-5">
+                  <div className="flex items-center gap-4">
+                    <div className={`p-3.5 rounded-[1.2rem] border ${item.isComposite ? 'bg-violet-500/10 text-violet-500 border-violet-500/20' : 'bg-slate-500/10 text-slate-500 border-slate-500/20'} shadow-inner group-hover:scale-110 group-hover:rotate-3 transition-transform duration-500 ease-out`}>
+                      {item.isComposite ? <Layers size={20} /> : <Package size={20} />}
                     </div>
                     <div>
-                      <div className="font-bold text-main">{lang === 'ar' ? item.nameAr || item.name : item.name}</div>
-                      <div className="text-[10px] flex items-center gap-2">
-                        <span className="uppercase font-black text-slate-400">{item.category}</span>
-                        {item.sku && <span className="font-mono text-indigo-500">[{item.sku}]</span>}
+                      <div className="font-bold text-main text-[13px] group-hover:text-emerald-500 transition-colors">{lang === 'ar' ? item.nameAr || item.name : item.name}</div>
+                      <div className="text-[10px] flex items-center gap-2 mt-1">
+                        <span className="uppercase font-black tracking-widest text-muted">{item.category}</span>
+                        {item.sku && <span className="font-mono font-bold tracking-widest text-teal-500 bg-teal-500/10 px-1.5 py-0.5 rounded border border-teal-500/20">[{item.sku}]</span>}
                       </div>
                     </div>
                   </div>
                 </td>
-                <td className="px-6 py-4">
-                  <div className="flex flex-wrap gap-1 max-w-xs">
+                <td className="px-6 py-5">
+                  <div className="flex flex-wrap gap-1.5 max-w-xs">
                     {item.warehouseQuantities.map(wq => {
                       const wh = warehouses.find(w => w.id === wq.warehouseId);
                       return (
-                        <span key={wq.warehouseId} className="px-2 py-0.5 bg-elevated border border-border/50 rounded-md text-[9px] font-black">
-                          {wh?.name}: {wq.quantity}
+                        <span key={wq.warehouseId} className="px-2 py-1 bg-elevated/40 border border-white/5 shadow-sm rounded-lg text-[10px] font-bold text-main hover:border-emerald-500/30 transition-colors">
+                          <span className="text-muted">{wh?.name}:</span> {wq.quantity}
                         </span>
                       );
                     })}
-                    {item.warehouseQuantities.length === 0 && <span className="text-[10px] italic text-slate-400">Empty Stock</span>}
+                    {item.warehouseQuantities.length === 0 && <span className="text-[10px] italic text-muted opacity-60">Empty Stock</span>}
                   </div>
                 </td>
-                <td className="px-6 py-4 font-black">
-                  <span className={isLow ? 'text-rose-500' : 'text-slate-700 dark:text-slate-300'}>
-                    {totalQty} {item.unit}
+                <td className="px-6 py-5 font-black">
+                  <span className={`text-[13px] ${isLow ? 'text-rose-500' : 'text-main'}`}>
+                    {totalQty} <span className="text-[10px] text-muted ml-0.5">{item.unit}</span>
                   </span>
-                  {isLow && <div className="text-[8px] uppercase font-black text-rose-500 tracking-tighter">Low Stock</div>}
+                  {isLow && <div className="text-[9px] uppercase font-black text-rose-500 bg-rose-500/10 border border-rose-500/20 w-fit px-2 py-0.5 rounded mt-1.5 tracking-[0.2em]">Low Stock</div>}
                 </td>
-                <td className="px-6 py-4 font-mono text-sm">ج.م {(item.purchasePrice || 0).toFixed(2)}</td>
-                <td className="px-6 py-4 font-mono text-sm text-slate-500">ج.م {item.costPrice.toFixed(2)}</td>
-                <td className="px-6 py-4">
-                  <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                <td className="px-6 py-5 font-black text-[13px] text-emerald-500 drop-shadow-sm">{settings.currencySymbol || 'ج.م'} {(item.purchasePrice || 0).toLocaleString()}</td>
+                <td className="px-6 py-5 font-black text-[13px] text-muted">{settings.currencySymbol || 'ج.م'} {item.costPrice.toLocaleString()}</td>
+                <td className="px-8 py-5">
+                  <div className="flex items-center justify-end gap-2 opacity-50 group-hover:opacity-100 transition-opacity">
                     <button
                       onClick={() => { setEditingItem(item); setItemModalOpen(true); }}
-                      className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg text-slate-400 hover:text-indigo-500"
+                      className="p-2.5 bg-card/50 backdrop-blur-md hover:bg-emerald-500/10 border border-white/5 hover:border-emerald-500/30 rounded-xl text-muted hover:text-emerald-500 transition-all shadow-sm active:scale-95"
                     >
                       <Tag size={16} />
                     </button>
                     <button
                       onClick={() => { setEditingItem(item); setAdjustmentModalOpen(true); }}
-                      className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg text-slate-400 hover:text-amber-500"
+                      className="p-2.5 bg-card/50 backdrop-blur-md hover:bg-amber-500/10 border border-white/5 hover:border-amber-500/30 rounded-xl text-muted hover:text-amber-500 transition-all shadow-sm active:scale-95"
                     >
                       <Calculator size={16} />
                     </button>
@@ -203,47 +203,55 @@ const Inventory: React.FC = () => {
   );
 
   const renderWarehouses = () => (
-    <div className="p-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+    <div className="p-8 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 relative z-10 w-full">
       <button
         onClick={() => setWarehouseModalOpen(true)}
-        className="bg-card flex flex-col items-center justify-center border-2 border-dashed border-border/50 hover:border-primary group transition-all min-h-[160px]"
+        className="bg-card/40 backdrop-blur-md border-2 border-dashed border-white/10 hover:border-emerald-500/50 hover:bg-emerald-500/5 rounded-[2.5rem] flex flex-col items-center justify-center transition-all duration-300 group min-h-[200px]"
       >
-        <div className="w-12 h-12 rounded-2xl bg-primary text-white flex items-center justify-center mb-3 transition-all group-hover:bg-primary-hover">
-          <Plus size={24} />
+        <div className="w-16 h-16 rounded-2xl bg-emerald-500/10 text-emerald-500 flex items-center justify-center mb-4 transition-transform duration-500 ease-out group-hover:scale-110 group-hover:-translate-y-1 shadow-inner">
+          <Plus size={32} />
         </div>
-        <span className="text-sm font-black text-slate-400 group-hover:text-indigo-600 uppercase tracking-widest">{lang === 'ar' ? 'إضافة مخزن' : 'Add Warehouse'}</span>
+        <span className="text-[11px] font-black text-muted group-hover:text-emerald-500 uppercase tracking-[0.2em] transition-colors">{lang === 'ar' ? 'إضافة مخزن' : 'Add Warehouse'}</span>
       </button>
 
       {warehouses.map(wh => {
         const branch = branches.find(b => b.id === wh.branchId);
         const parent = warehouses.find(w => w.id === wh.parentId);
         return (
-          <div key={wh.id} className="card-primary !p-6 flex flex-col justify-between group cursor-pointer hover:border-emerald-500/30" onClick={() => setSelectedWarehouse(wh)}>
-            <div className="flex justify-between items-start mb-6">
-              <div className="w-14 h-14 rounded-[1.5rem] bg-emerald-50 dark:bg-emerald-950/30 flex items-center justify-center text-emerald-600">
+          <div key={wh.id} className="bg-card/60 backdrop-blur-3xl border border-white/5 p-8 rounded-[2.5rem] flex flex-col justify-between group cursor-pointer hover:border-emerald-500/30 shadow-[0_10px_30px_rgba(0,0,0,0.1)] hover:shadow-[0_20px_40px_rgba(16,185,129,0.15)] transition-all duration-500 ease-out hover:-translate-y-2 relative overflow-hidden" onClick={() => setSelectedWarehouse(wh)}>
+            <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/5 via-transparent to-teal-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-700 pointer-events-none" />
+            <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-500/10 rounded-full blur-[50px] opacity-0 group-hover:opacity-100 transition-opacity duration-700 pointer-events-none" />
+
+            <div className="flex justify-between items-start mb-8 relative z-10">
+              <div className="w-16 h-16 rounded-[1.5rem] bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-500 shadow-inner group-hover:scale-110 group-hover:rotate-6 transition-transform duration-500 ease-out">
                 <Home size={28} />
               </div>
-              <div className="text-right">
-                <div className={`w-3 h-3 rounded-full ml-auto mb-1 ${wh.isActive ? 'bg-emerald-500 shadow-[0_0_10px_rgba(16,185,129,0.5)]' : 'bg-slate-300'}`} />
-                <span className="text-[10px] font-black uppercase text-slate-400">{wh.isActive ? 'Online' : 'Offline'}</span>
+              <div className="text-right flex flex-col items-end">
+                <div className={`w-3 h-3 rounded-full mb-2 border-2 border-card ${wh.isActive ? 'bg-emerald-500 shadow-[0_0_12px_rgba(16,185,129,0.8)] animate-pulse' : 'bg-slate-500 shadow-inner'}`} />
+                <span className={`text-[9px] font-black uppercase tracking-[0.2em] px-2 py-0.5 rounded border ${wh.isActive ? 'text-emerald-500 border-emerald-500/20 bg-emerald-500/10' : 'text-slate-400 border-slate-500/20 bg-slate-500/10'}`}>
+                  {wh.isActive ? 'Online' : 'Offline'}
+                </span>
               </div>
             </div>
-            <div>
-              <div className="flex items-center gap-2 mb-1">
-                <h4 className="font-black text-xl text-slate-800 dark:text-white uppercase tracking-tight">{wh.name}</h4>
-                {wh.parentId && <span className="px-2 py-0.5 bg-slate-100 dark:bg-slate-800 text-[8px] font-black text-slate-500 uppercase rounded-md border border-slate-200 dark:border-slate-700">Sub</span>}
+            <div className="relative z-10">
+              <div className="flex items-center gap-3 mb-2">
+                <h4 className="font-black text-2xl text-main uppercase tracking-tight group-hover:text-emerald-500 transition-colors drop-shadow-sm">{wh.name}</h4>
+                {wh.parentId && <span className="px-2 py-0.5 bg-indigo-500/10 border border-indigo-500/20 text-[9px] font-black text-indigo-500 uppercase tracking-widest rounded shadow-sm">Sub</span>}
               </div>
-              <p className="text-sm text-slate-500 font-bold mb-4">{branch?.name || 'Central'} • {wh.type}</p>
+              <p className="text-[13px] text-muted font-bold mb-8 flex items-center gap-2">
+                <Briefcase size={14} className="opacity-50" />
+                {branch?.name || 'Central'} <span className="opacity-50">•</span> {wh.type}
+              </p>
 
-              <div className="flex items-center gap-4 text-[10px] font-black uppercase text-slate-400 border-t border-slate-100 dark:border-slate-800 pt-4">
-                <div className="flex items-center gap-1.5">
+              <div className="flex items-center justify-between text-[10px] font-black uppercase tracking-[0.2em] text-muted border-t border-white/10 pt-5">
+                <div className="flex items-center gap-2 bg-elevated/40 px-3 py-1.5 rounded-lg border border-white/5 shadow-sm">
                   <Package size={14} className="text-emerald-500" />
-                  {inventory.filter(i => i.warehouseQuantities.some(wq => wq.warehouseId === wh.id)).length} SKUs
+                  <span className="text-main">{inventory.filter(i => i.warehouseQuantities.some(wq => wq.warehouseId === wh.id)).length} SKUs</span>
                 </div>
                 {parent && (
-                  <div className="flex items-center gap-1.5">
-                    <ArrowRightLeft size={14} className="text-indigo-500" />
-                    {parent.name}
+                  <div className="flex items-center gap-2 text-indigo-400">
+                    <ArrowRightLeft size={14} />
+                    <span className="truncate max-w-[100px]">{parent.name}</span>
                   </div>
                 )}
               </div>
@@ -266,47 +274,81 @@ const Inventory: React.FC = () => {
   };
 
   const renderSuppliers = () => (
-    <div className="p-6 grid grid-cols-1 xl:grid-cols-3 gap-6">
-      <div className="xl:col-span-1 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-4 space-y-3">
-        <h4 className="text-sm font-black">{supplierForm.id ? 'Edit Supplier' : 'Add Supplier'}</h4>
-        <input className="w-full px-3 py-2 rounded-xl bg-slate-100 dark:bg-slate-800" placeholder="Name" value={supplierForm.name} onChange={(e) => setSupplierForm({ ...supplierForm, name: e.target.value })} />
-        <input className="w-full px-3 py-2 rounded-xl bg-slate-100 dark:bg-slate-800" placeholder="Contact Person" value={supplierForm.contactPerson} onChange={(e) => setSupplierForm({ ...supplierForm, contactPerson: e.target.value })} />
-        <input className="w-full px-3 py-2 rounded-xl bg-slate-100 dark:bg-slate-800" placeholder="Phone" value={supplierForm.phone} onChange={(e) => setSupplierForm({ ...supplierForm, phone: e.target.value })} />
-        <input className="w-full px-3 py-2 rounded-xl bg-slate-100 dark:bg-slate-800" placeholder="Email" value={supplierForm.email} onChange={(e) => setSupplierForm({ ...supplierForm, email: e.target.value })} />
-        <input className="w-full px-3 py-2 rounded-xl bg-slate-100 dark:bg-slate-800" placeholder="Category" value={supplierForm.category} onChange={(e) => setSupplierForm({ ...supplierForm, category: e.target.value })} />
-        <div className="flex gap-2">
-          <button onClick={handleUpsertSupplier} className="flex-1 px-3 py-2 rounded-xl bg-indigo-600 text-white text-xs font-black uppercase">{supplierForm.id ? 'Update' : 'Create'}</button>
-          <button onClick={() => { setSupplierForm({ id: '', name: '', contactPerson: '', phone: '', email: '', category: '' }); setSelectedSupplier(null); }} className="px-3 py-2 rounded-xl bg-slate-200 dark:bg-slate-700 text-xs font-black uppercase">Clear</button>
+    <div className="p-6 grid grid-cols-1 xl:grid-cols-3 gap-6 relative z-10 w-full">
+      <div className="xl:col-span-1 bg-card/40 backdrop-blur-md rounded-[2rem] border border-white/5 p-6 space-y-4 shadow-lg group relative overflow-hidden">
+        <div className="absolute inset-0 bg-gradient-to-br from-indigo-500/5 to-purple-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-700 pointer-events-none" />
+        <h4 className="text-[11px] font-black uppercase tracking-[0.2em] text-indigo-400 mb-6 flex items-center gap-2 relative z-10">
+          <Truck size={16} /> {supplierForm.id ? 'Edit Supplier' : 'Add Supplier'}
+        </h4>
+        <div className="space-y-3 relative z-10">
+          <input className="w-full px-4 py-3.5 rounded-2xl bg-elevated/40 backdrop-blur-sm border border-white/10 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/30 transition-all text-main font-bold text-sm placeholder:text-muted/50 shadow-inner" placeholder="Supplier Name" value={supplierForm.name} onChange={(e) => setSupplierForm({ ...supplierForm, name: e.target.value })} />
+          <input className="w-full px-4 py-3.5 rounded-2xl bg-elevated/40 backdrop-blur-sm border border-white/10 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/30 transition-all text-main font-bold text-sm placeholder:text-muted/50 shadow-inner" placeholder="Contact Person" value={supplierForm.contactPerson} onChange={(e) => setSupplierForm({ ...supplierForm, contactPerson: e.target.value })} />
+          <input className="w-full px-4 py-3.5 rounded-2xl bg-elevated/40 backdrop-blur-sm border border-white/10 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/30 transition-all text-main font-bold text-sm placeholder:text-muted/50 shadow-inner" placeholder="Phone" value={supplierForm.phone} onChange={(e) => setSupplierForm({ ...supplierForm, phone: e.target.value })} />
+          <input className="w-full px-4 py-3.5 rounded-2xl bg-elevated/40 backdrop-blur-sm border border-white/10 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/30 transition-all text-main font-bold text-sm placeholder:text-muted/50 shadow-inner" placeholder="Email" value={supplierForm.email} onChange={(e) => setSupplierForm({ ...supplierForm, email: e.target.value })} />
+          <input className="w-full px-4 py-3.5 rounded-2xl bg-elevated/40 backdrop-blur-sm border border-white/10 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/30 transition-all text-main font-bold text-sm placeholder:text-muted/50 shadow-inner" placeholder="Category" value={supplierForm.category} onChange={(e) => setSupplierForm({ ...supplierForm, category: e.target.value })} />
+        </div>
+        <div className="flex gap-3 pt-4 border-t border-white/5 relative z-10">
+          <button onClick={() => { setSupplierForm({ id: '', name: '', contactPerson: '', phone: '', email: '', category: '' }); setSelectedSupplier(null); }} className="flex-1 px-4 py-3.5 rounded-2xl bg-elevated/30 hover:bg-elevated/60 text-[10px] font-black uppercase tracking-[0.2em] transition-all border border-white/5 active:scale-95 text-muted hover:text-main">Clear</button>
+          <button onClick={handleUpsertSupplier} className="flex-[2] px-4 py-3.5 rounded-2xl bg-gradient-to-r from-indigo-500 to-purple-500 text-white text-[10px] font-black uppercase tracking-[0.2em] shadow-[0_10px_20px_rgba(99,102,241,0.2)] hover:shadow-[0_15px_30px_rgba(99,102,241,0.3)] hover:-translate-y-0.5 transition-all active:scale-95 border border-indigo-400/30">{supplierForm.id ? 'Update' : 'Register'}</button>
         </div>
       </div>
-      <div className="xl:col-span-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl overflow-hidden">
-        <table className="w-full text-left">
-          <thead className="bg-slate-50 dark:bg-slate-800/50 text-[10px] uppercase">
-            <tr>
-              <th className="px-4 py-3">Supplier</th>
-              <th className="px-4 py-3">Contact</th>
-              <th className="px-4 py-3">Category</th>
-              <th className="px-4 py-3">Actions</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-            {suppliers
-              .filter(s => (s.name + s.contactPerson + s.phone + s.email).toLowerCase().includes(searchQuery.toLowerCase()))
-              .map((s) => (
-                <tr key={s.id}>
-                  <td className="px-4 py-3 font-bold">{s.name}</td>
-                  <td className="px-4 py-3 text-sm">{s.contactPerson || '-'} | {s.phone || '-'}</td>
-                  <td className="px-4 py-3 text-sm">{s.category || '-'}</td>
-                  <td className="px-4 py-3">
-                    <div className="flex gap-2">
-                      <button onClick={() => { setSelectedSupplier(s); setSupplierForm(s); }} className="px-3 py-1 rounded-lg bg-slate-100 dark:bg-slate-700 text-xs font-black">Edit</button>
-                      <button onClick={() => deactivateSupplierInDB(s.id)} className="px-3 py-1 rounded-lg bg-rose-100 text-rose-700 text-xs font-black">Deactivate</button>
-                    </div>
+      <div className="xl:col-span-2 bg-card/40 backdrop-blur-md rounded-[2rem] border border-white/5 overflow-hidden shadow-lg flex flex-col relative z-10">
+        <div className="overflow-x-auto flex-1">
+          <table className="w-full text-left border-collapse min-w-[600px]">
+            <thead className="bg-elevated/30 text-[10px] uppercase font-black tracking-widest text-muted border-b border-white/5">
+              <tr>
+                <th className="px-6 py-5 whitespace-nowrap">Supplier Profile</th>
+                <th className="px-6 py-5 whitespace-nowrap">Contact Info</th>
+                <th className="px-6 py-5 whitespace-nowrap">Category Segment</th>
+                <th className="px-6 py-5 whitespace-nowrap text-right">Actions</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-white/5">
+              {suppliers
+                .filter(s => (s.name + s.contactPerson + s.phone + s.email).toLowerCase().includes(searchQuery.toLowerCase()))
+                .map((s) => (
+                  <tr key={s.id} className="hover:bg-indigo-500/5 transition-colors group">
+                    <td className="px-6 py-5">
+                      <div className="flex items-center gap-4">
+                        <div className="w-10 h-10 rounded-xl bg-indigo-500/10 text-indigo-400 flex items-center justify-center font-black text-lg border border-indigo-500/20 shadow-inner group-hover:scale-110 group-hover:rotate-6 transition-transform duration-300">
+                          {s.name.charAt(0)}
+                        </div>
+                        <div className="font-bold text-main text-[13px] group-hover:text-indigo-400 transition-colors uppercase tracking-tight">{s.name}</div>
+                      </div>
+                    </td>
+                    <td className="px-6 py-5">
+                      <div className="text-[12px] font-bold text-main flex items-center gap-2 mb-1">
+                        {s.contactPerson || <span className="text-muted italic text-[10px]">No Contact</span>}
+                      </div>
+                      <div className="text-[11px] font-bold text-muted flex items-center gap-2">
+                        {s.phone || '-'} <span className="opacity-30">•</span> {s.email || '-'}
+                      </div>
+                    </td>
+                    <td className="px-6 py-5">
+                      {s.category ? (
+                        <span className="px-2.5 py-1 bg-elevated/50 border border-white/5 rounded-lg text-[10px] font-black uppercase tracking-widest text-muted">{s.category}</span>
+                      ) : (
+                        <span className="text-muted/50 text-xs">-</span>
+                      )}
+                    </td>
+                    <td className="px-6 py-5 text-right">
+                      <div className="flex items-center justify-end gap-2 opacity-50 group-hover:opacity-100 transition-opacity">
+                        <button onClick={() => { setSelectedSupplier(s); setSupplierForm(s); }} className="px-3 py-1.5 rounded-lg bg-card/50 border border-white/10 hover:bg-indigo-500/10 hover:text-indigo-400 hover:border-indigo-500/30 text-[10px] font-black uppercase tracking-widest text-muted transition-all active:scale-95">Edit</button>
+                        <button onClick={() => deactivateSupplierInDB(s.id)} className="px-3 py-1.5 rounded-lg bg-rose-500/10 hover:bg-rose-500/20 text-rose-500 border border-rose-500/20 text-[10px] font-black uppercase tracking-widest transition-all active:scale-95">Suspend</button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              {suppliers.length === 0 && (
+                <tr>
+                  <td colSpan={4} className="px-6 py-12 text-center text-muted font-black uppercase tracking-[0.2em] text-[11px]">
+                    No suppliers matched your query.
                   </td>
                 </tr>
-              ))}
-          </tbody>
-        </table>
+              )}
+            </tbody>
+          </table>
+        </div>
       </div>
     </div>
   );
@@ -364,210 +406,259 @@ const Inventory: React.FC = () => {
     const destinationWarehouses = warehouses.filter(w => w.id !== branchTransferFromWh && (!currentSourceBranchId || w.branchId !== currentSourceBranchId));
 
     return (
-      <div className="p-6 grid grid-cols-1 xl:grid-cols-3 gap-6">
-        <div className="xl:col-span-1 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-4 space-y-3">
-          <h4 className="text-sm font-black">Inter-Branch Transfer</h4>
-          <select className="w-full px-3 py-2 rounded-xl bg-slate-100 dark:bg-slate-800" value={branchTransferItemId} onChange={(e) => setBranchTransferItemId(e.target.value)}>
-            <option value="">Select Item</option>
-            {inventory.map(i => <option key={i.id} value={i.id}>{i.name}</option>)}
-          </select>
-          <select className="w-full px-3 py-2 rounded-xl bg-slate-100 dark:bg-slate-800" value={branchTransferFromWh} onChange={(e) => setBranchTransferFromWh(e.target.value)}>
-            <option value="">From Warehouse</option>
-            {warehouses.map(w => <option key={w.id} value={w.id}>{w.name}</option>)}
-          </select>
-          <select className="w-full px-3 py-2 rounded-xl bg-slate-100 dark:bg-slate-800" value={branchTransferToWh} onChange={(e) => setBranchTransferToWh(e.target.value)}>
-            <option value="">To Warehouse (different branch)</option>
-            {destinationWarehouses.map(w => <option key={w.id} value={w.id}>{w.name}</option>)}
-          </select>
-          <input type="number" className="w-full px-3 py-2 rounded-xl bg-slate-100 dark:bg-slate-800" placeholder="Quantity" value={branchTransferQty} onChange={(e) => setBranchTransferQty(Number(e.target.value || 0))} />
-          <input className="w-full px-3 py-2 rounded-xl bg-slate-100 dark:bg-slate-800" placeholder="Reason" value={branchTransferReason} onChange={(e) => setBranchTransferReason(e.target.value)} />
-          <button onClick={handleCreateBranchTransfer} className="w-full px-3 py-2 rounded-xl bg-indigo-600 text-white text-xs font-black uppercase">Create Transfer</button>
+      <div className="p-6 grid grid-cols-1 xl:grid-cols-3 gap-6 relative z-10 w-full">
+        <div className="xl:col-span-1 bg-card/40 backdrop-blur-md rounded-[2rem] border border-white/5 p-6 space-y-4 shadow-lg group relative overflow-hidden">
+          <div className="absolute inset-0 bg-gradient-to-br from-cyan-500/5 to-blue-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-700 pointer-events-none" />
+          <h4 className="text-[11px] font-black uppercase tracking-[0.2em] text-cyan-400 mb-6 flex items-center gap-2 relative z-10">
+            <ArrowRightLeft size={16} /> Inter-Branch Transfer
+          </h4>
+          <div className="space-y-3 relative z-10">
+            <select className="w-full px-4 py-3.5 rounded-2xl bg-elevated/40 backdrop-blur-sm border border-white/10 focus:border-cyan-500 focus:ring-2 focus:ring-cyan-500/30 transition-all text-main font-bold text-sm shadow-inner appearance-none cursor-pointer" value={branchTransferItemId} onChange={(e) => setBranchTransferItemId(e.target.value)}>
+              <option value="" className="bg-card">Select Item</option>
+              {inventory.map(i => <option key={i.id} value={i.id} className="bg-card">{i.name}</option>)}
+            </select>
+            <select className="w-full px-4 py-3.5 rounded-2xl bg-elevated/40 backdrop-blur-sm border border-white/10 focus:border-cyan-500 focus:ring-2 focus:ring-cyan-500/30 transition-all text-main font-bold text-sm shadow-inner appearance-none cursor-pointer" value={branchTransferFromWh} onChange={(e) => setBranchTransferFromWh(e.target.value)}>
+              <option value="" className="bg-card">From Warehouse</option>
+              {warehouses.map(w => <option key={w.id} value={w.id} className="bg-card">{w.name}</option>)}
+            </select>
+            <select className="w-full px-4 py-3.5 rounded-2xl bg-elevated/40 backdrop-blur-sm border border-white/10 focus:border-cyan-500 focus:ring-2 focus:ring-cyan-500/30 transition-all text-main font-bold text-sm shadow-inner appearance-none cursor-pointer" value={branchTransferToWh} onChange={(e) => setBranchTransferToWh(e.target.value)}>
+              <option value="" className="bg-card">To Warehouse (different branch)</option>
+              {destinationWarehouses.map(w => <option key={w.id} value={w.id} className="bg-card">{w.name}</option>)}
+            </select>
+            <div className="relative">
+              <span className="absolute left-4 top-1/2 -translate-y-1/2 text-muted text-[10px] font-black uppercase">Qty</span>
+              <input type="number" className="w-full pl-12 pr-4 py-3.5 rounded-2xl bg-elevated/40 backdrop-blur-sm border border-white/10 focus:border-cyan-500 focus:ring-2 focus:ring-cyan-500/30 transition-all text-main font-bold text-sm shadow-inner" value={branchTransferQty} onChange={(e) => setBranchTransferQty(Number(e.target.value || 0))} />
+            </div>
+            <input className="w-full px-4 py-3.5 rounded-2xl bg-elevated/40 backdrop-blur-sm border border-white/10 focus:border-cyan-500 focus:ring-2 focus:ring-cyan-500/30 transition-all text-main font-bold text-sm placeholder:text-muted/50 shadow-inner" placeholder="Reason for Transfer..." value={branchTransferReason} onChange={(e) => setBranchTransferReason(e.target.value)} />
+          </div>
+          <div className="pt-4 border-t border-white/5 relative z-10">
+            <button onClick={handleCreateBranchTransfer} className="w-full px-4 py-3.5 rounded-2xl bg-gradient-to-r from-cyan-500 to-blue-500 text-white text-[10px] font-black uppercase tracking-[0.2em] shadow-[0_10px_20px_rgba(6,182,212,0.2)] hover:shadow-[0_15px_30px_rgba(6,182,212,0.3)] hover:-translate-y-0.5 transition-all active:scale-95 border border-cyan-400/30">Execute Transfer</button>
+          </div>
         </div>
-        <div className="xl:col-span-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl overflow-hidden">
-          <table className="w-full text-left">
-            <thead className="bg-slate-50 dark:bg-slate-800/50 text-[10px] uppercase">
-              <tr>
-                <th className="px-4 py-3">Date</th>
-                <th className="px-4 py-3">Item</th>
-                <th className="px-4 py-3">From</th>
-                <th className="px-4 py-3">To</th>
-                <th className="px-4 py-3">Qty</th>
-                <th className="px-4 py-3">Reason</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-              {transferMovements.map((mv: any) => (
-                <tr key={mv.id}>
-                  <td className="px-4 py-3 text-xs">{new Date(mv.createdAt).toLocaleString()}</td>
-                  <td className="px-4 py-3 text-sm font-bold">{mv.itemName}</td>
-                  <td className="px-4 py-3 text-sm">{mv.fromWarehouseName}</td>
-                  <td className="px-4 py-3 text-sm">{mv.toWarehouseName}</td>
-                  <td className="px-4 py-3 text-sm">{Number(mv.quantity || 0).toFixed(2)}</td>
-                  <td className="px-4 py-3 text-sm">{mv.reason || '-'}</td>
-                </tr>
-              ))}
-              {transferMovements.length === 0 && (
+        <div className="xl:col-span-2 bg-card/40 backdrop-blur-md rounded-[2rem] border border-white/5 overflow-hidden shadow-lg flex flex-col relative z-10">
+          <div className="overflow-x-auto flex-1">
+            <table className="w-full text-left border-collapse min-w-[600px]">
+              <thead className="bg-elevated/30 text-[10px] uppercase font-black tracking-widest text-muted border-b border-white/5">
                 <tr>
-                  <td colSpan={6} className="px-4 py-8 text-center text-sm text-slate-500">No branch transfer movements yet.</td>
+                  <th className="px-6 py-5 whitespace-nowrap">Timestamp</th>
+                  <th className="px-6 py-5 whitespace-nowrap">Asset</th>
+                  <th className="px-6 py-5 whitespace-nowrap">Source</th>
+                  <th className="px-6 py-5 whitespace-nowrap">Destination</th>
+                  <th className="px-6 py-5 whitespace-nowrap">Qty</th>
+                  <th className="px-6 py-5 whitespace-nowrap">Manifest Note</th>
                 </tr>
-              )}
-            </tbody>
-          </table>
+              </thead>
+              <tbody className="divide-y divide-white/5">
+                {transferMovements.map((mv: any) => (
+                  <tr key={mv.id} className="hover:bg-cyan-500/5 transition-colors group">
+                    <td className="px-6 py-5 text-[11px] font-bold text-muted">{new Date(mv.createdAt).toLocaleDateString()} {new Date(mv.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</td>
+                    <td className="px-6 py-5">
+                      <div className="font-bold text-[13px] text-main">{mv.itemName}</div>
+                    </td>
+                    <td className="px-6 py-5 text-[12px] font-bold text-muted">{mv.fromWarehouseName}</td>
+                    <td className="px-6 py-5 text-[12px] font-bold text-muted">{mv.toWarehouseName}</td>
+                    <td className="px-6 py-5">
+                      <span className="text-[12px] font-black text-cyan-400 bg-cyan-500/10 px-2 py-0.5 rounded border border-cyan-500/20">{Number(mv.quantity || 0)}</span>
+                    </td>
+                    <td className="px-6 py-5 text-[11px] font-bold text-muted truncate max-w-[150px]">{mv.reason || '-'}</td>
+                  </tr>
+                ))}
+                {transferMovements.length === 0 && (
+                  <tr>
+                    <td colSpan={6} className="px-6 py-12 text-center text-muted font-black uppercase tracking-[0.2em] text-[11px]">
+                      No logistics movements recorded yet.
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
         </div>
       </div>
     );
   };
 
   const renderPurchaseOrders = () => (
-    <div className="p-6 grid grid-cols-1 xl:grid-cols-3 gap-6">
-      <div className="xl:col-span-1 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-4 space-y-3">
-        <h4 className="text-sm font-black">Create Purchase Order</h4>
-        <select className="w-full px-3 py-2 rounded-xl bg-slate-100 dark:bg-slate-800" value={poSupplierId} onChange={(e) => setPoSupplierId(e.target.value)}>
-          <option value="">Select Supplier</option>
-          {suppliers.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
-        </select>
-        <select className="w-full px-3 py-2 rounded-xl bg-slate-100 dark:bg-slate-800" value={poItemId} onChange={(e) => setPoItemId(e.target.value)}>
-          <option value="">Select Item</option>
-          {inventory.map(i => <option key={i.id} value={i.id}>{i.name}</option>)}
-        </select>
-        <select className="w-full px-3 py-2 rounded-xl bg-slate-100 dark:bg-slate-800" value={poWarehouseId} onChange={(e) => setPoWarehouseId(e.target.value)}>
-          <option value="">Target Warehouse (optional)</option>
-          {warehouses.map(w => <option key={w.id} value={w.id}>{w.name}</option>)}
-        </select>
-        <input type="number" className="w-full px-3 py-2 rounded-xl bg-slate-100 dark:bg-slate-800" placeholder="Qty" value={poQty} onChange={(e) => setPoQty(Number(e.target.value || 0))} />
-        <input type="number" className="w-full px-3 py-2 rounded-xl bg-slate-100 dark:bg-slate-800" placeholder="Unit Price" value={poPrice} onChange={(e) => setPoPrice(Number(e.target.value || 0))} />
-        <button onClick={handleCreatePO} className="w-full px-3 py-2 rounded-xl bg-indigo-600 text-white text-xs font-black uppercase">Create PO</button>
+    <div className="p-6 grid grid-cols-1 xl:grid-cols-3 gap-6 relative z-10 w-full">
+      <div className="xl:col-span-1 bg-card/40 backdrop-blur-md rounded-[2rem] border border-white/5 p-6 space-y-4 shadow-lg group relative overflow-hidden">
+        <div className="absolute inset-0 bg-gradient-to-br from-amber-500/5 to-orange-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-700 pointer-events-none" />
+        <h4 className="text-[11px] font-black uppercase tracking-[0.2em] text-amber-500 mb-6 flex items-center gap-2 relative z-10">
+          <FileText size={16} /> Create Purchase Order
+        </h4>
+        <div className="space-y-3 relative z-10">
+          <select className="w-full px-4 py-3.5 rounded-2xl bg-elevated/40 backdrop-blur-sm border border-white/10 focus:border-amber-500 focus:ring-2 focus:ring-amber-500/30 transition-all text-main font-bold text-sm shadow-inner appearance-none cursor-pointer" value={poSupplierId} onChange={(e) => setPoSupplierId(e.target.value)}>
+            <option value="" className="bg-card">Select Supplier</option>
+            {suppliers.map(s => <option key={s.id} value={s.id} className="bg-card">{s.name}</option>)}
+          </select>
+          <select className="w-full px-4 py-3.5 rounded-2xl bg-elevated/40 backdrop-blur-sm border border-white/10 focus:border-amber-500 focus:ring-2 focus:ring-amber-500/30 transition-all text-main font-bold text-sm shadow-inner appearance-none cursor-pointer" value={poItemId} onChange={(e) => setPoItemId(e.target.value)}>
+            <option value="" className="bg-card">Select Item</option>
+            {inventory.map(i => <option key={i.id} value={i.id} className="bg-card">{i.name}</option>)}
+          </select>
+          <select className="w-full px-4 py-3.5 rounded-2xl bg-elevated/40 backdrop-blur-sm border border-white/10 focus:border-amber-500 focus:ring-2 focus:ring-amber-500/30 transition-all text-main font-bold text-sm shadow-inner appearance-none cursor-pointer" value={poWarehouseId} onChange={(e) => setPoWarehouseId(e.target.value)}>
+            <option value="" className="bg-card">Target Warehouse (optional)</option>
+            {warehouses.map(w => <option key={w.id} value={w.id} className="bg-card">{w.name}</option>)}
+          </select>
+          <div className="grid grid-cols-2 gap-3">
+            <div className="relative">
+              <span className="absolute left-4 top-1/2 -translate-y-1/2 text-muted text-[10px] font-black uppercase">Qty</span>
+              <input type="number" className="w-full pl-12 pr-4 py-3.5 rounded-2xl bg-elevated/40 backdrop-blur-sm border border-white/10 focus:border-amber-500 focus:ring-2 focus:ring-amber-500/30 transition-all text-main font-bold text-sm shadow-inner" value={poQty} onChange={(e) => setPoQty(Number(e.target.value || 0))} />
+            </div>
+            <div className="relative">
+              <span className="absolute left-4 top-1/2 -translate-y-1/2 text-muted text-[10px] font-black uppercase">Price</span>
+              <input type="number" className="w-full pl-14 pr-4 py-3.5 rounded-2xl bg-elevated/40 backdrop-blur-sm border border-white/10 focus:border-amber-500 focus:ring-2 focus:ring-amber-500/30 transition-all text-main font-bold text-sm shadow-inner" value={poPrice} onChange={(e) => setPoPrice(Number(e.target.value || 0))} />
+            </div>
+          </div>
+        </div>
+        <div className="pt-4 border-t border-white/5 relative z-10">
+          <button onClick={handleCreatePO} className="w-full px-4 py-3.5 rounded-2xl bg-gradient-to-r from-amber-500 to-orange-500 text-white text-[10px] font-black uppercase tracking-[0.2em] shadow-[0_10px_20px_rgba(245,158,11,0.2)] hover:shadow-[0_15px_30px_rgba(245,158,11,0.3)] hover:-translate-y-0.5 transition-all active:scale-95 border border-amber-400/30">Create PO</button>
+        </div>
       </div>
-      <div className="xl:col-span-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl overflow-hidden">
-        <table className="w-full text-left">
-          <thead className="bg-slate-50 dark:bg-slate-800/50 text-[10px] uppercase">
-            <tr>
-              <th className="px-4 py-3">PO</th>
-              <th className="px-4 py-3">Supplier</th>
-              <th className="px-4 py-3">Status</th>
-              <th className="px-4 py-3">Amount</th>
-              <th className="px-4 py-3">Actions</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-            {purchaseOrders
-              .filter(po => po.id.toLowerCase().includes(searchQuery.toLowerCase()))
-              .map((po) => (
-                <tr key={po.id}>
-                  <td className="px-4 py-3 font-mono text-xs">{po.id}</td>
-                  <td className="px-4 py-3">{suppliers.find(s => s.id === po.supplierId)?.name || po.supplierId}</td>
-                  <td className="px-4 py-3">{po.status}</td>
-                  <td className="px-4 py-3">{po.totalCost.toFixed(2)}</td>
-                  <td className="px-4 py-3">
-                    <div className="flex gap-2 flex-wrap">
-                      {po.status === 'DRAFT' && (
-                        <button onClick={() => handlePoStatusUpdate(po.id, 'PENDING_APPROVAL')} className="px-2 py-1 rounded-lg bg-amber-100 text-amber-700 text-xs font-black">Submit</button>
-                      )}
-                      {po.status === 'PENDING_APPROVAL' && (
-                        <button onClick={() => handlePoStatusUpdate(po.id, 'ORDERED')} className="px-2 py-1 rounded-lg bg-emerald-100 text-emerald-700 text-xs font-black">Approve</button>
-                      )}
-                      {po.status === 'ORDERED' && (
-                        <button onClick={() => handlePoStatusUpdate(po.id, 'SENT')} className="px-2 py-1 rounded-lg bg-slate-100 dark:bg-slate-700 text-xs font-black">Send</button>
-                      )}
-                      {po.status !== 'RECEIVED' && po.status !== 'CLOSED' && po.status !== 'CANCELLED' && (
-                        <button onClick={() => handlePoStatusUpdate(po.id, 'CANCELLED')} className="px-2 py-1 rounded-lg bg-rose-100 text-rose-700 text-xs font-black">Cancel</button>
-                      )}
-                      {(po.status === 'SENT' || po.status === 'PARTIAL') && (
-                        <button
-                          onClick={() => handleReceivePO(po)}
-                          className="px-2 py-1 rounded-lg bg-emerald-100 text-emerald-700 text-xs font-black"
-                        >
-                          Receive
-                        </button>
-                      )}
-                      {po.status === 'RECEIVED' && (
-                        <button onClick={() => handlePoStatusUpdate(po.id, 'CLOSED')} className="px-2 py-1 rounded-lg bg-indigo-100 text-indigo-700 text-xs font-black">Close</button>
-                      )}
-                    </div>
-                    <div className="mt-2 text-[10px] text-slate-500">
-                      {po.items.length > 0 ? `${po.items.length} item(s)` : 'No items loaded'}
-                    </div>
-                  </td>
-                </tr>
-              ))}
-          </tbody>
-        </table>
+      <div className="xl:col-span-2 bg-card/40 backdrop-blur-md rounded-[2rem] border border-white/5 overflow-hidden shadow-lg flex flex-col relative z-10">
+        <div className="overflow-x-auto flex-1">
+          <table className="w-full text-left border-collapse min-w-[700px]">
+            <thead className="bg-elevated/30 text-[10px] uppercase font-black tracking-widest text-muted border-b border-white/5">
+              <tr>
+                <th className="px-6 py-5 whitespace-nowrap">Order Info</th>
+                <th className="px-6 py-5 whitespace-nowrap">Supplier</th>
+                <th className="px-6 py-5 whitespace-nowrap">Status</th>
+                <th className="px-6 py-5 whitespace-nowrap">Amount</th>
+                <th className="px-6 py-5 whitespace-nowrap text-right">Actions</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-white/5">
+              {purchaseOrders
+                .filter(po => po.id.toLowerCase().includes(searchQuery.toLowerCase()))
+                .map((po) => (
+                  <tr key={po.id} className="hover:bg-amber-500/5 transition-colors group">
+                    <td className="px-6 py-5">
+                      <div className="font-mono text-[11px] font-black text-amber-500 bg-amber-500/10 w-fit px-2 py-1 rounded border border-amber-500/20">{po.id}</div>
+                      <div className="text-[10px] font-bold text-muted mt-1.5 flex items-center gap-1">
+                        <Package size={12} /> {po.items.length > 0 ? `${po.items.length} item(s)` : 'Empty'}
+                      </div>
+                    </td>
+                    <td className="px-6 py-5">
+                      <div className="font-bold text-[13px] text-main">{suppliers.find(s => s.id === po.supplierId)?.name || po.supplierId}</div>
+                    </td>
+                    <td className="px-6 py-5">
+                      <span className={`px-2.5 py-1 rounded-lg text-[10px] font-black uppercase tracking-widest border ${po.status === 'RECEIVED' || po.status === 'CLOSED' ? 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20' : po.status === 'CANCELLED' ? 'bg-rose-500/10 text-rose-500 border-rose-500/20' : po.status === 'DRAFT' ? 'bg-slate-500/10 text-slate-400 border-slate-500/20' : 'bg-amber-500/10 text-amber-500 border-amber-500/20'}`}>
+                        {po.status}
+                      </span>
+                    </td>
+                    <td className="px-6 py-5">
+                      <div className="font-black text-[13px] text-main drop-shadow-sm">{po.totalCost.toLocaleString()} {settings?.currencySymbol || 'EGP'}</div>
+                    </td>
+                    <td className="px-6 py-5 text-right">
+                      <div className="flex items-center justify-end gap-2 opacity-50 group-hover:opacity-100 transition-opacity flex-wrap justify-end max-w-[200px] ml-auto">
+                        {po.status === 'DRAFT' && (
+                          <button onClick={() => handlePoStatusUpdate(po.id, 'PENDING_APPROVAL')} className="px-3 py-1.5 rounded-lg bg-amber-500/10 hover:bg-amber-500/20 text-amber-500 border border-amber-500/20 text-[10px] font-black uppercase tracking-widest transition-all active:scale-95">Submit</button>
+                        )}
+                        {po.status === 'PENDING_APPROVAL' && (
+                          <button onClick={() => handlePoStatusUpdate(po.id, 'ORDERED')} className="px-3 py-1.5 rounded-lg bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-500 border border-emerald-500/20 text-[10px] font-black uppercase tracking-widest transition-all active:scale-95">Approve</button>
+                        )}
+                        {po.status === 'ORDERED' && (
+                          <button onClick={() => handlePoStatusUpdate(po.id, 'SENT')} className="px-3 py-1.5 rounded-lg bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-400 border border-indigo-500/20 text-[10px] font-black uppercase tracking-widest transition-all active:scale-95">Send</button>
+                        )}
+                        {po.status !== 'RECEIVED' && po.status !== 'CLOSED' && po.status !== 'CANCELLED' && (
+                          <button onClick={() => handlePoStatusUpdate(po.id, 'CANCELLED')} className="px-3 py-1.5 rounded-lg bg-rose-500/10 hover:bg-rose-500/20 text-rose-500 border border-rose-500/20 text-[10px] font-black uppercase tracking-widest transition-all active:scale-95">Cancel</button>
+                        )}
+                        {(po.status === 'SENT' || po.status === 'PARTIAL') && (
+                          <button onClick={() => handleReceivePO(po)} className="px-3 py-1.5 rounded-lg bg-teal-500/10 hover:bg-teal-500/20 text-teal-500 border border-teal-500/20 text-[10px] font-black uppercase tracking-widest transition-all active:scale-95 shadow-sm">Receive</button>
+                        )}
+                        {po.status === 'RECEIVED' && (
+                          <button onClick={() => handlePoStatusUpdate(po.id, 'CLOSED')} className="px-3 py-1.5 rounded-lg bg-slate-500/10 hover:bg-slate-500/20 text-slate-400 border border-slate-500/20 text-[10px] font-black uppercase tracking-widest transition-all active:scale-95">Close</button>
+                        )}
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+            </tbody>
+          </table>
+        </div>
       </div>
     </div>
   );
 
   return (
-    <div className="p-4 md:p-6 lg:p-10 bg-app min-h-screen transition-colors">
-      <div className="flex flex-col xl:flex-row justify-between items-start xl:items-center gap-6 mb-10">
+    <div className="p-4 md:p-6 lg:p-10 bg-app min-h-screen transition-colors animate-fade-in relative z-10 pb-24">
+      <div className="flex flex-col xl:flex-row justify-between items-start xl:items-center gap-6 mb-10 relative z-20">
         <div>
           <div className="flex items-center gap-4 mb-2">
-            <div className="w-12 h-12 rounded-2xl bg-primary text-white flex items-center justify-center shadow-xl shadow-primary/20">
-              <Package size={24} />
-            </div>
-            <h2 className="text-3xl xl:text-4xl font-black text-main uppercase tracking-tighter">
+            <h2 className="text-3xl md:text-5xl font-black text-transparent bg-clip-text bg-gradient-to-r from-emerald-500 to-teal-500 uppercase tracking-tighter flex items-center gap-4 drop-shadow-sm">
+              <div className="w-12 h-12 bg-gradient-to-br from-emerald-500/20 to-teal-500/20 rounded-2xl flex items-center justify-center border border-emerald-500/30 text-emerald-500 shrink-0 shadow-[0_0_15px_rgba(16,185,129,0.2)]">
+                <Package size={24} />
+              </div>
               {lang === 'ar' ? 'المخزن والتوريد' : 'Smart Inventory'}
             </h2>
           </div>
-          <p className="text-sm text-slate-500 dark:text-slate-400 font-semibold max-w-xl">
+          <p className="text-sm md:text-base text-muted font-bold tracking-wide mt-2 max-w-2xl">
             {lang === 'ar'
               ? 'إدارة مخزون المركز والفروع، التحكم في التوريد، تحويلات بين المخازن، والجرد الدوري بنظام تتبع متكامل.'
               : 'Enterprise-grade supply chain management. Control stock across multiple branches, manage transfers, and track audit history.'}
           </p>
         </div>
 
-        <div className="flex flex-wrap gap-2 w-full xl:w-auto">
+        <div className="flex flex-wrap gap-4 w-full xl:w-auto">
           <button
             onClick={() => setReceiptModalOpen(true)}
-            className="flex-1 xl:flex-none flex items-center justify-center gap-2 bg-emerald-600 text-white px-6 py-3.5 rounded-2xl hover:bg-emerald-700 transition-all shadow-xl shadow-emerald-500/10 font-black text-xs uppercase tracking-widest"
+            className="flex-1 xl:flex-none flex items-center justify-center gap-2 bg-card/50 backdrop-blur-md text-emerald-500 px-6 py-4 rounded-[1.5rem] hover:bg-emerald-500 hover:text-white transition-all border border-emerald-500/20 font-black text-xs uppercase tracking-[0.2em] shadow-sm hover:shadow-emerald-500/20 active:scale-95"
           >
             <Download size={18} /> {lang === 'ar' ? 'إذن استلام' : 'Receive'}
           </button>
           <button
             onClick={() => setTransferModalOpen(true)}
-            className="flex-1 xl:flex-none flex items-center justify-center gap-2 bg-primary text-white px-6 py-3.5 rounded-2xl hover:bg-primary-hover transition-all shadow-xl shadow-primary/10 font-black text-xs uppercase tracking-widest"
+            className="flex-1 xl:flex-none flex items-center justify-center gap-2 bg-card/50 backdrop-blur-md text-indigo-500 px-6 py-4 rounded-[1.5rem] hover:bg-indigo-500 hover:text-white transition-all border border-indigo-500/20 font-black text-xs uppercase tracking-[0.2em] shadow-sm hover:shadow-indigo-500/20 active:scale-95"
           >
             <ArrowRightLeft size={18} /> {lang === 'ar' ? 'تحويل' : 'Transfer'}
           </button>
           <button
             onClick={() => setItemModalOpen(true)}
-            className="flex-1 xl:flex-none flex items-center justify-center gap-2 bg-slate-900 dark:bg-white dark:text-slate-900 text-white px-6 py-3.5 rounded-2xl hover:scale-105 transition-all shadow-xl shadow-black/10 font-black text-xs uppercase tracking-widest"
+            className="flex-1 xl:flex-none flex items-center justify-center gap-2 bg-gradient-to-r from-emerald-500 to-teal-500 text-white px-8 py-4 rounded-[1.5rem] hover:opacity-90 transition-all font-black text-xs uppercase tracking-[0.2em] shadow-lg shadow-emerald-500/25 active:scale-95 border border-emerald-400/30"
           >
             <Plus size={18} /> {lang === 'ar' ? 'إضافة صنف' : 'Add Item'}
           </button>
         </div>
       </div>
 
-      <div className="flex flex-col lg:flex-row justify-between items-stretch lg:items-center gap-4 mb-6">
-        <div className="flex gap-2 md:gap-4 border-b border-slate-200 dark:border-slate-800 overflow-x-auto no-scrollbar scroll-smooth">
+      <div className="flex flex-col lg:flex-row justify-between items-stretch lg:items-center gap-8 mb-8 relative z-20">
+        <div className="flex gap-2 md:gap-4 border-b border-white/5 overflow-x-auto no-scrollbar scroll-smooth">
           {[
-            { id: 'STOCK', label: lang === 'ar' ? 'الأصناف' : 'Stock Items', icon: Package, color: 'text-indigo-600' },
-            { id: 'SUPPLIERS', label: lang === 'ar' ? 'الموردين' : 'Suppliers', icon: Truck, color: 'text-emerald-600' },
-            { id: 'PO', label: lang === 'ar' ? 'طلبات الشراء' : 'Purchase Orders', icon: FileText, color: 'text-amber-600' },
-            { id: 'WAREHOUSES', label: lang === 'ar' ? 'المخازن' : 'Warehouses', icon: Home, color: 'text-rose-600' },
-            { id: 'BRANCHES', label: lang === 'ar' ? 'الفروع' : 'Branches', icon: Briefcase, color: 'text-slate-600' },
+            { id: 'STOCK', label: lang === 'ar' ? 'الأصناف' : 'Stock Items', icon: Package, color: 'text-emerald-500', activeBg: 'bg-emerald-500/10' },
+            { id: 'SUPPLIERS', label: lang === 'ar' ? 'الموردين' : 'Suppliers', icon: Truck, color: 'text-indigo-500', activeBg: 'bg-indigo-500/10' },
+            { id: 'PO', label: lang === 'ar' ? 'طلبات الشراء' : 'Purchase Orders', icon: FileText, color: 'text-amber-500', activeBg: 'bg-amber-500/10' },
+            { id: 'WAREHOUSES', label: lang === 'ar' ? 'المخازن' : 'Warehouses', icon: Home, color: 'text-rose-500', activeBg: 'bg-rose-500/10' },
+            { id: 'BRANCHES', label: lang === 'ar' ? 'الفروع' : 'Branches', icon: Briefcase, color: 'text-cyan-500', activeBg: 'bg-cyan-500/10' },
           ].map(tab => (
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id as any)}
-              className={`pb-4 px-2 text-xs md:text-sm font-black flex items-center gap-2 transition-all border-b-2 whitespace-nowrap ${activeTab === tab.id ? `border-indigo-600 ${tab.color}` : 'border-transparent text-slate-400 hover:text-slate-700'}`}
+              className={`pb-4 px-4 text-[10px] md:text-[11px] font-black flex items-center gap-2 transition-all border-b-2 whitespace-nowrap uppercase tracking-[0.2em] relative overflow-hidden ${activeTab === tab.id ? `border-current ${tab.color}` : 'border-transparent text-muted hover:text-main'}`}
             >
-              <tab.icon size={18} /> {tab.label}
+              <div className={`${activeTab === tab.id ? tab.activeBg : 'bg-transparent'} p-1.5 rounded-xl transition-colors`}>
+                <tab.icon size={18} />
+              </div>
+              {tab.label}
+              {activeTab === tab.id && <div className="absolute bottom-0 left-0 w-full h-[2px] bg-gradient-to-r from-transparent via-current to-transparent opacity-50" />}
             </button>
           ))}
         </div>
-        <div className="relative w-full lg:w-80">
-          <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
-          <input
-            type="text"
-            placeholder={lang === 'ar' ? 'بحث عن صنف، رقم كود، مورد...' : "Search inventory..."}
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full pl-12 pr-6 py-3.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl outline-none focus:ring-4 focus:ring-indigo-500/5 transition-all shadow-sm font-bold text-sm"
-          />
+        <div className="relative w-full lg:w-96 group">
+          <div className="absolute inset-0 bg-gradient-to-r from-emerald-500 to-teal-500 rounded-[1.5rem] blur-md opacity-20 group-focus-within:opacity-40 transition-opacity duration-500" />
+          <div className="relative">
+            <Search className="absolute left-5 top-1/2 -translate-y-1/2 text-muted w-5 h-5 group-focus-within:text-emerald-500 transition-colors z-10" />
+            <input
+              type="text"
+              placeholder={lang === 'ar' ? 'بحث عن صنف، رقم كود، مورد...' : "Search inventory..."}
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full pl-14 pr-6 py-4 bg-card/60 backdrop-blur-md border border-white/10 rounded-[1.5rem] outline-none focus:ring-2 focus:ring-emerald-500/50 transition-all shadow-inner font-bold text-sm text-main placeholder:text-muted/50"
+            />
+          </div>
         </div>
       </div>
 
-      <div className="bg-card rounded-[2.5rem] shadow-2xl shadow-primary/5 border border-border/50 overflow-hidden min-h-[420px] md:min-h-[520px] lg:min-h-[600px]">
+      <div className="bg-card/60 backdrop-blur-3xl rounded-[3rem] shadow-[0_20px_40px_rgba(0,0,0,0.1)] border border-white/5 overflow-hidden min-h-[420px] md:min-h-[520px] lg:min-h-[600px] relative z-20 group">
+        <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/5 via-transparent to-teal-500/5 opacity-50 pointer-events-none" />
+        <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-emerald-500 via-teal-500 to-emerald-400 opacity-50" />
         {activeTab === 'STOCK' && renderStock()}
         {activeTab === 'WAREHOUSES' && renderWarehouses()}
         {activeTab === 'SUPPLIERS' && renderSuppliers()}

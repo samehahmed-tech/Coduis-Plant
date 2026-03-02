@@ -633,8 +633,8 @@ const Sidebar: React.FC = () => {
                     className={({ isActive }) => `
                       flex items-center gap-4 px-4 py-3.5 rounded-[1.25rem] transition-all duration-300 group relative overflow-hidden
                       ${isActive
-                        ? 'bg-primary text-white shadow-xl shadow-primary/30 ring-4 ring-primary/5'
-                        : 'text-muted hover:bg-primary/5 hover:text-primary'
+                        ? 'bg-gradient-to-r from-indigo-500 to-cyan-500 text-white shadow-lg shadow-indigo-500/25 ring-2 ring-indigo-500/20 active:scale-[0.98]'
+                        : 'text-muted hover:bg-elevated hover:text-indigo-500 hover:shadow-sm active:scale-95 border border-transparent hover:border-border/50'
                       }
                       ${isCollapsed ? 'justify-center p-4' : ''}
                     `}

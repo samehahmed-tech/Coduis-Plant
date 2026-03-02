@@ -118,7 +118,7 @@ const RecipeManager: React.FC = () => {
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-10">
                 {/* Menu Selection Panel */}
                 <div className="lg:col-span-4 xl:col-span-3 space-y-6">
-                    <div className="bg-white dark:bg-slate-900 rounded-[2.5rem] p-6 shadow-sm border border-slate-200 dark:border-slate-800">
+                    <div className="card-primary rounded-[2.5rem] p-6 shadow-sm border border-slate-200 dark:border-slate-800">
                         <div className="relative mb-6 group">
                             <Search size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-indigo-600 transition-colors" />
                             <input
@@ -158,15 +158,15 @@ const RecipeManager: React.FC = () => {
                         <div className="space-y-8 animate-in fade-in slide-in-from-right-8 duration-500">
                             {/* Statistics Cards */}
                             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                                <div className="bg-white dark:bg-slate-900 p-8 rounded-[2rem] border-l-8 border-l-indigo-600 shadow-sm">
+                                <div className="card-primary p-8 rounded-[2rem] border-l-8 border-l-indigo-600 shadow-sm">
                                     <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Public Price</p>
                                     <h4 className="text-2xl font-black text-slate-800 dark:text-white uppercase">{selectedMenuItem.price} ج.م</h4>
                                 </div>
-                                <div className="bg-white dark:bg-slate-900 p-8 rounded-[2rem] border-l-8 border-l-rose-500 shadow-sm">
+                                <div className="card-primary p-8 rounded-[2rem] border-l-8 border-l-rose-500 shadow-sm">
                                     <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Net BOM Cost</p>
                                     <h4 className="text-2xl font-black text-rose-500 uppercase">{totalCost.toFixed(2)} ج.م</h4>
                                 </div>
-                                <div className="bg-white dark:bg-slate-900 p-8 rounded-[2rem] border-l-8 border-l-emerald-500 shadow-sm">
+                                <div className="card-primary p-8 rounded-[2rem] border-l-8 border-l-emerald-500 shadow-sm">
                                     <p className="text-[10px] font-black text-emerald-500 uppercase tracking-widest mb-2">Efficiency Margin</p>
                                     <div className="flex items-center gap-3">
                                         <h4 className="text-2xl font-black text-slate-800 dark:text-white uppercase">{margin.toFixed(2)} ج.م</h4>
@@ -179,7 +179,7 @@ const RecipeManager: React.FC = () => {
 
                             <div className="grid grid-cols-1 xl:grid-cols-2 gap-10">
                                 {/* Left: Recipe Ingredients */}
-                                <div className="bg-white dark:bg-slate-900 rounded-[2.5rem] p-10 shadow-sm border border-slate-200 dark:border-slate-800">
+                                <div className="card-primary rounded-[2.5rem] p-10 shadow-sm border border-slate-200 dark:border-slate-800">
                                     <div className="flex items-center justify-between mb-10 pb-6 border-b border-slate-100 dark:border-slate-800">
                                         <h3 className="text-xl font-black text-slate-800 dark:text-white uppercase tracking-tight flex items-center gap-3">
                                             <Scale size={24} className="text-indigo-600" /> Bill of Materials
@@ -203,7 +203,7 @@ const RecipeManager: React.FC = () => {
                                                 const invItem = inventory.find(i => i.id === ing.itemId);
                                                 return (
                                                     <div key={ing.itemId} className="flex items-center gap-5 p-5 bg-slate-50 dark:bg-slate-800/50 rounded-3xl border-2 border-transparent hover:border-indigo-600/20 transition-all group">
-                                                        <div className="w-12 h-12 rounded-2xl bg-white dark:bg-slate-800 flex items-center justify-center text-slate-400 group-hover:text-indigo-600 shadow-sm">
+                                                        <div className="w-12 h-12 rounded-2xl card-primary flex items-center justify-center text-slate-400 group-hover:text-indigo-600 shadow-sm">
                                                             <Package size={24} />
                                                         </div>
                                                         <div className="flex-1">
@@ -213,7 +213,7 @@ const RecipeManager: React.FC = () => {
                                                         <div className="flex items-center gap-3">
                                                             <input
                                                                 type="number"
-                                                                className="w-20 bg-white dark:bg-slate-900 border-2 border-slate-100 dark:border-slate-700 rounded-xl py-2 px-3 font-black text-xs text-center focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-600 transition-all outline-none"
+                                                                className="w-20 card-primary border-2 border-slate-100 dark:border-slate-700 rounded-xl py-2 px-3 font-black text-xs text-center focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-600 transition-all outline-none"
                                                                 value={ing.quantity}
                                                                 onChange={e => updateQuantity(ing.itemId, parseFloat(e.target.value) || 0)}
                                                             />
@@ -221,7 +221,7 @@ const RecipeManager: React.FC = () => {
                                                         </div>
                                                         <button
                                                             onClick={() => removeIngredient(ing.itemId)}
-                                                            className="p-3 bg-white dark:bg-slate-800 text-slate-300 hover:text-rose-500 rounded-xl shadow-sm transition-all"
+                                                            className="p-3 card-primary text-slate-300 hover:text-rose-500 rounded-xl shadow-sm transition-all"
                                                         >
                                                             <Trash2 size={18} />
                                                         </button>
@@ -233,7 +233,7 @@ const RecipeManager: React.FC = () => {
                                 </div>
 
                                 {/* Right: Inventory Picker */}
-                                <div className="bg-white dark:bg-slate-900 rounded-[2.5rem] p-10 shadow-sm border border-slate-200 dark:border-slate-800 h-fit">
+                                <div className="card-primary rounded-[2.5rem] p-10 shadow-sm border border-slate-200 dark:border-slate-800 h-fit">
                                     <h3 className="text-xl font-black text-slate-800 dark:text-white mb-10 pb-6 border-b border-slate-100 dark:border-slate-800 uppercase tracking-tight flex items-center gap-3">
                                         <Search size={24} className="text-indigo-600" /> Supply Registry
                                     </h3>
@@ -257,7 +257,7 @@ const RecipeManager: React.FC = () => {
                                                     key={item.id}
                                                     disabled={isAdded}
                                                     onClick={() => addIngredient(item)}
-                                                    className={`flex items-center gap-4 p-4 rounded-2xl border-2 text-left transition-all ${isAdded ? 'opacity-40 grayscale border-slate-100' : 'bg-white dark:bg-slate-900 border-slate-50 dark:border-slate-800 hover:border-indigo-600 dark:hover:border-indigo-600 group shadow-sm hover:shadow-lg'}`}
+                                                    className={`flex items-center gap-4 p-4 rounded-2xl border-2 text-left transition-all ${isAdded ? 'opacity-40 grayscale border-slate-100' : 'card-primary border-slate-50 dark:border-slate-800 hover:border-indigo-600 dark:hover:border-indigo-600 group shadow-sm hover:shadow-lg'}`}
                                                 >
                                                     <div className="w-10 h-10 rounded-xl bg-slate-50 dark:bg-slate-800 flex items-center justify-center text-slate-300 group-hover:text-indigo-600 transition-colors">
                                                         <Package size={20} />
@@ -288,7 +288,7 @@ const RecipeManager: React.FC = () => {
                             </div>
                         </div>
                     ) : (
-                        <div className="bg-white dark:bg-slate-900 rounded-[3.5rem] p-32 flex flex-col items-center justify-center text-center opacity-40 border-2 border-dashed border-slate-200 dark:border-slate-800">
+                        <div className="card-primary rounded-[3.5rem] p-32 flex flex-col items-center justify-center text-center opacity-40 border-2 border-dashed border-slate-200 dark:border-slate-800">
                             <div className="w-24 h-24 rounded-[2rem] bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-slate-300 mb-10 border-4 border-white dark:border-slate-900 shadow-2xl">
                                 <ChefHat size={56} />
                             </div>

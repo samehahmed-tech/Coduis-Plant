@@ -35,8 +35,8 @@ const CategoryTabs: React.FC<CategoryTabsProps> = React.memo(({
     const isRTL = lang === 'ar';
 
     return (
-        <div className="w-full bg-card border-b border-border/40">
-            <div className="flex items-center gap-1.5 px-2 md:px-3 py-1.5 overflow-x-auto no-scrollbar">
+        <div className="w-full bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800">
+            <div className="flex items-center gap-2 px-3 md:px-5 py-3 overflow-x-auto no-scrollbar scroll-smooth">
                 {allCategories.map((cat) => {
                     const isActive = activeCategory === cat.id;
                     const count = cat.id === 'all' ? totalCount : (counts[cat.id] || 0);
@@ -48,20 +48,20 @@ const CategoryTabs: React.FC<CategoryTabsProps> = React.memo(({
                             onClick={() => onSetCategory(cat.id)}
                             disabled={isDisabled}
                             className={`
-                                shrink-0 inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-bold transition-all duration-200
+                                shrink-0 inline-flex items-center gap-2 px-5 py-3.5 rounded-xl text-sm font-bold transition-all border outline-none
                                 ${isActive
-                                    ? 'bg-primary text-white shadow-sm shadow-primary/25'
-                                    : 'bg-elevated/50 text-muted hover:text-main hover:bg-elevated'
+                                    ? 'bg-slate-900 dark:bg-white text-white dark:text-slate-900 border-transparent shadow-md'
+                                    : 'bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-400 border-slate-200 dark:border-slate-800 hover:border-slate-400 dark:hover:border-slate-600 hover:text-slate-900 dark:hover:text-white'
                                 }
-                                ${isDisabled ? 'opacity-40 cursor-not-allowed' : 'cursor-pointer'}
+                                ${isDisabled ? 'opacity-40 cursor-not-allowed' : 'cursor-pointer active:scale-95'}
                             `}
                         >
-                            {cat.id === 'all' && <LayoutGrid size={13} />}
-                            <span className="whitespace-nowrap">
+                            {cat.id === 'all' && <LayoutGrid size={16} className="relative z-10" />}
+                            <span className="whitespace-nowrap relative z-10 text-[11px]">
                                 {isRTL ? ((cat as any).nameAr || cat.name) : cat.name}
                             </span>
                             {hasActiveFiltering && (
-                                <span className={`text-[9px] font-black px-1.5 py-0.5 rounded-md ${isActive ? 'bg-white/20' : 'bg-elevated'
+                                <span className={`text-[10px] tabular-nums font-black px-2 py-0.5 rounded-lg shadow-inner relative z-10 ${isActive ? 'bg-white/20 text-white font-bold' : 'bg-elevated/80 border border-border/50 text-indigo-500'
                                     }`}>
                                     {count}
                                 </span>

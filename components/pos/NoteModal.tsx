@@ -23,7 +23,7 @@ const NoteModal: React.FC<NoteModalProps> = ({
 
     return (
         <div className="fixed inset-0 z-[100] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
-            <div className="bg-white dark:bg-slate-900 rounded-2xl w-full max-w-sm p-4 shadow-2xl animate-in zoom-in-95">
+            <div className="card-primary rounded-2xl w-full max-w-sm p-4 shadow-2xl animate-in zoom-in-95">
                 <h3 className="text-sm font-black uppercase tracking-widest mb-3 text-slate-800 dark:text-white">
                     {t.item_notes}
                 </h3>
