@@ -126,7 +126,7 @@ const POSCartSidebar: React.FC<POSCartSidebarProps> = ({
                             </span>
                         )}
                         <div className="flex items-baseline gap-0.5">
-                            <span className="text-base font-black text-main tabular-nums">{cartTotal.toFixed(2)}</span>
+                            <span className="text-base font-black text-main tabular-nums">{(cartTotal || 0).toFixed(2)}</span>
                             <span className="text-[8px] text-muted/50 font-bold">{currencySymbol}</span>
                         </div>
                         {/* Mobile close */}

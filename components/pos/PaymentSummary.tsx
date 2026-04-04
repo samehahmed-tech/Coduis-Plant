@@ -32,8 +32,8 @@ interface PaymentSummaryProps {
 }
 
 const PaymentSummary: React.FC<PaymentSummaryProps> = ({
-    subtotal, discount, discountAmount = 0, tax, total, currencySymbol, paymentMethod, onSetPaymentMethod, onShowSplitModal,
-    isTouchMode, lang, t, tipAmount, onSetTipAmount, onVoid, onSubmit, onQuickPay, onSendKitchen,
+    subtotal = 0, discount = 0, discountAmount = 0, tax = 0, total = 0, currencySymbol, paymentMethod, onSetPaymentMethod, onShowSplitModal,
+    isTouchMode, lang, t, tipAmount = 0, onSetTipAmount, onVoid, onSubmit, onQuickPay, onSendKitchen,
     canSubmit, couponCode, activeCoupon, isApplyingCoupon, onCouponCodeChange, onApplyCoupon, onClearCoupon, itemCount = 0
 }) => {
     const [openSection, setOpenSection] = useState<'methods' | 'tips' | 'coupon' | null>(null);

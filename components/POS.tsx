@@ -572,13 +572,14 @@ const POS: React.FC = () => {
 
    const { cartSubtotal, cartTotal, cartTax, orderDiscountAmount } = useMemo(() => {
       const subtotal = safeActiveCart.reduce((acc, item) => {
-         const modsPrice = (item.selectedModifiers || []).reduce((sum, mod) => sum + mod.price, 0);
-         return acc + ((item.price + modsPrice) * item.quantity);
+         const modsPrice = (item.selectedModifiers || []).reduce((sum, mod) => sum + (mod.price || 0), 0);
+         return acc + (((item.price || 0) + modsPrice) * (item.quantity || 0));
       }, 0);
-      const orderDiscountAmount = subtotal * (discount / 100);
-      const afterDiscount = subtotal - orderDiscountAmount - itemDiscountTotal;
+      const safeDiscount = Number(discount) || 0;
+      const orderDiscountAmount = subtotal * (safeDiscount / 100);
+      const afterDiscount = Math.max(0, subtotal - orderDiscountAmount - (itemDiscountTotal || 0));
       const tax = afterDiscount * 0.1; // 10% tax
-      const total = afterDiscount + tax + tipAmount;
+      const total = afterDiscount + tax + (tipAmount || 0);
       return { cartSubtotal: subtotal, cartTotal: total, cartTax: tax, orderDiscountAmount };
    }, [safeActiveCart, discount, tipAmount, itemDiscountTotal]);
 
