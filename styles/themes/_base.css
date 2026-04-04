@@ -1,0 +1,186 @@
+/* ═══════════════════════════════════════════════════════════════════════════
+   THEME ENGINE — Base Tokens & Fallback Defaults
+   These variables are injected by ThemeProvider; these serve as fallbacks.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* ── Smooth Theme Switch Morph ──
+   Cross-fades colors on interactive components during theme switch.
+   CRITICAL: Do NOT use wildcard * — it kills scroll performance. */
+[data-theme] {
+    transition:
+        background-color 0.4s ease,
+        color 0.3s ease,
+        border-color 0.3s ease,
+        box-shadow 0.3s ease;
+}
+
+/* Only apply transitions to theme-aware components */
+[data-theme] .theme-card,
+[data-theme] .theme-btn-primary,
+[data-theme] .theme-btn-secondary,
+[data-theme] .theme-btn-ghost,
+[data-theme] .theme-input,
+[data-theme] .theme-modal-content,
+[data-theme] .bg-card,
+[data-theme] .bg-elevated,
+[data-theme] .bg-sidebar {
+    transition-property: background-color, color, border-color, box-shadow;
+    transition-duration: 0.35s;
+    transition-timing-function: ease;
+}
+
+/* Sidebar has its own transition; only morph background color during theme switch */
+[data-theme] .workspace-rail {
+    transition-property: background-color, color;
+    transition-duration: 0.35s;
+    transition-timing-function: ease;
+}
+
+/* Opt-out for elements that need instant transitions */
+[data-theme] .no-theme-transition,
+[data-theme] .no-theme-transition * {
+    transition-duration: 0s !important;
+}
+
+
+:root {
+    /* Fallback palette — French Elegance */
+    --primary: 15 118 110;
+    --primary-hover: 13 95 88;
+    --secondary: 87 99 108;
+    --accent: 194 140 42;
+    --success: 22 163 74;
+    --warning: 234 179 8;
+    --danger: 220 38 38;
+    --bg-app: 250 248 244;
+    --bg-card: 255 253 249;
+    --bg-sidebar: 245 242 236;
+    --bg-elevated: 237 233 225;
+    --text-main: 30 35 38;
+    --text-muted: 104 112 116;
+    --border-color: 222 216 206;
+    --border-subtle: 0 0 0 / 0.04;
+    --glass-bg: 255 255 255 / 0.92;
+
+    /* Font overrides */
+    --font-display: 'Outfit', 'Manrope', system-ui, sans-serif;
+    --font-body: 'Manrope', 'Outfit', system-ui, sans-serif;
+    --font-mono: 'JetBrains Mono', 'IBM Plex Mono', ui-monospace, SFMono-Regular, monospace;
+    --font-arabic: 'Cairo', system-ui, sans-serif;
+
+    /* ── Fluid Viewport Scaling ── */
+    --space-page: clamp(0.75rem, 1.5vw, 2.5rem);
+    --space-section: clamp(0.75rem, 1.2vw, 1.5rem);
+    --space-card: clamp(0.75rem, 1vw, 1.25rem);
+    --space-card-lg: clamp(1rem, 1.5vw, 1.75rem);
+    --space-gap: clamp(0.5rem, 0.8vw, 1rem);
+    --space-gap-lg: clamp(0.75rem, 1.2vw, 1.5rem);
+
+    /* Fluid font sizes */
+    --text-page-title: clamp(1.125rem, 1.4vw, 1.5rem);
+    --text-section-title: clamp(0.6875rem, 0.75vw, 0.8125rem);
+    --text-body: clamp(0.8125rem, 0.85vw, 0.9375rem);
+    --text-caption: clamp(0.5625rem, 0.65vw, 0.6875rem);
+
+    /* Shape tokens */
+    --theme-radius: 16px;
+    --theme-radius-sm: 10px;
+    --theme-radius-lg: 20px;
+    --theme-radius-xl: 28px;
+
+    /* Surface */
+    --theme-blur: 0px;
+    --theme-surface-opacity: 1;
+    --theme-border-width: 1px;
+    --theme-border-opacity: 0.1;
+
+    /* Shadow — layered for depth */
+    --theme-shadow-card: 0 1px 2px rgba(0, 0, 0, 0.04), 0 4px 12px rgba(0, 0, 0, 0.03);
+    --theme-shadow-hover: 0 8px 24px rgba(0, 0, 0, 0.07), 0 0 0 1px rgba(var(--primary), 0.06);
+    --theme-shadow-elevated: 0 16px 40px rgba(0, 0, 0, 0.1);
+
+    /* Motion */
+    --theme-ease: cubic-bezier(0.22, 1, 0.36, 1);
+    --theme-duration: 180ms;
+    --theme-duration-slow: 300ms;
+
+    /* Typography */
+    --theme-font-weight: 500;
+    --theme-heading-weight: 700;
+    --theme-letter-spacing: -0.01em;
+
+    /* Background */
+    --bg-global:
+        radial-gradient(ellipse at 15% 8%, rgba(15, 118, 110, 0.06), transparent 40%),
+        radial-gradient(ellipse at 85% 15%, rgba(194, 140, 42, 0.05), transparent 35%),
+        radial-gradient(ellipse at 50% 90%, rgba(15, 118, 110, 0.03), transparent 45%),
+        linear-gradient(172deg, #faf8f4 0%, #f3efe6 40%, #f7f4ec 100%);
+    --app-bg-opacity: 1;
+}
+
+.dark {
+    --primary: 20 184 166;
+    --primary-hover: 15 150 135;
+    --bg-app: 8 12 14;
+    --bg-card: 16 22 26;
+    --bg-sidebar: 6 10 13;
+    --bg-elevated: 26 33 38;
+    --text-main: 248 245 240;
+    --text-muted: 158 166 164;
+    --border-color: 38 48 54;
+    --border-subtle: 255 255 255 / 0.06;
+    --glass-bg: 16 24 30 / 0.88;
+    --secondary: 148 163 170;
+    --accent: 218 168 72;
+    --bg-global:
+        radial-gradient(ellipse at 18% 8%, rgba(20, 184, 166, 0.12), transparent 35%),
+        radial-gradient(ellipse at 82% 18%, rgba(218, 168, 72, 0.08), transparent 30%),
+        radial-gradient(ellipse at 50% 85%, rgba(20, 184, 166, 0.04), transparent 40%),
+        linear-gradient(172deg, #080c0e 0%, #060a0c 40%, #080c0e 100%);
+    --app-bg-opacity: 1;
+}
+
+/* ── Base Typography ── */
+body {
+    font-family: var(--font-body);
+    background: var(--bg-global, rgb(var(--bg-app)));
+    color: rgb(var(--text-main));
+    font-weight: var(--theme-font-weight);
+    letter-spacing: var(--theme-letter-spacing);
+    transition: background 0.4s var(--theme-ease), color 0.4s var(--theme-ease);
+}
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6,
+.heading {
+    font-weight: var(--theme-heading-weight);
+}
+
+/* ── Global utility overrides for translucency ── */
+.bg-app {
+    background-color: rgba(var(--bg-app), var(--app-bg-opacity, 1));
+}
+
+.bg-card {
+    background-color: rgba(var(--bg-card), var(--theme-surface-opacity, 1));
+    backdrop-filter: blur(var(--theme-blur, 0));
+}
+
+.bg-elevated {
+    background-color: rgba(var(--bg-elevated), var(--theme-surface-opacity, 1));
+    backdrop-filter: blur(var(--theme-blur, 0));
+}
+
+.bg-sidebar {
+    background-color: rgba(var(--bg-sidebar), var(--theme-surface-opacity, 1));
+    backdrop-filter: blur(var(--theme-blur, 0));
+}
+
+/* Force dark color-scheme */
+.dark {
+    color-scheme: dark;
+}

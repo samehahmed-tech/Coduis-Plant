@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { RefreshCw, Save, AlertTriangle, CheckCircle2, ClipboardCheck } from 'lucide-react';
-import { opsApi } from '../services/api';
+import { opsApi } from '../services/api/ops';
 import { useAuthStore } from '../stores/useAuthStore';
 
 type UatResult = 'PENDING' | 'PASS' | 'FAIL';
@@ -455,6 +455,66 @@ const GoLiveCenter: React.FC = () => {
               />
             </div>
 
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mt-4 mb-2 border-t border-border pt-4">
+              <div>
+                <div className="text-[10px] font-black uppercase tracking-widest text-muted mb-2">Data Integrity: Orders</div>
+                <div className="grid grid-cols-2 gap-2">
+                  <input
+                    type="number"
+                    value={String(rollbackDraft?.ordersCountBefore ?? '')}
+                    onChange={(e) => setRollbackDraft({ ...rollbackDraft, ordersCountBefore: e.target.value === '' ? null : Number(e.target.value) })}
+                    placeholder={lang === 'ar' ? 'طلبات قبل' : 'Orders Before'}
+                    className="px-4 py-2 rounded-xl border border-border bg-app/40 text-xs font-bold text-main outline-none"
+                  />
+                  <input
+                    type="number"
+                    value={String(rollbackDraft?.ordersCountAfter ?? '')}
+                    onChange={(e) => setRollbackDraft({ ...rollbackDraft, ordersCountAfter: e.target.value === '' ? null : Number(e.target.value) })}
+                    placeholder={lang === 'ar' ? 'طلبات بعد' : 'Orders After'}
+                    className="px-4 py-2 rounded-xl border border-border bg-app/40 text-xs font-bold text-main outline-none"
+                  />
+                </div>
+              </div>
+              <div>
+                <div className="text-[10px] font-black uppercase tracking-widest text-muted mb-2">Data Integrity: Payments</div>
+                <div className="grid grid-cols-2 gap-2">
+                  <input
+                    type="number"
+                    value={String(rollbackDraft?.paymentsTotalBefore ?? '')}
+                    onChange={(e) => setRollbackDraft({ ...rollbackDraft, paymentsTotalBefore: e.target.value === '' ? null : Number(e.target.value) })}
+                    placeholder={lang === 'ar' ? 'مدفوعات قبل' : 'Payments Before'}
+                    className="px-4 py-2 rounded-xl border border-border bg-app/40 text-xs font-bold text-main outline-none"
+                  />
+                  <input
+                    type="number"
+                    value={String(rollbackDraft?.paymentsTotalAfter ?? '')}
+                    onChange={(e) => setRollbackDraft({ ...rollbackDraft, paymentsTotalAfter: e.target.value === '' ? null : Number(e.target.value) })}
+                    placeholder={lang === 'ar' ? 'مدفوعات بعد' : 'Payments After'}
+                    className="px-4 py-2 rounded-xl border border-border bg-app/40 text-xs font-bold text-main outline-none"
+                  />
+                </div>
+              </div>
+            </div>
+
+            <div className="flex gap-4">
+              <label className="flex items-center gap-2 text-xs font-black text-main bg-app/20 p-2 rounded-xl border border-border cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={Boolean(rollbackDraft?.dataIntegrityChecksPassed)}
+                  onChange={(e) => setRollbackDraft({ ...rollbackDraft, dataIntegrityChecksPassed: e.target.checked })}
+                />
+                {lang === 'ar' ? 'اجتياز فحص السلامة' : 'Integrity Checks Passed'}
+              </label>
+              <label className="flex items-center gap-2 text-xs font-black text-main bg-app/20 p-2 rounded-xl border border-border cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={Boolean(rollbackDraft?.duplicateOrdersDetected)}
+                  onChange={(e) => setRollbackDraft({ ...rollbackDraft, duplicateOrdersDetected: e.target.checked })}
+                />
+                {lang === 'ar' ? 'وجود طلبات مكررة' : 'Duplicate Orders'}
+              </label>
+            </div>
+
             <div className="space-y-3">
               <div className="text-[10px] font-black uppercase tracking-widest text-muted">
                 {lang === 'ar' ? 'قائمة خطوات rollback' : 'Rollback Checklist'}
@@ -537,4 +597,3 @@ const GoLiveCenter: React.FC = () => {
 };
 
 export default GoLiveCenter;
-

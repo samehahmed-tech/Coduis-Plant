@@ -1,6 +1,8 @@
-import React, { useState, useEffect } from 'react';
-import { X, Save, Package, Tag, Hash, DollarSign, Settings, Layers, Trash2, Plus } from 'lucide-react';
+import React, { useState, useEffect, useCallback } from 'react';
+import { X, Save, Package, Tag, Hash, DollarSign, Settings, Layers, Trash2, Plus, RefreshCw, Camera } from 'lucide-react';
 import { InventoryItem, InventoryUnit, RecipeIngredient, Warehouse } from '../../types';
+import BarcodeScanner from '../common/BarcodeScanner';
+import { barcodeApi } from '../../services/api';
 
 interface ItemModalProps {
     isOpen: boolean;
@@ -54,6 +56,26 @@ const ItemModal: React.FC<ItemModalProps> = ({ isOpen, onClose, onSave, lang, wa
         }
     }, [initialItem, warehouses, isOpen]);
 
+    const [scannerOpen, setScannerOpen] = useState(false);
+    const [generatingBarcode, setGeneratingBarcode] = useState(false);
+
+    const handleGenerateBarcode = useCallback(async () => {
+        setGeneratingBarcode(true);
+        try {
+            const result = await barcodeApi.generate();
+            setFormData(prev => ({ ...prev, barcode: result.barcode }));
+        } catch (err) {
+            console.error('Failed to generate barcode:', err);
+        } finally {
+            setGeneratingBarcode(false);
+        }
+    }, []);
+
+    const handleBarcodeScan = useCallback((code: string) => {
+        setFormData(prev => ({ ...prev, barcode: code }));
+        setScannerOpen(false);
+    }, []);
+
     if (!isOpen) return null;
 
     const handleAddIngredient = () => {
@@ -82,7 +104,7 @@ const ItemModal: React.FC<ItemModalProps> = ({ isOpen, onClose, onSave, lang, wa
 
     return (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center z-[110] p-4">
-            <div className="card-primary w-full max-w-4xl rounded-[2rem] shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
+            <div className="bg-white dark:bg-slate-900 w-full max-w-4xl rounded-[2rem] shadow-2xl overflow-hidden flex flex-col max-h-[90vh] border border-slate-200 dark:border-slate-800">
                 <div className="p-6 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center bg-slate-50 dark:bg-slate-900/50">
                     <div className="flex items-center gap-3">
                         <div className="w-12 h-12 rounded-2xl bg-indigo-600 text-white flex items-center justify-center">
@@ -130,7 +152,8 @@ const ItemModal: React.FC<ItemModalProps> = ({ isOpen, onClose, onSave, lang, wa
                                 />
                             </div>
                         </div>
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <div className="space-y-1.5">
                                 <label className="text-[10px] font-black text-slate-400 uppercase ml-1">SKU / Code</label>
                                 <input
@@ -140,6 +163,41 @@ const ItemModal: React.FC<ItemModalProps> = ({ isOpen, onClose, onSave, lang, wa
                                     className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none transition-all font-mono"
                                 />
                             </div>
+                            <div className="space-y-1.5">
+                                <label className="text-[10px] font-black text-slate-400 uppercase ml-1">{lang === 'ar' ? 'الباركود' : 'Barcode'}</label>
+                                <div className="flex gap-2">
+                                    <div className="relative flex-1">
+                                        <input
+                                            type="text"
+                                            value={formData.barcode}
+                                            onChange={e => setFormData({ ...formData, barcode: e.target.value })}
+                                            className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none transition-all font-mono pl-10"
+                                            placeholder="Scan or enter barcode..."
+                                        />
+                                        <Hash className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+                                    </div>
+                                    <button
+                                        type="button"
+                                        onClick={() => setScannerOpen(true)}
+                                        className="p-3 bg-indigo-50 text-indigo-600 dark:bg-indigo-900/30 dark:text-indigo-400 rounded-xl hover:bg-indigo-100 transition-colors"
+                                        title="Scan Barcode"
+                                    >
+                                        <Camera size={20} />
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={handleGenerateBarcode}
+                                        disabled={generatingBarcode}
+                                        className="p-3 bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400 rounded-xl hover:bg-slate-200 transition-colors"
+                                        title="Generate Barcode"
+                                    >
+                                        <RefreshCw size={20} className={generatingBarcode ? 'animate-spin' : ''} />
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <div className="space-y-1.5">
                                 <label className="text-[10px] font-black text-slate-400 uppercase ml-1">{lang === 'ar' ? 'الوحدة' : 'Unit'}</label>
                                 <select
@@ -233,8 +291,8 @@ const ItemModal: React.FC<ItemModalProps> = ({ isOpen, onClose, onSave, lang, wa
                                                 type="button"
                                                 onClick={() => setFormData({ ...formData, auditFrequency: freq as any })}
                                                 className={`px-4 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${formData.auditFrequency === freq
-                                                        ? 'bg-indigo-600 text-white'
-                                                        : 'card-primary text-slate-500 border border-slate-200 dark:border-slate-700'
+                                                    ? 'bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-900'
+                                                    : 'bg-transparent text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
                                                     }`}
                                             >
                                                 {freq}
@@ -327,6 +385,15 @@ const ItemModal: React.FC<ItemModalProps> = ({ isOpen, onClose, onSave, lang, wa
                     </button>
                 </div>
             </div>
+
+            {/* Barcode Scanner Modal overlay */}
+            {scannerOpen && (
+                <BarcodeScanner
+                    isOpen={scannerOpen}
+                    onClose={() => setScannerOpen(false)}
+                    onDetected={handleBarcodeScan}
+                />
+            )}
         </div>
     );
 };

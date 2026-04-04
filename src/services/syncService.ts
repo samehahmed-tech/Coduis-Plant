@@ -1,5 +1,12 @@
 import { localDb, SyncQueueItem } from '../db/localDb';
-import { auditApi, branchesApi, customersApi, inventoryApi, menuApi, ordersApi, settingsApi, tablesApi } from '../../services/api';
+import { auditApi } from '../../services/api/audit';
+import { ordersApi } from '../../services/api/orders';
+import { branchesApi } from '../../services/api/branches';
+import { settingsApi } from '../../services/api/settings';
+import { tablesApi } from '../../services/api/tables';
+import { customersApi } from '../../services/api/customers';
+import { menuApi } from '../../services/api/menu';
+import { inventoryApi } from '../../services/api/inventory';
 import { buildDedupeKey, computeNextAttempt } from './syncQueueUtils';
 
 const MAX_RETRIES = 10;

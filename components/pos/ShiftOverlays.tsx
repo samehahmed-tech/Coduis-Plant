@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Lock, Unlock, LogOut, Calculator, ArrowRight, CheckCircle2, History } from 'lucide-react';
 import { useFinanceStore } from '../../stores/useFinanceStore';
-import { shiftsApi } from '../../services/api';
+import { shiftsApi } from '../../services/api/shifts';
 import { useAuthStore } from '../../stores/useAuthStore';
 import { translations } from '../../services/translations';
 import { useToast } from '../Toast';

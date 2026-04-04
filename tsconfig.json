@@ -30,6 +30,7 @@
     "manual-seed.ts",
     "node_modules",
     "dist",
+    "coverage",
     "drizzle",
     "vite.config.ts.timestamp-*.mjs"
   ]

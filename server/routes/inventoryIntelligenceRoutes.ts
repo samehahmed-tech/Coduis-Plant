@@ -16,4 +16,7 @@ router.post('/stock-count', ctrl.createStockCount);
 router.put('/stock-count/:sessionId', ctrl.updateStockCount);
 router.post('/stock-count/:sessionId/complete', ctrl.completeStockCount);
 
+// AI Forecasting
+router.get('/forecast/:itemId', ctrl.getAIForecast);
+
 export default router;

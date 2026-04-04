@@ -88,3 +88,14 @@ export const completeStockCount = async (req: Request, res: Response) => {
         res.status(400).json({ error: error.message });
     }
 };
+
+export const getAIForecast = async (req: Request, res: Response) => {
+    try {
+        const { itemId } = req.params;
+        if (!itemId) return res.status(400).json({ error: 'itemId is required' });
+        const forecast = await inventoryIntelligence.getAIForecast(itemId);
+        res.json(forecast);
+    } catch (error: any) {
+        res.status(500).json({ error: error.message });
+    }
+};

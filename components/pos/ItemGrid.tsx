@@ -28,58 +28,58 @@ const ItemGrid: React.FC<ItemGridProps> = React.memo(({
         return map;
     }, [cartItems]);
 
-    // Identify popular items for dynamic sizing (top 5 popular or most ordered)
-    const popularIds = useMemo(() => {
-        const popular = new Set<string>();
-        items.forEach(item => {
-            if (item.isPopular) popular.add(item.id);
-        });
-        return popular;
-    }, [items]);
-
     if (items.length === 0) {
         return (
             <div className="h-full flex items-center justify-center text-muted opacity-40 flex-col gap-2">
-                <Ban size={32} />
-                <p className="font-bold text-xs uppercase tracking-widest">
+                <Ban size={28} />
+                <p className="font-bold text-xs uppercase tracking-wider">
                     {lang === 'ar' ? 'لا يوجد أصناف' : 'No items found'}
                 </p>
             </div>
         );
     }
 
-    const renderCard = (item: MenuItem) => (
-        <MenuItemCard
-            key={item.id}
-            item={item}
-            onAddItem={onAddItem}
-            onRemoveItem={onRemoveItem}
-            quantity={quantityByItemId[item.id] || 0}
-            currencySymbol={currencySymbol}
-            isTouchMode={isTouchMode}
-            density={density}
-            lang={lang}
-            highlighted={highlightedItemId === item.id}
-        />
-    );
-
-    // Grid config by density
-    const gridClass = (() => {
+    // Grid config by density — responsive min-width
+    const isSmallViewport = typeof window !== 'undefined' && window.innerWidth <= 1366;
+    const minColumnWidth = (() => {
         switch (density) {
-            case 'buttons':
-                return 'grid grid-cols-4 sm:grid-cols-5 md:grid-cols-6 lg:grid-cols-6 xl:grid-cols-7 2xl:grid-cols-8 gap-2 p-3 auto-rows-fr';
-            case 'ultra':
-            case 'compact':
-                return 'grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-5 xl:grid-cols-6 2xl:grid-cols-7 gap-2.5 p-3 auto-rows-fr';
-            default: // comfortable — stable large smart tiles, 3-4 columns mostly
-                return 'grid grid-cols-2 sm:grid-cols-3 md:grid-cols-3 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-4 p-4 auto-rows-fr';
+            case 'buttons': return isSmallViewport ? 120 : 140;
+            case 'ultra': return 360;
+            case 'compact': return isSmallViewport ? 160 : 196;
+            default: return isSmallViewport ? 190 : 236;
         }
     })();
 
     return (
-        <div className="h-full overflow-y-auto custom-scrollbar">
-            <div className={gridClass}>
-                {items.map((item) => renderCard(item))}
+        <div
+            className="flex-1 min-h-0 overflow-y-auto pos-scroll overscroll-contain will-change-scroll"
+            style={{ transform: 'translate3d(0,0,0)' }}
+        >
+            <div
+                className={density === 'ultra' ? 'flex flex-col' : 'grid'}
+                style={density === 'ultra' ? {
+                    gap: '6px',
+                    padding: 'clamp(6px, 0.8vw, 10px)',
+                } : {
+                    gap: 'clamp(10px, 0.9vw, 16px)',
+                    padding: 'clamp(6px, 0.8vw, 12px)',
+                    gridTemplateColumns: `repeat(auto-fill, minmax(${minColumnWidth}px, 1fr))`,
+                }}
+            >
+                {items.map((item) => (
+                    <MenuItemCard
+                        key={item.id}
+                        item={item}
+                        onAddItem={onAddItem}
+                        onRemoveItem={onRemoveItem}
+                        quantity={quantityByItemId[item.id] || 0}
+                        currencySymbol={currencySymbol}
+                        isTouchMode={isTouchMode}
+                        density={density}
+                        lang={lang}
+                        highlighted={highlightedItemId === item.id}
+                    />
+                ))}
             </div>
         </div>
     );

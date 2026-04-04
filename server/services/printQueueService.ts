@@ -7,6 +7,7 @@ export interface EnqueuePrintJobInput {
     branchId: string;
     type: 'RECEIPT' | 'KITCHEN';
     content: string;
+    contentType?: 'text' | 'image';
     printerId?: string | null;
     printerAddress?: string | null;
     printerType?: 'LOCAL' | 'NETWORK' | null;
@@ -24,6 +25,7 @@ const ensureTable = async () => {
             branch_id text not null,
             type text not null,
             content text not null,
+            content_type text not null default 'text',
             printer_id text,
             printer_address text,
             printer_type text default 'LOCAL',
@@ -40,6 +42,8 @@ const ensureTable = async () => {
         );
         create index if not exists print_jobs_branch_status_created_idx on print_jobs(branch_id, status, created_at);
     `);
+    // Add content_type column if missing (existing tables)
+    try { await pool.query(`ALTER TABLE print_jobs ADD COLUMN IF NOT EXISTS content_type text NOT NULL DEFAULT 'text'`); } catch { }
     ensured = true;
 };
 
@@ -51,6 +55,7 @@ export const enqueuePrintJob = async (input: EnqueuePrintJobInput) => {
         input.branchId,
         input.type,
         input.content,
+        input.contentType || 'text',
         input.printerId || null,
         input.printerAddress || null,
         input.printerType || 'LOCAL',
@@ -61,8 +66,8 @@ export const enqueuePrintJob = async (input: EnqueuePrintJobInput) => {
     ];
     const { rows } = await pool.query(
         `insert into print_jobs
-        (id, branch_id, type, content, printer_id, printer_address, printer_type, status, attempts, max_attempts, created_by)
-        values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)
+        (id, branch_id, type, content, content_type, printer_id, printer_address, printer_type, status, attempts, max_attempts, created_by)
+        values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)
         returning *`,
         values,
     );
@@ -194,4 +199,21 @@ export const retryPrintJob = async (jobId: string) => {
         [jobId],
     );
     return rows[0] || null;
+};
+
+export const cancelPrintJob = async (jobId: string): Promise<any | null> => {
+    await ensureTable();
+    const { rows } = await pool.query(
+        `DELETE FROM print_jobs WHERE id = $1 AND status != 'PROCESSING' RETURNING *`,
+        [jobId],
+    );
+    return rows[0] || null;
+};
+
+export const purgePrintJobs = async (): Promise<number> => {
+    await ensureTable();
+    const { rowCount } = await pool.query(
+        `DELETE FROM print_jobs`,
+    );
+    return rowCount || 0;
 };

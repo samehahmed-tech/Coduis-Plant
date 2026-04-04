@@ -1,7 +1,7 @@
 import React from 'react';
 import AdminDashboard from './AdminDashboard';
 import { useAuthStore } from '../stores/useAuthStore';
-import { analyticsApi } from '../services/api';
+import { analyticsApi } from '../services/api/analytics';
 
 const AdminDashboardPage: React.FC = () => {
     const lang = (useAuthStore((state) => state.settings.language) || 'en') as 'en' | 'ar';

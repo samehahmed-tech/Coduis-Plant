@@ -35,7 +35,7 @@ import { Table, TableStatus, FloorZone } from '../types';
 import { useOrderStore } from '../stores/useOrderStore';
 import { useAuthStore } from '../stores/useAuthStore';
 import { useNavigate } from 'react-router-dom';
-import { tablesApi } from '../services/api';
+import { tablesApi } from '../services/api/tables';
 import { localDb } from '../db/localDb';
 import { syncService } from '../services/syncService';
 
@@ -352,9 +352,9 @@ const FloorDesigner: React.FC<{ onClose?: () => void }> = ({ onClose }) => {
     const zoneBounds = getZoneBounds();
 
     return (
-        <div className={`fixed inset-0 bg-slate-100 dark:bg-slate-950 z-[200] flex flex-col animate-in fade-in duration-300 ${settings.language === 'ar' ? 'font-cairo' : 'font-outfit'}`} dir={settings.language === 'ar' ? 'rtl' : 'ltr'}>
+        <div className={`fixed inset-0 bg-background z-[200] flex flex-col animate-in fade-in duration-300 ${settings.language === 'ar' ? 'font-neo-ar' : 'font-neo'}`} dir={settings.language === 'ar' ? 'rtl' : 'ltr'}>
             {/* Top Navigation */}
-            <div className="h-20 card-primary border-b border-slate-200 dark:border-slate-800 px-8 flex items-center justify-between shadow-sm">
+            <div className="h-20 bg-card/80 backdrop-blur-3xl border-b border-border/50 px-8 flex items-center justify-between shadow-sm relative z-30">
                 <div className="flex items-center gap-6">
                     <button onClick={handleExit} className="p-3 bg-slate-50 dark:bg-slate-800 rounded-2xl text-slate-400 hover:text-rose-500 transition-all">
                         <X size={24} />
@@ -371,7 +371,7 @@ const FloorDesigner: React.FC<{ onClose?: () => void }> = ({ onClose }) => {
                                     <button
                                         key={z.id}
                                         onClick={() => setActiveZone(z.id)}
-                                        className={`px-3 py-1 rounded-lg text-[9px] font-black uppercase transition-all ${activeZone === z.id ? 'bg-indigo-600 text-white' : 'bg-slate-100 dark:bg-slate-800 text-slate-500 hover:bg-slate-200'}`}
+                                        className={`px-3 py-1.5 rounded-xl text-[9px] font-black uppercase transition-all tracking-widest ${activeZone === z.id ? 'bg-gradient-to-r from-indigo-500 to-cyan-500 text-white shadow-lg shadow-indigo-500/25' : 'bg-elevated text-muted hover:bg-card hover:text-main border border-border/50'}`}
                                     >
                                         {z.name}
                                     </button>
@@ -403,7 +403,7 @@ const FloorDesigner: React.FC<{ onClose?: () => void }> = ({ onClose }) => {
                     </div>
                     <button
                         onClick={handleSave}
-                        className="bg-indigo-600 text-white px-8 py-3.5 rounded-[1.5rem] font-black uppercase text-xs tracking-widest flex items-center gap-3 shadow-xl shadow-indigo-600/30 hover:bg-indigo-700 transition-all active:scale-95"
+                        className="bg-gradient-to-r from-indigo-500 to-cyan-500 text-white px-8 py-3.5 rounded-[1.2rem] font-black uppercase text-xs tracking-widest flex items-center gap-3 shadow-xl shadow-indigo-500/25 hover:shadow-indigo-500/40 hover:-translate-y-0.5 transition-all active:scale-95"
                     >
                         <Save size={18} /> Save Layout
                     </button>
@@ -412,50 +412,50 @@ const FloorDesigner: React.FC<{ onClose?: () => void }> = ({ onClose }) => {
 
             <div className="flex-1 flex overflow-hidden">
                 {/* Left Toolbar */}
-                <div className="w-85 bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl border-r border-slate-200/50 dark:border-slate-800/50 p-8 flex flex-col gap-10 overflow-y-auto no-scrollbar shadow-2xl z-20">
+                <div className="w-85 bg-card/60 backdrop-blur-3xl border-r border-border/50 p-8 flex flex-col gap-10 overflow-y-auto no-scrollbar shadow-2xl z-20">
                     {/* Element Library */}
                     <div>
-                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-6 flex items-center gap-2">
-                            <Plus size={14} className="text-indigo-600" /> Structure Library
+                        <p className="text-[10px] font-black text-muted uppercase tracking-[0.2em] mb-6 flex items-center gap-2">
+                            <Plus size={14} className="text-indigo-500" /> Structure Library
                         </p>
                         <div className="grid grid-cols-1 gap-4">
                             <button
                                 onClick={() => handleAddTable('square')}
-                                className="w-full flex items-center justify-between p-5 bg-slate-50 dark:bg-slate-800/50 rounded-2xl border-2 border-transparent hover:border-indigo-600/30 hover:bg-indigo-50 dark:hover:bg-indigo-900/10 transition-all group"
+                                className="w-full flex items-center justify-between p-5 bg-elevated rounded-[1.5rem] border border-border/50 hover:bg-card hover:shadow-xl hover:border-indigo-500/30 transition-all group"
                             >
                                 <div className="flex items-center gap-4">
-                                    <div className="w-12 h-12 card-primary rounded-xl shadow-sm flex items-center justify-center text-slate-400 group-hover:text-indigo-600 transition-colors">
+                                    <div className="w-12 h-12 bg-card rounded-xl shadow-sm flex items-center justify-center text-muted group-hover:text-indigo-500 transition-colors border border-border/50">
                                         <Square size={24} />
                                     </div>
-                                    <span className="text-xs font-black uppercase tracking-widest text-slate-600 dark:text-slate-300">Standard Table</span>
+                                    <span className="text-xs font-black uppercase tracking-widest text-main">Standard Table</span>
                                 </div>
-                                <Plus size={18} className="text-indigo-600 opacity-0 group-hover:opacity-100 transition-opacity" />
+                                <Plus size={18} className="text-indigo-500 opacity-0 group-hover:opacity-100 transition-opacity" />
                             </button>
 
                             <button
                                 onClick={() => handleAddTable('rectangle')}
-                                className="w-full flex items-center justify-between p-5 bg-slate-50 dark:bg-slate-800/50 rounded-2xl border-2 border-transparent hover:border-indigo-600/30 hover:bg-indigo-50 dark:hover:bg-indigo-900/10 transition-all group"
+                                className="w-full flex items-center justify-between p-5 bg-elevated rounded-[1.5rem] border border-border/50 hover:bg-card hover:shadow-xl hover:border-indigo-500/30 transition-all group"
                             >
                                 <div className="flex items-center gap-4">
-                                    <div className="w-12 h-12 card-primary rounded-xl shadow-sm flex items-center justify-center text-slate-400 group-hover:text-indigo-600 transition-colors">
+                                    <div className="w-12 h-12 bg-card rounded-xl shadow-sm flex items-center justify-center text-muted group-hover:text-indigo-500 transition-colors border border-border/50">
                                         <RectangleHorizontal size={24} />
                                     </div>
-                                    <span className="text-xs font-black uppercase tracking-widest text-slate-600 dark:text-slate-300">Family Bench</span>
+                                    <span className="text-xs font-black uppercase tracking-widest text-main">Family Bench</span>
                                 </div>
-                                <Plus size={18} className="text-indigo-600 opacity-0 group-hover:opacity-100 transition-opacity" />
+                                <Plus size={18} className="text-indigo-500 opacity-0 group-hover:opacity-100 transition-opacity" />
                             </button>
 
                             <button
                                 onClick={() => handleAddTable('round')}
-                                className="w-full flex items-center justify-between p-5 bg-slate-50 dark:bg-slate-800/50 rounded-2xl border-2 border-transparent hover:border-indigo-600/30 hover:bg-indigo-50 dark:hover:bg-indigo-900/10 transition-all group"
+                                className="w-full flex items-center justify-between p-5 bg-elevated rounded-[1.5rem] border border-border/50 hover:bg-card hover:shadow-xl hover:border-indigo-500/30 transition-all group"
                             >
                                 <div className="flex items-center gap-4">
-                                    <div className="w-12 h-12 card-primary rounded-xl shadow-sm flex items-center justify-center text-slate-400 group-hover:text-indigo-600 transition-colors">
+                                    <div className="w-12 h-12 bg-card rounded-xl shadow-sm flex items-center justify-center text-muted group-hover:text-indigo-500 transition-colors border border-border/50">
                                         <Circle size={24} />
                                     </div>
-                                    <span className="text-xs font-black uppercase tracking-widest text-slate-600 dark:text-slate-300">Round Station</span>
+                                    <span className="text-xs font-black uppercase tracking-widest text-main">Round Station</span>
                                 </div>
-                                <Plus size={18} className="text-indigo-600 opacity-0 group-hover:opacity-100 transition-opacity" />
+                                <Plus size={18} className="text-indigo-500 opacity-0 group-hover:opacity-100 transition-opacity" />
                             </button>
                         </div>
                     </div>
@@ -463,71 +463,71 @@ const FloorDesigner: React.FC<{ onClose?: () => void }> = ({ onClose }) => {
                     {/* Inspector */}
                     {selectedTable ? (
                         <div className="space-y-8 animate-in slide-in-from-left-4 duration-300">
-                            <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] flex items-center gap-2">
-                                <Settings2 size={14} className="text-indigo-600" /> Node Configuration
+                            <p className="text-[10px] font-black text-muted uppercase tracking-[0.2em] flex items-center gap-2">
+                                <Settings2 size={14} className="text-indigo-500" /> Node Configuration
                             </p>
 
-                            <div className="space-y-6 bg-slate-50 dark:bg-slate-800/30 p-6 rounded-[2.5rem] border border-slate-100 dark:border-slate-800 shadow-inner">
+                            <div className="space-y-6 bg-card/50 p-6 rounded-[2.5rem] border border-border/50 shadow-inner">
                                 <div className="space-y-2">
-                                    <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest ml-1 flex items-center gap-2">
+                                    <label className="text-[9px] font-black text-muted uppercase tracking-widest ml-1 flex items-center gap-2">
                                         <Type size={10} /> Identifier
                                     </label>
                                     <input
                                         type="text"
                                         value={selectedTable.name}
                                         onChange={(e) => handleUpdateTable(selectedTable.id, { name: e.target.value })}
-                                        className="w-full p-4 card-primary rounded-xl font-black text-sm uppercase tracking-widest outline-none border-2 border-transparent focus:border-indigo-600 transition-all"
+                                        className="w-full p-4 bg-elevated rounded-xl font-black text-sm text-main uppercase tracking-widest outline-none border border-border/50 focus:border-indigo-500 transition-all"
                                     />
                                 </div>
 
                                 <div className="grid grid-cols-2 gap-4">
                                     <div className="space-y-2">
-                                        <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest ml-1">Capacity</label>
-                                        <div className="flex items-center gap-2 px-4 py-3 card-primary rounded-xl">
-                                            <Users size={14} className="text-slate-400" />
+                                        <label className="text-[9px] font-black text-muted uppercase tracking-widest ml-1">Capacity</label>
+                                        <div className="flex items-center gap-2 px-4 py-3 bg-elevated border border-border/50 rounded-xl">
+                                            <Users size={14} className="text-muted" />
                                             <input
                                                 type="number"
                                                 value={selectedTable.seats}
                                                 onChange={(e) => handleUpdateTable(selectedTable.id, { seats: parseInt(e.target.value) || 0 })}
-                                                className="w-full bg-transparent font-black text-sm outline-none"
+                                                className="w-full bg-transparent font-black text-sm text-main outline-none"
                                             />
                                         </div>
                                     </div>
                                     <div className="space-y-2">
-                                        <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest ml-1">Discount %</label>
-                                        <div className="flex items-center gap-2 px-4 py-3 card-primary rounded-xl">
-                                            <Tag size={14} className="text-slate-400" />
+                                        <label className="text-[9px] font-black text-muted uppercase tracking-widest ml-1">Discount %</label>
+                                        <div className="flex items-center gap-2 px-4 py-3 bg-elevated border border-border/50 rounded-xl">
+                                            <Tag size={14} className="text-muted" />
                                             <input
                                                 type="number"
                                                 value={selectedTable.discount || 0}
                                                 onChange={(e) => handleUpdateTable(selectedTable.id, { discount: parseInt(e.target.value) || 0 })}
-                                                className="w-full bg-transparent font-black text-sm outline-none"
+                                                className="w-full bg-transparent font-black text-sm text-main outline-none"
                                             />
                                         </div>
                                     </div>
                                 </div>
 
-                                <div className="flex items-center justify-between p-4 card-primary rounded-xl border border-transparent has-[:checked]:border-indigo-600 transition-all">
+                                <div className="flex items-center justify-between p-4 bg-elevated rounded-xl border border-border/50 transition-all">
                                     <div className="flex items-center gap-3">
-                                        <div className={`p-2 rounded-lg ${selectedTable.isVIP ? 'bg-amber-100 text-amber-600' : 'bg-slate-100 text-slate-400'}`}>
+                                        <div className={`p-2 rounded-lg ${selectedTable.isVIP ? 'bg-amber-500/20 text-amber-500' : 'bg-card text-muted'}`}>
                                             <Crown size={16} />
                                         </div>
-                                        <span className="text-[10px] font-black uppercase tracking-widest">VIP Privilege</span>
+                                        <span className="text-[10px] font-black uppercase tracking-widest text-main">VIP Privilege</span>
                                     </div>
                                     <input
                                         type="checkbox"
                                         checked={selectedTable.isVIP}
                                         onChange={(e) => handleUpdateTable(selectedTable.id, { isVIP: e.target.checked })}
-                                        className="w-5 h-5 accent-indigo-600"
+                                        className="w-5 h-5 accent-indigo-500 rounded border-border/50"
                                     />
                                 </div>
 
                                 <div className="space-y-2">
-                                    <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest ml-1">Registry Notes</label>
+                                    <label className="text-[9px] font-black text-muted uppercase tracking-widest ml-1">Registry Notes</label>
                                     <textarea
                                         value={selectedTable.notes || ''}
                                         onChange={(e) => handleUpdateTable(selectedTable.id, { notes: e.target.value })}
-                                        className="w-full p-4 card-primary rounded-xl font-bold text-xs outline-none border-2 border-transparent focus:border-indigo-600 transition-all h-20 resize-none"
+                                        className="w-full p-4 bg-elevated text-main rounded-xl font-bold text-xs outline-none border border-border/50 focus:border-indigo-500 transition-all h-20 resize-none"
                                         placeholder="Special handling instructions..."
                                     />
                                 </div>
@@ -535,13 +535,13 @@ const FloorDesigner: React.FC<{ onClose?: () => void }> = ({ onClose }) => {
                                 <div className="pt-6 grid grid-cols-2 gap-3">
                                     <button
                                         onClick={() => handleDuplicateTable(selectedTable)}
-                                        className="p-4 card-primary text-slate-500 rounded-xl flex items-center justify-center gap-2 hover:text-indigo-600 transition-all shadow-sm group border border-slate-100 dark:border-slate-800"
+                                        className="p-4 bg-elevated text-muted rounded-xl flex items-center justify-center gap-2 hover:text-indigo-500 transition-all shadow-sm group border border-border/50"
                                     >
                                         <Copy size={16} /> <span className="text-[10px] font-black uppercase">Clone</span>
                                     </button>
                                     <button
                                         onClick={() => handleDeleteTable(selectedTable.id)}
-                                        className="p-4 bg-rose-50 dark:bg-rose-900/10 text-rose-500 rounded-xl flex items-center justify-center gap-2 hover:bg-rose-100 dark:hover:bg-rose-900/20 transition-all shadow-sm group"
+                                        className="p-4 bg-rose-500/10 text-rose-500 rounded-xl flex items-center justify-center gap-2 hover:bg-rose-500/20 hover:text-rose-400 transition-all shadow-sm group border border-rose-500/20"
                                     >
                                         <Trash2 size={16} /> <span className="text-[10px] font-black uppercase">Wipe</span>
                                     </button>
@@ -557,15 +557,15 @@ const FloorDesigner: React.FC<{ onClose?: () => void }> = ({ onClose }) => {
                 </div>
 
                 {/* Main Design Area */}
-                <div className="flex-1 relative bg-slate-100 dark:bg-slate-900 overflow-auto p-16 group/designer">
+                <div className="flex-1 relative bg-background/50 overflow-auto p-16 group/designer">
                     <div
                         ref={designerRef}
-                        className="relative card-primary shadow-[0_32px_64px_-16px_rgba(0,0,0,0.2)] border border-slate-200 dark:border-slate-800 rounded-sm"
+                        className="relative bg-card/60 backdrop-blur-3xl shadow-[0_32px_64px_-16px_rgba(0,0,0,0.2)] border border-border/50 rounded-[2rem]"
                         style={{ width: `${zoneBounds.width}px`, height: `${zoneBounds.height}px` }}
                         onClick={() => setSelectedId(null)}
                     >
                         {/* Visual Grid Background */}
-                        <div className="absolute inset-0 opacity-[0.07] pointer-events-none"
+                        <div className="absolute inset-0 opacity-[0.03] dark:opacity-[0.05] pointer-events-none rounded-[2rem]"
                             style={{
                                 backgroundImage: 'linear-gradient(#000 1px, transparent 1px), linear-gradient(90deg, #000 1px, transparent 1px)',
                                 backgroundSize: '40px 40px'
@@ -616,21 +616,21 @@ const FloorDesigner: React.FC<{ onClose?: () => void }> = ({ onClose }) => {
                                     borderRadius: table.shape === 'round' ? '100%' : '1.5rem',
                                     zIndex: selectedId === table.id ? 100 : 10
                                 }}
-                                className={`flex flex-col items-center justify-center border-4 transition-all shadow-2xl relative ${selectedId === table.id ? 'border-indigo-600 bg-white dark:bg-indigo-900/40 ring-8 ring-indigo-500/10 scale-105' : 'border-slate-800 dark:border-white/20 bg-white/80 dark:bg-slate-900/80 backdrop-blur-md hover:scale-102'}`}
+                                className={`flex flex-col items-center justify-center border-4 transition-all shadow-2xl relative ${selectedId === table.id ? 'border-indigo-500 bg-card ring-8 ring-indigo-500/20 scale-105' : 'border-border/50 bg-card/80 backdrop-blur-md hover:scale-102 hover:border-indigo-500/30'}`}
                             >
                                 {table.isVIP && (
-                                    <div className="absolute -top-3 -right-3 w-8 h-8 bg-amber-500 rounded-full flex items-center justify-center text-white shadow-lg border-2 border-white dark:border-slate-800 transform rotate-12">
+                                    <div className="absolute -top-3 -right-3 w-8 h-8 bg-gradient-to-br from-amber-400 to-amber-600 rounded-full flex items-center justify-center text-white shadow-lg border-2 border-card transform rotate-12">
                                         <Crown size={14} />
                                     </div>
                                 )}
 
-                                <span className={`text-lg font-black transition-colors ${selectedId === table.id ? 'text-indigo-600 dark:text-white' : 'text-slate-900 dark:text-white'}`}>
+                                <span className={`text-lg font-black transition-colors ${selectedId === table.id ? 'text-indigo-500' : 'text-main'}`}>
                                     {table.name}
                                 </span>
 
-                                <div className="flex items-center gap-1.5 mt-1 opacity-50">
-                                    <Users size={12} />
-                                    <span className="text-[11px] font-black">{table.seats}</span>
+                                <div className="flex items-center gap-1.5 mt-1 opacity-60">
+                                    <Users size={12} className={selectedId === table.id ? 'text-indigo-400' : 'text-muted'} />
+                                    <span className={`text-[11px] font-black ${selectedId === table.id ? 'text-indigo-500' : 'text-muted'}`}>{table.seats}</span>
                                     {table.discount ? (
                                         <div className="flex items-center gap-1 ml-1 text-emerald-500">
                                             <Tag size={10} />
@@ -640,16 +640,16 @@ const FloorDesigner: React.FC<{ onClose?: () => void }> = ({ onClose }) => {
                                 </div>
 
                                 {selectedId === table.id && (
-                                    <div className="absolute -bottom-12 flex gap-2 animate-in slide-in-from-top-2">
+                                    <div className="absolute -bottom-16 flex gap-2 animate-in slide-in-from-top-2 p-2 bg-card/80 backdrop-blur-xl border border-border/50 rounded-2xl shadow-xl">
                                         <button
                                             onClick={(e) => { e.stopPropagation(); handleDuplicateTable(table); }}
-                                            className="w-10 h-10 rounded-full card-primary shadow-xl border border-slate-100 dark:border-slate-700 flex items-center justify-center text-slate-400 hover:text-indigo-600 transition-all"
+                                            className="w-10 h-10 rounded-xl bg-elevated border border-border/50 flex items-center justify-center text-muted hover:text-indigo-500 hover:bg-card hover:border-indigo-500/30 transition-all"
                                         >
                                             <Copy size={16} />
                                         </button>
                                         <button
                                             onClick={(e) => { e.stopPropagation(); handleDeleteTable(table.id); }}
-                                            className="w-10 h-10 rounded-full card-primary shadow-xl border border-slate-100 dark:border-slate-700 flex items-center justify-center text-rose-500 hover:bg-rose-50 transition-all"
+                                            className="w-10 h-10 rounded-xl bg-rose-500/10 border border-rose-500/20 flex items-center justify-center text-rose-500 hover:bg-rose-500/20 transition-all"
                                         >
                                             <Trash2 size={16} />
                                         </button>
@@ -661,7 +661,7 @@ const FloorDesigner: React.FC<{ onClose?: () => void }> = ({ onClose }) => {
 
                     {/* HUD / Info Overlay */}
                     <div className="absolute right-10 bottom-10 flex flex-col items-end gap-3 pointer-events-none opacity-20 group-hover:opacity-100 transition-opacity">
-                        <div className="p-4 bg-white/80 dark:bg-slate-900/80 backdrop-blur-md rounded-2xl border border-white/20 shadow-2xl flex items-center gap-4">
+                        <div className="p-4 bg-white/80 dark:bg-slate-900/80 backdrop-blur-md rounded-2xl border border-border/40 shadow-2xl flex items-center gap-4">
                             <div className="flex items-center gap-2">
                                 <div className="w-3 h-3 rounded-full bg-indigo-600 animate-pulse" />
                                 <span className="text-[10px] font-black uppercase text-slate-900 dark:text-white">Live Mapping Active</span>
@@ -675,14 +675,14 @@ const FloorDesigner: React.FC<{ onClose?: () => void }> = ({ onClose }) => {
 
             {/* Zone Manager Modal */}
             {isZoneManagerOpen && (
-                <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-md z-[300] flex items-center justify-center p-6 animate-in fade-in duration-300">
-                    <div className="card-primary w-full max-w-lg rounded-[3.5rem] p-10 shadow-2xl space-y-8 animate-in zoom-in-95 duration-300">
+                <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-[300] flex items-center justify-center p-6 animate-in fade-in duration-300">
+                    <div className="bg-card w-full max-w-lg rounded-[3.5rem] p-10 shadow-2xl border border-border/50 space-y-8 animate-in zoom-in-95 duration-300">
                         <div className="flex justify-between items-center">
                             <div>
-                                <h3 className="text-2xl font-black text-slate-800 dark:text-white uppercase tracking-tight">Zone Management</h3>
-                                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Manage distinct spatial areas</p>
+                                <h3 className="text-2xl font-black text-main uppercase tracking-tight">Zone Management</h3>
+                                <p className="text-[10px] font-black text-muted uppercase tracking-widest">Manage distinct spatial areas</p>
                             </div>
-                            <button onClick={() => setIsZoneManagerOpen(false)} className="p-3 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-2xl transition-all">
+                            <button onClick={() => setIsZoneManagerOpen(false)} className="p-3 bg-elevated text-muted hover:text-main rounded-2xl transition-all">
                                 <X size={20} />
                             </button>
                         </div>

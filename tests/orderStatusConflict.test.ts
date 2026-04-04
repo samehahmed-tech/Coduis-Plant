@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { evaluateOrderStatusUpdate } from '../server/services/orderStatusPolicy';
+import { updateOrderStatusSchema } from '../server/middleware/validation';
 
 describe('order status policy', () => {
     it('rejects stale branch scope for non-super admin', () => {
@@ -35,5 +36,18 @@ describe('order status policy', () => {
             orderBranchId: 'b1',
         });
         expect(result.ok).toBe(true);
+    });
+
+    it('keeps validation aligned with policy for completed orders', () => {
+        const policyResult = evaluateOrderStatusUpdate({
+            currentStatus: 'OUT_FOR_DELIVERY',
+            nextStatus: 'COMPLETED',
+            userRole: 'BRANCH_MANAGER',
+            userBranchId: 'b1',
+            orderBranchId: 'b1',
+        });
+
+        expect(policyResult.ok).toBe(true);
+        expect(() => updateOrderStatusSchema.parse({ status: 'COMPLETED' })).not.toThrow();
     });
 });

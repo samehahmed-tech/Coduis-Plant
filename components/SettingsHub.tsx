@@ -1,4 +1,4 @@
-﻿import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
     Building2,
@@ -25,7 +25,9 @@ import {
 } from 'lucide-react';
 import { AppSettings } from '../types';
 import { useToast } from './Toast';
-import { aiApi, branchesApi, inventoryApi } from '../services/api';
+import { aiApi } from '../services/api/ai';
+import { branchesApi } from '../services/api/branches';
+import { inventoryApi } from '../services/api/inventory';
 import { nanoid } from 'nanoid';
 
 // Stores
@@ -36,7 +38,7 @@ import { useInventoryStore } from '../stores/useInventoryStore';
 const SettingsHub: React.FC = () => {
     const navigate = useNavigate();
     const { settings, updateSettings, branches, fetchBranches } = useAuthStore();
-    const { platforms } = useMenuStore();
+    const { platforms, fetchPlatforms, addPlatform } = useMenuStore();
     const { warehouses, fetchWarehouses } = useInventoryStore();
     const lang = settings.language;
     const { showToast } = useToast();
@@ -95,6 +97,7 @@ const SettingsHub: React.FC = () => {
             }
         };
         loadAiKeyConfig();
+        fetchPlatforms();
         return () => { cancelled = true; };
     }, []);
 
@@ -123,9 +126,9 @@ const SettingsHub: React.FC = () => {
             setDefaultAiModel(config.defaultModel);
             setAvailableAiModels(config.availableModels || []);
             setCustomAiKey('');
-            showToast(lang === 'ar' ? 'تم حفظ إعدادات الذكاء الاصطناعي' : 'AI key configuration saved', 'success');
+            showToast(lang === 'ar' ? '�� ��� ������� ������ ���������' : 'AI key configuration saved', 'success');
         } catch (err: any) {
-            showToast(err?.message || (lang === 'ar' ? 'فشل حفظ إعدادات الذكاء الاصطناعي' : 'Failed to save AI key config'), 'error');
+            showToast(err?.message || (lang === 'ar' ? '��� ��� ������� ������ ���������' : 'Failed to save AI key config'), 'error');
         } finally {
             setAiConfigSaving(false);
         }
@@ -141,7 +144,7 @@ const SettingsHub: React.FC = () => {
 
     const handleAddBranch = async () => {
         if (!branchForm.name || !branchForm.location) {
-            showToast(lang === 'ar' ? 'يرجى ملء جميع الحقول' : 'Please fill all fields', 'error');
+            showToast(lang === 'ar' ? '���� ��� ���� ������' : 'Please fill all fields', 'error');
             return;
         }
         setIsSubmitting(true);
@@ -152,7 +155,7 @@ const SettingsHub: React.FC = () => {
                 isActive: true,
             });
             await fetchBranches(); // Refresh branches list
-            showToast(lang === 'ar' ? 'تمت إضافة الفرع بنجاح' : 'Branch added successfully', 'success');
+            showToast(lang === 'ar' ? '��� ����� ����� �����' : 'Branch added successfully', 'success');
             setShowBranchModal(false);
             setBranchForm({ name: '', location: '', timezone: 'Africa/Cairo', currency: 'EGP' });
         } catch (err: any) {
@@ -164,14 +167,18 @@ const SettingsHub: React.FC = () => {
 
     const handleAddPlatform = async () => {
         if (!platformForm.name) {
-            showToast(lang === 'ar' ? 'يرجى إدخال اسم التطبيق' : 'Please enter platform name', 'error');
+            showToast(lang === 'ar' ? '���� ����� ��� �������' : 'Please enter platform name', 'error');
             return;
         }
         setIsSubmitting(true);
         try {
-            // Platforms are stored locally for now - no backend API yet
-            // In production, this would call a platforms API
-            showToast(lang === 'ar' ? 'تمت إضافة التطبيق بنجاح' : 'Platform added successfully', 'success');
+            await addPlatform({
+                name: platformForm.name,
+                isActive: true,
+                feePercentage: Number(platformForm.commissionPercent) || 0,
+                integrationType: 'MANUAL',
+            });
+            showToast(lang === 'ar' ? '��� ����� ������� �����' : 'Platform added successfully', 'success');
             setShowPlatformModal(false);
             setPlatformForm({ name: '', apiKey: '', commissionPercent: 0 });
         } catch (err: any) {
@@ -183,7 +190,7 @@ const SettingsHub: React.FC = () => {
 
     const handleAddWarehouse = async () => {
         if (!warehouseForm.name || !warehouseForm.branchId) {
-            showToast(lang === 'ar' ? 'يرجى ملء جميع الحقول' : 'Please fill all fields', 'error');
+            showToast(lang === 'ar' ? '���� ��� ���� ������' : 'Please fill all fields', 'error');
             return;
         }
         setIsSubmitting(true);
@@ -194,7 +201,7 @@ const SettingsHub: React.FC = () => {
                 isActive: true,
             });
             if (fetchWarehouses) await fetchWarehouses(); // Refresh warehouses list
-            showToast(lang === 'ar' ? 'تمت إضافة المخزن بنجاح' : 'Warehouse added successfully', 'success');
+            showToast(lang === 'ar' ? '��� ����� ������ �����' : 'Warehouse added successfully', 'success');
             setShowWarehouseModal(false);
             setWarehouseForm({ name: '', branchId: '', type: 'MAIN' });
         } catch (err: any) {
@@ -207,31 +214,31 @@ const SettingsHub: React.FC = () => {
     const sections = [
         {
             id: 'IDENTITY',
-            title: lang === 'ar' ? 'هوية المطعم' : 'Restaurant Identity',
+            title: lang === 'ar' ? '���� ������' : 'Restaurant Identity',
             icon: Building2,
             color: 'bg-indigo-600',
             fields: [
-                { key: 'restaurantName', label: lang === 'ar' ? 'اسم المطعم' : 'Restaurant Name', type: 'text' },
-                { key: 'phone', label: lang === 'ar' ? 'رقم الهاتف' : 'Phone Number', type: 'text' },
-                { key: 'branchAddress', label: lang === 'ar' ? 'عنوان الفرع' : 'Branch Address', type: 'text' },
-                { key: 'receiptLogoUrl', label: lang === 'ar' ? 'رابط شعار الإيصال' : 'Receipt Logo URL', type: 'text' },
-                { key: 'receiptQrUrl', label: lang === 'ar' ? 'رابط QR في الإيصال' : 'Receipt QR URL', type: 'text' },
+                { key: 'restaurantName', label: lang === 'ar' ? '��� ������' : 'Restaurant Name', type: 'text' },
+                { key: 'phone', label: lang === 'ar' ? '��� ������' : 'Phone Number', type: 'text' },
+                { key: 'branchAddress', label: lang === 'ar' ? '����� �����' : 'Branch Address', type: 'text' },
+                { key: 'receiptLogoUrl', label: lang === 'ar' ? '���� ���� �������' : 'Receipt Logo URL', type: 'text' },
+                { key: 'receiptQrUrl', label: lang === 'ar' ? '���� QR �� �������' : 'Receipt QR URL', type: 'text' },
             ]
         },
         {
             id: 'FINANCE',
-            title: lang === 'ar' ? 'المالية والضرائب' : 'Finance & Tax',
+            title: lang === 'ar' ? '������� ��������' : 'Finance & Tax',
             icon: DollarSign,
             color: 'bg-emerald-600',
             fields: [
-                { key: 'currency', label: lang === 'ar' ? 'العملة' : 'Currency', type: 'text' },
-                { key: 'taxRate', label: lang === 'ar' ? 'نسبة الضريبة (%)' : 'Tax Rate (%)', type: 'number' },
-                { key: 'serviceCharge', label: lang === 'ar' ? 'خدمة الصالة (%)' : 'Service Charge (%)', type: 'number' },
+                { key: 'currency', label: lang === 'ar' ? '������' : 'Currency', type: 'text' },
+                { key: 'taxRate', label: lang === 'ar' ? '���� ������� (%)' : 'Tax Rate (%)', type: 'number' },
+                { key: 'serviceCharge', label: lang === 'ar' ? '���� ������ (%)' : 'Service Charge (%)', type: 'number' },
             ]
         },
         {
             id: 'BRANCHES',
-            title: lang === 'ar' ? 'إدارة الفروع' : 'Branch Management',
+            title: lang === 'ar' ? '����� ������' : 'Branch Management',
             icon: Store,
             color: 'bg-purple-600',
             customRender: () => (
@@ -251,14 +258,14 @@ const SettingsHub: React.FC = () => {
                         </div>
                     ))}
                     <button onClick={() => setShowBranchModal(true)} className="p-5 border-2 border-dashed border-border rounded-[1.5rem] flex items-center justify-center gap-3 text-muted font-black text-[10px] uppercase tracking-widest hover:text-primary hover:border-primary/50 transition-all bg-app/50">
-                        <Plus size={18} /> {lang === 'ar' ? 'إضافة فرع' : 'Provision New Branch'}
+                        <Plus size={18} /> {lang === 'ar' ? '����� ���' : 'Provision New Branch'}
                     </button>
                 </div>
             )
         },
         {
             id: 'PLATFORMS',
-            title: lang === 'ar' ? 'تطبيقات التوصيل' : 'Delivery Platforms',
+            title: lang === 'ar' ? '������� �������' : 'Delivery Platforms',
             icon: Truck,
             color: 'bg-orange-600',
             customRender: () => (
@@ -273,14 +280,14 @@ const SettingsHub: React.FC = () => {
                     ))}
                     <button onClick={() => setShowPlatformModal(true)} className="flex flex-col items-center justify-center gap-2 p-4 border-border rounded-2xl text-muted hover:text-orange-600 hover:border-orange-400 transition-all">
                         <Plus size={24} />
-                        <span className="text-[10px] font-black uppercase tracking-widest">{lang === 'ar' ? 'ط¥ظٹط¬ط§ط¯ طھط·ط¨ظٹظ‚' : 'Add App'}</span>
+                        <span className="text-[10px] font-black uppercase tracking-widest">{lang === 'ar' ? 'إيجاد تطبيق' : 'Add App'}</span>
                     </button>
                 </div>
             )
         },
         {
             id: 'WAREHOUSES',
-            title: lang === 'ar' ? 'إدارة المخازن' : 'Warehouse Setup',
+            title: lang === 'ar' ? '����� �������' : 'Warehouse Setup',
             icon: Package,
             color: 'bg-blue-600',
             customRender: () => (
@@ -300,70 +307,15 @@ const SettingsHub: React.FC = () => {
                         );
                     })}
                     <button onClick={() => setShowWarehouseModal(true)} className="p-4 border-border rounded-2xl flex items-center justify-center gap-2 text-muted font-black text-xs uppercase hover:text-primary hover:border-primary/50 transition-all">
-                        <Plus size={16} /> {lang === 'ar' ? 'إضافة مخزن' : 'Add Warehouse'}
+                        <Plus size={16} /> {lang === 'ar' ? ' ' : 'Add Warehouse'}
                     </button>
                 </div>
             )
         },
-        {
-            id: 'THEME',
-            title: lang === 'ar' ? 'الثيمات والمظهر' : 'Themes & Appearance',
-            icon: Palette,
-            color: 'bg-rose-600',
-            customRender: () => (
-                <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
-                    {[
-                        { id: 'xen', name: lang === 'ar' ? 'ط²ظٹظ† ط¨ط±ظˆ' : 'Xen Pro', colors: ['#00A8CC', '#0F172A'] },
-                        { id: 'ember', name: lang === 'ar' ? 'إمبر بزنس' : 'Ember Business', colors: ['#F57C2B', '#1F130C'] },
-                        { id: 'graphite', name: lang === 'ar' ? 'جرافيت تنفيذي' : 'Graphite Executive', colors: ['#4C5463', '#111827'] },
-                        { id: 'ocean', name: lang === 'ar' ? 'ط£ظˆط´ظ† ط¨ط±ظٹظ…ظٹظˆظ…' : 'Ocean Premium', colors: ['#2B7CF2', '#0B1B33'] },
-                        { id: 'carbon', name: lang === 'ar' ? 'ظƒط§ط±ط¨ظˆظ† ظ„ظˆظƒط³' : 'Carbon Luxe', colors: ['#111827', '#22C55E'] },
-                        { id: 'royal', name: lang === 'ar' ? 'رويال كلاسيك' : 'Royal Classic', colors: ['#2E4D9E', '#0E1B3D'] },
-                        { id: 'emerald_luxe', name: lang === 'ar' ? 'زمرد لوكس' : 'Emerald Luxe', colors: ['#0E9F6E', '#06281C'] },
-                        { id: 'noir', name: lang === 'ar' ? 'ظ†ظˆط§ط± ط¨ط±ظˆ' : 'Noir Pro', colors: ['#0F172A', '#0A0A0A'] },
-                        { id: 'beige_luxe', name: lang === 'ar' ? 'ط¨ظٹط¬ ظپط§ط®ط±' : 'Beige Luxe', colors: ['#C8A97E', '#3A2F2A'] },
-                    ].map(theme => (
-                        <button
-                            key={theme.id}
-                            onClick={() => handleChange('theme', theme.id)}
-                            className={`p-4 rounded-[2rem] border-2 transition-all text-left space-y-3 relative overflow-hidden group ${settings.theme === theme.id ? 'border-rose-500 bg-rose-50 dark:bg-rose-900/10' : 'border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/50 hover:border-rose-200'}`}
-                        >
-                            <div className="flex gap-1.5 relative z-10">
-                                {theme.colors.map((c, i) => (
-                                    <div key={i} className="w-5 h-5 rounded-full border border-white/20 shadow-sm" style={{ backgroundColor: c }} />
-                                ))}
-                            </div>
-                            <div className="rounded-2xl overflow-hidden border border-slate-200 dark:border-slate-800 bg-white/60 dark:bg-slate-900/40">
-                                <div className="h-10 px-3 flex items-center gap-2" style={{ background: `linear-gradient(120deg, ${theme.colors[0]}20, ${theme.colors[1]}30)` }}>
-                                    <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: theme.colors[0] }} />
-                                    <div className="text-[9px] font-black uppercase tracking-widest text-slate-700 dark:text-slate-200">
-                                        {lang === 'ar' ? 'معاينة' : 'Preview'}
-                                    </div>
-                                </div>
-                                <div className="p-3 space-y-2">
-                                    <div className="h-10 rounded-xl border border-slate-200/60 dark:border-slate-800/60 bg-white/80 dark:bg-slate-900/60 flex items-center justify-between px-3">
-                                        <span className="text-[9px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-400">
-                                            {lang === 'ar' ? 'ظ†طµ ط±ط¦ظٹط³ظٹ' : 'Primary Text'}
-                                        </span>
-                                        <span className="text-[10px] font-black" style={{ color: theme.colors[0] }}>
-                                            {lang === 'ar' ? 'ط²ط±' : 'Action'}
-                                        </span>
-                                    </div>
-                                    <div className="h-8 rounded-lg bg-slate-100 dark:bg-slate-800/70" />
-                                </div>
-                            </div>
-                            <p className="text-[10px] font-black uppercase tracking-tight text-slate-800 dark:text-white relative z-10">{theme.name}</p>
-                            {settings.theme === theme.id && (
-                                <div className="absolute top-2 right-2 w-2 h-2 bg-rose-500 rounded-full animate-ping" />
-                            )}
-                        </button>
-                    ))}
-                </div>
-            )
-        },
+        // Theme section removed — handled by sidebar theme picker + AppearanceModal
         {
             id: 'AI_AUTOMATION',
-            title: lang === 'ar' ? 'الذكاء الاصطناعي والأتمتة' : 'AI & Automation',
+            title: lang === 'ar' ? '  ' : 'AI & Automation',
             icon: Cpu,
             color: 'bg-cyan-600',
             customRender: () => (
@@ -371,7 +323,7 @@ const SettingsHub: React.FC = () => {
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div className="md:col-span-2 space-y-3">
                             <label className="text-[10px] font-black text-muted uppercase tracking-[0.2em] ml-1">
-                                {lang === 'ar' ? 'مزود الذكاء الاصطناعي' : 'AI Provider'}
+                                {lang === 'ar' ? '���� ������ ���������' : 'AI Provider'}
                             </label>
                             <select
                                 value={aiProvider}
@@ -389,11 +341,11 @@ const SettingsHub: React.FC = () => {
                                 <div className="space-y-3">
                                     <div className="text-[10px] text-muted font-bold uppercase tracking-widest">
                                         {lang === 'ar'
-                                            ? `الحالة: ${ollamaEnabled ? 'مفعل على السيرفر' : 'غير مفعل على السيرفر'} | العنوان: ${ollamaBaseUrl || '-'}`
+                                            ? `������: ${ollamaEnabled ? '���� ��� �������' : '��� ���� ��� �������'} | �������: ${ollamaBaseUrl || '-'}`
                                             : `Status: ${ollamaEnabled ? 'enabled on server' : 'disabled on server'} | URL: ${ollamaBaseUrl || '-'}`}
                                     </div>
                                     <label className="text-[10px] font-black text-muted uppercase tracking-[0.2em] ml-1">
-                                        {lang === 'ar' ? 'موديل Ollama (محلي)' : 'Ollama Model (Local)'}
+                                        {lang === 'ar' ? '����� Ollama (����)' : 'Ollama Model (Local)'}
                                     </label>
                                     <input
                                         value={ollamaModel || ''}
@@ -403,7 +355,7 @@ const SettingsHub: React.FC = () => {
                                     />
                                     <p className="text-[10px] text-muted font-bold uppercase tracking-widest">
                                         {lang === 'ar'
-                                            ? 'ملاحظة: Ollama مجاني بالكامل. شغله على جهاز السيرفر/الكمبيوتر ثم اختار الموديل هنا.'
+                                            ? '������: Ollama ����� �������. ���� ��� ���� �������/��������� �� ����� ������� ���.'
                                             : 'Note: Ollama is fully free. Run it on the server machine, then select the local model here.'}
                                     </p>
                                 </div>
@@ -415,12 +367,12 @@ const SettingsHub: React.FC = () => {
                             className={`p-5 rounded-2xl border text-left transition-all ${aiKeySource === 'DEFAULT' ? 'border-primary bg-primary/5' : 'border-border bg-app/40'}`}
                         >
                             <p className="text-xs font-black uppercase tracking-wider text-main">
-                                {lang === 'ar' ? 'المفتاح الافتراضي (Server)' : 'Default Server Key'}
+                                {lang === 'ar' ? '������� ��������� (Server)' : 'Default Server Key'}
                             </p>
                             <p className="text-[10px] text-muted mt-2 font-bold uppercase tracking-widest">
                                 {usingDefaultAvailable
-                                    ? (lang === 'ar' ? 'متاح على السيرفر' : 'Available on server')
-                                    : (lang === 'ar' ? 'غير مضبوط في البيئة' : 'Missing in environment')}
+                                    ? (lang === 'ar' ? '���� ��� �������' : 'Available on server')
+                                    : (lang === 'ar' ? '��� ����� �� ������' : 'Missing in environment')}
                             </p>
                         </button>
 
@@ -430,12 +382,12 @@ const SettingsHub: React.FC = () => {
                             className={`p-5 rounded-2xl border text-left transition-all ${aiKeySource === 'CUSTOM' ? 'border-primary bg-primary/5' : 'border-border bg-app/40'}`}
                         >
                             <p className="text-xs font-black uppercase tracking-wider text-main">
-                                {lang === 'ar' ? 'مفتاح مخصص مشفر' : 'Encrypted Custom Key'}
+                                {lang === 'ar' ? '����� ���� ����' : 'Encrypted Custom Key'}
                             </p>
                             <p className="text-[10px] text-muted mt-2 font-bold uppercase tracking-widest">
                                 {hasCustomAiKey
-                                    ? `${lang === 'ar' ? 'محفوظ:' : 'Stored:'} ${maskedCustomAiKey || '***'}`
-                                    : (lang === 'ar' ? 'لا يوجد مفتاح مخصص' : 'No custom key saved')}
+                                    ? `${lang === 'ar' ? '�����:' : 'Stored:'} ${maskedCustomAiKey || '***'}`
+                                    : (lang === 'ar' ? '�� ���� ����� ����' : 'No custom key saved')}
                             </p>
                         </button>
                     </div>
@@ -443,7 +395,7 @@ const SettingsHub: React.FC = () => {
                     {aiKeySource === 'CUSTOM' && (
                         <div className="space-y-3">
                             <label className="text-[10px] font-black text-muted uppercase tracking-[0.2em] ml-1">
-                                {lang === 'ar' ? 'إدخال/تحديث مفتاح مخصص' : 'Set or rotate custom key'}
+                                {lang === 'ar' ? '�����/����� ����� ����' : 'Set or rotate custom key'}
                             </label>
                             <input
                                 type="password"
@@ -455,7 +407,7 @@ const SettingsHub: React.FC = () => {
                             />
                             <p className="text-[10px] text-muted font-bold uppercase tracking-widest">
                                 {lang === 'ar'
-                                    ? 'المفتاح يتم تشفيره وحفظه على السيرفر فقط ولن يظهر في الواجهة.'
+                                    ? '������� ��� ������ ����� ��� ������� ��� ��� ���� �� �������.'
                                     : 'Key is encrypted and stored server-side only, never exposed to client.'}
                             </p>
                         </div>
@@ -463,7 +415,7 @@ const SettingsHub: React.FC = () => {
 
                     <div className="space-y-3">
                         <label className="text-[10px] font-black text-muted uppercase tracking-[0.2em] ml-1">
-                            {lang === 'ar' ? 'موديل الذكاء الاصطناعي (مجاني فقط)' : 'AI Model (Free models only)'}
+                            {lang === 'ar' ? '����� ������ ��������� (����� ���)' : 'AI Model (Free models only)'}
                         </label>
                         <select
                             value={aiModel || defaultAiModel}
@@ -479,9 +431,9 @@ const SettingsHub: React.FC = () => {
                         </select>
                         <p className="text-[10px] text-muted font-bold uppercase tracking-widest">
                             {aiProvider === 'OLLAMA'
-                                ? (lang === 'ar' ? 'سيتم استخدام موديل Ollama المحلي.' : 'Using local Ollama model.')
+                                ? (lang === 'ar' ? '���� ������� ����� Ollama ������.' : 'Using local Ollama model.')
                                 : (lang === 'ar'
-                                    ? `الافتراضي: Gemini (${defaultAiModel || 'google/gemini-2.0-flash-exp:free'})`
+                                    ? `���������: Gemini (${defaultAiModel || 'google/gemini-2.0-flash-exp:free'})`
                                     : `Default: Gemini (${defaultAiModel || 'google/gemini-2.0-flash-exp:free'})`)}
                         </p>
                     </div>
@@ -494,7 +446,7 @@ const SettingsHub: React.FC = () => {
                             className="px-6 py-3 rounded-2xl bg-primary text-white text-[10px] font-black uppercase tracking-[0.2em] disabled:opacity-60 flex items-center gap-2"
                         >
                             {(aiConfigLoading || aiConfigSaving) ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
-                            {lang === 'ar' ? 'حفظ إعداد AI' : 'Save AI Config'}
+                            {lang === 'ar' ? '��� ����� AI' : 'Save AI Config'}
                         </button>
                     </div>
                 </div>
@@ -503,7 +455,7 @@ const SettingsHub: React.FC = () => {
     ];
 
     return (
-        <div className="p-10 space-y-12 animate-in fade-in slide-in-from-bottom-8 duration-700 pb-32">
+        <div className="page-shell pb-32 animate-fade-up">
             {/* Header */}
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-8 border-b border-border pb-10">
                 <div>
@@ -525,99 +477,106 @@ const SettingsHub: React.FC = () => {
                     <button
                         onClick={() => {
                             updateSettings(settings);
-                            showToast(lang === 'ar' ? 'تم حفظ الإعدادات بنجاح' : 'Settings saved successfully', 'success');
+                            showToast(lang === 'ar' ? '�� ��� ��������� �����' : 'Settings saved successfully', 'success');
                         }}
                         className="flex items-center gap-3 px-8 py-4 bg-primary text-white rounded-[1.5rem] font-black text-[10px] uppercase tracking-[0.2em] hover:bg-opacity-90 transition-all shadow-2xl shadow-primary/30"
                     >
-                        <Save size={18} /> {lang === 'ar' ? 'حفظ الإعدادات' : 'Save Settings'}
+                        <Save size={18} /> {lang === 'ar' ? '��� ���������' : 'Save Settings'}
                     </button>
                 </div>
             </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-12 gap-12">
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
                 {/* Left Navigation */}
-                <div className="lg:col-span-4 space-y-4 h-fit sticky top-10">
+                <div className="lg:col-span-4 space-y-2 h-fit sticky top-6">
                     {sections.map(section => (
                         <button
                             key={section.id}
-                            onClick={() => {
-                                document.getElementById(section.id)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-                            }}
-                            className="w-full flex items-center gap-5 p-6 rounded-[2.5rem] bg-card border border-border shadow-sm hover:shadow-xl hover:border-primary/30 transition-all group overflow-hidden relative"
+                            onClick={() => document.getElementById(section.id)?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
+                            className="w-full flex items-center gap-4 px-4 py-3.5 rounded-2xl bg-card border border-border/30 hover:border-primary/25 hover:bg-elevated/60 transition-all group"
                         >
-                            <div className="absolute inset-0 bg-primary/5 opacity-0 group-hover:opacity-100 transition-opacity duration-700" />
-                            <div className={`p-4 ${section.color} text-white rounded-2xl z-10 shadow-lg`}>
-                                <section.icon size={22} />
+                            <div className={`w-9 h-9 ${section.color} text-white rounded-xl flex items-center justify-center shrink-0 shadow-sm`}>
+                                <section.icon size={16} />
                             </div>
-                            <span className="font-black text-[10px] uppercase tracking-[0.2em] text-main z-10">{section.title}</span>
-                            <div className="ml-auto p-2 bg-app rounded-xl text-muted group-hover:text-primary transition-colors z-10">
-                                <ChevronRight size={14} />
-                            </div>
+                            <span className="font-black text-[10px] uppercase tracking-widest text-main flex-1 text-left">{section.title}</span>
+                            <ChevronRight size={13} className="text-muted group-hover:text-primary transition-colors" />
                         </button>
                     ))}
 
-                    <div className="p-10 bg-primary rounded-[3rem] text-white shadow-2xl shadow-primary/40 mt-10 relative overflow-hidden group">
-                        <div className="absolute top-0 right-0 w-48 h-48 bg-white/10 rounded-full blur-3xl group-hover:scale-150 transition-transform duration-1000" />
-                        <h4 className="font-black uppercase tracking-tight text-2xl mb-4 relative z-10">Floor Design</h4>
-                        <p className="text-[10px] uppercase font-bold text-white/70 leading-relaxed mb-8 relative z-10">Design your restaurant seating layout and table arrangement.</p>
+                    <div className="p-6 bg-primary rounded-3xl text-white shadow-xl shadow-primary/30 mt-4 relative overflow-hidden">
+                        <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full blur-2xl" />
+                        <h4 className="font-black uppercase tracking-tight text-base mb-2 relative z-10">Floor Design</h4>
+                        <p className="text-[9px] uppercase font-bold text-white/70 leading-relaxed mb-5 relative z-10">Design your restaurant seating layout and table arrangement.</p>
                         <button
                             onClick={onOpenFloorDesigner}
-                            className="w-full py-5 bg-white text-primary rounded-[1.5rem] font-black text-[10px] uppercase tracking-widest hover:bg-opacity-95 transition-all shadow-xl relative z-10"
+                            className="w-full py-3 bg-white text-primary rounded-2xl font-black text-[9px] uppercase tracking-widest hover:bg-opacity-95 transition-all shadow-lg relative z-10"
                         >
                             Open Designer
+                        </button>
+                    </div>
+
+                    <div className="p-6 bg-gradient-to-br from-amber-500 to-orange-500 rounded-3xl text-white shadow-xl shadow-amber-500/30 mt-4 relative overflow-hidden">
+                        <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full blur-2xl" />
+                        <h4 className="font-black uppercase tracking-tight text-base mb-2 relative z-10">
+                            {lang === 'ar' ? 'مصمم الشيكات' : 'Receipt Designer'}
+                        </h4>
+                        <p className="text-[9px] uppercase font-bold text-white/70 leading-relaxed mb-5 relative z-10">
+                            {lang === 'ar' ? 'صمم شكل الإيصالات وتذاكر المطبخ بالسحب والإفلات' : 'Design receipt and kitchen ticket layouts with drag & drop'}
+                        </p>
+                        <button
+                            onClick={() => navigate('/receipt-designer')}
+                            className="w-full py-3 bg-white text-amber-600 rounded-2xl font-black text-[9px] uppercase tracking-widest hover:bg-opacity-95 transition-all shadow-lg relative z-10"
+                        >
+                            {lang === 'ar' ? 'فتح المصمم' : 'Open Designer'}
                         </button>
                     </div>
                 </div>
 
                 {/* Right Content */}
-                <div className="lg:col-span-8 space-y-12">
+                <div className="lg:col-span-8 space-y-6">
                     {sections.map(section => (
-                        <div key={section.id} id={section.id} className="bg-card border border-border p-12 rounded-[3.5rem] scroll-mt-10 overflow-hidden relative">
-                            <div className="absolute top-0 right-0 w-64 h-64 bg-primary/5 rounded-full blur-3xl -mr-32 -mt-32" />
-
-                            <div className="flex items-center gap-6 mb-12 pb-8 border-b border-border relative z-10">
-                                <div className={`p-5 ${section.color} text-white rounded-2xl shadow-xl`}>
-                                    <section.icon size={28} />
+                        <div key={section.id} id={section.id} className="card-primary scroll-mt-6">
+                            <div className="flex items-center gap-4 mb-6 pb-5 border-b border-border/30">
+                                <div className={`w-10 h-10 ${section.color} text-white rounded-xl flex items-center justify-center shadow-md shrink-0`}>
+                                    <section.icon size={18} />
                                 </div>
                                 <div>
-                                    <h3 className="text-3xl font-black text-main uppercase tracking-tight">{section.title}</h3>
-                                    <p className="text-[10px] font-black text-muted uppercase tracking-[0.2em] mt-2 opacity-60">Configure section settings</p>
+                                    <h3 className="text-base font-black text-main tracking-tight">{section.title}</h3>
+                                    <p className="text-[9px] font-bold text-muted uppercase tracking-widest mt-0.5">Configure section settings</p>
                                 </div>
                             </div>
 
-                            <div className="relative z-10">
-                                {section.customRender ? (
-                                    section.customRender()
-                                ) : (
-                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
-                                        {section.fields?.map(field => (
-                                            <div key={field.key} className="space-y-4">
-                                                <label className="text-[10px] font-black text-muted uppercase tracking-[0.2em] ml-1 flex items-center gap-2">
-                                                    <div className="w-1.5 h-1.5 rounded-full bg-primary" /> {field.label}
-                                                </label>
-                                                <input
-                                                    type={field.type}
-                                                    value={(settings as any)[field.key] || ''}
-                                                    onChange={e => handleChange(field.key as keyof AppSettings, field.type === 'number' ? parseFloat(e.target.value) : e.target.value)}
-                                                    className="w-full p-6 bg-app/50 border-2 border-border focus:border-primary rounded-[1.5rem] font-black text-xs outline-none transition-all shadow-inner uppercase tracking-widest text-main"
-                                                />
-                                            </div>
-                                        ))}
-                                    </div>
-                                )}
-                            </div>
+                            {section.customRender ? (
+                                section.customRender()
+                            ) : (
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                                    {section.fields?.map(field => (
+                                        <div key={field.key} className="space-y-2">
+                                            <label className="text-[9px] font-black text-muted uppercase tracking-widest flex items-center gap-2">
+                                                <div className="w-1 h-1 rounded-full bg-primary" />{field.label}
+                                            </label>
+                                            <input
+                                                type={field.type}
+                                                value={(settings as any)[field.key] || ''}
+                                                onChange={e => handleChange(field.key as keyof AppSettings, field.type === 'number' ? parseFloat(e.target.value) : e.target.value)}
+                                                className="input-premium"
+                                            />
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
                         </div>
                     ))}
 
-                    <div className="bg-slate-900 rounded-[3.5rem] p-12 text-white relative overflow-hidden group shadow-2xl">
-                        <div className="absolute top-0 right-0 w-96 h-96 bg-primary/20 rounded-full blur-[100px] animate-pulse" />
-                        <div className="relative z-10 flex flex-col md:flex-row items-center gap-10">
-                            <div className="p-6 bg-primary rounded-[2rem] shadow-xl shadow-primary/30 border border-white/10">
-                                <Cpu size={40} />
+                    <div className="bg-gradient-to-br from-slate-900 to-slate-800 rounded-3xl p-8 text-white relative overflow-hidden shadow-xl border border-white/5">
+                        <div className="absolute top-0 right-0 w-64 h-64 bg-primary/15 rounded-full blur-[80px]" />
+                        <div className="relative z-10 flex flex-col sm:flex-row items-start sm:items-center gap-6">
+                            <div className="p-4 bg-primary/20 rounded-2xl border border-primary/25">
+                                <Cpu size={28} className="text-primary" />
                             </div>
                             <div>
-                                <h4 className="text-2xl font-black uppercase tracking-tight mb-2">Settings Sync</h4>
-                                <p className="text-sm font-bold text-slate-400 uppercase tracking-widest leading-relaxed max-w-xl opacity-80">
+                                <h4 className="text-lg font-black uppercase tracking-tight mb-1">Settings Sync</h4>
+                                <p className="text-xs font-bold text-slate-400 uppercase tracking-wider leading-relaxed max-w-xl">
                                     Settings are synced with the server automatically. All changes are saved and logged.
                                 </p>
                             </div>
@@ -631,35 +590,35 @@ const SettingsHub: React.FC = () => {
                 <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50" onClick={() => setShowBranchModal(false)}>
                     <div className="bg-card border border-border rounded-3xl p-8 w-full max-w-md shadow-2xl" onClick={e => e.stopPropagation()}>
                         <div className="flex items-center justify-between mb-6">
-                            <h3 className="text-xl font-black text-main">{lang === 'ar' ? 'إضافة فرع جديد' : 'Add New Branch'}</h3>
+                            <h3 className="text-xl font-black text-main">{lang === 'ar' ? '����� ��� ����' : 'Add New Branch'}</h3>
                             <button onClick={() => setShowBranchModal(false)} className="p-2 rounded-xl hover:bg-elevated text-muted">
                                 <X size={20} />
                             </button>
                         </div>
                         <div className="space-y-4">
                             <div>
-                                <label className="text-xs font-bold text-muted mb-2 block">{lang === 'ar' ? 'اسم الفرع' : 'Branch Name'}</label>
+                                <label className="text-xs font-bold text-muted mb-2 block">{lang === 'ar' ? '��� �����' : 'Branch Name'}</label>
                                 <input
                                     type="text"
                                     value={branchForm.name}
                                     onChange={e => setBranchForm(f => ({ ...f, name: e.target.value }))}
                                     className="w-full p-4 bg-app border border-border rounded-xl text-main font-bold focus:border-primary outline-none"
-                                    placeholder={lang === 'ar' ? 'مثال: فرع المعادي' : 'e.g. Maadi Branch'}
+                                    placeholder={lang === 'ar' ? '����: ��� �������' : 'e.g. Maadi Branch'}
                                 />
                             </div>
                             <div>
-                                <label className="text-xs font-bold text-muted mb-2 block">{lang === 'ar' ? 'الموقع' : 'Location'}</label>
+                                <label className="text-xs font-bold text-muted mb-2 block">{lang === 'ar' ? '������' : 'Location'}</label>
                                 <input
                                     type="text"
                                     value={branchForm.location}
                                     onChange={e => setBranchForm(f => ({ ...f, location: e.target.value }))}
                                     className="w-full p-4 bg-app border border-border rounded-xl text-main font-bold focus:border-primary outline-none"
-                                    placeholder={lang === 'ar' ? 'العنوان الكامل' : 'Full address'}
+                                    placeholder={lang === 'ar' ? '������� ������' : 'Full address'}
                                 />
                             </div>
                             <div className="grid grid-cols-2 gap-4">
                                 <div>
-                                    <label className="text-xs font-bold text-muted mb-2 block">{lang === 'ar' ? 'المنطقة الزمنية' : 'Timezone'}</label>
+                                    <label className="text-xs font-bold text-muted mb-2 block">{lang === 'ar' ? '������� �������' : 'Timezone'}</label>
                                     <select
                                         value={branchForm.timezone}
                                         onChange={e => setBranchForm(f => ({ ...f, timezone: e.target.value }))}
@@ -671,7 +630,7 @@ const SettingsHub: React.FC = () => {
                                     </select>
                                 </div>
                                 <div>
-                                    <label className="text-xs font-bold text-muted mb-2 block">{lang === 'ar' ? 'العملة' : 'Currency'}</label>
+                                    <label className="text-xs font-bold text-muted mb-2 block">{lang === 'ar' ? '������' : 'Currency'}</label>
                                     <select
                                         value={branchForm.currency}
                                         onChange={e => setBranchForm(f => ({ ...f, currency: e.target.value }))}
@@ -691,7 +650,7 @@ const SettingsHub: React.FC = () => {
                             className="w-full mt-6 py-4 bg-primary text-white rounded-xl font-black text-sm uppercase tracking-widest hover:bg-primary/90 disabled:opacity-50 flex items-center justify-center gap-2"
                         >
                             {isSubmitting && <Loader2 size={16} className="animate-spin" />}
-                            {lang === 'ar' ? 'إضافة الفرع' : 'Add Branch'}
+                            {lang === 'ar' ? '����� �����' : 'Add Branch'}
                         </button>
                     </div>
                 </div>
@@ -702,24 +661,24 @@ const SettingsHub: React.FC = () => {
                 <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50" onClick={() => setShowPlatformModal(false)}>
                     <div className="bg-card border border-border rounded-3xl p-8 w-full max-w-md shadow-2xl" onClick={e => e.stopPropagation()}>
                         <div className="flex items-center justify-between mb-6">
-                            <h3 className="text-xl font-black text-main">{lang === 'ar' ? 'إضافة تطبيق توصيل' : 'Add Delivery Platform'}</h3>
+                            <h3 className="text-xl font-black text-main">{lang === 'ar' ? '����� ����� �����' : 'Add Delivery Platform'}</h3>
                             <button onClick={() => setShowPlatformModal(false)} className="p-2 rounded-xl hover:bg-elevated text-muted">
                                 <X size={20} />
                             </button>
                         </div>
                         <div className="space-y-4">
                             <div>
-                                <label className="text-xs font-bold text-muted mb-2 block">{lang === 'ar' ? 'اسم التطبيق' : 'Platform Name'}</label>
+                                <label className="text-xs font-bold text-muted mb-2 block">{lang === 'ar' ? '��� �������' : 'Platform Name'}</label>
                                 <input
                                     type="text"
                                     value={platformForm.name}
                                     onChange={e => setPlatformForm(f => ({ ...f, name: e.target.value }))}
                                     className="w-full p-4 bg-app border border-border rounded-xl text-main font-bold focus:border-primary outline-none"
-                                    placeholder={lang === 'ar' ? 'مثال: طلبات' : 'e.g. Talabat'}
+                                    placeholder={lang === 'ar' ? '����: �����' : 'e.g. Talabat'}
                                 />
                             </div>
                             <div>
-                                <label className="text-xs font-bold text-muted mb-2 block">{lang === 'ar' ? 'مفتاح API (اختياري)' : 'API Key (optional)'}</label>
+                                <label className="text-xs font-bold text-muted mb-2 block">{lang === 'ar' ? '����� API (�������)' : 'API Key (optional)'}</label>
                                 <input
                                     type="text"
                                     value={platformForm.apiKey}
@@ -729,7 +688,7 @@ const SettingsHub: React.FC = () => {
                                 />
                             </div>
                             <div>
-                                <label className="text-xs font-bold text-muted mb-2 block">{lang === 'ar' ? 'نسبة العمولة (%)' : 'Commission (%)'}</label>
+                                <label className="text-xs font-bold text-muted mb-2 block">{lang === 'ar' ? '���� ������� (%)' : 'Commission (%)'}</label>
                                 <input
                                     type="number"
                                     value={platformForm.commissionPercent}
@@ -746,7 +705,7 @@ const SettingsHub: React.FC = () => {
                             className="w-full mt-6 py-4 bg-orange-600 text-white rounded-xl font-black text-sm uppercase tracking-widest hover:bg-orange-500 disabled:opacity-50 flex items-center justify-center gap-2"
                         >
                             {isSubmitting && <Loader2 size={16} className="animate-spin" />}
-                            {lang === 'ar' ? 'إضافة التطبيق' : 'Add Platform'}
+                            {lang === 'ar' ? '����� �������' : 'Add Platform'}
                         </button>
                     </div>
                 </div>
@@ -757,46 +716,46 @@ const SettingsHub: React.FC = () => {
                 <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50" onClick={() => setShowWarehouseModal(false)}>
                     <div className="bg-card border border-border rounded-3xl p-8 w-full max-w-md shadow-2xl" onClick={e => e.stopPropagation()}>
                         <div className="flex items-center justify-between mb-6">
-                            <h3 className="text-xl font-black text-main">{lang === 'ar' ? 'إضافة مخزن جديد' : 'Add New Warehouse'}</h3>
+                            <h3 className="text-xl font-black text-main">{lang === 'ar' ? '����� ���� ����' : 'Add New Warehouse'}</h3>
                             <button onClick={() => setShowWarehouseModal(false)} className="p-2 rounded-xl hover:bg-elevated text-muted">
                                 <X size={20} />
                             </button>
                         </div>
                         <div className="space-y-4">
                             <div>
-                                <label className="text-xs font-bold text-muted mb-2 block">{lang === 'ar' ? 'اسم المخزن' : 'Warehouse Name'}</label>
+                                <label className="text-xs font-bold text-muted mb-2 block">{lang === 'ar' ? '��� ������' : 'Warehouse Name'}</label>
                                 <input
                                     type="text"
                                     value={warehouseForm.name}
                                     onChange={e => setWarehouseForm(f => ({ ...f, name: e.target.value }))}
                                     className="w-full p-4 bg-app border border-border rounded-xl text-main font-bold focus:border-primary outline-none"
-                                    placeholder={lang === 'ar' ? 'مثال: مخزن المطبخ' : 'e.g. Kitchen Storage'}
+                                    placeholder={lang === 'ar' ? '����: ���� ������' : 'e.g. Kitchen Storage'}
                                 />
                             </div>
                             <div>
-                                <label className="text-xs font-bold text-muted mb-2 block">{lang === 'ar' ? 'الفرع' : 'Branch'}</label>
+                                <label className="text-xs font-bold text-muted mb-2 block">{lang === 'ar' ? '�����' : 'Branch'}</label>
                                 <select
                                     value={warehouseForm.branchId}
                                     onChange={e => setWarehouseForm(f => ({ ...f, branchId: e.target.value }))}
                                     className="w-full p-4 bg-app border border-border rounded-xl text-main font-bold focus:border-primary outline-none"
                                 >
-                                    <option value="">{lang === 'ar' ? 'اختر الفرع' : 'Select Branch'}</option>
+                                    <option value="">{lang === 'ar' ? '���� �����' : 'Select Branch'}</option>
                                     {branches.map(b => (
                                         <option key={b.id} value={b.id}>{b.name}</option>
                                     ))}
                                 </select>
                             </div>
                             <div>
-                                <label className="text-xs font-bold text-muted mb-2 block">{lang === 'ar' ? 'نوع المخزن' : 'Warehouse Type'}</label>
+                                <label className="text-xs font-bold text-muted mb-2 block">{lang === 'ar' ? '��� ������' : 'Warehouse Type'}</label>
                                 <select
                                     value={warehouseForm.type}
                                     onChange={e => setWarehouseForm(f => ({ ...f, type: e.target.value }))}
                                     className="w-full p-4 bg-app border border-border rounded-xl text-main font-bold focus:border-primary outline-none"
                                 >
-                                    <option value="MAIN">{lang === 'ar' ? 'ط±ط¦ظٹط³ظٹ' : 'Main'}</option>
-                                    <option value="KITCHEN">{lang === 'ar' ? 'مطبخ' : 'Kitchen'}</option>
-                                    <option value="BAR">{lang === 'ar' ? 'ط¨ط§ط±' : 'Bar'}</option>
-                                    <option value="COLD">{lang === 'ar' ? 'طھط¨ط±ظٹط¯' : 'Cold Storage'}</option>
+                                    <option value="MAIN">{lang === 'ar' ? 'رئيسي' : 'Main'}</option>
+                                    <option value="KITCHEN">{lang === 'ar' ? '����' : 'Kitchen'}</option>
+                                    <option value="BAR">{lang === 'ar' ? 'بار' : 'Bar'}</option>
+                                    <option value="COLD">{lang === 'ar' ? 'تبريد' : 'Cold Storage'}</option>
                                 </select>
                             </div>
                         </div>
@@ -806,7 +765,7 @@ const SettingsHub: React.FC = () => {
                             className="w-full mt-6 py-4 bg-blue-600 text-white rounded-xl font-black text-sm uppercase tracking-widest hover:bg-blue-500 disabled:opacity-50 flex items-center justify-center gap-2"
                         >
                             {isSubmitting && <Loader2 size={16} className="animate-spin" />}
-                            {lang === 'ar' ? 'إضافة المخزن' : 'Add Warehouse'}
+                            {lang === 'ar' ? '����� ������' : 'Add Warehouse'}
                         </button>
                     </div>
                 </div>
@@ -816,4 +775,3 @@ const SettingsHub: React.FC = () => {
 };
 
 export default SettingsHub;
-

@@ -77,7 +77,7 @@ const main = () => {
     blockers.push({ key: 'rollback-drill', ok: false, details: 'drill-report.json is missing' });
   } else {
     const timings = rollback?.timing || {};
-    const approvals = rollback?.approvals || {};
+    const approvals = rollback?.approvals || rollback?.approvedBy || {};
     const hasTimings =
       Number.isFinite(Number(timings?.detectionToRollbackStartMinutes)) &&
       Number.isFinite(Number(timings?.rollbackDurationMinutes)) &&

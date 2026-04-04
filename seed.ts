@@ -36,7 +36,7 @@ async function seed() {
       { key: 'taxRate', value: 14, category: 'finance' },
       { key: 'serviceCharge', value: 0, category: 'finance' },
       { key: 'language', value: 'ar', category: 'general' },
-      { key: 'theme', value: 'xen', category: 'ui' },
+      { key: 'theme', value: 'modern', category: 'ui' },
     ];
 
     for (const s of defaultSettings) {

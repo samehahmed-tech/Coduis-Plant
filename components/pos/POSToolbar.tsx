@@ -1,10 +1,10 @@
 /**
- * POSToolbar — Order mode pills + Total + Quick Pay
- * Clean horizontal strip with smart header showing total
+ * POSToolbar — Slim mode switcher + context actions + cart badge
+ * Designed to be as thin as possible, ~36px tall
  */
 import React from 'react';
 import {
-    UtensilsCrossed, ShoppingBag, MapPin, Truck, LayoutGrid, Zap, Search
+    UtensilsCrossed, ShoppingBag, MapPin, Truck, LayoutGrid, Zap
 } from 'lucide-react';
 import { OrderType } from '../../types';
 
@@ -25,10 +25,10 @@ interface POSToolbarProps {
 }
 
 const modeConfig = [
-    { mode: OrderType.DINE_IN, icon: UtensilsCrossed, colorActive: 'bg-gradient-to-r from-indigo-500 to-cyan-500 text-white shadow-lg shadow-indigo-500/25 border-transparent' },
-    { mode: OrderType.TAKEAWAY, icon: ShoppingBag, colorActive: 'bg-gradient-to-r from-teal-500 to-emerald-500 text-white shadow-lg shadow-teal-500/25 border-transparent' },
-    { mode: OrderType.PICKUP, icon: MapPin, colorActive: 'bg-gradient-to-r from-cyan-500 to-blue-500 text-white shadow-lg shadow-cyan-500/25 border-transparent' },
-    { mode: OrderType.DELIVERY, icon: Truck, colorActive: 'bg-gradient-to-r from-orange-500 to-amber-500 text-white shadow-lg shadow-orange-500/25 border-transparent' },
+    { mode: OrderType.DINE_IN, icon: UtensilsCrossed, label_en: 'Dine', label_ar: 'محلي' },
+    { mode: OrderType.TAKEAWAY, icon: ShoppingBag, label_en: 'Take', label_ar: 'سفري' },
+    { mode: OrderType.PICKUP, icon: MapPin, label_en: 'Pick', label_ar: 'استلام' },
+    { mode: OrderType.DELIVERY, icon: Truck, label_en: 'Deliver', label_ar: 'توصيل' },
 ];
 
 const POSToolbar: React.FC<POSToolbarProps> = ({
@@ -36,57 +36,51 @@ const POSToolbar: React.FC<POSToolbarProps> = ({
     onToggleCart, onShowTables, onShowCustomers, onQuickPay, onFocusSearch,
     hasCartItems, cartTotal, currencySymbol,
 }) => {
-    const labels: Record<OrderType, string> = {
-        [OrderType.DINE_IN]: t.dine_in,
-        [OrderType.TAKEAWAY]: t.takeaway,
-        [OrderType.PICKUP]: t.pickup || 'Pickup',
-        [OrderType.DELIVERY]: t.delivery,
-    };
     const isRTL = lang === 'ar';
 
     return (
-        <div className="shrink-0 border-b border-border/50 bg-card/80 backdrop-blur-xl px-3 md:px-5 py-2 relative z-30 shadow-sm">
-            <div className="flex items-center gap-2 overflow-x-auto no-scrollbar">
-                {/* Order mode pills */}
-                <div className="flex items-center bg-elevated/80 rounded-[1.2rem] p-1 shrink-0 border border-border/50 shadow-inner">
-                    {modeConfig.map((entry) => (
-                        <button
-                            key={entry.mode}
-                            onClick={() => onSetOrderMode(entry.mode)}
-                            className={`inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all duration-300 border
-                                ${activeOrderType === entry.mode ? entry.colorActive : 'text-muted border-transparent hover:text-main hover:bg-elevated'}`}
-                        >
-                            <entry.icon size={16} />
-                            <span className="hidden sm:inline">{labels[entry.mode]}</span>
-                        </button>
-                    ))}
+        <div className="pos-toolbar-slim shrink-0 border-b border-border/12 bg-white/60 backdrop-blur-sm px-2 py-1 relative z-30 will-change-transform" style={{ transform: 'translate3d(0,0,0)' }}>
+            <div className="flex items-center gap-1 overflow-x-auto no-scrollbar">
+                {/* Mode pills — compact */}
+                <div className="flex items-center bg-elevated/40 rounded-lg p-0.5 shrink-0 border border-border/12">
+                    {modeConfig.map((entry) => {
+                        const isActive = activeOrderType === entry.mode;
+                        return (
+                            <button
+                                key={entry.mode}
+                                onClick={() => onSetOrderMode(entry.mode)}
+                                className={`inline-flex items-center gap-1 px-2.5 py-1.5 rounded-md text-[9px] font-bold uppercase tracking-wider transition-all duration-100
+                                    ${isActive
+                                        ? 'bg-primary text-white shadow-sm shadow-primary/15'
+                                        : 'text-muted hover:text-main hover:bg-elevated/70'
+                                    }`}
+                            >
+                                <entry.icon size={12} />
+                                <span className="hidden sm:inline">{isRTL ? entry.label_ar : entry.label_en}</span>
+                            </button>
+                        );
+                    })}
                 </div>
 
-                {/* Context actions */}
+                {/* Context actions inline */}
                 {activeOrderType === OrderType.DINE_IN && (
-                    <button onClick={onShowTables} className="shrink-0 inline-flex items-center gap-2 px-3.5 py-2.5 rounded-[1.2rem] bg-indigo-500/10 text-indigo-500 border border-indigo-500/20 text-[10px] font-black uppercase tracking-widest hover:text-white hover:bg-indigo-500 transition-all shadow-sm active:scale-95">
-                        <LayoutGrid size={16} />
+                    <button onClick={onShowTables} className="shrink-0 inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-primary/5 text-primary border border-primary/10 text-[9px] font-bold uppercase tracking-wider hover:bg-primary hover:text-white transition-colors active:scale-95">
+                        <LayoutGrid size={12} />
                         <span className="hidden sm:inline">{isRTL ? 'الطاولات' : 'Tables'}</span>
                     </button>
                 )}
                 {activeOrderType === OrderType.DELIVERY && (
-                    <button onClick={onShowCustomers} className="shrink-0 inline-flex items-center gap-2 px-3.5 py-2.5 rounded-[1.2rem] bg-amber-500/10 text-amber-500 border border-amber-500/20 text-[10px] font-black uppercase tracking-widest hover:text-white hover:bg-amber-500 transition-all shadow-sm active:scale-95">
-                        <Truck size={16} />
+                    <button onClick={onShowCustomers} className="shrink-0 inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-warning/5 text-warning border border-warning/10 text-[9px] font-bold uppercase tracking-wider hover:bg-warning hover:text-white transition-colors active:scale-95">
+                        <Truck size={12} />
                         <span className="hidden sm:inline">{isRTL ? 'العملاء' : 'Customers'}</span>
                     </button>
                 )}
 
-                {/* Search shortcut */}
-                <button onClick={onFocusSearch} className="shrink-0 hidden md:inline-flex items-center gap-1.5 px-3.5 py-2.5 rounded-[1.2rem] bg-elevated/50 border border-border/50 text-muted hover:text-indigo-500 hover:border-indigo-500/30 transition-all shadow-sm active:scale-95">
-                    <Search size={16} />
-                    <span className="text-[10px] px-1.5 py-0.5 rounded-md bg-elevated/80 font-black tracking-widest text-[9px]">/</span>
-                </button>
-
                 {/* Cart toggle (mobile) */}
-                <button onClick={onToggleCart} className="shrink-0 lg:hidden inline-flex items-center gap-1.5 px-3 py-2.5 rounded-[1.2rem] bg-elevated/50 border border-border/50 text-muted hover:text-indigo-500 hover:border-indigo-500/30 transition-all shadow-sm active:scale-95 relative">
-                    <ShoppingBag size={18} />
+                <button onClick={onToggleCart} className="shrink-0 hidden max-lg:inline-flex items-center gap-1 px-2 py-1.5 rounded-lg bg-elevated/40 border border-border/12 text-muted hover:text-primary transition-colors active:scale-95 relative">
+                    <ShoppingBag size={14} />
                     {cartCount > 0 && (
-                        <span className="absolute -top-1.5 -right-1.5 min-w-[20px] h-5 px-1 rounded-full bg-gradient-to-r from-indigo-500 to-cyan-500 text-white text-[10px] font-black flex items-center justify-center shadow-lg shadow-indigo-500/25 animate-in zoom-in">
+                        <span className="absolute -top-1 -right-1 min-w-[16px] h-4 px-0.5 rounded-full bg-primary text-white text-[8px] font-bold flex items-center justify-center shadow-sm shadow-primary/20">
                             {cartCount > 9 ? '9+' : cartCount}
                         </span>
                     )}
@@ -94,25 +88,21 @@ const POSToolbar: React.FC<POSToolbarProps> = ({
 
                 <div className="flex-1" />
 
-                {/* ═══ Smart Header: Total in toolbar ═══ */}
+                {/* Total + Quick Pay */}
                 {hasCartItems && (
-                    <div className="shrink-0 hidden md:flex items-center gap-2 px-4 py-2.5 rounded-[1.2rem] bg-gradient-to-r from-indigo-500/10 to-cyan-500/5 border border-indigo-500/20 shadow-sm relative overflow-hidden">
-                        <div className="absolute inset-0 bg-white/5" />
-                        <span className="text-[10px] font-black uppercase tracking-[0.2em] text-indigo-500 relative z-10">{isRTL ? 'الإجمالي' : 'Total'}</span>
-                        <span className="text-lg font-black tabular-nums text-transparent bg-clip-text bg-gradient-to-r from-indigo-500 to-cyan-500 relative z-10 drop-shadow-sm">{currencySymbol}{(cartTotal || 0).toFixed(2)}</span>
+                    <div className="shrink-0 hidden md:flex items-center gap-1.5">
+                        <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-primary/5 border border-primary/10">
+                            <span className="text-[9px] font-bold uppercase tracking-wider text-primary/70">{isRTL ? 'الإجمالي' : 'Total'}</span>
+                            <span className="text-sm font-black tabular-nums text-primary">{currencySymbol}{(cartTotal || 0).toFixed(2)}</span>
+                        </div>
+                        <button
+                            onClick={onQuickPay}
+                            className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-gradient-to-r from-amber-500 to-orange-500 text-white text-[9px] font-bold uppercase tracking-wider hover:shadow-md hover:shadow-amber-500/15 transition-all active:scale-95"
+                        >
+                            <Zap size={12} fill="currentColor" />
+                            <span className="hidden sm:inline">{isRTL ? 'سريع' : 'Quick'}</span>
+                        </button>
                     </div>
-                )}
-
-                {/* Quick Pay */}
-                {hasCartItems && (
-                    <button
-                        onClick={onQuickPay}
-                        className="shrink-0 inline-flex items-center gap-2 px-4 py-3 rounded-[1.2rem] bg-gradient-to-r from-amber-500 to-orange-500 text-white text-[10px] font-black uppercase tracking-[0.2em] hover:opacity-90 transition-all shadow-xl shadow-amber-500/25 active:scale-95 group relative overflow-hidden"
-                    >
-                        <div className="absolute inset-0 bg-white/20 translate-y-full group-hover:translate-y-0 transition-transform duration-300" />
-                        <Zap size={16} fill="currentColor" className="relative z-10" />
-                        <span className="hidden sm:inline relative z-10">{isRTL ? 'دفع سريع' : 'Quick Pay'}</span>
-                    </button>
                 )}
             </div>
         </div>

@@ -6,8 +6,9 @@ import { useAuthStore } from '../stores/useAuthStore';
 import { useMenuStore } from '../stores/useMenuStore';
 import { useOrderStore } from '../stores/useOrderStore';
 import { useCRMStore } from '../stores/useCRMStore';
-import { checkHealth } from '../services/api';
+import { checkHealth } from '../services/api/core';
 import { syncService } from '../services/syncService';
+import { UserRole } from '../types';
 
 interface InitResult {
     isLoading: boolean;
@@ -25,6 +26,7 @@ export const useDataInit = (): InitResult => {
     const fetchSettings = useAuthStore(state => state.fetchSettings);
     const fetchPrinters = useAuthStore(state => state.fetchPrinters);
     const isAuthenticated = useAuthStore(state => state.isAuthenticated);
+    const currentUser = useAuthStore(state => state.settings.currentUser);
     const logout = useAuthStore(state => state.logout);
     const fetchMenu = useMenuStore(state => state.fetchMenu);
     const fetchOrders = useOrderStore(state => state.fetchOrders);
@@ -59,15 +61,19 @@ export const useDataInit = (): InitResult => {
                 }
 
                 // Load all data in parallel
-                await Promise.allSettled([
-                    fetchUsers(),
+                const dataPromises: Promise<void>[] = [
                     fetchBranches(),
                     fetchSettings(),
                     fetchPrinters(),
                     fetchMenu(),
                     fetchOrders({ limit: 50 }),
                     fetchCustomers(),
-                ]);
+                ];
+                // Only SUPER_ADMIN can access /api/users
+                if (currentUser?.role === UserRole.SUPER_ADMIN) {
+                    dataPromises.push(fetchUsers());
+                }
+                await Promise.allSettled(dataPromises);
 
                 console.log('Data loaded from database');
             } catch (err: any) {

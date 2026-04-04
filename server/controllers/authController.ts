@@ -1,7 +1,7 @@
 import { Request, Response } from 'express';
 import { db } from '../db';
-import { users, userSessions } from '../../src/db/schema';
-import { and, eq, ne, desc } from 'drizzle-orm';
+import { users, userSessions, auditLogs } from '../../src/db/schema';
+import { and, eq, ne, desc, gte, lte, sql, inArray } from 'drizzle-orm';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import { requireEnv } from '../config/env';
@@ -9,7 +9,7 @@ import { getLoginThrottleState, registerLoginFailure, registerLoginSuccess } fro
 import { createSignedAuditLog } from '../services/auditLogService';
 import crypto from 'crypto';
 import { buildOtpAuthUri, generateBase32Secret, verifyTotp } from '../services/totpService';
-import { validatePassword } from '../services/passwordPolicyService';
+import { validatePassword, getPasswordPolicyRules } from '../services/passwordPolicyService';
 
 const JWT_SECRET = requireEnv('JWT_SECRET');
 const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || '15m';
@@ -708,6 +708,282 @@ export const refreshAccessToken = async (req: Request, res: Response) => {
             .where(eq(userSessions.id, sessionId));
 
         return res.json({ token: newToken, user: sanitizeUser(user) });
+    } catch (error: any) {
+        return res.status(500).json({ error: error.message });
+    }
+};
+
+// ============================================================================
+// PASSWORD MANAGEMENT
+// ============================================================================
+
+export const changePassword = async (req: Request, res: Response) => {
+    try {
+        const userId = req.user?.id;
+        if (!userId) return res.status(401).json({ error: 'AUTH_REQUIRED' });
+
+        const { currentPassword, newPassword } = req.body || {};
+        if (!currentPassword || !newPassword) {
+            return res.status(400).json({ error: 'CURRENT_AND_NEW_PASSWORD_REQUIRED' });
+        }
+
+        const [user] = await db.select().from(users).where(eq(users.id, userId));
+        if (!user) return res.status(404).json({ error: 'USER_NOT_FOUND' });
+
+        // Verify current password
+        if (!user.passwordHash) {
+            return res.status(400).json({ error: 'NO_PASSWORD_SET' });
+        }
+        const isValid = await bcrypt.compare(currentPassword, user.passwordHash);
+        if (!isValid) {
+            await writeAuthAudit({
+                eventType: 'auth.password.change_failed',
+                userId,
+                userRole: req.user?.role,
+                branchId: req.user?.branchId || null,
+                ipAddress: req.ip || req.socket.remoteAddress || 'unknown',
+                reason: 'INVALID_CURRENT_PASSWORD',
+            });
+            return res.status(401).json({ error: 'INVALID_CURRENT_PASSWORD' });
+        }
+
+        // Enforce password policy
+        const policyResult = validatePassword(newPassword);
+        if (!policyResult.valid) {
+            return res.status(400).json({
+                error: 'PASSWORD_POLICY_VIOLATION',
+                details: policyResult.errors,
+                strength: policyResult.strength,
+                score: policyResult.score,
+            });
+        }
+
+        // Prevent reuse of the same password
+        const isSamePassword = await bcrypt.compare(newPassword, user.passwordHash);
+        if (isSamePassword) {
+            return res.status(400).json({ error: 'NEW_PASSWORD_MUST_BE_DIFFERENT' });
+        }
+
+        // Update password
+        const newHash = await bcrypt.hash(newPassword, 10);
+        await db.update(users).set({ passwordHash: newHash, updatedAt: new Date() }).where(eq(users.id, userId));
+
+        // Revoke other sessions for security
+        const currentSessionId = req.user?.sessionId;
+        if (currentSessionId) {
+            await db.update(userSessions)
+                .set({ isActive: false, revokedAt: new Date(), updatedAt: new Date() })
+                .where(and(
+                    eq(userSessions.userId, userId),
+                    ne(userSessions.id, currentSessionId),
+                    eq(userSessions.isActive, true),
+                ));
+        }
+
+        await writeAuthAudit({
+            eventType: 'auth.password.changed',
+            userId,
+            userName: user.name,
+            userRole: req.user?.role,
+            branchId: req.user?.branchId || null,
+            ipAddress: req.ip || req.socket.remoteAddress || 'unknown',
+        });
+
+        return res.json({
+            ok: true,
+            message: 'PASSWORD_CHANGED',
+            strength: policyResult.strength,
+            score: policyResult.score,
+        });
+    } catch (error: any) {
+        return res.status(500).json({ error: error.message });
+    }
+};
+
+export const getPasswordPolicy = async (_req: Request, res: Response) => {
+    try {
+        res.json(getPasswordPolicyRules());
+    } catch (error: any) {
+        res.status(500).json({ error: error.message });
+    }
+};
+
+// ============================================================================
+// ADMIN: LOGIN AUDIT LOG
+// ============================================================================
+
+
+const AUTH_EVENT_TYPES = [
+    'auth.login.success', 'auth.login.failed', 'auth.login.blocked',
+    'auth.logout', 'auth.mfa.verified', 'auth.mfa.failed',
+    'auth.mfa.enabled', 'auth.mfa.disabled',
+    'auth.pin_login.success', 'auth.pin_login.failed',
+    'auth.pin.setup', 'auth.pin.disabled', 'auth.pin.admin_set',
+    'auth.password.changed', 'auth.password.change_failed',
+    'auth.session.revoked', 'auth.session.revoke_others',
+    'auth.login.mfa_challenge',
+];
+
+export const getLoginAuditLog = async (req: Request, res: Response) => {
+    try {
+        const adminRole = req.user?.role;
+        if (!['SUPER_ADMIN', 'OWNER', 'ADMIN'].includes(adminRole || '')) {
+            return res.status(403).json({ error: 'FORBIDDEN' });
+        }
+
+        const limit = Math.min(Number(req.query.limit || 100), 500);
+        const userId = typeof req.query.userId === 'string' ? req.query.userId : undefined;
+        const eventType = typeof req.query.eventType === 'string' ? req.query.eventType : undefined;
+        const startDate = typeof req.query.startDate === 'string' ? req.query.startDate : undefined;
+        const endDate = typeof req.query.endDate === 'string' ? req.query.endDate : undefined;
+
+        const conditions: any[] = [inArray(auditLogs.eventType, AUTH_EVENT_TYPES)];
+
+        if (userId) conditions.push(eq(auditLogs.userId, userId));
+        if (eventType) conditions.push(eq(auditLogs.eventType, eventType));
+        if (startDate) conditions.push(gte(auditLogs.createdAt, new Date(startDate)));
+        if (endDate) conditions.push(lte(auditLogs.createdAt, new Date(endDate)));
+
+        const logs = await db.select({
+            id: auditLogs.id,
+            eventType: auditLogs.eventType,
+            userId: auditLogs.userId,
+            userName: sql<string>`${auditLogs.payload}->>'userName'`,
+            userRole: sql<string>`${auditLogs.payload}->>'userRole'`,
+            ipAddress: sql<string>`${auditLogs.payload}->>'ipAddress'`,
+            reason: auditLogs.reason,
+            payload: auditLogs.payload,
+            createdAt: auditLogs.createdAt,
+        }).from(auditLogs)
+            .where(and(...conditions))
+            .orderBy(desc(auditLogs.createdAt))
+            .limit(limit);
+
+        // Summary stats
+        const totalAttempts = logs.length;
+        const successCount = logs.filter(l => l.eventType === 'auth.login.success' || l.eventType === 'auth.pin_login.success').length;
+        const failedCount = logs.filter(l => l.eventType?.includes('.failed') || l.eventType?.includes('.blocked')).length;
+
+        res.json({
+            logs,
+            summary: {
+                total: totalAttempts,
+                successful: successCount,
+                failed: failedCount,
+                mfaEvents: logs.filter(l => l.eventType?.includes('.mfa.')).length,
+            },
+        });
+    } catch (error: any) {
+        res.status(500).json({ error: error.message });
+    }
+};
+
+// ============================================================================
+// ADMIN: SESSION MANAGEMENT (All Users)
+// ============================================================================
+
+export const getAdminSessions = async (req: Request, res: Response) => {
+    try {
+        const adminRole = req.user?.role;
+        if (!['SUPER_ADMIN', 'OWNER', 'ADMIN'].includes(adminRole || '')) {
+            return res.status(403).json({ error: 'FORBIDDEN' });
+        }
+
+        const activeOnly = req.query.active !== 'false';
+        const limit = Math.min(Number(req.query.limit || 100), 500);
+
+        const conditions: any[] = [];
+        if (activeOnly) {
+            conditions.push(eq(userSessions.isActive, true));
+        }
+
+        const sessions = await db.select({
+            id: userSessions.id,
+            userId: userSessions.userId,
+            deviceName: userSessions.deviceName,
+            userAgent: userSessions.userAgent,
+            ipAddress: userSessions.ipAddress,
+            isActive: userSessions.isActive,
+            createdAt: userSessions.createdAt,
+            lastSeenAt: userSessions.lastSeenAt,
+            expiresAt: userSessions.expiresAt,
+            revokedAt: userSessions.revokedAt,
+        }).from(userSessions)
+            .where(conditions.length > 0 ? and(...conditions) : undefined)
+            .orderBy(desc(userSessions.lastSeenAt))
+            .limit(limit);
+
+        // Fetch user names for each session
+        const userIds = [...new Set(sessions.map(s => s.userId))];
+        let userMap = new Map<string, { name: string; email: string; role: string }>();
+
+        if (userIds.length > 0) {
+            const userRows = await db.select({
+                id: users.id,
+                name: users.name,
+                email: users.email,
+                role: users.role,
+            }).from(users).where(inArray(users.id, userIds));
+
+            userMap = new Map(userRows.map(u => [u.id, { name: u.name, email: u.email, role: u.role }]));
+        }
+
+        const enrichedSessions = sessions.map(s => {
+            const user = userMap.get(s.userId);
+            const now = new Date();
+            return {
+                ...s,
+                userName: user?.name || 'Unknown',
+                userEmail: user?.email || '',
+                userRole: user?.role || '',
+                isExpired: s.expiresAt ? new Date(s.expiresAt) < now : false,
+                isRevoked: !!s.revokedAt,
+            };
+        });
+
+        const activeSessions = enrichedSessions.filter(s => s.isActive && !s.isExpired && !s.isRevoked);
+
+        res.json({
+            sessions: enrichedSessions,
+            summary: {
+                total: enrichedSessions.length,
+                active: activeSessions.length,
+                expired: enrichedSessions.filter(s => s.isExpired).length,
+                revoked: enrichedSessions.filter(s => s.isRevoked).length,
+            },
+        });
+    } catch (error: any) {
+        res.status(500).json({ error: error.message });
+    }
+};
+
+export const adminRevokeSession = async (req: Request, res: Response) => {
+    try {
+        const adminRole = req.user?.role;
+        if (!['SUPER_ADMIN', 'OWNER', 'ADMIN'].includes(adminRole || '')) {
+            return res.status(403).json({ error: 'FORBIDDEN' });
+        }
+
+        const sessionId = String(req.params.id || '');
+        if (!sessionId) return res.status(400).json({ error: 'SESSION_ID_REQUIRED' });
+
+        const [session] = await db.select().from(userSessions).where(eq(userSessions.id, sessionId));
+        if (!session) return res.status(404).json({ error: 'SESSION_NOT_FOUND' });
+
+        await db.update(userSessions)
+            .set({ isActive: false, revokedAt: new Date(), updatedAt: new Date() })
+            .where(eq(userSessions.id, sessionId));
+
+        await writeAuthAudit({
+            eventType: 'auth.session.admin_revoked',
+            userId: req.user?.id,
+            userRole: adminRole,
+            branchId: req.user?.branchId || null,
+            ipAddress: req.ip || req.socket.remoteAddress || 'unknown',
+            payload: { targetSessionId: sessionId, targetUserId: session.userId },
+        });
+
+        return res.json({ ok: true, message: 'SESSION_REVOKED' });
     } catch (error: any) {
         return res.status(500).json({ error: error.message });
     }

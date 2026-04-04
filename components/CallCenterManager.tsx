@@ -1,6 +1,8 @@
 ﻿import React from 'react';
 import { Headset, RefreshCw, Users, Bike, Ban, Clock3, Percent, DollarSign, PhoneCall, Route, AlertTriangle, CheckCircle2 } from 'lucide-react';
-import { ordersApi, deliveryApi, callCenterSupervisorApi, getActionableErrorMessage } from '../services/api';
+import { getActionableErrorMessage } from '../services/api/core';
+import { callCenterSupervisorApi, deliveryApi } from '../services/api/delivery';
+import { ordersApi } from '../services/api/orders';
 import { useAuthStore } from '../stores/useAuthStore';
 
 type AnyOrder = Record<string, any>;
@@ -341,7 +343,7 @@ const CallCenterManager: React.FC = () => {
     ];
 
     return (
-        <div className="p-4 md:p-8 bg-slate-50 dark:bg-slate-950 min-h-screen pb-24">
+        <div className="p-4 md:p-8 bg-app min-h-screen pb-24">
             <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-6">
                 <div>
                     <h1 className="text-2xl md:text-3xl font-black text-slate-900 dark:text-white uppercase tracking-tight flex items-center gap-3">
@@ -361,24 +363,24 @@ const CallCenterManager: React.FC = () => {
                     </button>
                 </div>
                 {showFilters && (
-                <div className="w-full flex flex-wrap items-center gap-2 lg:w-auto">
-                    <select
-                        value={selectedBranch}
-                        onChange={(e) => setSelectedBranch(e.target.value)}
-                        className="px-3 py-2 rounded-xl border border-slate-200 card-primary text-xs font-bold"
-                    >
-                        <option value="">{lang === 'ar' ? 'كل الفروع' : 'All branches'}</option>
-                        {branches.map((b) => (
-                            <option key={b.id} value={b.id}>{b.name}</option>
-                        ))}
-                    </select>
-                    <input type="date" value={fromDate} onChange={(e) => setFromDate(e.target.value)} className="px-3 py-2 rounded-xl border border-slate-200 card-primary text-xs font-bold" />
-                    <input type="date" value={toDate} onChange={(e) => setToDate(e.target.value)} className="px-3 py-2 rounded-xl border border-slate-200 card-primary text-xs font-bold" />
-                    <button onClick={load} disabled={isLoading} className="px-3 py-2 rounded-xl bg-indigo-600 text-white text-xs font-black flex items-center gap-2 disabled:opacity-60">
-                        <RefreshCw size={14} className={isLoading ? 'animate-spin' : ''} />
-                        {lang === 'ar' ? 'تحديث' : 'Refresh'}
-                    </button>
-                </div>
+                    <div className="w-full flex flex-wrap items-center gap-2 lg:w-auto">
+                        <select
+                            value={selectedBranch}
+                            onChange={(e) => setSelectedBranch(e.target.value)}
+                            className="px-3 py-2 rounded-xl border border-slate-200 card-primary text-xs font-bold"
+                        >
+                            <option value="">{lang === 'ar' ? 'كل الفروع' : 'All branches'}</option>
+                            {branches.map((b) => (
+                                <option key={b.id} value={b.id}>{b.name}</option>
+                            ))}
+                        </select>
+                        <input type="date" value={fromDate} onChange={(e) => setFromDate(e.target.value)} className="px-3 py-2 rounded-xl border border-slate-200 card-primary text-xs font-bold" />
+                        <input type="date" value={toDate} onChange={(e) => setToDate(e.target.value)} className="px-3 py-2 rounded-xl border border-slate-200 card-primary text-xs font-bold" />
+                        <button onClick={load} disabled={isLoading} className="px-3 py-2 rounded-xl bg-indigo-600 text-white text-xs font-black flex items-center gap-2 disabled:opacity-60">
+                            <RefreshCw size={14} className={isLoading ? 'animate-spin' : ''} />
+                            {lang === 'ar' ? 'تحديث' : 'Refresh'}
+                        </button>
+                    </div>
                 )}
             </div>
 
@@ -401,7 +403,7 @@ const CallCenterManager: React.FC = () => {
                     <h2 className="text-sm font-black uppercase tracking-widest text-slate-600 mb-3 flex items-center gap-2">
                         <Users size={14} /> {lang === 'ar' ? 'أداء موظفي الكول سنتر' : 'Agent Performance'}
                     </h2>
-                    <div className="overflow-x-auto">
+                    <div className="responsive-table">
                         <table className="w-full text-left text-xs">
                             <thead className="text-slate-400 uppercase text-[10px]">
                                 <tr>
@@ -443,7 +445,7 @@ const CallCenterManager: React.FC = () => {
                     <h2 className="text-sm font-black uppercase tracking-widest text-slate-600 mb-3 flex items-center gap-2">
                         <Route size={14} /> {lang === 'ar' ? 'متابعة الطيارين' : 'Driver Tracking'}
                     </h2>
-                    <div className="overflow-x-auto">
+                    <div className="responsive-table">
                         <table className="w-full text-left text-xs">
                             <thead className="text-slate-400 uppercase text-[10px]">
                                 <tr>
@@ -582,11 +584,10 @@ const CallCenterManager: React.FC = () => {
                                         <button
                                             onClick={() => createEscalation(o)}
                                             disabled={isEscalated || escalatingOrderId === String(o.id)}
-                                            className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition ${
-                                                isEscalated
+                                            className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition ${isEscalated
                                                     ? 'bg-amber-100 text-amber-700 cursor-not-allowed'
                                                     : 'bg-rose-600 text-white hover:bg-rose-700'
-                                            }`}
+                                                }`}
                                         >
                                             <AlertTriangle size={12} />
                                             {isEscalated ? (lang === 'ar' ? 'تم التصعيد' : 'Escalated') : (lang === 'ar' ? 'تصعيد' : 'Escalate')}
@@ -661,3 +662,4 @@ const CallCenterManager: React.FC = () => {
 };
 
 export default CallCenterManager;
+

@@ -1,12 +1,18 @@
-/**
- * POSItemsPanel — Search bar with inline filters + Items Grid
- * Minimal: search + filter chips + count + tools dropdown
- * Categories handled by CategorySidebar on desktop, CategoryTabs on mobile
- */
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
-    Search, X, SlidersHorizontal, LayoutGrid, Grid2x2, List, Grid3x3,
-    ShoppingBag, Flame, Star, CheckCircle, Clock, Heart
+    Search,
+    X,
+    SlidersHorizontal,
+    LayoutGrid,
+    Grid2x2,
+    List,
+    Grid3x3,
+    ShoppingBag,
+    Star,
+    CheckCircle,
+    RotateCcw,
+    Sparkles,
+    ArrowUpDown,
 } from 'lucide-react';
 import CategoryTabs from './CategoryTabs';
 import ItemGrid from './ItemGrid';
@@ -56,12 +62,15 @@ interface POSItemsPanelProps {
     hasCartItems: boolean;
 }
 
-// Tools dropdown — view + sort only (filters are inline now)
 const ToolsDropdown: React.FC<{
-    isOpen: boolean; onClose: () => void;
-    itemSort: string; onSetSort: (s: any) => void;
-    itemDensity: string; onSetDensity: (d: any) => void;
-    onReset: () => void; lang: string;
+    isOpen: boolean;
+    onClose: () => void;
+    itemSort: string;
+    onSetSort: (s: any) => void;
+    itemDensity: string;
+    onSetDensity: (d: any) => void;
+    onReset: () => void;
+    lang: string;
 }> = ({ isOpen, onClose, itemSort, onSetSort, itemDensity, onSetDensity, onReset, lang }) => {
     const ref = useRef<HTMLDivElement>(null);
     const isRTL = lang === 'ar';
@@ -77,146 +86,254 @@ const ToolsDropdown: React.FC<{
 
     if (!isOpen) return null;
 
+    const densityOptions = [
+        { id: 'comfortable', icon: LayoutGrid, label: isRTL ? 'مريح' : 'Cards' },
+        { id: 'compact', icon: Grid2x2, label: isRTL ? 'مضغوط' : 'Small' },
+        { id: 'ultra', icon: List, label: isRTL ? 'قائمة' : 'List' },
+        { id: 'buttons', icon: Grid3x3, label: isRTL ? 'سريع' : 'Fast' },
+    ];
+
+    const sortOptions = [
+        { id: 'smart', label: isRTL ? 'ذكي' : 'Smart' },
+        { id: 'name', label: isRTL ? 'أبجدي' : 'A → Z' },
+        { id: 'price_asc', label: isRTL ? 'الأرخص' : 'Price ↑' },
+        { id: 'price_desc', label: isRTL ? 'الأغلى' : 'Price ↓' },
+    ];
+
     return (
-        <div ref={ref} className={`absolute top-full mt-1 ${isRTL ? 'left-0' : 'right-0'} z-50 w-52 bg-card border border-border/30 rounded-xl shadow-2xl p-2.5 space-y-2 animate-in fade-in zoom-in-95 duration-100`}>
-            {/* View mode */}
-            <div>
-                <p className="text-[8px] font-black uppercase tracking-widest text-muted mb-1">{isRTL ? 'طريقة العرض' : 'View'}</p>
-                <div className="flex gap-1">
-                    {[
-                        { id: 'comfortable', icon: <LayoutGrid size={14} />, label: isRTL ? 'بطاقات' : 'Cards' },
-                        { id: 'compact', icon: <Grid2x2 size={14} />, label: isRTL ? 'صغير' : 'Small' },
-                        { id: 'ultra', icon: <List size={14} />, label: isRTL ? 'قائمة' : 'List' },
-                        { id: 'buttons', icon: <Grid3x3 size={14} />, label: isRTL ? 'أزرار' : 'Buttons' },
-                    ].map(v => (
-                        <button
-                            key={v.id}
-                            onClick={() => { onSetDensity(v.id); onClose(); }}
-                            className={`flex-1 flex flex-col items-center gap-1 py-3 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all ${itemDensity === v.id ? 'bg-indigo-500/10 text-indigo-500 shadow-sm' : 'text-muted hover:bg-elevated/80 hover:text-main'
-                                }`}
-                        >
-                            {v.icon}
-                            {v.label}
-                        </button>
-                    ))}
+        <div
+            ref={ref}
+            className={`absolute top-full z-50 mt-1.5 w-[280px] rounded-2xl border border-border/20 bg-white/98 backdrop-blur-xl p-3 shadow-[0_20px_60px_rgba(0,0,0,0.12)] animate-scale-in ${isRTL ? 'left-0' : 'right-0'}`}
+        >
+            <div className="space-y-3">
+                <div>
+                    <p className="mb-2 text-[9px] font-black uppercase tracking-[0.2em] text-muted/60">
+                        {isRTL ? 'طريقة العرض' : 'View Mode'}
+                    </p>
+                    <div className="grid grid-cols-4 gap-1.5">
+                        {densityOptions.map((view) => {
+                            const active = itemDensity === view.id;
+                            return (
+                                <button
+                                    key={view.id}
+                                    onClick={() => {
+                                        onSetDensity(view.id);
+                                        onClose();
+                                    }}
+                                    className={`flex h-[52px] flex-col items-center justify-center rounded-xl border transition-all duration-100 active:scale-95 ${active
+                                        ? 'border-primary/30 bg-primary text-white shadow-md shadow-primary/15'
+                                        : 'border-border/15 bg-elevated/40 text-muted hover:text-main hover:bg-elevated/80'
+                                        }`}
+                                >
+                                    <view.icon size={14} />
+                                    <span className="mt-1 text-[9px] font-bold">{view.label}</span>
+                                </button>
+                            );
+                        })}
+                    </div>
                 </div>
-            </div>
 
-            {/* Sort */}
-            <div>
-                <p className="text-[8px] font-black uppercase tracking-widest text-muted mb-1">{isRTL ? 'ترتيب' : 'Sort'}</p>
-                <select
-                    value={itemSort}
-                    onChange={(e) => { onSetSort(e.target.value); onClose(); }}
-                    className="w-full h-8 rounded-lg bg-elevated/50 border-0 text-xs font-semibold text-main px-2"
+                <div>
+                    <p className="mb-2 text-[9px] font-black uppercase tracking-[0.2em] text-muted/60">
+                        {isRTL ? 'الترتيب' : 'Sort By'}
+                    </p>
+                    <div className="grid grid-cols-2 gap-1.5">
+                        {sortOptions.map((opt) => {
+                            const active = itemSort === opt.id;
+                            return (
+                                <button
+                                    key={opt.id}
+                                    onClick={() => {
+                                        onSetSort(opt.id);
+                                        onClose();
+                                    }}
+                                    className={`h-9 rounded-xl border text-[10px] font-bold transition-all active:scale-95 ${active
+                                        ? 'border-primary/25 bg-primary/8 text-primary'
+                                        : 'border-border/15 bg-elevated/30 text-muted hover:text-main'
+                                        }`}
+                                >
+                                    {opt.label}
+                                </button>
+                            );
+                        })}
+                    </div>
+                </div>
+
+                <button
+                    onClick={() => {
+                        onReset();
+                        onClose();
+                    }}
+                    className="flex h-9 w-full items-center justify-center gap-1.5 rounded-xl border border-border/15 bg-elevated/30 text-[10px] font-bold uppercase tracking-wider text-muted hover:text-main hover:bg-elevated/60 transition-colors active:scale-[0.97]"
                 >
-                    <option value="smart">{isRTL ? 'ذكي' : 'Smart'}</option>
-                    <option value="name">{isRTL ? 'الاسم' : 'Name'}</option>
-                    <option value="price_asc">{isRTL ? 'السعر ↑' : 'Price ↑'}</option>
-                    <option value="price_desc">{isRTL ? 'السعر ↓' : 'Price ↓'}</option>
-                </select>
+                    <RotateCcw size={11} />
+                    {isRTL ? 'إعادة الضبط' : 'Reset All'}
+                </button>
             </div>
-
-            <button onClick={onReset} className="w-full py-2.5 rounded-xl bg-rose-500/10 text-rose-500 hover:bg-rose-500/20 hover:text-rose-600 text-[10px] font-black uppercase tracking-widest transition-all mt-2">
-                {isRTL ? 'إعادة ضبط' : 'Reset All'}
-            </button>
         </div>
     );
 };
 
 const POSItemsPanel: React.FC<POSItemsPanelProps> = ({
-    categories, activeCategory, onSetCategory, categoryResultCounts, totalMatchedCount, hasActiveFiltering,
-    pricedItems, cartItems, onAddItem, onRemoveItem, highlightedItemId,
-    searchQuery, onSearchChange, searchInputRef,
-    itemFilter, onSetFilter, itemSort, onSetSort, itemDensity, onSetDensity,
-    showMobileFilters, onToggleFilters, onResetFilters,
-    quickPickItems, upsellSuggestions,
-    showCategoryStrip, onToggleCategoryStrip, isTabletViewport,
+    categories,
+    activeCategory,
+    onSetCategory,
+    categoryResultCounts,
+    totalMatchedCount,
+    hasActiveFiltering,
+    pricedItems,
+    cartItems,
+    onAddItem,
+    onRemoveItem,
+    highlightedItemId,
+    searchQuery,
+    onSearchChange,
+    searchInputRef,
+    itemFilter,
+    onSetFilter,
+    itemSort,
+    onSetSort,
+    itemDensity,
+    onSetDensity,
+    showMobileFilters,
+    onToggleFilters,
+    onResetFilters,
+    quickPickItems,
     quickCategoryNav,
-    isTouchMode, lang, t, currencySymbol,
+    isTouchMode,
+    lang,
+    t,
+    currencySymbol,
     isCartVisible,
-    cartStats, cartTotal, currentOrderPreview, isCartOpenMobile, onOpenCart, selectedTableId, hasCartItems,
+    cartStats,
+    cartTotal,
+    isCartOpenMobile,
+    onOpenCart,
+    hasCartItems,
 }) => {
     const isRTL = lang === 'ar';
     const [toolsOpen, setToolsOpen] = useState(false);
+    const quickCategories = quickCategoryNav;
 
     return (
-        <div className="min-w-0 flex flex-col h-full overflow-hidden min-h-0 bg-app">
-            {/* ═══ Quick Action Ribbon ═══ */}
-            <div className="shrink-0 px-3 py-2 flex items-center gap-2 border-b border-border/30 bg-white/60 dark:bg-slate-900/60 backdrop-blur-xl relative z-20">
-                {/* Search input — prominent */}
-                <div className="relative flex-1 min-w-0 group">
-                    <Search className={`absolute top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-indigo-500 transition-colors w-4.5 h-4.5 ${isRTL ? 'right-3.5' : 'left-3.5'}`} />
-                    <input
-                        ref={searchInputRef}
-                        type="text"
-                        placeholder={t.search_placeholder}
-                        value={searchQuery}
-                        onChange={(e) => onSearchChange(e.target.value)}
-                        className={`w-full h-10 text-sm bg-slate-50 dark:bg-slate-800/80 border border-slate-200/80 dark:border-slate-700/50 rounded-xl focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500/50 font-semibold outline-none transition-all placeholder-slate-400 shadow-sm ${isRTL ? 'pr-10 pl-9 text-right' : 'pl-10 pr-9 text-left'}`}
-                    />
-                    {searchQuery && (
-                        <button onClick={() => onSearchChange('')} className={`absolute top-1/2 -translate-y-1/2 p-1 rounded-md text-slate-400 hover:bg-rose-500/10 hover:text-rose-500 transition-all ${isRTL ? 'left-2' : 'right-2'}`}>
-                            <X size={16} />
+        <div className="flex flex-1 h-full min-h-0 min-w-0 flex-col overflow-hidden bg-app">
+            {/* ─── Unified Toolbar ─── */}
+            <div className="pos-items-toolbar shrink-0 border-b border-border/10 bg-white/80 backdrop-blur-sm px-2.5 py-1.5 md:px-3">
+                {/* Row 1: Search + Filters + Tools */}
+                <div className="flex items-center gap-2">
+                    {/* Search */}
+                    <div className="relative min-w-0 flex-1">
+                        <Search className={`pointer-events-none absolute top-1/2 -translate-y-1/2 text-muted/50 ${isRTL ? 'right-3' : 'left-3'}`} size={16} />
+                        <input
+                            ref={searchInputRef}
+                            type="text"
+                            value={searchQuery}
+                            onChange={(e) => onSearchChange(e.target.value)}
+                            placeholder={t.search_placeholder}
+                            className={`h-10 w-full rounded-xl border border-border/15 bg-card/60 px-3 text-sm font-bold text-main outline-none placeholder:text-muted/40 focus:border-primary/30 focus:ring-2 focus:ring-primary/8 transition-all ${isRTL ? 'pr-9 pl-9' : 'pl-9 pr-9'}`}
+                        />
+                        {searchQuery && (
+                            <button
+                                onClick={() => onSearchChange('')}
+                                className={`absolute top-1/2 -translate-y-1/2 flex h-6 w-6 items-center justify-center rounded-full bg-elevated/80 text-muted hover:bg-rose-500 hover:text-white transition-colors ${isRTL ? 'left-1.5' : 'right-1.5'}`}
+                            >
+                                <X size={12} />
+                            </button>
+                        )}
+                    </div>
+
+                    {/* Stats badge */}
+                    <div className="hidden md:flex items-center gap-1 rounded-lg bg-primary/6 border border-primary/10 px-2 py-1.5 shrink-0">
+                        <Sparkles size={11} className="text-primary" />
+                        <span className="text-[10px] font-bold text-primary tabular-nums">{totalMatchedCount}</span>
+                    </div>
+
+                    {/* Quick filter pills */}
+                    <button
+                        onClick={() => onSetFilter(itemFilter === 'popular' ? 'all' : 'popular')}
+                        className={`shrink-0 flex h-10 items-center gap-1.5 rounded-xl border px-3 text-[10px] font-bold uppercase tracking-wider transition-all active:scale-95 ${itemFilter === 'popular'
+                            ? 'border-amber-500/30 bg-amber-500 text-white shadow-sm shadow-amber-500/15'
+                            : 'border-border/15 bg-card/60 text-muted hover:text-amber-600 hover:border-amber-200'
+                            }`}
+                    >
+                        <Star size={13} className={itemFilter === 'popular' ? 'fill-current' : ''} />
+                        <span className="hidden sm:inline">{isRTL ? 'مميز' : 'Top'}</span>
+                    </button>
+                    <button
+                        onClick={() => onSetFilter(itemFilter === 'available' ? 'all' : 'available')}
+                        className={`shrink-0 flex h-10 items-center gap-1.5 rounded-xl border px-3 text-[10px] font-bold uppercase tracking-wider transition-all active:scale-95 ${itemFilter === 'available'
+                            ? 'border-primary/30 bg-primary text-white shadow-sm shadow-primary/15'
+                            : 'border-border/15 bg-card/60 text-muted hover:text-primary hover:border-primary/20'
+                            }`}
+                    >
+                        <CheckCircle size={13} />
+                        <span className="hidden sm:inline">{isRTL ? 'متاح' : 'Stock'}</span>
+                    </button>
+
+                    {/* Tools dropdown */}
+                    <div className="relative">
+                        <button
+                            onClick={() => setToolsOpen((prev) => !prev)}
+                            className={`flex h-10 w-10 items-center justify-center rounded-xl border transition-all active:scale-95 ${toolsOpen
+                                ? 'border-primary/25 bg-primary text-white shadow-sm'
+                                : 'border-border/15 bg-card/60 text-muted hover:text-main'
+                                }`}
+                        >
+                            <SlidersHorizontal size={15} />
+                        </button>
+                        <ToolsDropdown
+                            isOpen={toolsOpen}
+                            onClose={() => setToolsOpen(false)}
+                            itemSort={itemSort}
+                            onSetSort={onSetSort}
+                            itemDensity={itemDensity}
+                            onSetDensity={onSetDensity}
+                            onReset={onResetFilters}
+                            lang={lang}
+                        />
+                    </div>
+
+                    {/* Mobile cart button */}
+                    {isCartVisible && !isCartOpenMobile && hasCartItems && (
+                        <button
+                            onClick={onOpenCart}
+                            className="lg:hidden flex h-10 items-center gap-1.5 rounded-xl bg-primary px-3 text-white shadow-sm shadow-primary/20 active:scale-95 transition-all"
+                        >
+                            <ShoppingBag size={14} />
+                            <span className="text-[10px] font-bold tabular-nums">
+                                {cartStats.qty}
+                            </span>
                         </button>
                     )}
                 </div>
 
-                {/* Quick filter chips */}
-                <div className="hidden sm:flex items-center gap-1.5 shrink-0">
-                    <button
-                        onClick={() => onSetFilter(itemFilter === 'popular' ? 'all' : 'popular')}
-                        className={`inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all ${itemFilter === 'popular' ? 'bg-amber-500 text-white shadow-md shadow-amber-500/25' : 'bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 hover:bg-amber-50 hover:text-amber-500 dark:hover:bg-amber-500/10'}`}
-                    >
-                        <Star size={14} fill={itemFilter === 'popular' ? 'currentColor' : 'none'} />
-                        {isRTL ? 'الأكثر' : 'Top'}
-                    </button>
-                    <button
-                        onClick={() => onSetFilter(itemFilter === 'available' ? 'all' : 'available')}
-                        className={`inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all ${itemFilter === 'available' ? 'bg-emerald-500 text-white shadow-md shadow-emerald-500/25' : 'bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 hover:bg-emerald-50 hover:text-emerald-500 dark:hover:bg-emerald-500/10'}`}
-                    >
-                        <CheckCircle size={14} />
-                        {isRTL ? 'متاح' : 'Available'}
-                    </button>
+                {/* Row 2: Category pills (desktop) */}
+                <div className="hidden gap-1.5 overflow-x-auto pos-scroll mt-2 pb-0.5 md:flex">
+                    {quickCategories.map((category) => {
+                        const count = categoryResultCounts[category.id] || 0;
+                        const isActive = activeCategory === category.id;
+                        const isEmpty = count === 0;
+                        return (
+                            <button
+                                key={category.id}
+                                onClick={() => onSetCategory(category.id)}
+                                className={`shrink-0 rounded-lg border px-3 py-1.5 text-[11px] font-bold transition-all active:scale-95 ${isActive
+                                    ? 'border-primary/25 bg-primary text-white shadow-sm shadow-primary/10'
+                                    : isEmpty
+                                        ? 'border-border/8 bg-card/30 text-muted/40'
+                                        : 'border-border/12 bg-card/50 text-main hover:bg-elevated/60 hover:border-border/25'
+                                    }`}
+                            >
+                                {isRTL ? (category.nameAr || category.name) : category.name}
+                                <span className={`ml-1.5 text-[9px] tabular-nums ${isActive ? 'text-white/60' : 'text-muted/50'}`}>{count}</span>
+                            </button>
+                        );
+                    })}
                 </div>
-
-                {/* Count + Tools */}
-                <span className="text-[11px] font-black text-indigo-500 bg-indigo-500/10 px-2.5 py-1.5 rounded-lg tabular-nums shrink-0">
-                    {pricedItems.length}
-                </span>
-
-                <div className="relative shrink-0">
-                    <button
-                        onClick={() => setToolsOpen(p => !p)}
-                        className={`w-10 h-10 rounded-xl flex items-center justify-center transition-all ${toolsOpen ? 'bg-indigo-500/10 text-indigo-500' : 'bg-slate-100 dark:bg-slate-800 text-slate-400 hover:text-indigo-500 active:scale-95'}`}
-                    >
-                        <SlidersHorizontal size={18} />
-                    </button>
-                    <ToolsDropdown
-                        isOpen={toolsOpen}
-                        onClose={() => setToolsOpen(false)}
-                        itemSort={itemSort}
-                        onSetSort={onSetSort}
-                        itemDensity={itemDensity}
-                        onSetDensity={onSetDensity}
-                        onReset={() => { onResetFilters(); setToolsOpen(false); }}
-                        lang={lang}
-                    />
-                </div>
-
-                {/* Cart toggle (mobile) */}
-                {isCartVisible && !isCartOpenMobile && hasCartItems && (
-                    <button onClick={onOpenCart} className="lg:hidden shrink-0 w-10 h-10 rounded-xl bg-gradient-to-r from-indigo-500 to-cyan-500 text-white flex items-center justify-center relative shadow-lg shadow-indigo-500/25 active:scale-95 transition-all">
-                        <ShoppingBag size={18} />
-                        <span className="absolute -top-1 -right-1 min-w-[20px] h-5 px-1 rounded-full bg-amber-400 text-black text-[10px] font-black flex items-center justify-center shadow-md animate-in zoom-in">
-                            {cartStats.qty}
-                        </span>
-                    </button>
-                )}
             </div>
 
-            {/* ═══ Category Tabs ═══ */}
-            <div className="shrink-0 bg-white/40 dark:bg-slate-900/40 backdrop-blur-md border-b border-border/20 px-2 py-2.5">
+            {/* Mobile category tabs */}
+            <div className="shrink-0 border-b border-border/8 px-1.5 py-2 md:hidden">
                 <CategoryTabs
                     categories={categories}
                     activeCategory={activeCategory}
@@ -229,8 +346,8 @@ const POSItemsPanel: React.FC<POSItemsPanelProps> = ({
                 />
             </div>
 
-            {/* ═══ Item Grid ═══ */}
-            <div className="flex-1 min-h-0 bg-app">
+            {/* ─── Item Grid ─── */}
+            <div className="flex-1 min-h-0 overflow-auto">
                 <ItemGrid
                     items={pricedItems}
                     onAddItem={onAddItem}

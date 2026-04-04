@@ -1,4 +1,4 @@
-﻿
+
 import React, { useState, useRef, useEffect } from 'react';
 import { Send, Bot, User, Loader2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
@@ -14,7 +14,7 @@ import { useFinanceStore } from '../stores/useFinanceStore';
 // Services
 import { translations } from '../services/translations';
 import { GuardedAIAction } from '../services/aiActionGuard';
-import { aiApi } from '../services/api';
+import { aiApi } from '../services/api/ai';
 
 interface Message {
   id: string;
@@ -91,7 +91,7 @@ const AIAssistant: React.FC = () => {
     {
       id: '1',
       sender: 'ai',
-      text: lang === 'ar' ? 'مرحباً! أنا المساعد الذكي. يمكنني مساعدتك في إدارة المتجر، إخراج التقارير، أو حتى تعديل البيانات مباشرة. كيف أخدمك اليوم؟' : "Hello! I'm your AI Assistant. I can help you manage the store, generate reports, or even modify data directly. How can I serve you today?",
+      text: lang === 'ar' ? '������! ��� ������� �����. ������ ������� �� ����� �����ѡ ����� �������ѡ �� ��� ����� �������� ������. ��� ����� �����' : "Hello! I'm your AI Assistant. I can help you manage the store, generate reports, or even modify data directly. How can I serve you today?",
       timestamp: new Date()
     }
   ]);
@@ -128,7 +128,7 @@ const AIAssistant: React.FC = () => {
         {
           id: `${Date.now()}-exec-ok`,
           sender: 'ai',
-          text: response?.message || (lang === 'ar' ? 'تم تنفيذ الإجراء بنجاح.' : 'Action executed successfully.'),
+          text: response?.message || (lang === 'ar' ? '�� ����� ������� �����.' : 'Action executed successfully.'),
           timestamp: new Date(),
         }
       ]);
@@ -138,7 +138,7 @@ const AIAssistant: React.FC = () => {
         {
           id: `${Date.now()}-exec-fail`,
           sender: 'ai',
-          text: err?.message || (lang === 'ar' ? 'فشل تنفيذ الإجراء.' : 'Action execution failed.'),
+          text: err?.message || (lang === 'ar' ? '��� ����� �������.' : 'Action execution failed.'),
           timestamp: new Date(),
         }
       ]);
@@ -178,7 +178,7 @@ const AIAssistant: React.FC = () => {
       const guarded = await Promise.all(
         actions.map(async (action: any) => {
           if (!VALID_ACTION_TYPES.has(String(action?.type || '').toUpperCase())) {
-            return buildFallbackGuard(action, lang === 'ar' ? 'نوع إجراء غير مدعوم' : 'Unsupported action type');
+            return buildFallbackGuard(action, lang === 'ar' ? '��� ����� ��� �����' : 'Unsupported action type');
           }
           try {
             const preview = await aiApi.previewAction({ action });
@@ -208,7 +208,7 @@ const AIAssistant: React.FC = () => {
       const errorMessage: Message = {
         id: (Date.now() + 1).toString(),
         sender: 'ai',
-        text: lang === 'ar' ? 'عذراً، حدث خطأ في الاتصال. يرجى المحاولة مرة أخرى.' : "Sorry, I encountered an error. Please try again.",
+        text: lang === 'ar' ? '����� ��� ��� �� �������. ���� �������� ��� ����.' : "Sorry, I encountered an error. Please try again.",
         timestamp: new Date()
       };
       setMessages(prev => [...prev, errorMessage]);
@@ -274,7 +274,7 @@ const AIAssistant: React.FC = () => {
                     onClick={() => handleSuggestion(message.suggestion!.view)}
                     className="bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400 px-6 py-2.5 rounded-2xl text-xs font-black uppercase tracking-widest hover:bg-emerald-200 transition-all border border-emerald-200 dark:border-emerald-800/50 flex items-center gap-2"
                   >
-                    {lang === 'ar' ? 'انتقال إلى ' : 'Go to '} {message.suggestion.label}
+                    {lang === 'ar' ? '������ ��� ' : 'Go to '} {message.suggestion.label}
                   </button>
                 )}
 
@@ -326,7 +326,7 @@ const AIAssistant: React.FC = () => {
                       type="text"
                       value={actionReason[guarded.id] || ''}
                       onChange={(e) => setActionReason(prev => ({ ...prev, [guarded.id]: e.target.value }))}
-                      placeholder={lang === 'ar' ? 'سبب التنفيذ (اختياري)' : 'Reason for approval (optional)'}
+                      placeholder={lang === 'ar' ? '��� ������� (�������)' : 'Reason for approval (optional)'}
                       className="w-full card-primary rounded-xl px-3 py-2 text-xs font-bold"
                     />
 
@@ -335,14 +335,14 @@ const AIAssistant: React.FC = () => {
                         onClick={() => setPendingActions(prev => prev.filter(a => a.id !== guarded.id))}
                         className="px-3 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest bg-slate-100 dark:bg-slate-800 text-slate-500"
                       >
-                        {lang === 'ar' ? 'إلغاء' : 'Dismiss'}
+                        {lang === 'ar' ? '�����' : 'Dismiss'}
                       </button>
                       <button
                         onClick={() => handleApproveAction(guarded)}
                         disabled={!guarded.canExecute || !permissionOk}
                         className="px-3 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest bg-emerald-600 text-white disabled:opacity-50"
                       >
-                        {lang === 'ar' ? 'تنفيذ' : 'Approve & Run'}
+                        {lang === 'ar' ? '�����' : 'Approve & Run'}
                       </button>
                     </div>
                   </div>
@@ -365,14 +365,14 @@ const AIAssistant: React.FC = () => {
         </div>
       </div>
 
-      <div className="p-4 md:p-8 bg-white/50 dark:bg-slate-950/50 backdrop-blur-xl border-t border-slate-200 dark:border-slate-800 sticky bottom-24 lg:bottom-0">
+      <div className="p-4 md:p-8 bg-elevated/400 dark:bg-slate-950/50 backdrop-blur-xl border-t border-slate-200 dark:border-slate-800 sticky bottom-24 lg:bottom-0">
         <div className="max-w-4xl mx-auto relative group">
           <input
             type="text"
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyPress={(e) => e.key === 'Enter' && handleSend()}
-            placeholder={lang === 'ar' ? 'اكتب تساؤلك هنا... (مثال: ما هي الأصناف الأكثر ربحية؟)' : 'Type your query... (e.g., Which items are most profitable?)'}
+            placeholder={lang === 'ar' ? '���� ������ ���... (����: �� �� ������� ������ ����ɿ)' : 'Type your query... (e.g., Which items are most profitable?)'}
             className="w-full card-primary border-2 border-slate-200 dark:border-slate-800 rounded-[2rem] py-5 px-8 pr-20 text-sm md:text-base font-bold outline-none focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-600 transition-all shadow-xl group-hover:shadow-2xl"
           />
           <button

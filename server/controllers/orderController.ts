@@ -9,6 +9,7 @@ import { submitOrderToFiscal } from '../services/fiscalSubmitService';
 import { postPosOrderEntry } from '../services/financePostingService';
 import { buildRequestHash, getIdempotencyKeyFromRequest, sanitizeIdempotencyPayload } from '../services/idempotencyService';
 import { evaluateOrderStatusUpdate } from '../services/orderStatusPolicy';
+import { randomUUID } from 'crypto';
 
 const ORDER_CREATE_SCOPE = 'ORDER_CREATE';
 const ORDER_STATUS_UPDATE_SCOPE = 'ORDER_STATUS_UPDATE';
@@ -303,7 +304,7 @@ export const createOrder = async (req: Request, res: Response) => {
 
         // Map incoming snake_case to schema's camelCase
         const orderData = {
-            id: bodyData.id,
+            id: bodyData.id || randomUUID(),
             orderNumber: bodyData.order_number,
             type: bodyData.type,
             source: bodyData.source,
@@ -335,7 +336,8 @@ export const createOrder = async (req: Request, res: Response) => {
             kitchenNotes: bodyData.kitchen_notes || bodyData.kitchenNotes,
             deliveryNotes: bodyData.delivery_notes || bodyData.deliveryNotes,
             driverId: bodyData.driver_id || bodyData.driverId,
-            syncStatus: bodyData.sync_status || bodyData.syncStatus
+            syncStatus: bodyData.sync_status || bodyData.syncStatus,
+            shiftId: bodyData.shift_id || bodyData.shiftId
         };
 
         // Idempotency guard: if client retries the same order id, return existing record.
@@ -366,13 +368,22 @@ export const createOrder = async (req: Request, res: Response) => {
 
         // ================== SHIFT-LOCK ENFORCEMENT ==================
         // Every order MUST be linked to an active shift for cash reconciliation
-        // Now using the correctly mapped branchId
-        const [activeShift] = await db.select().from(shifts).where(
-            and(
-                eq(shifts.branchId, orderData.branchId),
-                eq(shifts.status, 'OPEN')
-            )
-        );
+        // Prioritize shift provided by frontend (Crucial for offline sync when a shift might have closed)
+        let activeShift = null;
+        if (orderData.shiftId) {
+            const [found] = await db.select().from(shifts).where(eq(shifts.id, orderData.shiftId)).limit(1);
+            if (found) activeShift = found;
+        }
+
+        if (!activeShift) {
+            const [found] = await db.select().from(shifts).where(
+                and(
+                    eq(shifts.branchId, orderData.branchId),
+                    eq(shifts.status, 'OPEN')
+                )
+            ).limit(1);
+            activeShift = found;
+        }
 
         if (!activeShift) {
             await clearIdempotencyClaim();
@@ -485,6 +496,11 @@ export const createOrder = async (req: Request, res: Response) => {
             const branchRoom = savedOrder.branchId ? `branch:${savedOrder.branchId}` : null;
             if (branchRoom) {
                 getIO().to(branchRoom).emit('order:created', savedOrder);
+                // Notify that stock changed to refresh dashboards/inventory
+                getIO().to(branchRoom).emit('stock:updated', { 
+                    branchId: savedOrder.branchId,
+                    orderId: savedOrder.id 
+                });
             }
         } catch {
             // socket is optional

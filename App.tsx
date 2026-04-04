@@ -4,46 +4,53 @@ import { router } from './routes';
 import { useAuthStore } from './stores/useAuthStore';
 import { useDataInit } from './hooks/useDataInit';
 import { Loader2, WifiOff, Wifi } from 'lucide-react';
-import { setupApi } from './services/api';
+import { setupApi } from './services/api/setup';
 import { socketService } from './services/socketService';
 import { useOrderStore } from './stores/useOrderStore';
+import { ToastProvider } from './components/common/ToastProvider';
+import { ConfirmProvider } from './components/common/ConfirmProvider';
+import ErrorBoundary from './components/common/ErrorBoundary';
+import { ThemeProvider } from './theme';
 
 // Loading Screen Component
 const LoadingScreen: React.FC<{ isConnected: boolean }> = ({ isConnected }) => (
-  <div className="min-h-screen bg-slate-900 bg-[radial-gradient(ellipse_80%_80%_at_50%_-20%,rgba(120,119,198,0.3),rgba(255,255,255,0))] flex items-center justify-center overflow-hidden relative">
-    {/* Floating Orbs Background */}
-    <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-indigo-500/20 rounded-full blur-[100px] animate-pulse" />
-    <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-cyan-500/20 rounded-full blur-[100px] animate-pulse delay-1000" />
+  <div className="min-h-screen relative overflow-hidden bg-[#0f1718] text-white flex items-center justify-center">
+    <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(13,148,136,0.35),transparent_28%),radial-gradient(circle_at_82%_18%,rgba(245,158,11,0.2),transparent_18%),linear-gradient(180deg,#122022_0%,#0d1416_55%,#0a1011_100%)]" />
+    <div className="absolute inset-0 opacity-40 [background-image:linear-gradient(rgba(255,255,255,0.04)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.04)_1px,transparent_1px)] [background-size:72px_72px]" />
+    <div className="absolute top-[10%] left-[12%] h-64 w-64 rounded-full bg-teal-400/10 blur-3xl animate-pulse" />
+    <div className="absolute bottom-[12%] right-[10%] h-72 w-72 rounded-full bg-amber-400/10 blur-3xl animate-pulse delay-1000" />
 
-    <div className="text-center relative z-10 animate-fade-in-up">
-      <div className="relative mb-10 w-32 h-32 mx-auto">
-        <div className="absolute inset-0 bg-gradient-to-br from-indigo-500 to-cyan-500 rounded-[2.5rem] blur-xl opacity-60 animate-pulse" />
-        <div className="relative w-full h-full bg-slate-900/80 backdrop-blur-xl rounded-[2.5rem] flex items-center justify-center border border-white/10 shadow-[0_8px_32px_0_rgba(0,0,0,0.4)]">
-          <span className="text-5xl font-black text-transparent bg-clip-text bg-gradient-to-br from-white to-indigo-200 tracking-tighter">CZ</span>
-        </div>
-        <div className="absolute -bottom-3 -right-3 w-10 h-10 rounded-2xl bg-gradient-to-br from-emerald-400 to-emerald-600 flex items-center justify-center shadow-lg shadow-emerald-500/30 animate-bounce">
-          <Loader2 size={18} className="text-white animate-spin" />
+    <div className="relative z-10 text-center animate-fade-in-up px-6">
+      <div className="mx-auto mb-8 flex h-28 w-28 items-center justify-center rounded-[2rem] border border-white/10 bg-white/6 shadow-[0_20px_80px_rgba(0,0,0,0.35)] backdrop-blur-2xl">
+        <div className="flex h-20 w-20 items-center justify-center rounded-[1.4rem] bg-[linear-gradient(135deg,rgba(17,94,89,0.95),rgba(180,110,28,0.92))] shadow-[0_16px_40px_rgba(20,184,166,0.25)]">
+          <span className="text-3xl font-black tracking-tight text-white">RF</span>
         </div>
       </div>
 
-      <h1 className="text-3xl font-black text-white mb-2 tracking-tight">Coduis Zen</h1>
-      <p className="text-sm text-indigo-200/60 font-medium tracking-wide mb-6 uppercase">Initializing System Assets...</p>
+      <p className="mb-3 text-[11px] font-black uppercase tracking-[0.4em] text-teal-200/70">RestoFlow ERP</p>
+      <h1 className="mb-2 text-4xl font-black tracking-tight text-white">Operational Control, Warming Up</h1>
+      <p className="mb-8 text-sm font-medium tracking-wide text-white/55">Preparing services, workspace context, and live restaurant data.</p>
 
-      <div className="flex items-center justify-center gap-2 text-xs font-bold uppercase tracking-widest bg-white/5 backdrop-blur-sm px-4 py-2 rounded-xl border border-white/10 w-fit mx-auto">
+      <div className="flex items-center justify-center gap-2 text-xs font-bold uppercase tracking-widest bg-white/6 backdrop-blur-md px-4 py-2.5 rounded-2xl border border-white/10 w-fit mx-auto">
         {isConnected ? (
-          <span className="flex items-center gap-2 text-emerald-400">
+          <span className="flex items-center gap-2 text-emerald-300">
             <div className="relative flex h-2 w-2">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-              <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-300 opacity-75"></span>
+              <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-300"></span>
             </div>
             <Wifi size={14} className="opacity-80" /> Database Connected
           </span>
         ) : (
-          <span className="flex items-center gap-2 text-amber-400">
-            <div className="w-2 h-2 rounded-full bg-amber-500 animate-pulse" />
+          <span className="flex items-center gap-2 text-amber-300">
+            <div className="w-2 h-2 rounded-full bg-amber-300 animate-pulse" />
             <WifiOff size={14} className="opacity-80" /> Offline Mode
           </span>
         )}
+      </div>
+
+      <div className="mt-6 flex items-center justify-center gap-3 text-white/45">
+        <Loader2 size={16} className="animate-spin" />
+        <span className="text-xs font-semibold uppercase tracking-[0.28em]">Initializing system assets</span>
       </div>
     </div>
   </div>
@@ -95,25 +102,8 @@ const App: React.FC = () => {
     // Initialize services
     auditService.init();
     aiIntelligenceService.init();
-
-    // Apply theme to document root
-    const root = document.documentElement;
-    root.setAttribute('data-theme', settings.theme);
-
-    if (settings.isDarkMode) {
-      root.classList.add('dark');
-    } else {
-      root.classList.remove('dark');
-    }
-
-    if (settings.language === 'ar') {
-      root.setAttribute('dir', 'rtl');
-      root.lang = 'ar';
-    } else {
-      root.setAttribute('dir', 'ltr');
-      root.lang = 'en';
-    }
-  }, [settings.theme, settings.isDarkMode, settings.language]);
+    // Theme / dark / RTL are now managed by <ThemeProvider>
+  }, []);
 
   useEffect(() => {
     if (!isAuthenticated || !token) return;
@@ -159,7 +149,17 @@ const App: React.FC = () => {
     return <LoadingScreen isConnected={isConnected} />;
   }
 
-  return <RouterProvider router={router} />;
+  return (
+    <ErrorBoundary>
+      <ThemeProvider>
+        <ToastProvider>
+          <ConfirmProvider>
+            <RouterProvider router={router} />
+          </ConfirmProvider>
+        </ToastProvider>
+      </ThemeProvider>
+    </ErrorBoundary>
+  );
 }
 
 export default App;

@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { Employee } from '../types';
-import { hrApi } from '../services/api';
+import { hrApi } from '../services/api/hr';
 
 interface AttendanceRecord {
     id: string;
@@ -22,7 +22,6 @@ interface HRState {
     fetchEmployees: () => Promise<void>;
     clockIn: (employeeId: string) => Promise<void>;
     clockOut: (employeeId: string) => Promise<void>;
-    calculatePayroll: (employeeId: string, startDate: Date, endDate: Date) => number;
     executePayrollCycle: (startDate: Date, endDate: Date, branchId?: string) => Promise<void>;
 }
 
@@ -35,7 +34,7 @@ export const useHRStore = create<HRState>((set, get) => ({
     error: null,
 
     fetchEmployees: async () => {
-        set({ isLoading: true });
+        set({ isLoading: true, error: null });
         try {
             const [employeesRaw, attendanceRaw] = await Promise.all([
                 hrApi.getEmployees(),
@@ -45,17 +44,23 @@ export const useHRStore = create<HRState>((set, get) => ({
                 hrApi.getPayrollCycles().catch(() => []),
                 hrApi.getPayouts().catch(() => []),
             ]);
+
             const employees: Employee[] = employeesRaw.map((e: any) => ({
                 id: e.id,
                 userId: e.userId,
                 nationalId: e.nationalId,
-                joinDate: new Date(e.joinDate),
-                salary: Number(e.salary || 0),
-                salaryType: e.salaryType,
+                joinDate: new Date(e.joinedAt || e.joinDate),
+                salary: Number(e.basicSalary || e.salary || 0),
+                salaryType: e.hourlyRate > 0 ? 'HOURLY' : 'MONTHLY',
                 emergencyContact: e.emergencyContact || '',
                 activeShiftId: e.activeShiftId,
                 bankAccount: e.bankAccount,
+                role: e.role,
+                name: e.name,
+                email: e.email,
+                phone: e.phone
             }));
+
             const attendance: AttendanceRecord[] = attendanceRaw.map((a: any) => ({
                 id: a.id,
                 employeeId: a.employeeId,
@@ -63,87 +68,45 @@ export const useHRStore = create<HRState>((set, get) => ({
                 clockOut: a.clockOut ? new Date(a.clockOut) : undefined,
                 totalHours: Number(a.totalHours || 0),
             }));
+
             set({ employees, attendance, payrollCycles, payoutLedger, isLoading: false });
         } catch (error: any) {
-            set({ isLoading: false, error: error.message });
+            set({ isLoading: false, error: 'Failed to fetch HR data from backend.' });
+            console.error(error);
         }
     },
 
     clockIn: async (employeeId) => {
         try {
-            const saved = await hrApi.clockIn({ employeeId });
-            const record: AttendanceRecord = {
-                id: saved.id,
-                employeeId: saved.employeeId,
-                clockIn: new Date(saved.clockIn),
-                totalHours: Number(saved.totalHours || 0),
-            };
-            set(state => ({ attendance: [record, ...state.attendance] }));
-        } catch {
-            const record: AttendanceRecord = {
-                id: Math.random().toString(36).substring(2, 11),
-                employeeId,
-                clockIn: new Date(),
-                totalHours: 0
-            };
-            set(state => ({ attendance: [record, ...state.attendance] }));
+            await hrApi.clockIn({ employeeId });
+            await get().fetchEmployees(); // Refresh state from DB
+        } catch (error) {
+            set({ error: 'Failed to clock in via API' });
+            throw error;
         }
     },
 
     clockOut: async (employeeId) => {
         try {
-            const saved = await hrApi.clockOut({ employeeId });
-            set(state => ({
-                attendance: state.attendance.map(a =>
-                    (a.employeeId === employeeId && !a.clockOut)
-                        ? { ...a, clockOut: new Date(saved.clockOut), totalHours: Number(saved.totalHours || 0) }
-                        : a
-                )
-            }));
-        } catch {
-            set(state => ({
-                attendance: state.attendance.map(a =>
-                    (a.employeeId === employeeId && !a.clockOut)
-                        ? { ...a, clockOut: new Date(), totalHours: (new Date().getTime() - a.clockIn.getTime()) / (1000 * 60 * 60) }
-                        : a
-                )
-            }));
-        }
-    },
-
-    calculatePayroll: (employeeId, start, end) => {
-        const { employees, attendance } = get();
-        const employee = employees.find(e => e.id === employeeId);
-        if (!employee) return 0;
-
-        const records = attendance.filter(a =>
-            a.employeeId === employeeId &&
-            a.clockIn >= start &&
-            a.clockIn <= end &&
-            a.clockOut
-        );
-
-        if (employee.salaryType === 'HOURLY') {
-            const totalHours = records.reduce((sum, r) => sum + r.totalHours, 0);
-            return totalHours * employee.salary;
-        } else {
-            // Simple monthly logic
-            const attendedDays = new Set(records.map(r => r.clockIn.toDateString())).size;
-            const fullMonthDays = 30;
-            return (employee.salary / fullMonthDays) * attendedDays;
+            await hrApi.clockOut({ employeeId });
+            await get().fetchEmployees(); // Refresh state from DB
+        } catch (error) {
+            set({ error: 'Failed to clock out via API' });
+            throw error;
         }
     },
 
     executePayrollCycle: async (startDate, endDate, branchId) => {
-        await hrApi.executePayroll({
-            startDate: startDate.toISOString(),
-            endDate: endDate.toISOString(),
-            branchId,
-        });
-        const [payrollCycles, payoutLedger] = await Promise.all([
-            hrApi.getPayrollCycles(),
-            hrApi.getPayouts(),
-        ]);
-        set({ payrollCycles, payoutLedger });
+        try {
+            await hrApi.executePayroll({
+                startDate: startDate.toISOString(),
+                endDate: endDate.toISOString(),
+                branchId,
+            });
+            await get().fetchEmployees(); // Refresh cycles and payouts
+        } catch (error) {
+            set({ error: 'Failed to execute payroll cycle via API' });
+            throw error;
+        }
     },
 }));

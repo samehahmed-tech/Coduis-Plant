@@ -1,5 +1,5 @@
-import React, { useCallback, useState } from 'react';
-import { Plus, Minus, Star, X } from 'lucide-react';
+import React, { useCallback } from 'react';
+import { Plus, Minus } from 'lucide-react';
 import { MenuItem } from '../../types';
 
 interface MenuItemCardProps {
@@ -14,200 +14,184 @@ interface MenuItemCardProps {
     highlighted?: boolean;
 }
 
+/* ─── Visual Card (comfortable & compact) ─── */
 const ImageCard: React.FC<{
-    item: MenuItem; displayName: string; isAvailable: boolean; isCompact: boolean;
-    quantity: number; currencySymbol: string; lang: string; highlighted: boolean;
-    onAdd: () => void; onRemove: () => void; onCardClick: () => void;
-}> = ({ item, displayName, isAvailable, isCompact, quantity, currencySymbol, lang, highlighted, onAdd, onRemove, onCardClick }) => {
-    return (
-        <div
-            onClick={(e) => {
-                if (!isAvailable) return;
-                // Only trigger add if clicking the empty card (not the +/- buttons)
-                const target = e.target as HTMLElement;
-                if (!target.closest('button')) {
-                    onAdd();
-                }
-            }}
-            className={`
-                group relative flex flex-col overflow-hidden bg-white dark:bg-slate-900 rounded-2xl border transition-all duration-200 ease-out
-                ${isAvailable
-                    ? `cursor-pointer active:scale-[0.98] ${quantity > 0
-                        ? 'border-indigo-500 shadow-md shadow-indigo-500/10 ring-1 ring-indigo-500/20'
-                        : 'border-slate-200 dark:border-slate-800 shadow-sm hover:border-slate-300 dark:hover:border-slate-700 hover:shadow-md'
+    item: MenuItem;
+    displayName: string;
+    isAvailable: boolean;
+    isCompact: boolean;
+    quantity: number;
+    currencySymbol: string;
+    lang: string;
+    highlighted: boolean;
+    onAdd: () => void;
+    onRemove: () => void;
+    onCardClick: () => void;
+}> = ({ item, displayName, isAvailable, isCompact, quantity, currencySymbol, lang, highlighted, onAdd, onRemove, onCardClick }) => (
+    <div
+        onClick={(e) => {
+            if (!isAvailable) return;
+            const target = e.target as HTMLElement;
+            if (!target.closest('button')) onCardClick();
+        }}
+        className={`group relative flex flex-col overflow-hidden rounded-2xl border bg-white transition-all duration-150 will-change-transform
+            ${isCompact ? 'min-h-[190px]' : 'min-h-[220px]'}
+            ${isAvailable
+                ? `cursor-pointer active:scale-[0.98] ${quantity > 0
+                    ? 'border-primary/25 shadow-md shadow-primary/8 ring-1 ring-primary/10'
+                    : 'border-border/15 hover:-translate-y-0.5 hover:border-primary/15 hover:shadow-lg hover:shadow-black/[0.06]'
                     }`
-                    : 'opacity-50 cursor-not-allowed grayscale'
-                }
-                ${highlighted ? 'ring-2 ring-indigo-500 ring-offset-2 ring-offset-app' : ''}
-            `}
-        >
-            {/* Out of Stock Overlay */}
-            {!isAvailable && (
-                <div className="absolute inset-x-0 top-0 h-10 z-30 flex items-center justify-center bg-rose-500/90 text-white text-[10px] font-black uppercase tracking-widest backdrop-blur-sm">
-                    Sold Out
-                </div>
-            )}
+                : 'cursor-not-allowed grayscale opacity-40'
+            } ${highlighted ? 'ring-2 ring-primary ring-offset-2 ring-offset-app' : ''}`}
+    >
+        {/* Image */}
+        {item.image && (
+            <div className="relative mx-2 mt-2 overflow-hidden rounded-xl bg-elevated/50">
+                <img
+                    src={item.image} alt=""
+                    className={`w-full object-cover transition-transform duration-200 group-hover:scale-[1.03] ${isCompact ? 'h-[78px]' : 'h-[95px]'}`}
+                    loading="lazy"
+                />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/10 via-transparent to-transparent" />
+            </div>
+        )}
 
-            {/* Top section: Square Image + Name */}
-            <div className={`p-4 pb-2 flex-grow flex flex-col`}>
-                {item.image ? (
-                    <div className="w-full aspect-square rounded-xl overflow-hidden mb-3 bg-slate-50 dark:bg-slate-800">
-                        <img src={item.image} alt={displayName} className="w-full h-full object-cover" loading="lazy" />
-                    </div>
-                ) : (
-                    // Optional placeholder or empty space if no image
-                    <div className="w-full h-2 mb-2" />
+        {/* Sold out */}
+        {!isAvailable && (
+            <div className="absolute inset-x-0 top-0 z-30 flex h-7 items-center justify-center bg-rose-500/90 text-[8px] font-bold uppercase tracking-wider text-white">
+                {lang === 'ar' ? 'نفذ' : 'Sold Out'}
+            </div>
+        )}
+
+        {/* Content */}
+        <div className="relative z-10 flex flex-1 flex-col px-2.5 pb-2.5 pt-2">
+            <div className="flex items-start justify-between gap-1.5">
+                <h3 className="line-clamp-2 text-[12px] lg:text-[13px] font-bold leading-snug text-main">{displayName}</h3>
+                {quantity > 0 && (
+                    <span className="shrink-0 rounded-md bg-primary/10 px-1.5 py-0.5 text-[9px] font-bold text-primary tabular-nums">{quantity}×</span>
                 )}
-
-                <h3 className={`text-sm font-semibold text-slate-800 dark:text-slate-200 leading-snug line-clamp-2`}>
-                    {displayName}
-                </h3>
             </div>
 
-            {/* Price & Quantity Controls */}
-            <div className={`p-4 pt-0 flex flex-col justify-end mt-auto`}>
-                <div className="flex items-center justify-between mb-2">
-                    {/* Price — THE HERO */}
-                    <div className="flex items-baseline gap-1">
-                        <span className={`text-xl font-black text-indigo-600 dark:text-indigo-400`} style={{ fontVariantNumeric: 'tabular-nums' }}>
-                            {item.price.toFixed(2)}
-                        </span>
-                        <span className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">{currencySymbol}</span>
-                    </div>
+            {item.isPopular && isAvailable && (
+                <span className="mt-1 inline-flex w-fit rounded-md bg-amber-500/8 px-1.5 py-0.5 text-[8px] font-bold uppercase tracking-wider text-amber-600 border border-amber-500/10">
+                    {lang === 'ar' ? 'مميز' : 'Popular'}
+                </span>
+            )}
 
-                    {/* Simple badge if popular */}
-                    {item.isPopular && isAvailable && (
-                        <div className="bg-amber-100 text-amber-700 px-2 py-0.5 rounded-md text-[9px] font-bold uppercase tracking-widest">
-                            Top
-                        </div>
-                    )}
+            {/* Price & Add */}
+            <div className="mt-auto pt-2.5">
+                <div className="mb-2 flex items-end gap-0.5">
+                    <span className="text-[1.4rem] leading-none font-black text-primary tabular-nums">{item.price.toFixed(2)}</span>
+                    <span className="pb-0.5 text-[9px] font-bold uppercase tracking-wider text-muted/50">{currencySymbol}</span>
                 </div>
 
-                {/* Inline +/- tap targets */}
-                <div className={`h-10 mt-1 flex items-center rounded-xl overflow-hidden transition-all ${quantity > 0 ? 'bg-indigo-50 border border-indigo-200 dark:bg-indigo-500/10 dark:border-indigo-500/30' : 'bg-slate-50 border border-slate-200 dark:bg-slate-800 dark:border-slate-700'}`}>
+                <div className={`flex h-11 items-center overflow-hidden rounded-xl border transition-all ${quantity > 0
+                    ? 'border-primary/20 bg-primary/5'
+                    : 'border-border/15 bg-elevated/50 hover:bg-elevated/80'
+                    }`}>
                     {quantity > 0 ? (
                         <>
-                            <button
-                                onClick={(e) => { e.stopPropagation(); onRemove(); }}
-                                className="h-full px-4 flex items-center justify-center text-indigo-600 hover:bg-indigo-100 active:bg-indigo-200 transition-colors"
-                            >
-                                <Minus size={18} />
+                            <button onClick={(e) => { e.stopPropagation(); onRemove(); }} className="flex h-full w-10 items-center justify-center text-primary hover:bg-primary/10 transition-colors active:scale-90">
+                                <Minus size={14} />
                             </button>
-                            <div className="flex-1 text-center font-black text-base text-indigo-700 dark:text-indigo-300 tabular-nums">
-                                {quantity}
-                            </div>
-                            <button
-                                onClick={(e) => { e.stopPropagation(); onAdd(); }}
-                                className="h-full px-4 flex items-center justify-center bg-indigo-600 text-white hover:bg-indigo-700 active:bg-indigo-800 transition-colors"
-                            >
-                                <Plus size={18} />
+                            <div className="flex-1 text-center text-sm font-black text-main tabular-nums">{quantity}</div>
+                            <button onClick={(e) => { e.stopPropagation(); onAdd(); }} className="flex h-full w-10 items-center justify-center bg-primary text-white hover:bg-primary/90 transition-colors active:scale-90">
+                                <Plus size={14} />
                             </button>
                         </>
                     ) : (
                         <button
                             onClick={(e) => { e.stopPropagation(); onAdd(); }}
                             disabled={!isAvailable}
-                            className={`w-full h-full flex items-center justify-center gap-2 text-xs font-bold uppercase tracking-widest transition-colors ${isAvailable
-                                    ? 'text-slate-600 hover:text-indigo-600 hover:bg-slate-100 dark:text-slate-400 dark:hover:text-indigo-400 dark:hover:bg-slate-800'
-                                    : 'text-slate-400'
+                            className={`flex h-full w-full items-center justify-center gap-1.5 text-[11px] font-bold uppercase tracking-wider transition-colors ${isAvailable
+                                ? 'text-muted hover:bg-primary/5 hover:text-primary'
+                                : 'text-muted/30'
                                 }`}
                         >
-                            <Plus size={14} />
-                            <span>Add</span>
+                            <Plus size={13} />
+                            <span>{lang === 'ar' ? 'أضف' : 'Add'}</span>
                         </button>
                     )}
                 </div>
             </div>
         </div>
-    );
-};
+    </div>
+);
 
-// ═══════════════════════════════════════════════════════════════
-// LIST ROW — ultra: compact row, tap to add
-// ═══════════════════════════════════════════════════════════════
+/* ─── List Row (ultra density) ─── */
 const ListCard: React.FC<{
-    item: MenuItem; displayName: string; isAvailable: boolean;
-    quantity: number; currencySymbol: string; lang: string; highlighted: boolean;
-    onAdd: () => void; onRemove: () => void; onCardClick: () => void;
-}> = ({ item, displayName, isAvailable, quantity, currencySymbol, lang, highlighted, onAdd, onRemove, onCardClick }) => (
+    item: MenuItem;
+    displayName: string;
+    isAvailable: boolean;
+    quantity: number;
+    currencySymbol: string;
+    lang: string;
+    highlighted: boolean;
+    onAdd: () => void;
+    onRemove: () => void;
+    onCardClick: () => void;
+}> = ({ item, displayName, isAvailable, quantity, highlighted, onAdd, onRemove, onCardClick }) => (
     <div
         onClick={() => { if (isAvailable) onCardClick(); }}
-        className={`
-            flex items-center gap-2.5 px-3 py-2 rounded-xl border transition-all duration-75
+        className={`flex items-center gap-2.5 rounded-xl border bg-white px-3 py-2 transition-all duration-100 will-change-transform
             ${isAvailable
-                ? `cursor-pointer active:scale-[0.99] ${quantity > 0 ? 'bg-emerald-50/40 dark:bg-emerald-950/10 border-emerald-300/25' : 'bg-card border-border/10 hover:border-emerald-200/25'
-                }`
-                : 'opacity-35 bg-card border-border/10 cursor-not-allowed'
-            }
-            ${highlighted ? 'ring-1 ring-amber-400' : ''}
-        `}
+                ? `cursor-pointer active:scale-[0.99] ${quantity > 0 ? 'border-primary/20 bg-primary/3 ring-1 ring-primary/8' : 'border-border/12 hover:border-primary/12 hover:shadow-sm'}`
+                : 'cursor-not-allowed opacity-30'
+            } ${highlighted ? 'ring-1 ring-primary/50' : ''}`}
     >
         {item.image && (
-            <div className="w-9 h-9 rounded-lg overflow-hidden shrink-0">
-                <img src={item.image} alt="" className="w-full h-full object-cover" loading="lazy" />
+            <div className="h-9 w-9 overflow-hidden rounded-lg shrink-0">
+                <img src={item.image} alt="" className="h-full w-full object-cover" loading="lazy" />
             </div>
         )}
-        <span className="flex-1 min-w-0 text-sm font-semibold text-main truncate">{displayName}</span>
-        <span className="shrink-0 text-sm font-black text-emerald-700 dark:text-emerald-400 tabular-nums">
-            {item.price.toFixed(2)}
-        </span>
+        <span className="min-w-0 flex-1 truncate text-sm font-bold text-main">{displayName}</span>
+        <span className="shrink-0 text-sm font-extrabold text-primary tabular-nums">{item.price.toFixed(2)}</span>
         {quantity > 0 && (
-            <div className="flex items-center gap-0.5 shrink-0">
-                <button onClick={(e) => { e.stopPropagation(); onRemove(); }} className="w-7 h-7 rounded-lg bg-elevated text-muted flex items-center justify-center hover:text-red-500">
-                    <Minus size={13} />
+            <div className="flex shrink-0 items-center gap-0.5">
+                <button onClick={(e) => { e.stopPropagation(); onRemove(); }} className="flex h-7 w-7 items-center justify-center rounded-lg bg-elevated text-muted hover:bg-rose-500/10 hover:text-rose-500 transition-colors active:scale-90">
+                    <Minus size={12} />
                 </button>
-                <span className="w-5 text-center text-sm font-black text-emerald-600">{quantity}</span>
-                <button onClick={(e) => { e.stopPropagation(); onAdd(); }} className="w-7 h-7 rounded-lg bg-emerald-600 text-white flex items-center justify-center">
-                    <Plus size={13} />
+                <span className="w-5 text-center text-xs font-extrabold text-primary tabular-nums">{quantity}</span>
+                <button onClick={(e) => { e.stopPropagation(); onAdd(); }} className="flex h-7 w-7 items-center justify-center rounded-lg bg-primary text-white hover:bg-primary/80 transition-colors active:scale-90">
+                    <Plus size={12} />
                 </button>
             </div>
         )}
     </div>
 );
 
-// ═══════════════════════════════════════════════════════════════
-// BUTTON — max density, tap to add
-// ═══════════════════════════════════════════════════════════════
+/* ─── Button Tile (maximum density) ─── */
 const ButtonCard: React.FC<{
-    item: MenuItem; displayName: string; isAvailable: boolean;
-    quantity: number; currencySymbol: string; lang: string; highlighted: boolean;
-    onAdd: () => void; onRemove: () => void; onCardClick: () => void;
-}> = ({ item, displayName, isAvailable, quantity, currencySymbol, lang, highlighted, onAdd, onRemove, onCardClick }) => (
+    item: MenuItem;
+    displayName: string;
+    isAvailable: boolean;
+    quantity: number;
+    highlighted: boolean;
+    onCardClick: () => void;
+}> = ({ item, displayName, isAvailable, quantity, highlighted, onCardClick }) => (
     <button
         onClick={() => { if (isAvailable) onCardClick(); }}
         disabled={!isAvailable}
-        className={`
-            relative w-full text-left rounded-xl border transition-all duration-75 px-2.5 py-2
+        className={`relative w-full rounded-xl border bg-white px-2.5 py-2 text-left transition-all duration-100 will-change-transform
             ${isAvailable
-                ? `cursor-pointer active:scale-[0.97] ${quantity > 0
-                    ? 'bg-emerald-50 dark:bg-emerald-950/15 border-emerald-300/30'
-                    : 'bg-card border-border/10 hover:border-emerald-200/25'
-                }`
-                : 'opacity-25 bg-card border-border/10 cursor-not-allowed'
-            }
-            ${highlighted ? 'ring-1 ring-amber-400' : ''}
-        `}
+                ? `cursor-pointer active:scale-[0.96] ${quantity > 0 ? 'border-primary/20 bg-primary/4 ring-1 ring-primary/8' : 'border-border/12 hover:border-primary/12 hover:shadow-sm'}`
+                : 'cursor-not-allowed opacity-25'
+            } ${highlighted ? 'ring-1 ring-primary/50' : ''}`}
     >
-        <div className="flex items-center justify-between gap-1">
-            <span className="text-xs font-semibold truncate flex-1">{displayName}</span>
-            <span className="text-xs font-black text-emerald-700 dark:text-emerald-400 shrink-0 tabular-nums">
-                {item.price.toFixed(0)}
-            </span>
+        <div className="flex items-center justify-between gap-1.5">
+            <span className="flex-1 truncate text-xs font-bold text-main">{displayName}</span>
+            <span className="shrink-0 text-xs font-extrabold text-primary tabular-nums">{item.price.toFixed(0)}</span>
             {quantity > 0 && (
-                <span className="min-w-[18px] h-4.5 px-1 rounded-full bg-emerald-600 text-white text-[9px] font-black flex items-center justify-center">
-                    {quantity}
-                </span>
+                <span className="flex min-w-[16px] items-center justify-center rounded-full bg-primary px-1 py-0.5 text-[8px] font-bold text-white">{quantity}</span>
             )}
         </div>
     </button>
 );
 
-// ═══════════════════════════════════════════════════════════════
-// MAIN
-// ═══════════════════════════════════════════════════════════════
+/* ─── Main Component ─── */
 const MenuItemCard: React.FC<MenuItemCardProps> = React.memo(({
     item, onAddItem, onRemoveItem, quantity = 0,
-    currencySymbol, isTouchMode, density = 'comfortable', lang, highlighted = false,
+    currencySymbol, density = 'comfortable', lang, highlighted = false,
 }) => {
     const displayName = (item as any).displayName || item.name;
     const isAvailable = (item as any).isActuallyAvailable !== false && item.isAvailable !== false;
@@ -220,13 +204,20 @@ const MenuItemCard: React.FC<MenuItemCardProps> = React.memo(({
         if (onRemoveItem) onRemoveItem(item.id);
     }, [onRemoveItem, item.id]);
 
-    const p = { item, displayName, isAvailable, quantity, currencySymbol, lang, highlighted, onAdd: handleAdd, onRemove: handleRemove, onCardClick: handleAdd };
+    const shared = {
+        item, displayName, isAvailable, quantity, currencySymbol, lang,
+        highlighted, onAdd: handleAdd, onRemove: handleRemove, onCardClick: handleAdd,
+    };
 
     switch (density) {
-        case 'buttons': return <ButtonCard {...p} />;
-        case 'ultra': return <ListCard {...p} />;
-        case 'compact': return <ImageCard {...p} isCompact={true} />;
-        default: return <ImageCard {...p} isCompact={false} />;
+        case 'buttons':
+            return <ButtonCard item={item} displayName={displayName} isAvailable={isAvailable} quantity={quantity} highlighted={highlighted} onCardClick={handleAdd} />;
+        case 'ultra':
+            return <ListCard {...shared} />;
+        case 'compact':
+            return <ImageCard {...shared} isCompact={true} />;
+        default:
+            return <ImageCard {...shared} isCompact={false} />;
     }
 });
 

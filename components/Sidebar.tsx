@@ -1,40 +1,10 @@
 ﻿import React, { useState, useMemo, useEffect } from 'react';
 import {
-  LayoutDashboard,
-  UtensilsCrossed,
-  ChefHat,
-  Package,
-  Bot,
-  LogOut,
-  Moon,
-  Sun,
-  Users,
-  BarChart3,
-  BookOpen,
-  Landmark,
-  Languages,
-  Sparkles,
-  Settings,
-  Menu,
-  X,
-  ChevronLeft,
-  Headset,
-  Shield,
-  Fingerprint,
-  Building2,
-  ShoppingBag,
-  Calculator,
-  Tablet,
-  Printer as PrinterIcon,
-  Zap,
-  Factory,
-  Megaphone,
-  Truck,
-  ShieldCheck,
-  ClipboardCheck,
-  Map as MapIcon,
-  Wifi,
-  WifiOff
+  LayoutDashboard, UtensilsCrossed, ChefHat, Package, Bot, LogOut, Moon, Sun,
+  Users, BarChart3, BookOpen, Landmark, Languages, Sparkles, Settings, Menu, X,
+  ChevronLeft, ChevronRight, Headset, Shield, Fingerprint, Building2, ShoppingBag,
+  Calculator, Tablet, Printer as PrinterIcon, Zap, Factory, Megaphone, Truck,
+  ShieldCheck, ClipboardCheck, Map as MapIcon, Wifi, WifiOff, ChevronDown
 } from 'lucide-react';
 import { UserRole, AppPermission, AppTheme } from '../types';
 import { translations } from '../services/translations';
@@ -44,6 +14,10 @@ import { useOrderStore } from '../stores/useOrderStore';
 import { useModal } from './Modal';
 import { useFinanceStore } from '../stores/useFinanceStore';
 import { OrderType } from '../types';
+import CalculatorWidget from './common/CalculatorWidget';
+import AppearanceModal from './common/AppearanceModal';
+import { loaders } from '../routes';
+import { syncService } from '../services/syncService';
 
 interface NavItem {
   path: string;
@@ -53,38 +27,32 @@ interface NavItem {
   loaderKey?: string;
 }
 
-import CalculatorWidget from './common/CalculatorWidget';
-import { loaders } from '../routes';
-import { syncService } from '../services/syncService';
-
 const Sidebar: React.FC = () => {
   const navigate = useNavigate();
+  const location = useLocation();
 
   const handlePreload = (key?: string) => {
-    if (key && (loaders as any)[key]) {
-      (loaders as any)[key]();
-    }
+    if (key && (loaders as any)[key]) (loaders as any)[key]();
   };
 
-  const settings = useAuthStore(state => state.settings);
-  const branches = useAuthStore(state => state.branches);
-  const logout = useAuthStore(state => state.logout);
-  const updateSettings = useAuthStore(state => state.updateSettings);
-  const hasPermission = useAuthStore(state => state.hasPermission);
-  const isSidebarCollapsed = useAuthStore(state => state.isSidebarCollapsed);
-  const toggleSidebar = useAuthStore(state => state.toggleSidebar);
-  const setActiveBranch = useAuthStore(state => state.setActiveBranch);
+  const settings = useAuthStore(s => s.settings);
+  const branches = useAuthStore(s => s.branches);
+  const logout = useAuthStore(s => s.logout);
+  const updateSettings = useAuthStore(s => s.updateSettings);
+  const hasPermission = useAuthStore(s => s.hasPermission);
+  const isSidebarCollapsed = useAuthStore(s => s.isSidebarCollapsed);
+  const toggleSidebar = useAuthStore(s => s.toggleSidebar);
+  const setActiveBranch = useAuthStore(s => s.setActiveBranch);
 
-  const activeOrderType = useOrderStore(state => state.activeOrderType);
-  const setOrderMode = useOrderStore(state => state.setOrderMode);
-  const discount = useOrderStore(state => state.discount);
-  const setDiscount = useOrderStore(state => state.setDiscount);
-  const clearCart = useOrderStore(state => state.clearCart);
+  const activeOrderType = useOrderStore(s => s.activeOrderType);
+  const setOrderMode = useOrderStore(s => s.setOrderMode);
+  const discount = useOrderStore(s => s.discount);
+  const setDiscount = useOrderStore(s => s.setDiscount);
+  const clearCart = useOrderStore(s => s.clearCart);
   const { showModal } = useModal();
-  const activeShift = useFinanceStore(state => state.activeShift);
-  const setIsCloseShiftModalOpen = useFinanceStore(state => state.setIsCloseShiftModalOpen);
+  const activeShift = useFinanceStore(s => s.activeShift);
+  const setIsCloseShiftModalOpen = useFinanceStore(s => s.setIsCloseShiftModalOpen);
 
-  const location = useLocation();
   const isPOS = location.pathname === '/pos';
   const lang = (settings.language || 'en') as 'en' | 'ar';
   const isDarkMode = settings.isDarkMode;
@@ -94,686 +62,513 @@ const Sidebar: React.FC = () => {
   const activeBranchId = settings.activeBranchId;
   const isCollapsed = isSidebarCollapsed;
   const isAdmin = user?.role === UserRole.SUPER_ADMIN;
+  const isCallCenter = user?.role === UserRole.CALL_CENTER;
+  const isRtl = lang === 'ar';
 
   const [isMobileOpen, setIsMobileOpen] = useState(false);
+  const [showSettings, setShowSettings] = useState(false);
   const [showCalc, setShowCalc] = useState(false);
-  const [isOnline, setIsOnline] = useState(typeof navigator !== 'undefined' ? navigator.onLine : true);
+  const [isOnline, setIsOnline] = useState(
+    typeof navigator !== 'undefined' ? navigator.onLine : true
+  );
   const [syncStats, setSyncStats] = useState({ total: 0, pending: 0, failed: 0, synced: 0 });
   const t = translations[lang] || translations['en'];
 
-  const isCallCenter = user?.role === UserRole.CALL_CENTER;
-  const isCallCenterPage = location.pathname === '/call-center';
-
+  /* ────────── Nav sections ────────── */
   const sectionsToUse = useMemo(() => {
-    // 1. Call Center Specialist UI
     if (isCallCenter) {
-      return [
-        {
-          title: lang === 'ar' ? 'مركز الاتصال' : 'Call Center',
-          items: [
-            { path: '/call-center', label: t.call_center, icon: Headset, permission: AppPermission.NAV_CALL_CENTER, loaderKey: 'CallCenter' },
-            { path: '/crm', label: t.crm, icon: Users, permission: AppPermission.NAV_CRM, loaderKey: 'CRM' },
-          ]
-        }
-      ];
-    }
-
-    // 2. Super Admin - full navigation
-    if (isAdmin) {
-      return [
-        {
-          title: lang === 'ar' ? 'الرئيسية' : 'Home',
-          items: [
-            { path: '/', label: t.dashboard, icon: LayoutDashboard, permission: AppPermission.NAV_DASHBOARD, loaderKey: 'Dashboard' },
-            { path: '/admin-dashboard', label: lang === 'ar' ? 'لوحة تحكم الإدارة' : 'Admin Dashboard', icon: Building2, permission: AppPermission.NAV_ADMIN_DASHBOARD, loaderKey: 'AdminDashboardPage' },
-          ]
-        },
-        {
-          title: lang === 'ar' ? 'العمليات التشغيلية' : 'Operations',
-          items: [
-            { path: '/pos', label: t.pos, icon: UtensilsCrossed, permission: AppPermission.NAV_POS, loaderKey: 'POS' },
-            { path: '/kds', label: t.kds, icon: ChefHat, permission: AppPermission.NAV_KDS, loaderKey: 'KDS' },
-            { path: '/call-center', label: t.call_center, icon: Headset, permission: AppPermission.NAV_CALL_CENTER, loaderKey: 'CallCenter' },
-            { path: '/call-center-manager', label: lang === 'ar' ? 'إدارة الكول سنتر' : 'Call Center Control', icon: Headset, permission: AppPermission.NAV_CALL_CENTER, loaderKey: 'CallCenterManager' },
-          ]
-        },
-        {
-          title: lang === 'ar' ? 'المخازن والإمداد' : 'Inventory & Supply',
-          items: [
-            { path: '/inventory', label: t.inventory, icon: Package, permission: AppPermission.NAV_INVENTORY, loaderKey: 'Inventory' },
-            { path: '/production', label: t.production, icon: Factory, permission: AppPermission.NAV_PRODUCTION, loaderKey: 'Production' },
-            { path: '/recipes', label: t.recipes, icon: ChefHat, permission: AppPermission.NAV_RECIPES, loaderKey: 'RecipeManager' },
-          ]
-        },
-        {
-          title: lang === 'ar' ? 'المالية والمحاسبة' : 'Finance & Accounting',
-          items: [
-            { path: '/finance', label: t.finance, icon: Landmark, permission: AppPermission.NAV_FINANCE, loaderKey: 'Finance' },
-            { path: '/fiscal', label: lang === 'ar' ? 'الامتثال الضريبي' : 'Fiscal Compliance', icon: ShieldCheck, permission: AppPermission.NAV_FINANCE, loaderKey: 'FiscalHub' },
-            { path: '/day-close', label: lang === 'ar' ? 'إغلاق اليوم' : 'Day Close', icon: ClipboardCheck, permission: AppPermission.NAV_REPORTS, loaderKey: 'DayCloseHub' },
-          ]
-        },
-        {
-          title: lang === 'ar' ? 'التقارير والتحليلات' : 'Reports & Analytics',
-          items: [
-            { path: '/franchise', label: lang === 'ar' ? 'إدارة الفروع' : 'Multi-Branch', icon: Building2, permission: AppPermission.NAV_REPORTS, loaderKey: 'FranchiseManager' },
-            { path: '/reports', label: lang === 'ar' ? 'التقارير' : 'Reports', icon: BarChart3, permission: AppPermission.NAV_REPORTS, loaderKey: 'Reports' },
-            { path: '/ai-insights', label: t.ai_insights, icon: Sparkles, permission: AppPermission.NAV_AI_ASSISTANT, loaderKey: 'AIInsights' },
-            { path: '/ai-assistant', label: t.ai_assistant, icon: Bot, permission: AppPermission.NAV_AI_ASSISTANT, loaderKey: 'AIAssistant' },
-            { path: '/forensics', label: t.forensics, icon: Fingerprint, permission: AppPermission.NAV_FORENSICS, loaderKey: 'ForensicsHub' },
-          ]
-        },
-        {
-          title: lang === 'ar' ? 'الموارد والعملاء' : 'People & Customers',
-          items: [
-            { path: '/people', label: lang === 'ar' ? 'الموارد البشرية' : 'HR & Staff', icon: Users, permission: AppPermission.NAV_PEOPLE, loaderKey: 'People' },
-            { path: '/crm', label: t.crm, icon: Users, permission: AppPermission.NAV_CRM, loaderKey: 'CRM' },
-          ]
-        },
-        {
-          title: lang === 'ar' ? 'التوصيل والتسويق' : 'Delivery & Marketing',
-          items: [
-            { path: '/dispatch', label: lang === 'ar' ? 'اللوجستيات' : 'Logistics', icon: Truck, permission: AppPermission.NAV_DASHBOARD, loaderKey: 'Dispatch' },
-            { path: '/marketing', label: lang === 'ar' ? 'حملات النمو' : 'Marketing', icon: Megaphone, permission: AppPermission.NAV_REPORTS, loaderKey: 'CampaignHub' },
-          ]
-        },
-        {
-          title: lang === 'ar' ? 'إدارة النظام' : 'System Settings',
-          items: [
-            { path: '/menu', label: t.menu, icon: BookOpen, permission: AppPermission.NAV_MENU_MANAGER, loaderKey: 'MenuManager' },
-            { path: '/floor-designer', label: lang === 'ar' ? 'مصمم الصالة' : 'Floor Designer', icon: MapIcon, permission: AppPermission.NAV_FLOOR_PLAN, loaderKey: 'FloorDesigner' },
-            { path: '/settings', label: t.settings, icon: Settings, permission: AppPermission.NAV_SETTINGS, loaderKey: 'SettingsHub' },
-            { path: '/security', label: t.security, icon: Shield, permission: AppPermission.NAV_SECURITY, loaderKey: 'SecurityHub' },
-            { path: '/printers', label: t.printers, icon: PrinterIcon, permission: AppPermission.NAV_PRINTERS, loaderKey: 'PrinterManager' },
-            { path: '/go-live', label: lang === 'ar' ? 'جاهزية الإطلاق' : 'Go-Live Center', icon: ClipboardCheck, permission: AppPermission.NAV_SECURITY, loaderKey: 'GoLiveCenter' },
-          ]
-        }
-      ];
-    }
-
-    // 3. Default Operational UI
-    return [
-      {
-        title: lang === 'ar' ? 'الرئيسية' : 'Home',
+      return [{
+        title: lang === 'ar' ? 'مركز الاتصال' : 'Call Center',
         items: [
-          { path: '/', label: t.dashboard, icon: LayoutDashboard, permission: AppPermission.NAV_DASHBOARD, loaderKey: 'Dashboard' },
-        ]
-      },
+          { path: '/call-center', label: lang === 'ar' ? 'لوحة الاتصال' : 'Call Center', icon: Headset, permission: 'VIEW_REPORTS' as AppPermission, loaderKey: 'callCenter' },
+        ],
+      }];
+    }
+    return [
       {
         title: lang === 'ar' ? 'العمليات' : 'Operations',
         items: [
-          { path: '/pos', label: t.pos, icon: UtensilsCrossed, permission: AppPermission.NAV_POS, loaderKey: 'POS' },
-          { path: '/kds', label: t.kds, icon: ChefHat, permission: AppPermission.NAV_KDS, loaderKey: 'KDS' },
-          { path: '/call-center', label: t.call_center, icon: Headset, permission: AppPermission.NAV_CALL_CENTER, loaderKey: 'CallCenter' },
-          { path: '/call-center-manager', label: lang === 'ar' ? 'إدارة الكول سنتر' : 'Call Center Control', icon: Headset, permission: AppPermission.NAV_CALL_CENTER, loaderKey: 'CallCenterManager' },
-        ]
+          { path: '/', label: lang === 'ar' ? 'الرئيسية' : 'Dashboard', icon: LayoutDashboard, permission: 'VIEW_REPORTS' as AppPermission, loaderKey: 'dashboard' },
+          { path: '/pos', label: lang === 'ar' ? 'نقطة البيع' : 'POS', icon: ShoppingBag, permission: 'MANAGE_ORDERS' as AppPermission, loaderKey: 'pos' },
+          { path: '/kitchen', label: lang === 'ar' ? 'المطبخ' : 'Kitchen', icon: ChefHat, permission: 'VIEW_KDS' as AppPermission, loaderKey: 'kitchen' },
+          { path: '/orders', label: lang === 'ar' ? 'الطلبات' : 'Orders', icon: ClipboardCheck, permission: 'VIEW_ORDERS' as AppPermission, loaderKey: 'orders' },
+          { path: '/tables', label: lang === 'ar' ? 'الطاولات' : 'Tables', icon: MapIcon, permission: 'MANAGE_TABLES' as AppPermission, loaderKey: 'tables' },
+          { path: '/production', label: lang === 'ar' ? 'الإنتاج' : 'Production', icon: Factory, permission: 'MANAGE_ORDERS' as AppPermission, loaderKey: 'production' },
+        ],
       },
       {
-        title: lang === 'ar' ? 'المخازن' : 'Inventory',
+        title: lang === 'ar' ? 'المنيو والمخزون' : 'Menu & Stock',
         items: [
-          { path: '/inventory', label: t.inventory, icon: Package, permission: AppPermission.NAV_INVENTORY, loaderKey: 'Inventory' },
-          { path: '/floor-designer', label: lang === 'ar' ? 'مصمم الصالة' : 'Floor Designer', icon: MapIcon, permission: AppPermission.NAV_FLOOR_PLAN, loaderKey: 'FloorDesigner' },
-        ]
+          { path: '/menu', label: lang === 'ar' ? 'المنيو' : 'Menu', icon: BookOpen, permission: 'MANAGE_MENU' as AppPermission, loaderKey: 'menu' },
+          { path: '/inventory', label: lang === 'ar' ? 'المخزون' : 'Inventory', icon: Package, permission: 'MANAGE_INVENTORY' as AppPermission, loaderKey: 'inventory' },
+        ],
       },
       {
-        title: lang === 'ar' ? 'العملاء والمساعد' : 'Customers & AI',
+        title: lang === 'ar' ? 'ماليات وتقارير' : 'Finance & Reports',
         items: [
-          { path: '/crm', label: t.crm, icon: Users, permission: AppPermission.NAV_CRM, loaderKey: 'CRM' },
-          { path: '/ai-assistant', label: t.ai_assistant, icon: Sparkles, permission: AppPermission.NAV_AI_ASSISTANT, loaderKey: 'AIAssistant' },
-        ]
+          { path: '/finance', label: lang === 'ar' ? 'الماليات' : 'Finance', icon: Landmark, permission: 'VIEW_REPORTS' as AppPermission, loaderKey: 'finance' },
+          { path: '/reports', label: lang === 'ar' ? 'التقارير' : 'Reports', icon: BarChart3, permission: 'VIEW_REPORTS' as AppPermission, loaderKey: 'reports' },
+        ],
       },
       {
-        title: lang === 'ar' ? 'التقارير والامتثال' : 'Reports & Compliance',
+        title: lang === 'ar' ? 'الفريق والعملاء' : 'Team & CRM',
         items: [
-          { path: '/reports', label: lang === 'ar' ? 'التقارير' : 'Reports', icon: BarChart3, permission: AppPermission.NAV_REPORTS, loaderKey: 'Reports' },
-          { path: '/day-close', label: lang === 'ar' ? 'إغلاق اليوم' : 'Day Close', icon: ClipboardCheck, permission: AppPermission.NAV_REPORTS, loaderKey: 'DayCloseHub' },
-        ]
-      }
+          { path: '/crm', label: lang === 'ar' ? 'العملاء' : 'CRM', icon: Users, permission: 'VIEW_REPORTS' as AppPermission, loaderKey: 'crm' },
+          { path: '/user-management', label: lang === 'ar' ? 'إدارة الفريق' : 'User & Security Center', icon: ShieldCheck, permission: 'NAV_USER_MANAGEMENT' as AppPermission, loaderKey: 'userManagement' },
+          { path: '/call-center', label: lang === 'ar' ? 'مركز الاتصال' : 'Call Center', icon: Headset, permission: 'VIEW_REPORTS' as AppPermission, loaderKey: 'callCenter' },
+          { path: '/dispatch', label: lang === 'ar' ? 'التوصيل' : 'Dispatch', icon: Truck, permission: 'VIEW_REPORTS' as AppPermission, loaderKey: 'dispatch' },
+        ],
+      },
+      {
+        title: lang === 'ar' ? 'نظام' : 'System',
+        items: [
+          { path: '/ai-assistant', label: lang === 'ar' ? 'مساعد AI' : 'AI Assistant', icon: Bot, permission: 'VIEW_REPORTS' as AppPermission, loaderKey: 'aiAssistant' },
+          { path: '/marketing', label: lang === 'ar' ? 'التسويق' : 'Marketing', icon: Megaphone, permission: 'VIEW_REPORTS' as AppPermission, loaderKey: 'marketing' },
+          ...(isAdmin ? [{ path: '/settings', label: lang === 'ar' ? 'الإعدادات' : 'Settings', icon: Settings, permission: 'MANAGE_USERS' as AppPermission, loaderKey: 'settings' }] : []),
+        ],
+      },
     ];
-  }, [isAdmin, isCallCenter, lang, t]);
-  const filteredSections = useMemo(() => {
-    const userRole = settings.currentUser?.role;
-    // Admins and direct Call Center roles are already defined in sectionsToUse
-    if (isAdmin || isCallCenter) return sectionsToUse;
+  }, [lang, isAdmin, isCallCenter]);
 
-    return sectionsToUse.map(section => ({
-      ...section,
-      items: section.items.filter(item => hasPermission(item.permission))
-    })).filter(section => section.items.length > 0);
-  }, [sectionsToUse, settings.currentUser, isAdmin, isCallCenter, hasPermission]);
+  const filteredSections = useMemo(() =>
+    sectionsToUse.map(s => ({
+      ...s,
+      items: s.items.filter(item => hasPermission(item.permission)),
+    })).filter(s => s.items.length > 0),
+    [sectionsToUse, hasPermission]
+  );
 
-  const handleNavClick = () => {
-    setIsMobileOpen(false);
-  };
-
-  const currentBranchName = branches.find(b => b.id === activeBranchId)?.name || (lang === 'ar' ? 'كل الفروع' : 'All Branches');
-
-  const handleLogout = () => {
-    logout();
-    navigate('/login');
-  };
-
-  const handleToggleDarkMode = () => {
-    updateSettings({ isDarkMode: !isDarkMode });
-  };
-
-  const handleToggleTouchMode = () => {
-    updateSettings({ isTouchMode: !isTouchMode });
-  };
-
-  const handleToggleLang = () => {
-    updateSettings({ language: lang === 'en' ? 'ar' : 'en' });
-  };
-
-  const handleThemeChange = (newTheme: AppTheme) => {
-    updateSettings({ theme: newTheme });
-  };
-
+  /* ────────── Sync / Online ────────── */
   useEffect(() => {
     let mounted = true;
-    const refreshStats = async () => {
-      try {
-        const stats = await syncService.getQueueStats();
-        if (mounted) setSyncStats(stats);
-      } catch {
-        // ignore stats errors in UI
-      }
+    const refresh = async () => {
+      try { const s = await syncService.getQueueStats(); if (mounted) setSyncStats(s); } catch { /* ignore */ }
     };
-    const onOnline = () => {
-      setIsOnline(true);
-      refreshStats();
-    };
-    const onOffline = () => {
-      setIsOnline(false);
-      refreshStats();
-    };
-    refreshStats();
-    const interval = window.setInterval(refreshStats, 5000);
+    const onOnline = () => { setIsOnline(true); refresh(); };
+    const onOffline = () => { setIsOnline(false); refresh(); };
+    refresh();
+    const id = window.setInterval(refresh, 5000);
     window.addEventListener('online', onOnline);
     window.addEventListener('offline', onOffline);
     return () => {
       mounted = false;
-      window.clearInterval(interval);
+      window.clearInterval(id);
       window.removeEventListener('online', onOnline);
       window.removeEventListener('offline', onOffline);
     };
   }, []);
 
+  /* ────────── Handlers ────────── */
+  const handleLogout = () => { logout(); navigate('/login'); };
+  const handleToggleTouch = () => updateSettings({ isTouchMode: !isTouchMode });
+  const handleNavClick = () => setIsMobileOpen(false);
+
+  const initials = user?.name
+    ? user.name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)
+    : 'U';
+
+  /* ── widths ── */
+  const EXPANDED_W = isTouchMode ? 'w-72' : 'w-60';
+  const COLLAPSED_W = 'w-[70px]';
+  const sidebarW = isCollapsed ? COLLAPSED_W : EXPANDED_W;
+
+  /* ── Tooltip helper ── */
+  const Tooltip = ({ label }: { label: string }) => (
+    <div
+      className={`
+        absolute ${isRtl ? 'right-full mr-3' : 'left-full ml-3'} top-1/2 -translate-y-1/2
+        px-2.5 py-1.5 bg-gray-900 dark:bg-gray-800 text-white text-[10px] font-bold
+        rounded-lg shadow-xl whitespace-nowrap
+        opacity-0 group-hover:opacity-100 pointer-events-none
+        transition-opacity duration-150 z-[300]
+      `}
+    >
+      {label}
+    </div>
+  );
+
+  /* ═══════════════════════════════════════════════════════════
+     RENDER
+  ═══════════════════════════════════════════════════════════ */
   return (
     <>
-      {/* Mobile menu button */}
-      <button
-        onClick={() => setIsMobileOpen(true)}
-        className={`xl:hidden fixed top-[max(0.75rem,var(--safe-top))] z-[60] p-2 bg-slate-900 text-white rounded-xl shadow-lg ${lang === 'ar' ? 'right-3' : 'left-3'}`}
-      >
-        <Menu size={20} />
-      </button>
-
-      {/* Backdrop */}
+      {/* ── Mobile overlay ── */}
       {isMobileOpen && (
         <div
-          className="xl:hidden fixed inset-0 bg-black/60 backdrop-blur-sm z-[70]"
+          className="lg:hidden fixed inset-0 bg-black/50 backdrop-blur-sm z-[70]"
           onClick={() => setIsMobileOpen(false)}
         />
       )}
 
-      {/* Sidebar */}
-      <aside className={`
-        ${isCollapsed ? 'w-20' : (isTouchMode ? 'w-72' : 'w-64')} 
-        bg-sidebar/95 backdrop-blur-3xl text-main flex flex-col app-viewport h-screen 
-        fixed top-0 shadow-[0_0_40px_rgba(0,0,0,0.08)] z-[80] transition-all duration-500
-        ${lang === 'ar' ? 'right-0 border-l' : 'left-0 border-r'} border-border/50
-        ${isMobileOpen ? 'translate-x-0' : `${lang === 'ar' ? 'translate-x-full' : '-translate-x-full'} xl:translate-x-0`}
-      `}>
-        {/* Close button for mobile */}
-        <button
-          onClick={() => setIsMobileOpen(false)}
-          className="xl:hidden absolute top-4 right-4 p-2 text-slate-400 hover:text-white"
-        >
-          <X size={20} />
-        </button>
+      {/* ── Mobile hamburger ── */}
+      <button
+        onClick={() => setIsMobileOpen(true)}
+        className={`
+          lg:hidden fixed top-3 z-[60] p-2.5
+          bg-card/90 backdrop-blur-xl text-main
+          rounded-xl border border-border/50 shadow-md
+          transition-all hover:bg-card
+          ${isRtl ? 'right-3' : 'left-3'}
+        `}
+        aria-label="Open navigation"
+      >
+        <Menu size={18} />
+      </button>
 
-        {/* Header Branding */}
-        <div className={`relative flex flex-col items-center transition-all duration-500 ${isCollapsed ? 'py-6 px-2' : 'p-6'}`}>
-          <div className={`p-2.5 rounded-2xl bg-primary/5 border border-primary/10 flex items-center justify-center transition-all duration-500 ${isCollapsed ? 'w-11 h-11' : 'w-14 h-14 mb-3'}`}>
-            <img src="/logo.png" alt="Logo" className="w-full h-full object-contain drop-shadow-xl" />
+      {/* ════════════════════════════════════════════
+          SIDEBAR
+      ════════════════════════════════════════════ */}
+      <aside
+        className={`
+          ${sidebarW}
+          fixed top-0 bottom-0
+          ${isRtl ? 'right-0 border-l' : 'left-0 border-r'}
+          z-[80] flex flex-col
+          bg-card/95 dark:bg-card/98
+          backdrop-blur-2xl
+          border-border/30
+          shadow-xl dark:shadow-black/40
+          transition-[width,transform] duration-300 ease-out
+          ${isMobileOpen
+            ? 'translate-x-0'
+            : `${isRtl ? 'translate-x-full' : '-translate-x-full'} lg:translate-x-0`
+          }
+        `}
+        style={{ fontFamily: isRtl ? 'var(--font-arabic)' : 'var(--font-body)' }}
+      >
+
+        {/* ── Header ── */}
+        <div className={`flex items-center h-14 shrink-0 border-b border-border/20 ${isCollapsed ? 'justify-center px-3' : 'px-4 gap-3'}`}>
+          {/* Logo */}
+          <div className="relative shrink-0">
+            <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-primary to-primary/60 flex items-center justify-center shadow-md shadow-primary/20 overflow-hidden">
+              <img
+                src="/logo.png" alt="Logo"
+                className="w-6 h-6 object-contain"
+                onError={e => { (e.target as HTMLImageElement).style.display = 'none'; }}
+              />
+            </div>
+            <span className={`absolute -bottom-0.5 -right-0.5 w-2 h-2 rounded-full border-2 border-card ${isOnline ? 'bg-emerald-500' : 'bg-amber-500'}`} />
           </div>
 
-          {!isPOS && !isCollapsed && (
-            <div className="text-center animate-in fade-in slide-in-from-top-1 duration-700">
-              <h2 className="text-[9px] font-black text-primary tracking-[0.3em] uppercase opacity-70">{lang === 'ar' ? 'نظام الإدارة' : 'Management System'}</h2>
-              <p className="text-[7px] font-black text-muted uppercase tracking-[0.1em] opacity-40">{lang === 'ar' ? 'المتكامل' : 'Enterprise'}</p>
+          {/* Brand name */}
+          {!isCollapsed && (
+            <div className="flex-1 min-w-0 animate-fade-in">
+              <p className="text-[11px] font-black text-main uppercase tracking-[0.15em] leading-tight truncate">
+                {isPOS ? (lang === 'ar' ? 'نقطة البيع' : 'Point of Sale') : 'RestoFlow'}
+              </p>
+              <p className="text-[9px] font-semibold text-muted truncate mt-px">
+                {isPOS
+                  ? (activeShift ? (lang === 'ar' ? '● وردية نشطة' : '● Active Shift') : (lang === 'ar' ? '○ مغلقة' : '○ Shift Closed'))
+                  : (lang === 'ar' ? 'نظام المطاعم' : 'Restaurant ERP')
+                }
+              </p>
             </div>
           )}
 
-          {isPOS && !isCollapsed && (
-            <div className="text-center animate-in fade-in zoom-in duration-500">
-              <h2 className="text-[10px] font-black text-primary tracking-[0.4em] uppercase">{lang === 'ar' ? 'نقطة البيع' : 'POINT OF SALE'}</h2>
-              <div className="flex items-center justify-center gap-1 mt-1">
-                <div className="w-1 h-1 rounded-full bg-primary animate-pulse" />
-                <span className="text-[7px] font-black text-muted uppercase tracking-widest">{activeShift ? (lang === 'ar' ? 'وردية مفتوحة' : 'Active Shift') : (lang === 'ar' ? 'مغلقة' : 'Closed')}</span>
-              </div>
-            </div>
-          )}
-
-          {/* Persistent Floating Toggle Hub */}
+          {/* Mobile close */}
           <button
-            onClick={toggleSidebar}
-            className={`
-                hidden xl:flex absolute top-10 ${lang === 'ar' ? '-left-3' : '-right-3'} 
-                w-7 h-10 bg-primary text-white rounded-xl items-center justify-center 
-                shadow-xl shadow-primary/30 hover:scale-110 active:scale-90 transition-all z-[100] 
-                border-2 border-white dark:border-slate-950 group
-             `}
+            onClick={() => setIsMobileOpen(false)}
+            className="lg:hidden ml-auto p-1.5 text-muted hover:text-main rounded-lg transition-colors"
           >
-            <ChevronLeft size={16} className={`transition-transform duration-500 ${isCollapsed ? 'rotate-180' : ''} ${lang === 'ar' ? 'rotate-180' : ''}`} />
+            <X size={16} />
           </button>
+
+          {/* Desktop collapse toggle */}
+          {!isMobileOpen && (
+            <button
+              onClick={toggleSidebar}
+              className={`
+                hidden lg:flex ml-auto p-1.5 text-muted hover:text-main
+                rounded-lg transition-all hover:bg-elevated/60
+                ${isCollapsed ? '' : ''}
+              `}
+              title={isCollapsed ? 'Expand' : 'Collapse'}
+            >
+              {isRtl
+                ? (isCollapsed ? <ChevronLeft size={15} /> : <ChevronRight size={15} />)
+                : (isCollapsed ? <ChevronRight size={15} /> : <ChevronLeft size={15} />)
+              }
+            </button>
+          )}
         </div>
 
-        {/* Navigation */}
-        <nav className="flex-1 overflow-y-auto py-2 px-3 space-y-4 no-scrollbar scroll-smooth">
-          {/* 
-             ًں›،ï¸ڈ POS VESSEL PROTOCOL - PROTECTED SECTION 
-             This section is isolated from global design changes to maintain 
-             cashier consistency. DO NOT MODIFY without Protocol Unlock.
-          */}
-          {isPOS && (
-            <div className="mb-8 p-2 rounded-[2rem] bg-card/90 border border-border/50 shadow-sm relative overflow-hidden group/pos">
-              <div className="absolute top-0 left-0 w-full h-[1px] bg-gradient-to-r from-transparent via-primary/20 to-transparent" />
-              {!isCollapsed && (
-                <div className="px-4 pt-4 pb-3 flex justify-between items-center">
-                  <h3 className="text-[11px] font-black text-primary/70 uppercase tracking-[0.22em]">
-                    {lang === 'ar' ? 'مركز التحكم' : 'Command Center'}
-                  </h3>
-                  <div className="flex gap-1">
-                    <div className="w-1 h-1 rounded-full bg-primary animate-pulse" />
-                    <div className="w-1 h-1 rounded-full bg-primary/30" />
-                  </div>
-                </div>
-              )}
-
-              <div className={`flex ${isCollapsed ? 'flex-col items-center mt-4' : 'justify-between px-2 pt-2'} gap-2.5`}>
-                {[
-                  { mode: OrderType.DINE_IN, icon: UtensilsCrossed, activeClass: 'bg-primary text-white shadow-lg shadow-primary/20 ring-1 ring-white/10', inactiveClass: 'bg-card/70 text-muted hover:text-primary hover:bg-primary/5', label: t.dine_in },
-                  { mode: OrderType.TAKEAWAY, icon: ShoppingBag, activeClass: 'bg-emerald-500 text-white shadow-lg shadow-emerald-500/20 ring-1 ring-white/10', inactiveClass: 'bg-card/70 text-muted hover:text-emerald-500 hover:bg-emerald-500/5', label: t.takeaway },
-                  { mode: OrderType.PICKUP, icon: MapIcon, activeClass: 'bg-teal-500 text-white shadow-lg shadow-teal-500/20 ring-1 ring-white/10', inactiveClass: 'bg-card/70 text-muted hover:text-teal-500 hover:bg-teal-500/5', label: t.pickup || 'Pickup' },
-                  { mode: OrderType.DELIVERY, icon: Building2, activeClass: 'bg-orange-500 text-white shadow-lg shadow-orange-500/20 ring-1 ring-white/10', inactiveClass: 'bg-card/70 text-muted hover:text-orange-500 hover:bg-orange-500/5', label: t.delivery },
-                ].map((m) => (
+        {/* ── POS Command Center ── */}
+        {isPOS && (
+          <div className={`mx-2 mt-2 mb-1 p-2 rounded-2xl bg-elevated/40 border border-border/30 shrink-0`}>
+            {!isCollapsed && (
+              <p className="text-[8px] font-black text-muted/60 uppercase tracking-[0.25em] px-1 mb-2">
+                {lang === 'ar' ? 'نوع الطلب' : 'Order Type'}
+              </p>
+            )}
+            <div className={`grid ${isCollapsed ? 'grid-cols-1 gap-1' : 'grid-cols-2 gap-1'}`}>
+              {[
+                { mode: OrderType.DINE_IN, icon: UtensilsCrossed, color: 'from-primary to-primary/80 shadow-primary/25', label: t.dine_in },
+                { mode: OrderType.TAKEAWAY, icon: ShoppingBag, color: 'from-emerald-500 to-emerald-600 shadow-emerald-500/25', label: t.takeaway },
+                { mode: OrderType.PICKUP, icon: MapIcon, color: 'from-teal-500 to-teal-600 shadow-teal-500/25', label: t.pickup || 'Pickup' },
+                { mode: OrderType.DELIVERY, icon: Building2, color: 'from-orange-500 to-orange-600 shadow-orange-500/25', label: t.delivery },
+              ].map(m => {
+                const active = activeOrderType === m.mode;
+                return (
                   <button
                     key={m.mode}
                     onClick={() => setOrderMode(m.mode)}
                     className={`
-                      group relative rounded-2xl transition-all duration-500 hover:scale-105 active:scale-95
-                      ${activeOrderType === m.mode ? m.activeClass : m.inactiveClass}
-                      ${!isCollapsed ? 'flex-1 flex flex-col items-center gap-2 py-4' : 'p-3.5'}
+                      group relative flex items-center gap-1.5 rounded-xl transition-all duration-150
+                      ${isCollapsed ? 'justify-center p-2.5' : 'px-2.5 py-2'}
+                      ${active
+                        ? `bg-gradient-to-br ${m.color} text-white shadow-md`
+                        : 'bg-card/50 text-muted hover:bg-card hover:text-main border border-border/20'
+                      }
                     `}
                   >
-                    <m.icon size={isCollapsed ? 18 : 18} className={`transition-transform duration-500 ${activeOrderType === m.mode ? 'scale-110' : ''}`} />
-                    {!isCollapsed && (
-                      <span className={`text-[9px] font-black uppercase tracking-wider text-center transition-colors ${activeOrderType === m.mode ? 'text-white' : 'text-muted'}`}>
-                        {m.label}
-                      </span>
-                    )}
-                    {isCollapsed && (
-                      <div className={`absolute ${lang === 'ar' ? 'right-full mr-5' : 'left-full ml-5'} top-1/2 -translate-y-1/2 px-4 py-2 bg-elevated text-main shadow-2xl z-[100] border border-primary/20`}>
-                        {m.label}
-                      </div>
-                    )}
+                    <m.icon size={13} />
+                    {!isCollapsed && <span className="text-[8px] font-black uppercase tracking-wide truncate">{m.label}</span>}
+                    {isCollapsed && <Tooltip label={m.label} />}
                   </button>
-                ))}
+                );
+              })}
+            </div>
+
+            {!isCollapsed && (
+              <div className="mt-1.5 space-y-1">
+                <button
+                  onClick={() => setDiscount(discount === 0 ? 10 : 0)}
+                  className={`w-full flex items-center justify-between px-2.5 py-1.5 rounded-xl text-[8px] font-black uppercase tracking-wider transition-all ${discount > 0 ? 'bg-indigo-500/15 text-indigo-500 border border-indigo-500/20' : 'bg-card/40 text-muted border border-border/20 hover:border-primary/20'}`}
+                >
+                  <span>{lang === 'ar' ? 'خصم' : 'Discount'}</span>
+                  <span className={discount > 0 ? 'text-indigo-400' : 'text-muted'}>{discount}%</span>
+                </button>
+
+                <button
+                  onClick={() => setShowCalc(!showCalc)}
+                  className={`w-full flex items-center justify-between px-2.5 py-1.5 rounded-xl text-[8px] font-black uppercase tracking-wider transition-all ${showCalc ? 'bg-primary/10 text-primary border border-primary/20' : 'bg-card/40 text-muted border border-border/20 hover:border-primary/20'}`}
+                >
+                  <span className="flex items-center gap-1.5"><Calculator size={11} />{lang === 'ar' ? 'الحاسبة' : 'Calc'}</span>
+                  <span className={`w-1.5 h-1.5 rounded-full ${showCalc ? 'bg-primary animate-pulse' : 'bg-border'}`} />
+                </button>
+
+                {showCalc && (
+                  <div className="rounded-xl overflow-hidden border border-border/20 animate-scale-in">
+                    <CalculatorWidget isCompact />
+                  </div>
+                )}
+
+                <button
+                  onClick={handleToggleTouch}
+                  className={`w-full flex items-center justify-between px-2.5 py-1.5 rounded-xl text-[8px] font-black uppercase tracking-wider transition-all ${isTouchMode ? 'bg-amber-500/15 text-amber-500 border border-amber-500/20' : 'bg-card/40 text-muted border border-border/20'}`}
+                >
+                  <span className="flex items-center gap-1.5"><Tablet size={11} />{lang === 'ar' ? 'اللمس' : 'Touch'}</span>
+                  <span className={`w-1.5 h-1.5 rounded-full ${isTouchMode ? 'bg-amber-500 animate-pulse' : 'bg-border'}`} />
+                </button>
+
+                <div className="grid grid-cols-2 gap-1">
+                  <button
+                    onClick={() => showModal({ title: t.confirm, message: t.void_confirm, type: 'danger', confirmText: t.confirm, cancelText: t.cancel, onConfirm: () => clearCart() })}
+                    className="flex items-center justify-center gap-1 py-1.5 rounded-xl bg-rose-500/10 text-rose-500 border border-rose-500/20 text-[8px] font-black uppercase hover:bg-rose-500/15 transition-all"
+                  >
+                    <Zap size={10} />{lang === 'ar' ? 'إلغاء' : 'Void'}
+                  </button>
+                  <button className="flex items-center justify-center gap-1 py-1.5 rounded-xl bg-card/40 text-muted border border-border/20 text-[8px] font-black uppercase hover:text-main transition-all">
+                    <PrinterIcon size={10} />{lang === 'ar' ? 'آخر' : 'Last'}
+                  </button>
+                </div>
               </div>
+            )}
+          </div>
+        )}
 
-              {!isCollapsed && (
-                <div className="flex flex-col gap-3 p-3 mt-2">
-                  {/* Quick Stats/Discount */}
-                  <div className="flex gap-2">
+        {/* ── Call Center Panel ── */}
+        {isCallCenter && !isCollapsed && (
+          <div className="mx-2 mb-1 p-3 rounded-2xl bg-elevated/40 border border-border/30 shrink-0">
+            <p className="text-[8px] font-black text-muted/50 uppercase tracking-[0.25em] mb-2">
+              {lang === 'ar' ? 'أدوات المشغّل' : 'Operator Tools'}
+            </p>
+            <div className="space-y-2">
+              <div className="bg-card/50 rounded-xl p-2 border border-border/20">
+                <span className="text-[7px] font-black uppercase text-primary/70 tracking-widest block mb-1.5">
+                  {lang === 'ar' ? 'خصم سريع' : 'Quick Discount'}
+                </span>
+                <div className="flex gap-1">
+                  {[0, 5, 10, 15, 20].map(d => (
                     <button
-                      onClick={() => setDiscount(discount === 0 ? 10 : 0)}
-                      className={`w-full flex flex-col items-center justify-center py-3 rounded-2xl border transition-all group ${discount > 0 ? 'bg-indigo-500/10 border-indigo-500/30 text-indigo-600' : 'bg-card/70 border-border/50 hover:border-indigo-500/30'}`}
+                      key={d}
+                      onClick={() => setDiscount(d)}
+                      className={`flex-1 py-1 rounded-lg text-[8px] font-black transition-all ${discount === d ? 'bg-primary text-white' : 'bg-elevated text-muted hover:text-main'}`}
                     >
-                      <span className="text-[9px] font-black uppercase opacity-70 mb-0.5">{lang === 'ar' ? 'ط®طµظ…' : 'Discount'}</span>
-                      <span className="text-base font-black tracking-tighter">{discount}%</span>
+                      {d}%
                     </button>
-                  </div>
-
-                  <button
-                    onClick={() => setShowCalc(!showCalc)}
-                    className="w-full flex items-center justify-between p-3 bg-elevated/70 border border-border/50 rounded-2xl text-[9px] font-black uppercase tracking-wider hover:border-primary/50 transition-all group"
-                  >
-                    <span className="flex items-center gap-2.5"><Calculator size={14} className="text-primary group-hover:rotate-12 transition-transform" /> {lang === 'ar' ? 'الآلة الحاسبة' : 'Calculator'}</span>
-                    <div className={`w-1.5 h-1.5 rounded-full ${showCalc ? 'bg-primary animate-pulse shadow-[0_0_8px_rgba(var(--primary-rgb),0.5)]' : 'bg-slate-300 dark:bg-slate-700'}`} />
-                  </button>
-
-                  {showCalc && (
-                    <div className="mt-1 p-0.5 rounded-2xl bg-elevated/70 backdrop-blur-md border border-primary/20 animate-in zoom-in-95 duration-300 overflow-hidden">
-                      <CalculatorWidget isCompact />
-                    </div>
-                  )}
-
-                  <button
-                    onClick={handleToggleTouchMode}
-                    className={`w-full flex items-center justify-between p-3 border rounded-2xl text-[9px] font-black uppercase tracking-wider transition-all group ${isTouchMode ? 'bg-amber-500/10 border-amber-500/50 text-amber-600' : 'bg-elevated/60 border-border/50 hover:border-amber-500/30'}`}
-                  >
-                    <span className="flex items-center gap-2.5"><Tablet size={14} className={`${isTouchMode ? 'animate-bounce' : 'group-hover:scale-110'}`} /> {lang === 'ar' ? 'وضع اللمس' : 'Touch Mode'}</span>
-                    <div className={`w-1.5 h-1.5 rounded-full ${isTouchMode ? 'bg-amber-500 animate-pulse shadow-[0_0_8px_rgba(245,158,11,0.5)]' : 'bg-slate-300 dark:bg-slate-700'}`} />
-                  </button>
-
-                  <div className="grid grid-cols-2 gap-2 mt-1">
-                    <button
-                      onClick={() => {
-                        showModal({
-                          title: t.confirm,
-                          message: t.void_confirm,
-                          type: 'danger',
-                          confirmText: t.confirm,
-                          cancelText: t.cancel,
-                          onConfirm: () => clearCart()
-                        });
-                      }}
-                      className="p-3 bg-rose-500/10 text-rose-500 rounded-2xl border border-rose-500/20 hover:bg-rose-500 hover:text-white transition-all flex flex-col items-center justify-center gap-1 group"
-                    >
-                      <Zap size={14} className="group-hover:animate-pulse" />
-                      <span className="text-[8px] font-black uppercase tracking-wider">{lang === 'ar' ? 'ط¥ظ„ط؛ط§ط،' : 'Void'}</span>
-                    </button>
-                    <button className="p-3 bg-elevated/70 rounded-2xl border border-border/50 hover:bg-main hover:text-sidebar transition-all flex flex-col items-center justify-center gap-1 group">
-                      <PrinterIcon size={14} />
-                      <span className="text-[8px] font-black uppercase tracking-wider">{lang === 'ar' ? 'آخر' : 'Last'}</span>
-                    </button>
-                  </div>
+                  ))}
                 </div>
-              )}
-
-              {isCollapsed && (
-                <div className="flex flex-col items-center gap-4 mt-4 py-4 border-t border-primary/10">
-                  <button onClick={() => setDiscount(discount === 0 ? 10 : 0)} className={`group relative p-3.5 rounded-2xl border transition-all ${discount > 0 ? 'bg-indigo-500 text-white shadow-lg' : 'bg-card border-border'}`}>
-                    <Sparkles size={18} />
-                    <div className={`absolute ${lang === 'ar' ? 'right-full mr-5' : 'left-full ml-5'} top-1/2 -translate-y-1/2 px-4 py-2 bg-elevated text-main shadow-2xl z-[100] border border-primary/20`}>
-                      {lang === 'ar' ? 'ط®طµظ… 10%' : '10% Discount'}
-                    </div>
-                  </button>
-                  <button onClick={() => setShowCalc(!showCalc)} className="group relative p-3.5 rounded-2xl bg-card border border-border hover:border-primary/50 transition-all">
-                    <Calculator size={18} className={showCalc ? 'text-primary' : 'text-muted'} />
-                    <div className={`absolute ${lang === 'ar' ? 'right-full mr-5' : 'left-full ml-5'} top-1/2 -translate-y-1/2 px-4 py-2 bg-elevated text-main shadow-2xl z-[100] border border-primary/20`}>
-                      {lang === 'ar' ? 'الآلة الحاسبة' : 'Calculator'}
-                    </div>
-                  </button>
-                  <button onClick={handleToggleTouchMode} className={`group relative p-3.5 rounded-2xl border transition-all ${isTouchMode ? 'bg-amber-500 text-white shadow-lg' : 'bg-card border-border'}`}>
-                    <Tablet size={18} />
-                    <div className={`absolute ${lang === 'ar' ? 'right-full mr-5' : 'left-full ml-5'} top-1/2 -translate-y-1/2 px-4 py-2 bg-elevated text-main shadow-2xl z-[100] border border-primary/20`}>
-                      {lang === 'ar' ? 'وضع اللمس' : 'Touch Mode'}
-                    </div>
-                  </button>
-                </div>
-              )}
+              </div>
+              <select
+                value={activeBranchId || ''}
+                onChange={e => setActiveBranch(e.target.value)}
+                className="w-full bg-card/50 border border-border/20 rounded-xl py-2 px-2.5 text-[9px] font-bold text-main outline-none focus:border-primary/30 transition-all"
+              >
+                {branches.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
+              </select>
             </div>
+          </div>
+        )}
+
+        {/* ════════ NAV ════════ */}
+        <nav className="flex-1 overflow-y-auto py-2 px-2 space-y-0.5 scrollbar-thin scrollbar-thumb-border/30 scrollbar-track-transparent">
+
+          {/* POS → back to dashboard */}
+          {isPOS && (
+            <NavLink
+              to="/"
+              className="flex items-center gap-3 px-3 py-2 rounded-xl text-primary bg-primary/8 border border-primary/15 mb-2 hover:bg-primary/12 transition-all text-[10px] font-black uppercase tracking-wide"
+            >
+              <LayoutDashboard size={15} />
+              {!isCollapsed && <span>{lang === 'ar' ? 'لوحة القيادة' : 'Dashboard'}</span>}
+              {isCollapsed && <Tooltip label={lang === 'ar' ? 'لوحة القيادة' : 'Dashboard'} />}
+            </NavLink>
           )}
 
-          {/* ًں“‍ CALL CENTER COMMAND CENTER */}
-          {isCallCenter && (
-            <div className="mb-8 p-2 rounded-[2rem] bg-elevated/50 dark:bg-elevated/20 border border-primary/20 shadow-sm relative overflow-hidden">
-              <div className="absolute top-0 left-0 w-full h-[1px] bg-gradient-to-r from-transparent via-indigo-400/30 to-transparent" />
+          {!isPOS && filteredSections.map((section, idx) => (
+            <div key={idx} className={idx > 0 ? 'mt-3' : ''}>
+              {/* Section label */}
               {!isCollapsed && (
-                <div className="px-4 pt-4 pb-3 flex justify-between items-center">
-                  <h3 className="text-[10px] font-black text-indigo-600 dark:text-indigo-400 uppercase tracking-[0.2em]">
-                    {lang === 'ar' ? 'أدوات المشغّل' : 'Operator Tools'}
-                  </h3>
-                  <div className="flex gap-1">
-                    <div className="w-1.5 h-1.5 rounded-full bg-indigo-500 animate-pulse" />
-                    <div className="w-1.5 h-1.5 rounded-full bg-indigo-300" />
-                  </div>
-                </div>
-              )}
-
-              {!isCollapsed && (
-                <div className="flex flex-col gap-3 p-3">
-                  {/* Discount Quick Select */}
-                  <div className="bg-elevated/70 dark:bg-card/40 rounded-2xl p-3 border border-primary/20">
-                    <span className="text-[8px] font-black uppercase text-indigo-500 tracking-widest block mb-2">
-                      {lang === 'ar' ? 'ط®طµظ… ط³ط±ظٹط¹' : 'Quick Discount'}
-                    </span>
-                    <div className="flex gap-1">
-                      {[0, 5, 10, 15, 20].map(d => (
-                        <button
-                          key={d}
-                          onClick={() => setDiscount(d)}
-                          className={`flex-1 py-2 rounded-xl text-[10px] font-black transition-all ${discount === d
-                            ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-500/30'
-                            : 'bg-slate-100 dark:bg-slate-800 text-slate-500 hover:bg-indigo-100'
-                            }`}
-                        >
-                          {d}%
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-
-                  {/* Branch Selector */}
-                  <div className="bg-elevated/70 dark:bg-card/40 rounded-2xl p-3 border border-primary/20">
-                    <span className="text-[8px] font-black uppercase text-indigo-500 tracking-widest block mb-2">
-                      {lang === 'ar' ? 'توجيه الطلب إلى' : 'Route to Branch'}
-                    </span>
-                    <select
-                      value={activeBranchId || ''}
-                      onChange={(e) => setActiveBranch(e.target.value)}
-                      className="w-full bg-slate-100 dark:bg-slate-800 border-none rounded-xl py-2.5 px-3 text-xs font-bold text-slate-700 dark:text-white outline-none focus:ring-2 focus:ring-indigo-500/50"
-                    >
-                      {branches.map(b => (
-                        <option key={b.id} value={b.id}>{b.name}</option>
-                      ))}
-                    </select>
-                  </div>
-
-                  {/* Quick Actions Row */}
-                  <div className="grid grid-cols-2 gap-2">
-                    <button
-                      onClick={() => setShowCalc(!showCalc)}
-                      className={`flex flex-col items-center gap-1 p-3.5 rounded-2xl border transition-all ${showCalc
-                        ? 'bg-indigo-600 text-white border-indigo-600'
-                        : 'bg-white/60 dark:bg-slate-900/40 border-indigo-100 dark:border-indigo-900/30 hover:border-indigo-300'
-                        }`}
-                    >
-                      <Calculator size={16} />
-                      <span className="text-[8px] font-black uppercase">{lang === 'ar' ? 'ط­ط§ط³ط¨ط©' : 'Calc'}</span>
-                    </button>
-                    <button
-                      onClick={handleToggleTouchMode}
-                      className={`flex flex-col items-center gap-1 p-3.5 rounded-2xl border transition-all ${isTouchMode
-                        ? 'bg-amber-500 text-white border-amber-500'
-                        : 'bg-white/60 dark:bg-slate-900/40 border-indigo-100 dark:border-indigo-900/30 hover:border-amber-300'
-                        }`}
-                    >
-                      <Tablet size={16} />
-                      <span className="text-[8px] font-black uppercase">{lang === 'ar' ? 'لمس' : 'Touch'}</span>
-                    </button>
-                  </div>
-
-                  {/* Calculator Panel */}
-                  {showCalc && (
-                    <div className="animate-in slide-in-from-top-2 duration-300">
-                      <CalculatorWidget isCompact />
-                    </div>
-                  )}
-                </div>
-              )}
-
-              {/* Collapsed State Icons */}
-              {isCollapsed && (
-                <div className="flex flex-col items-center gap-3 py-4">
-                  <button onClick={() => setDiscount(discount === 0 ? 10 : 0)} className={`group relative p-3.5 rounded-2xl transition-all ${discount > 0 ? 'bg-primary text-white' : 'bg-card border border-border'}`}>
-                    <Sparkles size={18} />
-                    <div className={`absolute ${lang === 'ar' ? 'right-full mr-4' : 'left-full ml-4'} top-1/2 -translate-y-1/2 px-3 py-2 bg-elevated text-main shadow-2xl z-[100] border border-primary/20`}>
-                      {lang === 'ar' ? 'ط®طµظ…' : 'Discount'}
-                    </div>
-                  </button>
-                  <button onClick={() => setShowCalc(!showCalc)} className="group relative p-3.5 rounded-2xl bg-white/60 dark:bg-slate-800 border border-indigo-200 dark:border-indigo-800">
-                    <Calculator size={18} className={showCalc ? 'text-indigo-600' : ''} />
-                    <div className={`absolute ${lang === 'ar' ? 'right-full mr-4' : 'left-full ml-4'} top-1/2 -translate-y-1/2 px-3 py-2 bg-elevated text-main shadow-2xl z-[100] border border-primary/20`}>
-                      {lang === 'ar' ? 'ط­ط§ط³ط¨ط©' : 'Calculator'}
-                    </div>
-                  </button>
-                </div>
-              )}
-            </div>
-          )}
-
-          {!isPOS && filteredSections.map((section, sectionIdx) => (
-            <div key={sectionIdx}>
-              {!isCollapsed && (
-                <h3 className="px-4 text-[10px] font-black text-muted uppercase tracking-[0.2em] mb-4 opacity-50">
+                <p className={`text-[8px] font-black text-muted/40 uppercase tracking-[0.3em] px-3 mb-1 ${idx > 0 ? 'pt-2 border-t border-border/15 mt-2' : ''}`}>
                   {section.title}
-                </h3>
+                </p>
               )}
-              <div className="space-y-1.5">
-                {section.items.map((item) => (
+              {isCollapsed && idx > 0 && (
+                <div className="mx-3 my-1.5 border-t border-border/15" />
+              )}
+
+              <div className="space-y-0.5">
+                {section.items.map(item => (
                   <NavLink
                     key={item.path}
                     to={item.path}
                     onClick={handleNavClick}
                     onMouseEnter={() => handlePreload(item.loaderKey)}
                     className={({ isActive }) => `
-                      flex items-center gap-4 px-4 py-3.5 rounded-[1.25rem] transition-all duration-300 group relative overflow-hidden
+                      group relative flex items-center gap-2.5 rounded-xl overflow-hidden
+                      transition-all duration-150
+                      ${isCollapsed ? 'justify-center px-0 py-2.5 mx-1' : 'px-3 py-2'}
                       ${isActive
-                        ? 'bg-gradient-to-r from-indigo-500 to-cyan-500 text-white shadow-lg shadow-indigo-500/25 ring-2 ring-indigo-500/20 active:scale-[0.98]'
-                        : 'text-muted hover:bg-elevated hover:text-indigo-500 hover:shadow-sm active:scale-95 border border-transparent hover:border-border/50'
+                        ? 'bg-primary/10 text-primary border border-primary/15'
+                        : 'text-muted hover:text-main hover:bg-elevated/50 border border-transparent'
                       }
-                      ${isCollapsed ? 'justify-center p-4' : ''}
                     `}
                   >
-                    <item.icon size={22} className={`transition-transform duration-500 ${isCollapsed ? '' : 'group-hover:scale-110'}`} />
-                    {!isCollapsed && <span className="font-black text-[11px] uppercase tracking-widest">{item.label}</span>}
-                    {isCollapsed && (
-                      <div className="absolute left-full ml-4 px-4 py-2 bg-slate-900 text-white rounded-xl text-xs font-black opacity-0 group-hover:opacity-100 transition-all pointer-events-none whitespace-nowrap shadow-2xl z-[100]">
-                        {item.label}
-                      </div>
+                    {({ isActive }) => (
+                      <>
+                        {/* Active bar */}
+                        <span
+                          className={`
+                            absolute top-1.5 bottom-1.5 w-0.5 rounded-full bg-primary
+                            transition-opacity duration-200
+                            ${isRtl ? 'right-0' : 'left-0'}
+                            ${isActive && !isCollapsed ? 'opacity-100' : 'opacity-0'}
+                          `}
+                        />
+                        <item.icon
+                          size={16}
+                          className={`shrink-0 transition-transform ${isActive ? 'text-primary' : 'text-current'} ${!isCollapsed && 'group-hover:scale-105'}`}
+                        />
+                        {!isCollapsed && (
+                          <span className="text-[10px] font-bold truncate">{item.label}</span>
+                        )}
+                        {isCollapsed && <Tooltip label={item.label} />}
+                      </>
                     )}
                   </NavLink>
                 ))}
               </div>
             </div>
           ))}
+        </nav>
 
-          {isPOS && (
-            <div className="space-y-4">
-              <NavLink
-                to="/"
-                className={`
-                    flex items-center gap-4 px-4 py-3.5 rounded-[1.25rem] transition-all duration-300 group relative overflow-hidden
-                    text-primary bg-primary/5 border border-primary/20
-                    ${isCollapsed ? 'justify-center p-4' : ''}
-                  `}
-              >
-                <LayoutDashboard size={22} className="group-hover:rotate-12 transition-transform" />
-                {!isCollapsed && <span className="font-black text-[11px] uppercase tracking-widest">{lang === 'ar' ? 'العودة للرئيسية' : 'Back to Dashboard'}</span>}
-              </NavLink>
-            </div>
-          )}
+        {/* ════════ FOOTER ════════ */}
+        <div className={`border-t border-border/20 pt-2 pb-3 shrink-0 ${isCollapsed ? 'px-1.5 space-y-1' : 'px-2 space-y-2'} relative`}>
 
 
 
-          {/* Theme Picker */}
-          {!isCollapsed && !isPOS && (
-            <div className="px-2 pt-6 border-t border-border">
-              <div className="flex justify-between items-center mb-4 px-2">
-                <span className="text-[10px] font-black text-muted uppercase tracking-[0.2em] opacity-50">Interface Skin</span>
+          {/* Sync stats */}
+          {!isCollapsed && (
+            <div className="rounded-xl bg-elevated/30 border border-border/15 px-2.5 py-1.5">
+              <div className="flex items-center justify-between mb-1">
+                <span className="text-[7px] font-black uppercase text-muted/40 tracking-widest">Sync</span>
+                <span className={`flex items-center gap-1 text-[7px] font-black uppercase ${isOnline ? 'text-emerald-500' : 'text-amber-500'}`}>
+                  {isOnline ? <Wifi size={9} /> : <WifiOff size={9} />}
+                  {isOnline ? 'Live' : 'Offline'}
+                </span>
               </div>
-              <div className="flex justify-between px-2">
-                {([
-                  { id: 'xen', color: '#00B4D8' },
-                  { id: 'ember', color: '#F97316' },
-                  { id: 'graphite', color: '#52525B' },
-                  { id: 'ocean', color: '#3B82F6' },
-                  { id: 'carbon', color: '#171717' }
-                ] as const satisfies ReadonlyArray<{ id: AppTheme; color: string }>).map(t => (
-                  <button
-                    key={t.id}
-                    onClick={() => handleThemeChange(t.id)}
-                    title={t.id.charAt(0).toUpperCase() + t.id.slice(1)}
-                    className={`w-7 h-7 rounded-full border-2 transition-all hover:scale-125 hover:rotate-12 ${theme === t.id ? 'border-primary ring-4 ring-primary/20 scale-125' : 'border-transparent opacity-60 hover:opacity-100'}`}
-                    style={{ backgroundColor: t.color }}
-                  />
+              <div className="grid grid-cols-3 gap-1 text-center">
+                {[
+                  { label: 'Queue', value: syncStats.total, color: 'text-muted' },
+                  { label: 'Wait', value: syncStats.pending, color: 'text-amber-500' },
+                  { label: 'Err', value: syncStats.failed, color: 'text-rose-500' },
+                ].map(s => (
+                  <div key={s.label} className="bg-card/50 rounded-md py-0.5">
+                    <div className="text-[6px] text-muted/40 font-black uppercase">{s.label}</div>
+                    <div className={`text-[8px] font-black ${s.color}`}>{s.value}</div>
+                  </div>
                 ))}
               </div>
             </div>
           )}
-        </nav>
 
-        {/* Footer Actions */}
-        <div className="p-6 border-t border-border space-y-4">
-          {!isCollapsed && (
-            <div className="p-3 rounded-2xl border border-border bg-elevated/40">
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-[9px] font-black uppercase tracking-widest text-muted">Sync Health</span>
-                <span className={`inline-flex items-center gap-1 text-[9px] font-black uppercase tracking-widest ${isOnline ? 'text-emerald-500' : 'text-amber-500'}`}>
-                  {isOnline ? <Wifi size={12} /> : <WifiOff size={12} />}
-                  {isOnline ? 'Online' : 'Offline'}
-                </span>
-              </div>
-              <div className="grid grid-cols-3 gap-2">
-                <div className="rounded-xl bg-card border border-border px-2 py-1.5 text-center">
-                  <div className="text-[8px] font-black uppercase text-muted">Pending</div>
-                  <div className="text-xs font-black text-amber-500">{syncStats.pending}</div>
-                </div>
-                <div className="rounded-xl bg-card border border-border px-2 py-1.5 text-center">
-                  <div className="text-[8px] font-black uppercase text-muted">Failed</div>
-                  <div className="text-xs font-black text-rose-500">{syncStats.failed}</div>
-                </div>
-                <div className="rounded-xl bg-card border border-border px-2 py-1.5 text-center">
-                  <div className="text-[8px] font-black uppercase text-muted">Queued</div>
-                  <div className="text-xs font-black text-main">{syncStats.total}</div>
-                </div>
-              </div>
-            </div>
+          {/* Shift close */}
+          {activeShift && (
+            isCollapsed
+              ? (
+                <button
+                  onClick={() => setIsCloseShiftModalOpen(true)}
+                  className="group relative w-full flex justify-center py-2.5 rounded-xl bg-primary/10 text-primary border border-primary/15 transition-all"
+                  title="Close Shift"
+                >
+                  <LogOut size={14} />
+                  <Tooltip label={t.close_shift || 'Close Shift'} />
+                </button>
+              )
+              : (
+                <button
+                  onClick={() => setIsCloseShiftModalOpen(true)}
+                  className="w-full flex items-center gap-2 px-3 py-1.5 rounded-xl bg-primary/10 text-primary hover:bg-primary/15 border border-primary/15 transition-all text-[9px] font-black uppercase tracking-wide"
+                >
+                  <LogOut size={13} />
+                  <span>{t.close_shift || 'Close Shift'}</span>
+                </button>
+              )
           )}
 
-          {!isCollapsed && (
-            <div className="grid grid-cols-2 gap-2 mb-2">
-              <button
-                onClick={handleToggleDarkMode}
-                className="p-2.5 bg-slate-100 dark:bg-slate-900 rounded-xl flex items-center justify-center hover:bg-primary/10 transition-all text-muted hover:text-primary shadow-sm"
-              >
-                {isDarkMode ? <Sun size={16} /> : <Moon size={16} />}
-              </button>
-              <button
-                onClick={handleToggleTouchMode}
-                className={`p-2.5 rounded-xl flex items-center justify-center transition-all ${isTouchMode ? 'bg-primary text-white shadow-xl shadow-primary/30' : 'bg-slate-100 dark:bg-slate-900 text-muted hover:bg-primary/10 hover:text-primary shadow-sm'}`}
-              >
-                <Tablet size={16} />
-              </button>
-              <button
-                onClick={handleToggleLang}
-                className="p-2.5 bg-slate-100 dark:bg-slate-900 rounded-xl flex items-center justify-center hover:bg-primary/10 transition-all text-[9px] font-black uppercase col-span-2 text-muted hover:text-primary shadow-sm tracking-widest"
-              >
-                {lang === 'en' ? 'العربية' : 'English'}
-              </button>
-            </div>
-          )}
-
-          {/* Shift Out Button - Prominent in POS */}
-          {activeShift && (isPOS || !isCollapsed) && (
+          {/* User card */}
+          {isCollapsed ? (
             <button
-              onClick={() => setIsCloseShiftModalOpen(true)}
-              className={`w-full flex items-center gap-3 p-3.5 rounded-2xl bg-indigo-600 text-white hover:bg-indigo-700 transition-all duration-500 ${isCollapsed ? 'justify-center p-4' : ''} shadow-lg shadow-indigo-500/20 group relative overflow-hidden`}
+              onClick={handleLogout}
+              className="group relative w-full flex justify-center py-2.5 rounded-xl text-muted hover:text-rose-500 hover:bg-rose-500/10 transition-all"
+              title="Sign Out"
             >
-              <div className="absolute inset-0 bg-gradient-to-r from-white/0 via-white/10 to-white/0 -translate-x-full group-hover:translate-x-full transition-transform duration-1000" />
-              <LogOut size={18} className="group-hover:rotate-12 transition-transform" />
-              {!isCollapsed && <span className="text-[9px] font-black uppercase tracking-[0.2em]">{t.close_shift || 'Shift Out'}</span>}
-              {isCollapsed && (
-                <div className={`absolute ${lang === 'ar' ? 'right-full mr-5' : 'left-full ml-5'} top-1/2 -translate-y-1/2 px-4 py-2 bg-indigo-600 text-white text-[10px] font-black uppercase tracking-[0.2em] rounded-xl opacity-0 group-hover:opacity-100 transition-all duration-300 pointer-events-none whitespace-nowrap shadow-2xl z-[100]`}>
-                  {t.close_shift || 'Shift Out'}
-                </div>
-              )}
+              <LogOut size={14} />
+              <Tooltip label="Sign Out" />
             </button>
+          ) : (
+            <div className="flex items-center gap-2 px-2 py-1.5 rounded-xl bg-card border border-border/40 hover:border-primary/30 transition-colors shadow-sm cursor-pointer" onClick={() => setShowSettings(!showSettings)}>
+              <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-primary to-primary/60 flex items-center justify-center text-white text-[9px] font-black shrink-0 shadow-sm">
+                {initials}
+              </div>
+              <div className="flex-1 min-w-0 pr-1">
+                <p className="text-[10px] font-bold text-main truncate leading-tight">{user?.name || 'User'}</p>
+                <p className="text-[8px] text-muted/60 uppercase tracking-widest truncate">{user?.role}</p>
+              </div>
+              <button
+                onClick={(e) => { e.stopPropagation(); handleLogout(); }}
+                className="p-1.5 rounded-lg text-muted hover:text-rose-500 hover:bg-rose-500/10 transition-all shrink-0"
+                title="Sign Out"
+              >
+                <LogOut size={12} />
+              </button>
+            </div>
           )}
-
-          <button
-            className={`w-full flex items-center gap-3 p-3.5 rounded-2xl bg-rose-500/5 text-rose-500 hover:bg-rose-500 hover:text-white transition-all duration-500 ${isCollapsed ? 'justify-center p-4' : ''} shadow-sm group`}
-            onClick={handleLogout}
-          >
-            <LogOut size={18} className="group-hover:rotate-12 transition-transform" />
-            {!isCollapsed && <span className="text-[9px] font-black uppercase tracking-[0.2em]">{t.sign_out}</span>}
-          </button>
         </div>
       </aside>
+      <AppearanceModal isOpen={showSettings} onClose={() => setShowSettings(false)} />
     </>
   );
 };

@@ -1,4 +1,4 @@
-﻿import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
     Truck,
     MapPin,
@@ -16,7 +16,7 @@ import {
 import { useOrderStore } from '../stores/useOrderStore';
 import { useAuthStore } from '../stores/useAuthStore';
 import { OrderStatus, OrderType, Driver } from '../types';
-import { deliveryApi } from '../services/api';
+import { deliveryApi } from '../services/api/delivery';
 import { socketService } from '../services/socketService';
 
 const SLA_MINUTES = 45;
@@ -217,10 +217,10 @@ const DispatchHub: React.FC = () => {
 
     const getLastSeenLabel = (driverId: string) => {
         const telemetry = telemetryByDriver[driverId];
-        if (!telemetry?.updatedAt) return lang === 'ar' ? 'لا يوجد تحديث موقع' : 'No location update';
+        if (!telemetry?.updatedAt) return lang === 'ar' ? '�� ���� ����� ����' : 'No location update';
         const mins = Math.floor((Date.now() - new Date(telemetry.updatedAt).getTime()) / 60000);
-        if (mins <= 0) return lang === 'ar' ? 'تحديث الآن' : 'Updated just now';
-        return lang === 'ar' ? `آخر تحديث منذ ${mins} دقيقة` : `Updated ${mins}m ago`;
+        if (mins <= 0) return lang === 'ar' ? '����� ����' : 'Updated just now';
+        return lang === 'ar' ? `��� ����� ��� ${mins} �����` : `Updated ${mins}m ago`;
     };
 
     const assignDriver = async (orderId: string, driverId: string) => {
@@ -258,21 +258,21 @@ const DispatchHub: React.FC = () => {
                             <Truck size={32} />
                         </div>
                         <h2 className="text-4xl font-black text-main uppercase tracking-tighter">
-                            {lang === 'ar' ? 'مركز التوصيل' : 'Dispatch Control'}
+                            {lang === 'ar' ? '���� �������' : 'Dispatch Control'}
                         </h2>
                     </div>
                     <p className="text-muted font-bold text-sm uppercase tracking-widest opacity-60">
-                        {lang === 'ar' ? 'إدارة التوصيل والسائقين' : 'Delivery & Driver Management'}
+                        {lang === 'ar' ? '����� ������� ���������' : 'Delivery & Driver Management'}
                     </p>
                 </div>
 
                 <div className="flex items-center gap-3 bg-card p-2 rounded-2xl border border-border shadow-sm">
                     <div className="px-6 py-2 border-r border-border">
-                        <p className="text-[10px] font-black text-muted uppercase tracking-widest">{lang === 'ar' ? 'سائقين متاحين' : 'Available Drivers'}</p>
+                        <p className="text-[10px] font-black text-muted uppercase tracking-widest">{lang === 'ar' ? '������ ������' : 'Available Drivers'}</p>
                         <p className="text-xl font-black text-main">{availableDrivers.length}</p>
                     </div>
                     <div className="px-6 py-2 border-r border-border">
-                        <p className="text-[10px] font-black text-muted uppercase tracking-widest">{lang === 'ar' ? 'تحت التوصيل' : 'In Transit'}</p>
+                        <p className="text-[10px] font-black text-muted uppercase tracking-widest">{lang === 'ar' ? '��� �������' : 'In Transit'}</p>
                         <p className="text-xl font-black text-main">{activeDeliveries.length}</p>
                     </div>
                     <div className="px-6 py-2">
@@ -287,7 +287,7 @@ const DispatchHub: React.FC = () => {
                     <div className="flex items-center justify-between mb-2 px-2">
                         <h3 className="text-lg font-black text-main uppercase tracking-tight flex items-center gap-3">
                             <PackageCheck className="text-primary" />
-                            {lang === 'ar' ? 'طلبات قيد الإرسال' : 'Pending Assignment'}
+                            {lang === 'ar' ? '����� ��� �������' : 'Pending Assignment'}
                         </h3>
                         <span className="bg-primary/10 text-primary px-3 py-1 rounded-full text-[10px] font-black">
                             {pendingDispatch.length}
@@ -298,7 +298,7 @@ const DispatchHub: React.FC = () => {
                         {pendingDispatch.length === 0 ? (
                             <div className="xl:col-span-2 py-20 bg-card/50 rounded-[2.5rem] border border-dashed border-border flex flex-col items-center justify-center opacity-40">
                                 <Package size={48} className="mb-4" />
-                                <p className="font-black uppercase tracking-widest text-xs">{lang === 'ar' ? 'لا توجد طلبات جاهزة الآن' : 'Clear for now. No orders ready.'}</p>
+                                <p className="font-black uppercase tracking-widest text-xs">{lang === 'ar' ? '�� ���� ����� ����� ����' : 'Clear for now. No orders ready.'}</p>
                             </div>
                         ) : (
                             pendingDispatch.map(order => (
@@ -311,7 +311,7 @@ const DispatchHub: React.FC = () => {
                                             <h4 className="text-lg font-black text-main uppercase">{order.customerName || 'Walk-in'}</h4>
                                         </div>
                                         <div className="text-right">
-                                            <p className="text-xs font-black text-main">{order.total.toFixed(2)} ج.م</p>
+                                            <p className="text-xs font-black text-main">{order.total.toFixed(2)} �.�</p>
                                             <div className="flex items-center gap-1.5 text-muted mt-1">
                                                 <Clock size={12} />
                                                 <span className="text-[10px] font-bold">LIVE</span>
@@ -327,7 +327,7 @@ const DispatchHub: React.FC = () => {
                                     </div>
 
                                     <div className="space-y-3">
-                                        <p className="text-[10px] font-black text-muted uppercase tracking-widest mb-2">{lang === 'ar' ? 'تخصيص سائق' : 'Assign Fleet Member'}</p>
+                                        <p className="text-[10px] font-black text-muted uppercase tracking-widest mb-2">{lang === 'ar' ? '����� ����' : 'Assign Fleet Member'}</p>
                                         <div className="flex flex-wrap gap-2">
                                             {availableDrivers.map(driver => (
                                                 <button
@@ -354,7 +354,7 @@ const DispatchHub: React.FC = () => {
                     <div className="flex items-center justify-between mb-2 px-2">
                         <h3 className="text-lg font-black text-main uppercase tracking-tight flex items-center gap-3">
                             <Navigation className="text-primary" />
-                            {lang === 'ar' ? 'الأسطول الميداني' : 'Field Fleet'}
+                            {lang === 'ar' ? '������� ��������' : 'Field Fleet'}
                         </h3>
                         <span className="bg-card border border-border text-muted px-3 py-1 rounded-full text-[10px] font-black">
                             {drivers.length} TOTAL
@@ -449,14 +449,14 @@ const DispatchHub: React.FC = () => {
                         <div className="absolute top-0 right-0 p-8 opacity-10 rotate-12">
                             <Navigation size={120} />
                         </div>
-                        <h4 className="text-xl font-black uppercase tracking-tighter mb-4">{lang === 'ar' ? 'كفاءة التوصيل' : 'Supply Efficiency'}</h4>
+                        <h4 className="text-xl font-black uppercase tracking-tighter mb-4">{lang === 'ar' ? '����� �������' : 'Supply Efficiency'}</h4>
                         <div className="space-y-6 relative">
                             <div>
                                 <div className="flex justify-between text-[10px] font-black uppercase tracking-widest mb-2 opacity-80">
-                                    <span>{lang === 'ar' ? 'متوسط الوقت' : 'Avg Delivery Time'}</span>
+                                    <span>{lang === 'ar' ? '����� �����' : 'Avg Delivery Time'}</span>
                                     <span>{avgDeliveryMinutes > 0 ? `${Math.round(avgDeliveryMinutes)} MINS` : '--'}</span>
                                 </div>
-                                <div className="h-1.5 bg-white/20 rounded-full overflow-hidden">
+                                <div className="h-1.5 bg-elevated/70 rounded-full overflow-hidden">
                                     <div
                                         className="h-full bg-white rounded-full shadow-[0_0_10px_rgba(255,255,255,1)]"
                                         style={{ width: `${Math.min(100, Math.max(8, (avgDeliveryMinutes / SLA_MINUTES) * 100))}%` }}
@@ -464,11 +464,11 @@ const DispatchHub: React.FC = () => {
                                 </div>
                             </div>
                             <div className="grid grid-cols-2 gap-4">
-                                <div className="bg-white/10 p-4 rounded-2xl">
+                                <div className="bg-elevated/60 p-4 rounded-2xl">
                                     <p className="text-[8px] font-black uppercase tracking-widest opacity-60">Online Drivers</p>
                                     <p className="text-lg font-black">{isLoadingDrivers ? '...' : drivers.filter(d => d.status !== 'OFFLINE').length}</p>
                                 </div>
-                                <div className="bg-white/10 p-4 rounded-2xl">
+                                <div className="bg-elevated/60 p-4 rounded-2xl">
                                     <p className="text-[8px] font-black uppercase tracking-widest opacity-60">Available</p>
                                     <p className="text-lg font-black">{isLoadingDrivers ? '...' : availableDrivers.length}</p>
                                 </div>

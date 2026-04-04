@@ -15,6 +15,11 @@ import {
     disablePin,
     adminSetUserPin,
     refreshAccessToken,
+    changePassword,
+    getPasswordPolicy,
+    getLoginAuditLog,
+    getAdminSessions,
+    adminRevokeSession,
 } from '../controllers/authController';
 import { authenticateToken } from '../middleware/auth';
 import { validate } from '../middleware/validate';
@@ -32,10 +37,19 @@ router.post('/refresh', refreshAccessToken);
 router.get('/me', authenticateToken, me);
 router.post('/logout', authenticateToken, logout);
 
-// Session management
+// Password management
+router.post('/change-password', authenticateToken, changePassword);
+router.get('/password-policy', getPasswordPolicy);
+
+// Session management (own sessions)
 router.get('/sessions', authenticateToken, getSessions);
 router.delete('/sessions/:id', authenticateToken, revokeSession);
 router.post('/sessions/revoke-others', authenticateToken, revokeOtherSessions);
+
+// Admin: Login Audit Log & Session Management
+router.get('/admin/login-audit', authenticateToken, getLoginAuditLog);
+router.get('/admin/sessions', authenticateToken, getAdminSessions);
+router.delete('/admin/sessions/:id', authenticateToken, adminRevokeSession);
 
 // MFA management
 router.post('/mfa/setup/initiate', authenticateToken, initiateMfaSetup);

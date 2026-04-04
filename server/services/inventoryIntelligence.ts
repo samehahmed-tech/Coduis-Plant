@@ -5,8 +5,9 @@
  */
 
 import { db } from '../db';
-import { inventoryItems, inventoryStock, warehouses, suppliers, stockMovements } from '../../src/db/schema';
-import { eq, and, sql, lte, gt, desc, asc } from 'drizzle-orm';
+import { inventoryItems, inventoryStock, warehouses, suppliers, stockMovements, orderItems } from '../../src/db/schema';
+import { eq, and, sql, lte, gt, desc, asc, inArray } from 'drizzle-orm';
+import { aiService } from './aiService';
 
 // =============================================================================
 // Types
@@ -425,6 +426,42 @@ export const inventoryIntelligence = {
             .where(eq(settings.key, key));
 
         return session;
+    },
+
+    // =========================================================================
+    // AI Demand Forecasting
+    // =========================================================================
+    async getAIForecast(itemId: string, branchId?: string): Promise<string> {
+        // 1. Gather historical consumption (Sales) for the last 90 days
+        const ninetyDaysAgo = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000);
+        const consumption = await db.select({
+            date: sql<string>`DATE(${stockMovements.createdAt})`,
+            qty: sql<number>`SUM(${stockMovements.quantity})`,
+        })
+            .from(stockMovements)
+            .where(and(
+                eq(stockMovements.itemId, itemId),
+                eq(stockMovements.type, 'SALE_CONSUMPTION'),
+                gt(stockMovements.createdAt, ninetyDaysAgo)
+            ))
+            .groupBy(sql`DATE(${stockMovements.createdAt})`)
+            .orderBy(asc(sql`DATE(${stockMovements.createdAt})`));
+
+        if (consumption.length < 5) return "Insufficient historical data for AI forecasting.";
+
+        // 2. Format data for the LLM
+        const itemData = await db.select().from(inventoryItems).where(eq(inventoryItems.id, itemId)).limit(1);
+        const itemName = itemData[0]?.name || "Unknown Item";
+        
+        const dataStr = consumption.map(c => `${c.date}: ${c.qty}`).join('\n');
+        const prompt = `Analyze historical sales for "${itemName}" and predict future demand. 
+        Data (Date: Qty Sold):\n${dataStr}\n
+        Provide a concise 2-sentence forecast including seasonal trends or spikes noticed.`;
+
+        // 3. Query AI Service with caching
+        return aiService.getCachedInsight(`forecast_${itemId}`, async () => {
+            return aiService.queryAI(prompt, "You are a demand forecasting expert for a restaurant.");
+        }, 1440); // 24 hour cache
     },
 };
 

@@ -1,63 +1,73 @@
-
-import React, { useEffect } from 'react';
+import React from 'react';
 import { Outlet, useLocation } from 'react-router-dom';
-import Sidebar from './Sidebar';
 import Login from './Login';
+import ContextRail from './common/ContextRail';
+import GlobalSearch from './common/GlobalSearch';
+import MobileBottomNav from './common/MobileBottomNav';
+import ScrollToTop from './common/ScrollToTop';
+import KeyboardShortcuts from './common/KeyboardShortcuts';
+import OnlineStatus from './common/OnlineStatus';
+import Breadcrumbs from './common/Breadcrumbs';
 import { useAuthStore } from '../stores/useAuthStore';
+import { usePageTitle } from '../hooks/usePageTitle';
+import { useTheme } from '../theme';
 
 const MainLayout: React.FC = () => {
-    const { isAuthenticated, settings, isSidebarCollapsed } = useAuthStore();
+    const { isAuthenticated, settings } = useAuthStore();
     const location = useLocation();
-    const isPOSRoute = location.pathname === '/pos';
+    const { config } = useTheme();
 
-    // Sidebar widths matching Sidebar.tsx
-    const sidebarWidth = isSidebarCollapsed ? 'xl:pl-20' : (settings.isTouchMode ? 'xl:pl-80' : 'xl:pl-64');
-    const sidebarWidthRtl = isSidebarCollapsed ? 'xl:pr-20' : (settings.isTouchMode ? 'xl:pr-80' : 'xl:pr-64');
+    usePageTitle();
 
-    // Apply theme and dark mode
-    const theme = settings.theme || 'xen';
-    const isDark = settings.isDarkMode;
-    const fontClass = settings.language === 'ar' ? 'font-cairo' : 'font-outfit';
-    const direction = settings.language === 'ar' ? 'rtl' : 'ltr';
-    const layoutPadding = isPOSRoute ? '' : (settings.language === 'ar' ? sidebarWidthRtl : sidebarWidth);
+    const isFullscreenRoute = location.pathname === '/pos' || location.pathname === '/kds';
+    const isRtl = settings.language === 'ar';
+    const fontClass = isRtl ? 'font-neo-ar' : 'font-neo';
+    const direction = isRtl ? 'rtl' : 'ltr';
+    const densityClass = `density-${config.layout.density}`;
 
-    useEffect(() => {
-        const root = document.documentElement;
-        const body = document.body;
-        root.setAttribute('data-theme', theme);
-        body.setAttribute('data-theme', theme);
-        if (isDark) {
-            root.classList.add('dark');
-            body.classList.add('dark');
-        } else {
-            root.classList.remove('dark');
-            body.classList.remove('dark');
-        }
-    }, [theme, isDark]);
-
-    if (!isAuthenticated) {
-        return <Login />;
-    }
+    if (!isAuthenticated) return <Login />;
 
     return (
         <div
-            className={`flex app-viewport safe-area bg-app text-main ${isDark ? 'dark' : ''} ${fontClass} transition-colors duration-500`}
+            className={`workspace-shell ${isFullscreenRoute ? 'pos-ui' : 'neo-ui'} ${densityClass} flex h-[100dvh] w-full overflow-hidden text-main ${fontClass} transition-colors duration-300`}
             dir={direction}
-            data-theme={theme}
         >
-            {!isPOSRoute && (
-                <div className="fixed inset-0 pointer-events-none overflow-hidden opacity-30 dark:opacity-20 z-0">
-                    <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-primary/20 rounded-full blur-[120px] dark:bg-primary/10" />
-                    <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-secondary/10 rounded-full blur-[120px] dark:bg-secondary/5" />
-                </div>
+            {!isFullscreenRoute && (
+                <>
+                    <div className="workspace-backdrop-layer fixed inset-0 pointer-events-none z-0" />
+                    <div className="workspace-backdrop-grid fixed inset-0 pointer-events-none z-0" />
+                    <div className="workspace-backdrop-glow fixed inset-0 pointer-events-none z-0" />
+                </>
             )}
 
-            {!isPOSRoute && <Sidebar />}
-            <main className={`flex-1 overflow-hidden relative transition-all duration-300 z-10 ${layoutPadding}`}>
-                <div className={isPOSRoute ? 'h-full' : 'h-full overflow-y-auto no-scrollbar scroll-smooth'}>
-                    <Outlet />
+            {/* Sidebar — hidden on fullscreen operational screens */}
+            {!isFullscreenRoute && <ContextRail onOpenCommand={() => {}} />}
+
+            {/* Main content area — takes all remaining space */}
+            <main
+                className="flex-1 flex flex-col relative z-10 overflow-hidden min-w-0 min-h-0"
+            >
+                {/* Scrollable content zone — min-h-0 is CRITICAL for flex overflow */}
+                <div className={`flex-1 min-h-0 ${isFullscreenRoute ? 'overflow-hidden h-full' : 'overflow-y-auto overflow-x-hidden'}`}>
+                    {/* Inner wrapper for Breadcrumbs + Outlet */}
+                    <div className={`flex flex-col ${isFullscreenRoute ? 'h-full overflow-hidden' : 'min-h-full'}`}>
+                        {!isFullscreenRoute && <Breadcrumbs />}
+                        {/* Page transition wrapper */}
+                        <div key={location.pathname} className={`animate-fade-in flex-1 ${isFullscreenRoute ? 'h-full' : ''}`}>
+                            <Outlet />
+                        </div>
+                    </div>
                 </div>
+
+                {/* Mobile bottom navigation — only on non-POS below lg */}
+                {!isFullscreenRoute && <MobileBottomNav onOpenCommand={() => {}} />}
             </main>
+
+            {/* Global search — mounted once, listens to Cmd+K internally */}
+            <GlobalSearch />
+            {!isFullscreenRoute && <ScrollToTop />}
+            <KeyboardShortcuts />
+            <OnlineStatus />
         </div>
     );
 };

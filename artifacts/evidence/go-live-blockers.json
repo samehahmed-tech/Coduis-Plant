@@ -1,6 +1,6 @@
 {
-  "ok": false,
-  "generatedAt": "2026-02-17T02:30:17.226Z",
+  "ok": true,
+  "generatedAt": "2026-03-05T04:15:05.044Z",
   "blockers": [
     {
       "key": "launch-gates",
@@ -9,17 +9,17 @@
     },
     {
       "key": "uat-signoff",
-      "ok": false,
-      "details": "roles=5 pending_or_fail=5"
+      "ok": true,
+      "details": "roles=5 pending_or_fail=0"
     },
     {
       "key": "rollback-drill",
-      "ok": false,
-      "details": "hasTimings=true approvals(ops,product)=(false,false)"
+      "ok": true,
+      "details": "hasTimings=true approvals(ops,product)=(true,true)"
     }
   ],
   "summary": {
     "total": 3,
-    "failed": 2
+    "failed": 0
   }
 }

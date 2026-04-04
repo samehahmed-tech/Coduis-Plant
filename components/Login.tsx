@@ -1,9 +1,28 @@
 import React, { useEffect, useState, useRef, useCallback } from 'react';
-import { useAuthStore } from '../stores/useAuthStore';
-import { AtSign, ArrowRight, Globe, Lock, ShieldCheck, KeyRound, Fingerprint, Sparkles, Eye, EyeOff } from 'lucide-react';
+import { useAuthStore, type LoginMode } from '../stores/useAuthStore';
+import { KeyRound, AtSign, Globe, ArrowRight, ShieldCheck, Eye, EyeOff, Sparkles, Fingerprint, Sun, Moon, Lock, Delete } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import { authApi } from '../services/api';
+import { authApi } from '../services/api/auth';
 import { INITIAL_ROLE_PERMISSIONS, User, UserRole } from '../types';
+
+/* ─────────── CSS-in-JS keyframes for the animated gradient ─────────── */
+const gradientKeyframes = `
+@keyframes aurora {
+  0%,100% { background-position: 0% 50%; }
+  25%     { background-position: 100% 0%; }
+  50%     { background-position: 100% 100%; }
+  75%     { background-position: 0% 100%; }
+}
+@keyframes float {
+  0%,100% { transform: translateY(0) scale(1); }
+  50%     { transform: translateY(-20px) scale(1.05); }
+}
+@keyframes shimmer {
+  0%   { opacity: 0.4; }
+  50%  { opacity: 1; }
+  100% { opacity: 0.4; }
+}
+`;
 
 const Login: React.FC = () => {
     const { loginWithPassword, settings, updateSettings } = useAuthStore();
@@ -52,7 +71,7 @@ const Login: React.FC = () => {
             login: 'Sign In',
             verify: 'Verify Code',
             forgot: 'Forgot Password?',
-            footer: 'Coduis Zen ERP • v3.0',
+            footer: 'RestoFlow ERP • v3.0',
             switch: 'العربية',
             invalidCredentials: 'Invalid credentials',
             invalidMfaCode: 'Invalid verification code',
@@ -72,7 +91,7 @@ const Login: React.FC = () => {
             login: 'تسجيل الدخول',
             verify: 'تحقق من الكود',
             forgot: 'نسيت كلمة المرور؟',
-            footer: 'Coduis Zen ERP • v3.0',
+            footer: 'RestoFlow ERP • v3.0',
             switch: 'English',
             invalidCredentials: 'بيانات الدخول غير صحيحة',
             invalidMfaCode: 'كود التحقق غير صحيح',
@@ -170,74 +189,163 @@ const Login: React.FC = () => {
     }, []);
 
     // ═══════════════════════════════════════════════════════════
+    // THEME HELPERS
+    // ═══════════════════════════════════════════════════════════
+    const lt = !settings.isDarkMode; // light mode flag
+
+    // Accent color pair
+    const accentRing = lt ? 'ring-teal-500/20' : 'ring-amber-400/25';
+
+    // ═══════════════════════════════════════════════════════════
     // RENDER
     // ═══════════════════════════════════════════════════════════
     return (
-        <div className={`fixed inset-0 flex items-center justify-center overflow-hidden transition-colors duration-700 ${isArabic ? 'rtl' : 'ltr'}`}>
-            {/* === Animated Background === */}
-            <div className="absolute inset-0 bg-[#060913] transition-colors duration-1000">
-                {/* Dynamic Gradient Orbs */}
-                <div className="absolute top-[-25%] left-[-15%] w-[80vw] h-[80vw] max-w-[800px] max-h-[800px] rounded-full bg-indigo-600/10 blur-[120px] mix-blend-screen animate-pulse" style={{ animationDuration: '8s' }} />
-                <div className="absolute bottom-[-20%] right-[-10%] w-[70vw] h-[70vw] max-w-[600px] max-h-[600px] rounded-full bg-cyan-500/10 blur-[100px] mix-blend-screen animate-pulse" style={{ animationDuration: '10s', animationDelay: '2s' }} />
-                <div className="absolute top-[30%] right-[10%] w-[50vw] h-[50vw] max-w-[400px] max-h-[400px] rounded-full bg-violet-600/10 blur-[90px] mix-blend-screen animate-pulse" style={{ animationDuration: '12s', animationDelay: '4s' }} />
+        <>
+            <style>{gradientKeyframes}</style>
+            <div className={`flex h-[100dvh] w-full overflow-hidden ${isArabic ? 'rtl' : 'ltr'} transition-colors duration-700 ${lt ? 'bg-slate-50' : 'bg-[#08080c]'}`}>
 
-                {/* Advanced Grid Pattern Overlay */}
-                <div className="absolute inset-0 opacity-[0.02]" style={{
-                    backgroundImage: 'linear-gradient(rgba(255,255,255,0.1) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.1) 1px, transparent 1px)',
-                    backgroundSize: '40px 40px',
-                    maskImage: 'radial-gradient(ellipse at center, black 40%, transparent 80%)',
-                    WebkitMaskImage: 'radial-gradient(ellipse at center, black 40%, transparent 80%)'
-                }} />
-            </div>
+                {/* ════════════════════ LEFT PANEL — VISUAL SHOWCASE ════════════════════ */}
+                <div className={`relative hidden lg:flex lg:w-[48%] xl:w-[50%] flex-col justify-between p-10 xl:p-14 overflow-hidden ${lt ? 'bg-white' : 'bg-[#08080c]'}`}>
 
-            {/* === Top Bar === */}
-            <div className="absolute top-0 left-0 right-0 flex items-center justify-between p-6 z-50">
-                <div className="flex items-center gap-3">
-                    <img src="/logo.png" alt="Logo" className="h-8 w-8 object-contain" />
-                    <span className="text-white/30 text-xs font-bold tracking-[0.3em] uppercase hidden sm:inline">{t.footer}</span>
-                </div>
-                <div className="flex items-center gap-3">
-                    <span className="text-white/20 text-sm font-mono font-bold">{timeStr}</span>
-                    <button
-                        onClick={() => updateSettings({ language: settings.language === 'en' ? 'ar' : 'en' })}
-                        className="px-4 py-2 bg-white/5 backdrop-blur-md border border-white/10 rounded-xl flex items-center gap-2 text-white/50 hover:text-white hover:bg-white/10 transition-all text-xs font-black tracking-widest uppercase"
-                    >
-                        <Globe size={14} />
-                        {t.switch}
-                    </button>
-                </div>
-            </div>
+                    {/* Animated aurora gradient background */}
+                    <div
+                        className="absolute inset-0 z-0"
+                        style={{
+                            background: lt
+                                ? 'linear-gradient(135deg, #e0e7ff 0%, #dbeafe 20%, #f0f9ff 40%, #ede9fe 60%, #e0e7ff 80%, #dbeafe 100%)'
+                                : 'linear-gradient(135deg, #0c0a20 0%, #1a0533 20%, #0d1117 40%, #0a192f 60%, #0c0a20 80%, #1a0533 100%)',
+                            backgroundSize: '400% 400%',
+                            animation: 'aurora 20s ease infinite',
+                        }}
+                    />
 
-            {/* === Main Card === */}
-            <div className="relative z-10 w-full max-w-[440px] px-4 md:px-0 animate-in fade-in slide-in-from-bottom-8 duration-700 fill-mode-both">
-                {/* Luxurious Glow behind card */}
-                <div className="absolute -inset-1.5 bg-gradient-to-br from-indigo-500/30 via-transparent to-cyan-500/30 rounded-[2.5rem] blur-2xl opacity-60 animate-pulse" style={{ animationDuration: '4s' }} />
+                    {/* Floating glass orbs */}
+                    <div className={`absolute top-[10%] left-[15%] w-72 h-72 rounded-full blur-3xl pointer-events-none ${lt ? 'bg-blue-300/25' : 'bg-violet-600/15'}`} style={{ animation: 'float 8s ease-in-out infinite' }} />
+                    <div className={`absolute bottom-[5%] right-[10%] w-96 h-96 rounded-full blur-3xl pointer-events-none ${lt ? 'bg-indigo-200/30' : 'bg-cyan-500/10'}`} style={{ animation: 'float 12s ease-in-out infinite 2s' }} />
+                    <div className={`absolute top-[50%] right-[30%] w-48 h-48 rounded-full blur-2xl pointer-events-none ${lt ? 'bg-violet-200/20' : 'bg-fuchsia-500/10'}`} style={{ animation: 'float 10s ease-in-out infinite 4s' }} />
 
-                <div className="relative bg-slate-900/60 backdrop-blur-3xl rounded-[2.5rem] border border-white/10 shadow-[0_8px_32px_0_rgba(0,0,0,0.4)] overflow-hidden">
-                    {/* Top glass reflection highlight */}
-                    <div className="absolute inset-x-0 top-0 h-[1px] bg-gradient-to-r from-transparent via-white/25 to-transparent" />
-                    <div className="absolute inset-y-0 left-0 w-[1px] bg-gradient-to-b from-white/10 to-transparent" />
+                    {/* Decorative grid */}
+                    <div className="absolute inset-0 z-[1] pointer-events-none" style={{
+                        backgroundImage: lt
+                            ? 'radial-gradient(circle, rgba(99,102,241,0.06) 1px, transparent 1px)'
+                            : 'radial-gradient(circle, rgba(255,255,255,0.03) 1px, transparent 1px)',
+                        backgroundSize: '32px 32px',
+                    }} />
 
-                    <div className="p-8 sm:p-10 relative">
-                        {/* Header */}
-                        <div className="text-center mb-8">
-                            <div className="relative inline-flex mb-6 group">
-                                <div className="absolute -inset-4 bg-indigo-500/20 rounded-full blur-xl group-hover:bg-indigo-500/30 transition-all duration-500" />
-                                <div className="relative w-16 h-16 rounded-2xl bg-gradient-to-br from-indigo-500 to-cyan-400 flex items-center justify-center shadow-[0_0_20px_rgba(99,102,241,0.4)] transform group-hover:scale-105 transition-all duration-300">
-                                    <Fingerprint size={32} className="text-white drop-shadow-md" />
+                    {/* ── Top: Brand identity ── */}
+                    <div className="relative z-10 flex items-center gap-3.5">
+                        <div className={`w-11 h-11 rounded-2xl flex items-center justify-center backdrop-blur-xl border shadow-lg ${lt ? 'bg-white/70 border-slate-200/50 shadow-blue-100/30' : 'bg-white/5 border-white/10 shadow-black/30'}`}>
+                            <img src="/logo.png" alt="Logo" className="w-7 h-7 object-contain" />
+                        </div>
+                        <div>
+                            <h2 className={`text-lg font-extrabold tracking-[0.15em] uppercase ${lt ? 'text-slate-800' : 'text-white'}`}>RestoFlow</h2>
+                            <p className={`text-[9px] font-bold tracking-[0.25em] uppercase ${lt ? 'text-slate-500' : 'text-white/40'}`}>Restaurant Control OS</p>
+                        </div>
+                    </div>
+
+                    {/* ── Center: Hero copy ── */}
+                    <div className="relative z-10 max-w-lg -mt-8">
+                        {/* Badge */}
+                        <div className={`inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full border backdrop-blur-md mb-8 ${lt ? 'bg-blue-50/60 border-blue-100/80' : 'bg-white/5 border-white/10'}`}>
+                            <Sparkles size={13} className={lt ? 'text-teal-600' : 'text-amber-300'} style={{ animation: 'shimmer 3s infinite' }} />
+                            <span className={`text-[10px] font-bold tracking-[0.2em] uppercase ${lt ? 'text-teal-700' : 'text-white/60'}`}>Restaurant Command Center</span>
+                        </div>
+
+                        <h1 className={`text-[2.75rem] xl:text-[3.25rem] font-black leading-[1.1] tracking-tight mb-5 ${lt ? 'text-slate-900' : 'text-white'}`}>
+                            {isArabic ? 'ارتقِ بعملك' : 'Elevate Your'} <br />
+                            <span className={`text-transparent bg-clip-text bg-gradient-to-r ${lt ? 'from-teal-700 via-emerald-600 to-amber-600' : 'from-teal-300 via-emerald-200 to-amber-300'}`}>
+                                {isArabic ? 'مساحة العمل' : 'Workspace'}
+                            </span>
+                        </h1>
+                        <p className={`text-sm leading-relaxed max-w-md ${lt ? 'text-slate-500' : 'text-slate-400'}`}>
+                            {isArabic
+                                ? 'ادخل إلى لوحة التحكم الذكية، وأدِر العمليات بسلاسة مع تحليلات فورية.'
+                                : 'Coordinate live orders, kitchen flow, inventory, and branch operations from one calm operational surface.'}
+                        </p>
+
+                        {/* Stats row */}
+                        <div className="flex gap-8 mt-10">
+                            {[
+                                { value: 'Live', label: isArabic ? 'وقت التشغيل' : 'Sync' },
+                                { value: 'Multi-Branch', label: isArabic ? 'زمن الاستجابة' : 'Branch Aware' },
+                                { value: 'Audit', label: isArabic ? 'تشفير' : 'Ready' },
+                            ].map((s, i) => (
+                                <div key={i} className="flex flex-col">
+                                    <span className={`text-xl font-black ${lt ? 'text-slate-800' : 'text-white'}`}>{s.value}</span>
+                                    <span className={`text-[10px] font-semibold uppercase tracking-wider mt-0.5 ${lt ? 'text-slate-400' : 'text-white/30'}`}>{s.label}</span>
                                 </div>
+                            ))}
+                        </div>
+                    </div>
+
+                    {/* ── Bottom: Footer ── */}
+                    <div className={`relative z-10 flex items-center justify-between text-[11px] font-medium border-t pt-5 ${lt ? 'text-slate-400 border-slate-200/50' : 'text-white/20 border-white/5'}`}>
+                        <span className="tracking-wider">© {new Date().getFullYear()} RestoFlow. All rights reserved.</span>
+                        <span className="font-mono tracking-wider">{timeStr}</span>
+                    </div>
+                </div>
+
+                {/* ════════════════════ RIGHT PANEL — LOGIN FORM ════════════════════ */}
+                <div className={`relative flex-1 flex flex-col justify-center items-center px-5 sm:px-8 lg:px-14 overflow-hidden h-[100dvh] ${lt ? '' : ''}`}>
+
+                    {/* Mobile ambient blobs */}
+                    <div className="absolute inset-0 lg:hidden pointer-events-none overflow-hidden">
+                        <div className={`absolute -top-24 -right-24 w-[70vw] h-[70vw] rounded-full blur-[100px] ${lt ? 'bg-teal-200/40' : 'bg-teal-600/10'}`} style={{ animation: 'float 10s ease-in-out infinite' }} />
+                        <div className={`absolute -bottom-24 -left-24 w-[60vw] h-[60vw] rounded-full blur-[100px] ${lt ? 'bg-amber-100/50' : 'bg-amber-500/8'}`} style={{ animation: 'float 14s ease-in-out infinite 3s' }} />
+                    </div>
+
+                    {/* ─── Top bar: Logo + Controls ─── */}
+                    <div className="absolute top-0 left-0 right-0 flex items-center justify-between px-5 sm:px-8 lg:px-14 py-5 z-20">
+                        {/* Mobile logo */}
+                        <div className="flex lg:hidden items-center gap-2.5">
+                            <img src="/logo.png" alt="Logo" className="h-7 w-7 object-contain" />
+                            <span className={`text-sm font-extrabold tracking-widest uppercase ${lt ? 'text-slate-700' : 'text-white/80'}`}>RestoFlow</span>
+                        </div>
+                        <div className="hidden lg:block" /> {/* spacer on desktop */}
+
+                        {/* Controls */}
+                        <div className="flex items-center gap-2">
+                            <button
+                                onClick={() => updateSettings({ isDarkMode: !settings.isDarkMode })}
+                                className={`p-2 rounded-xl border transition-all duration-300 backdrop-blur-md ${lt
+                                    ? 'bg-white/80 border-slate-200 text-slate-500 hover:text-slate-800 hover:shadow-md shadow-sm'
+                                    : 'bg-white/5 border-white/10 text-white/50 hover:text-white hover:bg-white/10'
+                                    }`}
+                            >
+                                {lt ? <Moon size={15} /> : <Sun size={15} />}
+                            </button>
+                            <button
+                                onClick={() => updateSettings({ language: settings.language === 'en' ? 'ar' : 'en' })}
+                                className={`px-3 py-2 rounded-xl border transition-all duration-300 backdrop-blur-md flex items-center gap-1.5 text-[10px] font-bold tracking-widest uppercase ${lt
+                                    ? 'bg-white/80 border-slate-200 text-slate-500 hover:text-slate-800 hover:shadow-md shadow-sm'
+                                    : 'bg-white/5 border-white/10 text-white/50 hover:text-white hover:bg-white/10'
+                                    }`}
+                            >
+                                <Globe size={13} />
+                                {t.switch}
+                            </button>
+                        </div>
+                    </div>
+
+                    {/* ─── FORM CONTAINER ─── */}
+                    <div className="w-full max-w-[380px] relative z-10 flex flex-col justify-center">
+
+                        {/* Header */}
+                        <div className="text-center sm:text-start mb-6">
+                            <div className={`inline-flex lg:hidden items-center justify-center w-11 h-11 rounded-2xl bg-gradient-to-br border mb-3 backdrop-blur-md ${lt ? 'from-teal-100/80 to-amber-50 border-stone-200/60' : 'from-teal-500/20 to-amber-500/10 border-white/10'}`}>
+                                <Fingerprint size={22} className={lt ? 'text-teal-600' : 'text-amber-300'} />
                             </div>
-                            <h1 className="text-3xl font-black text-transparent bg-clip-text bg-gradient-to-r from-white to-white/70 tracking-tight mb-2">
+                            <h1 className={`text-2xl sm:text-[1.75rem] font-black tracking-tight mb-1 ${lt ? 'text-slate-900' : 'text-white'}`}>
                                 {mfaRequired ? t.verify : t.welcome}
                             </h1>
-                            <p className="text-slate-400 text-sm font-medium tracking-wide">
+                            <p className={`text-xs sm:text-sm font-medium ${lt ? 'text-slate-500' : 'text-slate-400'}`}>
                                 {mfaRequired ? t.mfaCode : t.subtitle}
                             </p>
                         </div>
 
                         {/* Mode Switcher */}
                         {!mfaRequired && (
-                            <div className="flex bg-slate-800/50 rounded-2xl p-1.5 mb-8 border border-white/5 shadow-inner">
+                            <div className={`flex rounded-2xl p-1 mb-5 border shrink-0 transition-colors duration-500 ${lt ? 'bg-slate-100 border-slate-200/60' : 'bg-white/[0.03] border-white/[0.06]'}`}>
                                 {([
                                     { mode: 'pin' as const, icon: KeyRound, label: t.pinLogin },
                                     { mode: 'password' as const, icon: AtSign, label: t.emailLogin },
@@ -246,23 +354,27 @@ const Login: React.FC = () => {
                                         key={item.mode}
                                         type="button"
                                         onClick={() => { setLoginMode(item.mode); setError(undefined); }}
-                                        className={`flex-1 py-3 rounded-xl text-xs font-black uppercase tracking-widest transition-all duration-300 flex items-center justify-center gap-2.5
-                                            ${loginMode === item.mode
-                                                ? 'bg-gradient-to-r from-indigo-500 to-indigo-600 text-white shadow-md shadow-indigo-500/25 scale-100'
-                                                : 'text-slate-400 hover:text-white hover:bg-white/5 scale-95'
+                                        className={`flex-1 py-2 sm:py-2.5 min-h-[40px] rounded-xl text-[10px] sm:text-[11px] font-bold uppercase tracking-widest transition-all duration-300 flex items-center justify-center gap-2
+                                        ${loginMode === item.mode
+                                                ? lt
+                                                    ? 'bg-white text-teal-700 shadow-sm border border-stone-200/70 scale-100 ring-1 ring-teal-500/10'
+                                                    : 'bg-white/10 text-white shadow-md border border-white/10 scale-100'
+                                                : lt
+                                                    ? 'text-slate-400 hover:text-slate-700 hover:bg-white/60 scale-[0.97] border border-transparent'
+                                                    : 'text-slate-500 hover:text-white/80 hover:bg-white/5 scale-[0.97] border border-transparent'
                                             }`}
                                     >
-                                        <item.icon size={16} className={loginMode === item.mode ? 'opacity-100' : 'opacity-70'} />
+                                        <item.icon size={14} className={loginMode === item.mode ? (lt ? 'text-teal-600' : 'text-amber-300') : 'opacity-60'} />
                                         {item.label}
                                     </button>
                                 ))}
                             </div>
                         )}
 
-                        <form onSubmit={handleSubmit}>
+                        <form onSubmit={handleSubmit} className="w-full relative">
                             {/* ─── PIN Mode ─── */}
                             {loginMode === 'pin' && !mfaRequired && (
-                                <div className="space-y-5">
+                                <div className="flex flex-col gap-3 sm:gap-4">
                                     {/* Hidden keyboard input */}
                                     <input
                                         ref={pinInputRef}
@@ -277,71 +389,89 @@ const Login: React.FC = () => {
                                         aria-label="PIN input"
                                     />
 
-                                    {/* PIN dots */}
+                                    {/* PIN indicator */}
                                     <div
-                                        className="flex items-center justify-center gap-3 py-3 cursor-text"
+                                        className={`flex items-center justify-center gap-3.5 py-3 cursor-text rounded-2xl border transition-all duration-500 ${lt ? 'bg-white border-slate-200 shadow-sm' : 'bg-white/[0.03] border-white/[0.06]'}`}
                                         onClick={() => pinInputRef.current?.focus()}
                                     >
                                         {[0, 1, 2, 3, 4, 5].map((i) => (
                                             <div key={i} className="relative">
-                                                <div className={`w-4 h-4 rounded-full transition-all duration-300 ${i < pin.length
-                                                    ? 'bg-indigo-400 scale-125 shadow-[0_0_12px_rgba(99,102,241,0.6)]'
+                                                <div className={`w-3 h-3 rounded-full transition-all duration-300 ${i < pin.length
+                                                    ? lt
+                                                        ? 'bg-teal-600 scale-[1.3] shadow-[0_0_10px_rgba(13,148,136,0.45)]'
+                                                        : 'bg-amber-300 scale-[1.3] shadow-[0_0_10px_rgba(245,158,11,0.4)]'
                                                     : i < 4
-                                                        ? 'bg-white/10 border border-white/20'
-                                                        : 'bg-white/5 border border-white/10'
+                                                        ? lt ? 'bg-slate-200 border border-slate-300' : 'bg-white/10 border border-white/10'
+                                                        : lt ? 'bg-slate-100 border border-slate-200' : 'bg-white/5 border border-white/5'
                                                     }`} />
                                                 {i === pin.length && (
-                                                    <div className="absolute inset-0 rounded-full border-2 border-indigo-400/50 animate-pulse" />
+                                                    <div className={`absolute -inset-2 rounded-full border animate-ping opacity-40 ${lt ? 'border-teal-400' : 'border-amber-300'}`} />
                                                 )}
                                             </div>
                                         ))}
                                     </div>
 
-                                    <p className="text-center text-white/20 text-[11px] font-bold tracking-wider">
-                                        {t.pinHint}
-                                    </p>
-
                                     {/* Number Pad */}
-                                    <div className="grid grid-cols-3 gap-3 max-w-[280px] mx-auto mt-6">
+                                    <div className="grid grid-cols-3 gap-2 sm:gap-2.5 max-w-[320px] w-full mx-auto">
                                         {['1', '2', '3', '4', '5', '6', '7', '8', '9'].map((digit) => (
                                             <button
                                                 key={digit}
                                                 type="button"
                                                 onClick={() => handlePinDigit(digit)}
-                                                className={`h-16 rounded-2xl font-black text-2xl transition-all duration-200 border shadow-sm
-                                                    ${pressedKey === digit
-                                                        ? 'bg-indigo-500 border-indigo-400 text-white scale-95 shadow-inner'
-                                                        : 'bg-white/5 border-white/10 text-white/90 hover:bg-white/10 hover:border-white/20 active:scale-95'
+                                                className={`h-14 sm:h-[3.75rem] rounded-2xl font-semibold text-xl transition-all duration-150
+                                                ${pressedKey === digit
+                                                        ? lt
+                                                            ? 'bg-teal-600 text-white scale-[0.93] shadow-inner border border-teal-500'
+                                                            : 'bg-amber-500 text-slate-950 scale-[0.93] shadow-inner border border-amber-400'
+                                                        : lt
+                                                            ? 'bg-white border border-slate-200/70 text-slate-700 hover:bg-slate-50 hover:border-slate-300 active:scale-[0.95] shadow-sm'
+                                                            : 'bg-white/[0.04] border border-white/[0.06] text-slate-200 hover:bg-white/[0.08] active:scale-[0.95]'
                                                     }`}
                                             >
                                                 {digit}
                                             </button>
                                         ))}
+
+                                        {/* Clear */}
                                         <button
                                             type="button"
                                             onClick={() => { setPin(''); pinInputRef.current?.focus(); }}
-                                            className="h-16 rounded-2xl text-rose-400/80 hover:text-rose-400 hover:bg-rose-500/10 hover:border-rose-500/20 text-xs font-black uppercase tracking-widest transition-all border border-transparent active:scale-95"
+                                            className={`h-14 sm:h-[3.75rem] rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all active:scale-[0.93] flex items-center justify-center border border-transparent
+                                            ${lt ? 'text-rose-500 hover:bg-rose-50 hover:border-rose-100' : 'text-rose-400/70 hover:bg-rose-500/10 hover:border-rose-500/10'}`}
                                         >
                                             {isArabic ? 'مسح' : 'CLR'}
                                         </button>
+
+                                        {/* Zero */}
                                         <button
                                             type="button"
                                             onClick={() => handlePinDigit('0')}
-                                            className={`h-16 rounded-2xl font-black text-2xl transition-all duration-200 border shadow-sm
-                                                ${pressedKey === '0'
-                                                    ? 'bg-indigo-500 border-indigo-400 text-white scale-95 shadow-inner'
-                                                    : 'bg-white/5 border-white/10 text-white/90 hover:bg-white/10 hover:border-white/20 active:scale-95'
+                                            className={`h-14 sm:h-[3.75rem] rounded-2xl font-semibold text-xl transition-all duration-150
+                                            ${pressedKey === '0'
+                                                    ? lt
+                                                        ? 'bg-teal-600 text-white scale-[0.93] shadow-inner border border-teal-500'
+                                                        : 'bg-amber-500 text-slate-950 scale-[0.93] shadow-inner border border-amber-400'
+                                                    : lt
+                                                        ? 'bg-white border border-slate-200/70 text-slate-700 hover:bg-slate-50 hover:border-slate-300 active:scale-[0.95] shadow-sm'
+                                                        : 'bg-white/[0.04] border border-white/[0.06] text-slate-200 hover:bg-white/[0.08] active:scale-[0.95]'
                                                 }`}
                                         >
                                             0
                                         </button>
+
+                                        {/* Backspace */}
                                         <button
                                             type="button"
                                             onClick={handlePinBackspace}
-                                            className={`h-16 rounded-2xl text-amber-400/80 hover:text-amber-400 hover:bg-amber-500/10 hover:border-amber-500/20 flex items-center justify-center transition-all border border-transparent active:scale-95
-                                                ${pressedKey === 'back' ? 'bg-amber-500/20 scale-95' : ''}`}
+                                            className={`h-14 sm:h-[3.75rem] rounded-2xl flex items-center justify-center transition-all active:scale-[0.93] border border-transparent
+                                            ${pressedKey === 'back'
+                                                    ? lt ? 'bg-amber-100 text-amber-600 scale-[0.93]' : 'bg-amber-500/15 text-amber-400 scale-[0.93]'
+                                                    : lt
+                                                        ? 'text-amber-500 hover:bg-amber-50 hover:border-amber-100'
+                                                        : 'text-amber-500/70 hover:bg-amber-500/10 hover:border-amber-500/10'
+                                                }`}
                                         >
-                                            <ArrowRight size={24} className={isArabic ? 'rotate-0' : 'rotate-180'} />
+                                            <Delete size={22} className={isArabic ? 'scale-x-[-1]' : ''} />
                                         </button>
                                     </div>
                                 </div>
@@ -350,48 +480,58 @@ const Login: React.FC = () => {
                             {/* ─── Password Mode ─── */}
                             {loginMode === 'password' && !mfaRequired && (
                                 <div className="space-y-4">
-                                    <div className="relative group">
-                                        <div className="absolute inset-0 bg-indigo-500/5 rounded-2xl opacity-0 group-focus-within:opacity-100 transition-opacity -m-0.5" />
-                                        <AtSign className="absolute left-4 top-1/2 -translate-y-1/2 text-white/30 group-focus-within:text-indigo-400 transition-colors z-10" size={18} />
-                                        <input
-                                            type="email"
-                                            required
-                                            value={email}
-                                            onChange={(e) => setEmail(e.target.value)}
-                                            placeholder={t.email}
-                                            className="relative w-full bg-slate-800/50 border border-white/5 rounded-2xl py-4 pl-12 pr-5 text-white placeholder:text-white/30 focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500/50 focus:bg-slate-800/80 outline-none transition-all text-sm font-semibold shadow-inner"
-                                        />
+                                    <div className="space-y-1.5">
+                                        <label className={`text-[11px] font-bold uppercase tracking-wider pl-1 ${lt ? 'text-slate-500' : 'text-slate-400'}`}>{t.email}</label>
+                                        <div className="relative group">
+                                            <AtSign className={`absolute left-4 top-1/2 -translate-y-1/2 transition-colors z-10 ${lt ? 'text-slate-300 group-focus-within:text-teal-600' : 'text-slate-600 group-focus-within:text-amber-300'}`} size={17} />
+                                            <input
+                                                type="email"
+                                                required
+                                                value={email}
+                                                onChange={(e) => setEmail(e.target.value)}
+                                                placeholder="admin@zen.com"
+                                                className={`relative w-full rounded-2xl py-3.5 pl-11 pr-5 outline-none transition-all text-sm font-medium focus:ring-2 ${lt
+                                                    ? `bg-white border border-stone-200 text-slate-900 placeholder:text-slate-300 focus:${accentRing} focus:border-teal-500/40 shadow-sm`
+                                                    : `bg-white/[0.03] border border-white/[0.06] text-white placeholder:text-slate-600 focus:ring-amber-400/25 focus:border-amber-400/30`
+                                                    }`}
+                                            />
+                                        </div>
                                     </div>
 
-                                    <div className="relative group">
-                                        <div className="absolute inset-0 bg-indigo-500/5 rounded-2xl opacity-0 group-focus-within:opacity-100 transition-opacity -m-0.5" />
-                                        <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-white/30 group-focus-within:text-indigo-400 transition-colors z-10" size={18} />
-                                        <input
-                                            type={showPassword ? 'text' : 'password'}
-                                            required
-                                            value={password}
-                                            onChange={(e) => setPassword(e.target.value)}
-                                            placeholder={t.password}
-                                            className="relative w-full bg-slate-800/50 border border-white/5 rounded-2xl py-4 pl-12 pr-12 text-white placeholder:text-white/30 focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500/50 focus:bg-slate-800/80 outline-none transition-all text-sm font-semibold shadow-inner"
-                                        />
-                                        <button
-                                            type="button"
-                                            onClick={() => setShowPassword(!showPassword)}
-                                            className="absolute right-4 top-1/2 -translate-y-1/2 text-white/30 hover:text-white/70 transition-colors z-10"
-                                        >
-                                            {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
-                                        </button>
+                                    <div className="space-y-1.5">
+                                        <label className={`text-[11px] font-bold uppercase tracking-wider pl-1 ${lt ? 'text-slate-500' : 'text-slate-400'}`}>{t.password}</label>
+                                        <div className="relative group">
+                                            <Lock className={`absolute left-4 top-1/2 -translate-y-1/2 transition-colors z-10 ${lt ? 'text-slate-300 group-focus-within:text-teal-600' : 'text-slate-600 group-focus-within:text-amber-300'}`} size={17} />
+                                            <input
+                                                type={showPassword ? 'text' : 'password'}
+                                                required
+                                                value={password}
+                                                onChange={(e) => setPassword(e.target.value)}
+                                                placeholder="••••••••"
+                                                className={`relative w-full rounded-2xl py-3.5 pl-11 pr-12 outline-none transition-all text-sm font-medium tracking-wider focus:ring-2 ${lt
+                                                    ? `bg-white border border-stone-200 text-slate-900 placeholder:text-slate-300 focus:${accentRing} focus:border-teal-500/40 shadow-sm`
+                                                    : `bg-white/[0.03] border border-white/[0.06] text-white placeholder:text-slate-600 focus:ring-amber-400/25 focus:border-amber-400/30`
+                                                    }`}
+                                            />
+                                            <button
+                                                type="button"
+                                                onClick={() => setShowPassword(!showPassword)}
+                                                className={`absolute right-4 top-1/2 -translate-y-1/2 transition-colors z-10 ${lt ? 'text-slate-300 hover:text-slate-500' : 'text-slate-600 hover:text-slate-300'}`}
+                                            >
+                                                {showPassword ? <EyeOff size={17} /> : <Eye size={17} />}
+                                            </button>
+                                        </div>
                                     </div>
 
-                                    <div className="flex items-center justify-between px-1 pt-1">
-                                        <label className="flex items-center gap-2.5 cursor-pointer group">
+                                    <div className="flex items-center justify-between px-0.5 pt-1">
+                                        <label className="flex items-center gap-2 cursor-pointer group">
                                             <div className="relative flex items-center">
-                                                <input type="checkbox" className="peer appearance-none w-4 h-4 rounded-md border border-white/20 bg-white/5 checked:bg-indigo-500 checked:border-indigo-500 transition-all cursor-pointer" />
+                                                <input type="checkbox" className={`peer appearance-none w-4 h-4 rounded-md border transition-all cursor-pointer checked:border-transparent ${lt ? 'bg-white border-slate-300 checked:bg-teal-600' : 'bg-white/5 border-white/15 checked:bg-amber-400'}`} />
                                                 <ShieldCheck className="absolute opacity-0 peer-checked:opacity-100 left-0 top-0 text-white transition-opacity pointer-events-none" size={16} />
                                             </div>
-                                            <span className="text-white/30 text-xs font-bold">{t.remember}</span>
+                                            <span className={`text-[11px] font-semibold ${lt ? 'text-slate-400 group-hover:text-slate-600' : 'text-slate-500 group-hover:text-slate-300'}`}>{t.remember}</span>
                                         </label>
-                                        <button type="button" className="text-white/30 text-xs font-bold hover:text-indigo-400 transition-colors">
+                                        <button type="button" className={`text-[11px] font-semibold transition-colors ${lt ? 'text-slate-400 hover:text-teal-600' : 'text-slate-500 hover:text-amber-300'}`}>
                                             {t.forgot}
                                         </button>
                                     </div>
@@ -400,30 +540,36 @@ const Login: React.FC = () => {
 
                             {/* ─── MFA ─── */}
                             {mfaRequired && (
-                                <div className="relative group">
-                                    <ShieldCheck className="absolute left-4 top-1/2 -translate-y-1/2 text-white/30 group-focus-within:text-indigo-400 transition-colors" size={18} />
-                                    <input
-                                        type="text"
-                                        inputMode="numeric"
-                                        maxLength={6}
-                                        value={mfaCode}
-                                        onChange={(e) => setMfaCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
-                                        placeholder={t.mfaCode}
-                                        autoFocus
-                                        className="w-full bg-slate-800/50 border border-white/5 rounded-2xl py-4 pl-12 pr-5 text-white placeholder:text-white/30 focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500/50 outline-none transition-all text-sm font-semibold tracking-[0.5em] text-center shadow-inner"
-                                    />
+                                <div className="space-y-4">
+                                    <label className={`text-[11px] font-bold uppercase tracking-wider pl-1 ${lt ? 'text-slate-500' : 'text-slate-400'}`}>Authentication Code</label>
+                                    <div className="relative group">
+                                        <ShieldCheck className={`absolute left-4 top-1/2 -translate-y-1/2 transition-colors z-10 ${lt ? 'text-slate-300 group-focus-within:text-teal-600' : 'text-slate-600 group-focus-within:text-amber-300'}`} size={17} />
+                                        <input
+                                            type="text"
+                                            inputMode="numeric"
+                                            maxLength={6}
+                                            value={mfaCode}
+                                            onChange={(e) => setMfaCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                                            placeholder="000000"
+                                            autoFocus
+                                            className={`relative w-full rounded-2xl py-3.5 pl-11 pr-5 outline-none transition-all text-lg font-black tracking-[0.4em] text-center focus:ring-2 ${lt
+                                                ? 'bg-white border border-stone-200 text-teal-700 placeholder:text-slate-300 focus:ring-teal-500/20 focus:border-teal-500/40 shadow-sm'
+                                                : 'bg-white/[0.03] border border-white/[0.06] text-amber-300 placeholder:text-slate-600 focus:ring-amber-400/25 focus:border-amber-400/30'
+                                                }`}
+                                        />
+                                    </div>
                                 </div>
                             )}
 
-                            {/* Error */}
+                            {/* ─── Error ─── */}
                             {error && (
-                                <div className="mt-4 p-3.5 bg-rose-500/10 border border-rose-500/20 rounded-2xl text-rose-400 text-xs font-bold text-center whitespace-pre-line flex items-center justify-center gap-2">
-                                    <Sparkles size={14} className="text-rose-400/60 shrink-0" />
+                                <div className={`mt-4 p-3 rounded-xl text-xs font-bold text-center flex items-center justify-center gap-2 ${lt ? 'bg-rose-50 border border-rose-200 text-rose-600' : 'bg-rose-500/10 border border-rose-500/15 text-rose-400'}`}>
+                                    <Sparkles size={13} className="shrink-0 opacity-70" />
                                     {error}
                                 </div>
                             )}
 
-                            {/* Submit */}
+                            {/* ─── Submit ─── */}
                             <button
                                 type="submit"
                                 disabled={
@@ -431,34 +577,35 @@ const Login: React.FC = () => {
                                     (mfaRequired && mfaCode.length !== 6) ||
                                     (loginMode === 'pin' && !mfaRequired && pin.length < 4)
                                 }
-                                className="w-full mt-8 py-4 bg-gradient-to-r from-indigo-500 to-indigo-600 hover:from-indigo-400 hover:to-indigo-500 text-white rounded-2xl font-black text-sm tracking-[0.15em] flex items-center justify-center gap-3 shadow-[0_0_20px_rgba(99,102,241,0.4)] hover:shadow-[0_0_30px_rgba(99,102,241,0.6)] disabled:opacity-50 disabled:shadow-none transition-all duration-300 group active:scale-[0.98] uppercase"
+                                className={`w-full mt-5 py-3.5 rounded-2xl font-bold text-sm tracking-wide flex items-center justify-center gap-2.5 disabled:opacity-40 disabled:saturate-50 transition-all duration-300 group active:scale-[0.98] uppercase ${lt
+                                    ? 'bg-gradient-to-r from-teal-700 to-emerald-600 text-white shadow-lg shadow-teal-700/20 hover:shadow-xl hover:shadow-teal-700/25 disabled:hover:shadow-lg'
+                                    : 'bg-gradient-to-r from-teal-500 to-amber-400 text-slate-950 shadow-lg shadow-amber-500/20 hover:shadow-xl hover:shadow-amber-500/25 disabled:hover:shadow-lg'
+                                    }`}
                             >
                                 {isSubmitting ? (
                                     <div className="flex gap-1.5 items-center h-5">
-                                        <div className="w-2 h-2 rounded-full bg-white/80 animate-[bounce_1s_infinite_0ms]" />
-                                        <div className="w-2 h-2 rounded-full bg-white/80 animate-[bounce_1s_infinite_200ms]" />
-                                        <div className="w-2 h-2 rounded-full bg-white/80 animate-[bounce_1s_infinite_400ms]" />
+                                        <div className="w-1.5 h-1.5 rounded-full bg-white/80 animate-[bounce_1s_infinite_0ms]" />
+                                        <div className="w-1.5 h-1.5 rounded-full bg-white/80 animate-[bounce_1s_infinite_200ms]" />
+                                        <div className="w-1.5 h-1.5 rounded-full bg-white/80 animate-[bounce_1s_infinite_400ms]" />
                                     </div>
                                 ) : (
                                     <>
                                         {mfaRequired ? t.verify : t.login}
-                                        <ArrowRight size={18} className="group-hover:translate-x-1.5 transition-transform duration-300" />
+                                        <ArrowRight size={16} className="group-hover:translate-x-1 transition-transform duration-300 opacity-80" />
                                     </>
                                 )}
                             </button>
                         </form>
+
+                        {/* Footer on mobile */}
+                        <p className={`lg:hidden text-center text-[10px] font-medium mt-6 ${lt ? 'text-slate-400' : 'text-white/20'}`}>
+                            {t.footer}
+                        </p>
                     </div>
-
-                    {/* Bottom accent */}
-                    <div className="h-[1px] bg-gradient-to-r from-transparent via-white/5 to-transparent" />
                 </div>
 
-                {/* Footer */}
-                <div className="mt-8 text-center">
-                    <p className="text-white/15 text-[10px] font-bold tracking-[0.3em] uppercase">{t.footer}</p>
-                </div>
             </div>
-        </div>
+        </>
     );
 };
 

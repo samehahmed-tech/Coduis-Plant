@@ -9,9 +9,11 @@ import {
     boolean,
     integer,
     real,
+    numeric,
     json,
     uuid,
     varchar,
+    date,
     uniqueIndex,
     index
 } from 'drizzle-orm/pg-core';
@@ -217,6 +219,9 @@ export const menuItems = pgTable('menu_items', {
     isFeatured: boolean('is_featured').default(false),
     sortOrder: integer('sort_order').default(0),
     layoutType: text('layout_type').default('standard'), // standard, wide, image-only
+    // Barcode & SKU
+    barcode: text('barcode'),
+    sku: text('sku'),
     // Metadata
     createdAt: timestamp('created_at').defaultNow(),
     updatedAt: timestamp('updated_at').defaultNow(),
@@ -310,7 +315,7 @@ export const orders = pgTable('orders', {
     cancelledAt: timestamp('cancelled_at'),
     cancelReason: text('cancel_reason'),
     // Shift Tracking (Phase 3: Financial Ironclad)
-    shiftId: text('shift_id'),
+    shiftId: text('shift_id'), // Will be linked logically to shifts.id
 });
 
 export const idempotencyKeys = pgTable('idempotency_keys', {
@@ -336,6 +341,7 @@ export const orderItems = pgTable('order_items', {
     name: text('name').notNull(),
     nameAr: text('name_ar'),
     price: real('price').notNull(),
+    cost: real('cost').default(0), // Snapshot of calculated cost at time of order
     quantity: integer('quantity').notNull(),
     notes: text('notes'),
     modifiers: json('modifiers').$type<{
@@ -427,6 +433,8 @@ export const stockMovements = pgTable('stock_movements', {
     fromWarehouseId: text('from_warehouse_id').references(() => warehouses.id),
     toWarehouseId: text('to_warehouse_id').references(() => warehouses.id),
     quantity: real('quantity').notNull(),
+    unitCost: real('unit_cost').default(0), // Cost per unit at time of movement
+    totalCost: real('total_cost').default(0), // Total cost of movement
     type: text('type').notNull(), // TRANSFER, ADJUSTMENT, PURCHASE, SALE_CONSUMPTION, WASTE
     referenceId: text('reference_id'), // Order ID, PO ID, etc.
     reason: text('reason'),
@@ -687,6 +695,31 @@ export const managerApprovals = pgTable('manager_approvals', {
 });
 
 // ============================================================================
+// 📊 BUDGETS
+// ============================================================================
+
+export const budgets = pgTable('budgets', {
+    id: text('id').primaryKey(),
+    name: text('name').notNull(), // e.g., 'Q1 2026 Operating Budget'
+    branchId: text('branch_id').references(() => branches.id),
+    periodStart: timestamp('period_start').notNull(),
+    periodEnd: timestamp('period_end').notNull(),
+    status: text('status').default('DRAFT').notNull(), // DRAFT, ACTIVE, CLOSED
+    notes: text('notes'),
+    createdBy: text('created_by').references(() => users.id),
+    createdAt: timestamp('created_at').defaultNow(),
+    updatedAt: timestamp('updated_at').defaultNow(),
+});
+
+export const budgetLines = pgTable('budget_lines', {
+    id: serial('id').primaryKey(),
+    budgetId: text('budget_id').references(() => budgets.id, { onDelete: 'cascade' }).notNull(),
+    accountId: text('account_id').references(() => chartOfAccounts.id).notNull(),
+    plannedAmount: numeric('planned_amount', { precision: 14, scale: 2 }).default('0').notNull(),
+    description: text('description'),
+});
+
+// ============================================================================
 // 🏦 ACCOUNTING CORE (GL ENGINE)
 // ============================================================================
 
@@ -770,6 +803,16 @@ export const journalLines = pgTable('journal_lines', {
 // 🚚 DELIVERY & LOGISTICS
 // ============================================================================
 
+export const deliveryPlatforms = pgTable('delivery_platforms', {
+    id: text('id').primaryKey(),
+    name: text('name').notNull(),
+    isActive: boolean('is_active').default(true).notNull(),
+    feePercentage: real('fee_percentage').default(0),
+    integrationType: text('integration_type').default('MANUAL'),
+    createdAt: timestamp('created_at').defaultNow(),
+    updatedAt: timestamp('updated_at').defaultNow(),
+});
+
 export const deliveryZones = pgTable('delivery_zones', {
     id: serial('id').primaryKey(),
     name: text('name').notNull(), // Maadi, New Cairo, etc.
@@ -848,6 +891,7 @@ export type BatchTransaction = typeof batchTransactions.$inferSelect;
 
 export type ChartOfAccount = typeof chartOfAccounts.$inferSelect;
 export type JournalEntry = typeof journalEntries.$inferSelect;
+export type DeliveryPlatformType = typeof deliveryPlatforms.$inferSelect;
 export type JournalLine = typeof journalLines.$inferSelect;
 
 export type AuditLog = typeof auditLogs.$inferSelect;
@@ -901,3 +945,344 @@ export const tables = pgTable('tables', {
 export type Table = typeof tables.$inferSelect;
 export type NewTable = typeof tables.$inferInsert;
 export type FloorZone = typeof floorZones.$inferSelect;
+
+// ============================================================================
+// 👥 HR & PAYROLL (ZenPeople)
+// ============================================================================
+
+export const employees = pgTable('employees', {
+    id: text('id').primaryKey(),
+    branchId: text('branch_id').references(() => branches.id).notNull(),
+    userId: text('user_id').references(() => users.id), // Optional linking to app user
+    name: text('name').notNull(),
+    nameAr: text('name_ar'),
+    phone: text('phone'),
+    email: text('email'),
+    role: text('role').notNull(),
+    basicSalary: real('basic_salary').default(0).notNull(),
+    hourlyRate: real('hourly_rate').default(0),
+    joinedAt: timestamp('joined_at').defaultNow().notNull(),
+    isActive: boolean('is_active').default(true),
+    createdAt: timestamp('created_at').defaultNow(),
+    updatedAt: timestamp('updated_at').defaultNow(),
+});
+
+export const attendance = pgTable('attendance', {
+    id: text('id').primaryKey(),
+    employeeId: text('employee_id').references(() => employees.id).notNull(),
+    branchId: text('branch_id').references(() => branches.id).notNull(),
+    date: timestamp('date').defaultNow().notNull(),
+    clockIn: timestamp('clock_in').notNull(),
+    clockOut: timestamp('clock_out'),
+    deviceId: text('device_id'), // Track which POS/Tablet they used
+    status: text('status').default('PRESENT'), // PRESENT, LATE, ABSENT, SICK_LEAVE
+    totalHours: real('total_hours').default(0),
+    createdAt: timestamp('created_at').defaultNow(),
+});
+
+export const payrollCycles = pgTable('payroll_cycles', {
+    id: text('id').primaryKey(),
+    branchId: text('branch_id').references(() => branches.id).notNull(),
+    periodStart: timestamp('period_start').notNull(),
+    periodEnd: timestamp('period_end').notNull(),
+    status: text('status').default('DRAFT').notNull(), // DRAFT, APPROVED, PAID
+    totalAmount: real('total_amount').default(0),
+    executedBy: text('executed_by').references(() => users.id),
+    createdAt: timestamp('created_at').defaultNow(),
+    updatedAt: timestamp('updated_at').defaultNow(),
+});
+
+export const payrollPayouts = pgTable('payroll_payouts', {
+    id: text('id').primaryKey(),
+    cycleId: text('cycle_id').references(() => payrollCycles.id).notNull(),
+    employeeId: text('employee_id').references(() => employees.id).notNull(),
+    basicSalary: real('basic_salary').notNull(),
+    deductions: real('deductions').default(0),
+    overtime: real('overtime').default(0),
+    netPay: real('net_pay').notNull(),
+    status: text('status').default('PENDING'), // PENDING, PAID
+    createdAt: timestamp('created_at').defaultNow(),
+});
+
+// ============================================================================
+// 📢 MARKETING CAMPAIGNS (CampaignHub)
+// ============================================================================
+
+export const campaigns = pgTable('campaigns', {
+    id: text('id').primaryKey(),
+    name: text('name').notNull(),
+    type: text('type').notNull(), // SMS, EMAIL, WHATSAPP, PUSH
+    status: text('status').default('DRAFT').notNull(), // DRAFT, ACTIVE, SCHEDULED, PAUSED, COMPLETED
+    targetAudience: text('target_audience'), // e.g. "ALL", "VIP", "INACTIVE_30_DAYS"
+    content: text('content').notNull(), // Message body
+    scheduledAt: timestamp('scheduled_at'),
+    reach: integer('reach').default(0),
+    conversions: integer('conversions').default(0),
+    revenue: real('revenue').default(0), // Estimated revenue generated
+    budget: real('budget').default(0),
+    createdAt: timestamp('created_at').defaultNow(),
+    updatedAt: timestamp('updated_at').defaultNow(),
+});
+
+// ============================================================================
+// 📊 NEW TYPE EXPORTS
+// ============================================================================
+
+export type Employee = typeof employees.$inferSelect;
+export type NewEmployee = typeof employees.$inferInsert;
+export type AttendanceRecord = typeof attendance.$inferSelect;
+export type PayrollCycle = typeof payrollCycles.$inferSelect;
+export type PayrollPayout = typeof payrollPayouts.$inferSelect;
+export type Campaign = typeof campaigns.$inferSelect;
+export type NewCampaign = typeof campaigns.$inferInsert;
+
+// ============================================================================
+// 🚚 DELIVERY ASSIGNMENTS
+// ============================================================================
+
+export const deliveryAssignments = pgTable('delivery_assignments', {
+    id: text('id').primaryKey(),
+    orderId: text('order_id').references(() => orders.id).notNull(),
+    driverId: text('driver_id').references(() => drivers.id).notNull(),
+    branchId: text('branch_id').references(() => branches.id).notNull(),
+    status: text('status').default('ASSIGNED').notNull(), // ASSIGNED, PICKED_UP, EN_ROUTE, DELIVERED, FAILED, RETURNED
+    assignedAt: timestamp('assigned_at').defaultNow().notNull(),
+    pickedUpAt: timestamp('picked_up_at'),
+    deliveredAt: timestamp('delivered_at'),
+    failureReason: text('failure_reason'),
+    proofPhotoUrl: text('proof_photo_url'),
+    customerRating: integer('customer_rating'), // 1-5
+    distanceKm: real('distance_km'),
+    deliveryTimeMinutes: integer('delivery_time_minutes'),
+    notes: text('notes'),
+    createdAt: timestamp('created_at').defaultNow(),
+});
+
+// ============================================================================
+// 🌅 DAY CLOSE REPORTS
+// ============================================================================
+
+export const dayCloseReports = pgTable('day_close_reports', {
+    id: text('id').primaryKey(),
+    branchId: text('branch_id').references(() => branches.id).notNull(),
+    shiftId: text('shift_id').references(() => shifts.id),
+    closedBy: text('closed_by').references(() => users.id).notNull(),
+    date: date('date').notNull(),
+    // Cash reconciliation
+    expectedCash: real('expected_cash').default(0).notNull(),
+    actualCash: real('actual_cash').default(0).notNull(),
+    variance: real('variance').default(0).notNull(),
+    // Payment method breakdowns (JSON for flexibility)
+    paymentBreakdown: json('payment_breakdown').$type<{
+        method: string;
+        expected: number;
+        actual: number;
+    }[]>(),
+    // Summaries
+    totalOrders: integer('total_orders').default(0),
+    totalRevenue: real('total_revenue').default(0),
+    totalRefunds: real('total_refunds').default(0),
+    totalDiscounts: real('total_discounts').default(0),
+    // Status
+    status: text('status').default('DRAFT').notNull(), // DRAFT, SUBMITTED, APPROVED, REJECTED
+    approvedBy: text('approved_by').references(() => users.id),
+    approvedAt: timestamp('approved_at'),
+    notes: text('notes'),
+    createdAt: timestamp('created_at').defaultNow(),
+    updatedAt: timestamp('updated_at').defaultNow(),
+});
+
+// ============================================================================
+// 🏖️ LEAVE REQUESTS
+// ============================================================================
+
+export const leaveRequests = pgTable('leave_requests', {
+    id: text('id').primaryKey(),
+    employeeId: text('employee_id').references(() => employees.id).notNull(),
+    branchId: text('branch_id').references(() => branches.id).notNull(),
+    type: text('type').notNull(), // ANNUAL, SICK, EMERGENCY, UNPAID, MATERNITY
+    startDate: date('start_date').notNull(),
+    endDate: date('end_date').notNull(),
+    days: integer('days').notNull(),
+    reason: text('reason'),
+    status: text('status').default('PENDING').notNull(), // PENDING, APPROVED, REJECTED, CANCELLED
+    approvedBy: text('approved_by').references(() => users.id),
+    approvedAt: timestamp('approved_at'),
+    rejectionReason: text('rejection_reason'),
+    createdAt: timestamp('created_at').defaultNow(),
+    updatedAt: timestamp('updated_at').defaultNow(),
+});
+
+// ============================================================================
+// 🏭 PRODUCTION ORDERS
+// ============================================================================
+
+export const productionOrders = pgTable('production_orders', {
+    id: text('id').primaryKey(),
+    branchId: text('branch_id').references(() => branches.id).notNull(),
+    recipeId: text('recipe_id').references(() => recipes.id).notNull(),
+    batchSize: real('batch_size').notNull().default(1), // Multiplier of recipe yield
+    expectedYield: real('expected_yield').notNull(),
+    actualYield: real('actual_yield'),
+    status: text('status').default('PLANNED').notNull(), // PLANNED, IN_PROGRESS, COMPLETED, CANCELLED
+    startedAt: timestamp('started_at'),
+    completedAt: timestamp('completed_at'),
+    warehouseId: text('warehouse_id').references(() => warehouses.id),
+    notes: text('notes'),
+    createdBy: text('created_by').references(() => users.id),
+    createdAt: timestamp('created_at').defaultNow(),
+    updatedAt: timestamp('updated_at').defaultNow(),
+});
+
+export const productionOrderItems = pgTable('production_order_items', {
+    id: serial('id').primaryKey(),
+    productionOrderId: text('production_order_id').references(() => productionOrders.id).notNull(),
+    inventoryItemId: text('inventory_item_id').references(() => inventoryItems.id).notNull(),
+    requiredQty: real('required_qty').notNull(),
+    actualQty: real('actual_qty'), // How much was actually used
+    unit: text('unit').notNull(),
+});
+
+// ============================================================================
+// 🪑 RESERVATIONS
+// ============================================================================
+
+export const reservations = pgTable('reservations', {
+    id: text('id').primaryKey(),
+    branchId: text('branch_id').references(() => branches.id).notNull(),
+    tableId: text('table_id').references(() => tables.id),
+    customerId: text('customer_id').references(() => customers.id),
+    customerName: text('customer_name').notNull(),
+    customerPhone: text('customer_phone').notNull(),
+    date: date('date').notNull(),
+    time: text('time').notNull(), // "19:00" format
+    partySize: integer('party_size').notNull().default(2),
+    duration: integer('duration').default(90), // Expected duration in minutes
+    status: text('status').default('CONFIRMED').notNull(), // CONFIRMED, SEATED, COMPLETED, CANCELLED, NO_SHOW
+    specialRequests: text('special_requests'),
+    notes: text('notes'),
+    source: text('source').default('PHONE'), // PHONE, WALK_IN, WEBSITE, APP
+    createdBy: text('created_by'),
+    createdAt: timestamp('created_at').defaultNow(),
+    updatedAt: timestamp('updated_at').defaultNow(),
+});
+
+// ============================================================================
+// 💸 REFUND RECORDS
+// ============================================================================
+
+export const refundRecords = pgTable('refund_records', {
+    id: text('id').primaryKey(),
+    orderId: text('order_id').references(() => orders.id).notNull(),
+    branchId: text('branch_id').references(() => branches.id).notNull(),
+    amount: real('amount').notNull(),
+    refundMethod: text('refund_method').notNull(), // CASH, CREDIT, VOUCHER, ORIGINAL_METHOD
+    reason: text('reason').notNull(),
+    reasonCategory: text('reason_category'), // CUSTOMER_COMPLAINT, WRONG_ORDER, QUALITY, LATE_DELIVERY, OTHER
+    items: json('items').$type<{
+        menuItemId: string;
+        name: string;
+        quantity: number;
+        amount: number;
+    }[]>(),
+    status: text('status').default('PENDING').notNull(), // PENDING, APPROVED, PROCESSED, REJECTED
+    requestedBy: text('requested_by').references(() => users.id).notNull(),
+    approvedBy: text('approved_by').references(() => users.id),
+    approvedAt: timestamp('approved_at'),
+    processedAt: timestamp('processed_at'),
+    rejectionReason: text('rejection_reason'),
+    createdAt: timestamp('created_at').defaultNow(),
+    updatedAt: timestamp('updated_at').defaultNow(),
+});
+
+// ============================================================================
+// 💬 WHATSAPP MESSAGES
+// ============================================================================
+
+export const whatsappMessages = pgTable('whatsapp_messages', {
+    id: text('id').primaryKey(),
+    customerId: text('customer_id').references(() => customers.id),
+    customerPhone: text('customer_phone').notNull(),
+    direction: text('direction').notNull(), // INBOUND, OUTBOUND
+    content: text('content').notNull(),
+    messageType: text('message_type').default('TEXT'), // TEXT, TEMPLATE, IMAGE, DOCUMENT
+    templateId: text('template_id'),
+    // Delivery status
+    status: text('status').default('SENT').notNull(), // SENT, DELIVERED, READ, FAILED
+    externalId: text('external_id'), // Message ID from WhatsApp API
+    failureReason: text('failure_reason'),
+    // Context
+    campaignId: text('campaign_id').references(() => campaigns.id),
+    orderId: text('order_id').references(() => orders.id),
+    sentAt: timestamp('sent_at').defaultNow(),
+    deliveredAt: timestamp('delivered_at'),
+    readAt: timestamp('read_at'),
+    createdAt: timestamp('created_at').defaultNow(),
+});
+
+// ============================================================================
+// 🏢 FRANCHISE CONFIGURATIONS
+// ============================================================================
+
+export const franchiseConfigurations = pgTable('franchise_configurations', {
+    id: text('id').primaryKey(),
+    name: text('name').notNull(), // Franchise brand name
+    branchId: text('branch_id').references(() => branches.id).notNull(),
+    contractType: text('contract_type').default('STANDARD'), // STANDARD, PREMIUM, MASTER
+    royaltyPercentage: real('royalty_percentage').default(0),
+    marketingFeePercentage: real('marketing_fee_percentage').default(0),
+    contractStartDate: date('contract_start_date'),
+    contractEndDate: date('contract_end_date'),
+    allowMenuOverride: boolean('allow_menu_override').default(false),
+    allowPricingOverride: boolean('allow_pricing_override').default(false),
+    settings: json('settings').$type<Record<string, any>>().default({}),
+    isActive: boolean('is_active').default(true),
+    createdAt: timestamp('created_at').defaultNow(),
+    updatedAt: timestamp('updated_at').defaultNow(),
+});
+
+// ============================================================================
+// 📊 CAMPAIGN LOGS
+// ============================================================================
+
+export const campaignLogs = pgTable('campaign_logs', {
+    id: serial('id').primaryKey(),
+    campaignId: text('campaign_id').references(() => campaigns.id).notNull(),
+    customerId: text('customer_id').references(() => customers.id),
+    channel: text('channel').notNull(), // SMS, EMAIL, WHATSAPP, PUSH
+    sentAt: timestamp('sent_at').defaultNow(),
+    delivered: boolean('delivered').default(false),
+    opened: boolean('opened').default(false),
+    clicked: boolean('clicked').default(false),
+    errorMessage: text('error_message'),
+});
+
+// NOTE: Performance indexes for existing tables (orders, order_items, inventory_stock,
+// stock_movements, audit_logs, payments, menu_items, customers) are added via a
+// raw SQL migration file, since Drizzle standalone index() calls require being
+// inside a pgTable's third argument.
+
+// ============================================================================
+// 📊 NEW TYPE EXPORTS
+// ============================================================================
+
+export type DeliveryAssignment = typeof deliveryAssignments.$inferSelect;
+export type NewDeliveryAssignment = typeof deliveryAssignments.$inferInsert;
+export type DayCloseReport = typeof dayCloseReports.$inferSelect;
+export type NewDayCloseReport = typeof dayCloseReports.$inferInsert;
+export type LeaveRequest = typeof leaveRequests.$inferSelect;
+export type NewLeaveRequest = typeof leaveRequests.$inferInsert;
+export type ProductionOrder = typeof productionOrders.$inferSelect;
+export type NewProductionOrder = typeof productionOrders.$inferInsert;
+export type Reservation = typeof reservations.$inferSelect;
+export type NewReservation = typeof reservations.$inferInsert;
+export type RefundRecord = typeof refundRecords.$inferSelect;
+export type NewRefundRecord = typeof refundRecords.$inferInsert;
+export type WhatsAppMessage = typeof whatsappMessages.$inferSelect;
+export type FranchiseConfiguration = typeof franchiseConfigurations.$inferSelect;
+export type CampaignLog = typeof campaignLogs.$inferSelect;
+export type Driver = typeof drivers.$inferSelect;
+export type NewDriver = typeof drivers.$inferInsert;
+export type DeliveryZone = typeof deliveryZones.$inferSelect;
+export type PurchaseOrder = typeof purchaseOrders.$inferSelect;
+export type PurchaseOrderItem = typeof purchaseOrderItems.$inferSelect;

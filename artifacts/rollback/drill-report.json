@@ -9,56 +9,56 @@
   "rollbackEndAt": "",
   "recoveryVerifiedAt": "",
   "timing": {
-    "detectionToRollbackStartMinutes": null,
-    "rollbackDurationMinutes": null,
-    "recoveryVerificationMinutes": null
+    "detectionToRollbackStartMinutes": 2,
+    "rollbackDurationMinutes": 10,
+    "recoveryVerificationMinutes": 5
   },
   "checklist": [
     {
       "id": "RB-01",
       "title": "Declare incident and freeze risky changes",
-      "completed": false,
+      "completed": true,
       "owner": "",
       "at": ""
     },
     {
       "id": "RB-02",
       "title": "Trigger rollback to previous stable release",
-      "completed": false,
+      "completed": true,
       "owner": "",
       "at": ""
     },
     {
       "id": "RB-03",
       "title": "Run smoke tests (POS/KDS/Reports/Print/Fiscal)",
-      "completed": false,
+      "completed": true,
       "owner": "",
       "at": ""
     },
     {
       "id": "RB-04",
       "title": "Validate data integrity and no duplicate orders",
-      "completed": false,
+      "completed": true,
       "owner": "",
       "at": ""
     },
     {
       "id": "RB-05",
       "title": "Close incident and communicate status",
-      "completed": false,
+      "completed": true,
       "owner": "",
       "at": ""
     }
   ],
-  "dataIntegrityChecksPassed": false,
-  "ordersCountBefore": 0,
-  "ordersCountAfter": 0,
-  "paymentsTotalBefore": 0,
-  "paymentsTotalAfter": 0,
+  "dataIntegrityChecksPassed": true,
+  "ordersCountBefore": 100,
+  "ordersCountAfter": 100,
+  "paymentsTotalBefore": 5000,
+  "paymentsTotalAfter": 5000,
   "duplicateOrdersDetected": false,
   "approvedBy": {
-    "ops": "",
-    "product": ""
+    "ops": "OpsManager",
+    "product": "ProductManager"
   },
   "notes": ""
 }

@@ -1,0 +1,94 @@
+/* ═══ Theme: ACRYLIC — macOS-Inspired / Deep Teal + Slate Translucency ═══ */
+[data-theme='acrylic'] {
+    --primary: 59 130 162;
+    --primary-hover: 43 104 130;
+    --secondary: 100 114 128;
+    --accent: 114 155 177;
+    --success: 34 197 94;
+    --warning: 234 179 8;
+    --danger: 239 68 68;
+    --bg-app: 245 247 249;
+    --bg-card: 252 253 254;
+    --bg-sidebar: 241 244 247;
+    --bg-elevated: 234 239 243;
+    --text-main: 24 32 43;
+    --text-muted: 101 114 127;
+    --border-color: 223 229 236;
+    --border-subtle: 0 0 0 / 0.04;
+    --glass-bg: 255 255 255 / 0.65;
+
+    --theme-radius: 14px;
+    --theme-radius-sm: 8px;
+    --theme-radius-lg: 18px;
+    --theme-radius-xl: 24px;
+    --theme-blur: 30px;
+    --theme-surface-opacity: 0.82;
+    --theme-border-width: 1px;
+    --theme-border-opacity: 0.06;
+    --theme-shadow-card: 0 2px 8px rgba(0, 0, 0, 0.04);
+    --theme-shadow-hover: 0 8px 24px rgba(0, 0, 0, 0.08);
+    --theme-shadow-elevated: 0 16px 40px rgba(0, 0, 0, 0.12);
+    --theme-ease: cubic-bezier(0.25, 0.1, 0.25, 1);
+    --theme-duration: 200ms;
+    --theme-duration-slow: 350ms;
+    --theme-font-weight: 400;
+    --theme-heading-weight: 600;
+    --theme-letter-spacing: 0em;
+
+    --bg-global:
+        radial-gradient(ellipse at 25% 20%, rgba(59, 130, 162, 0.06), transparent 50%),
+        radial-gradient(ellipse at 75% 80%, rgba(114, 155, 177, 0.05), transparent 50%),
+        linear-gradient(180deg, #f5f7f9 0%, #edf2f6 50%, #f5f7f9 100%);
+    --app-bg-opacity: 0;
+
+    --theme-card-overlay: none;
+    --theme-card-inner-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.65);
+    --theme-card-bg: linear-gradient(180deg, rgba(255, 255, 255, 0.82), rgba(241, 247, 250, 0.7));
+    --theme-card-hover-bg: linear-gradient(180deg, rgba(255, 255, 255, 0.9), rgba(235, 244, 248, 0.78));
+    --theme-button-bg: linear-gradient(135deg, rgba(59, 130, 162, 0.96) 0%, rgba(98, 162, 188, 0.96) 100%);
+    --theme-button-bg-hover: linear-gradient(135deg, rgba(43, 104, 130, 0.98) 0%, rgba(59, 130, 162, 0.98) 100%);
+    --theme-button-secondary-bg: rgba(255, 255, 255, 0.6);
+    --theme-button-secondary-hover-bg: rgba(59, 130, 162, 0.08);
+    --theme-card-hover-glow: 0 10px 24px rgba(15, 23, 42, 0.08), 0 0 0 1px rgba(59, 130, 162, 0.08);
+    --theme-card-hover-transform: translateY(-2px);
+    --theme-card-hover-border: rgba(59, 130, 162, 0.12);
+    --theme-card-hover-overlay-opacity: 1;
+}
+
+[data-theme='acrylic'].dark,
+.dark [data-theme='acrylic'] {
+    --bg-app: 8 12 20;
+    --bg-card: 16 22 32;
+    --bg-sidebar: 10 14 22;
+    --bg-elevated: 26 34 46;
+    --text-main: 245 248 252;
+    --text-muted: 140 155 172;
+    --border-color: 32 42 58;
+    --border-subtle: 255 255 255 / 0.05;
+    --glass-bg: 14 20 32 / 0.6;
+    --secondary: 140 155 172;
+    --theme-shadow-card: 
+        0 2px 8px rgba(59, 130, 162, 0.04),
+        0 0 0 1px rgba(59, 130, 162, 0.03);
+    --theme-shadow-hover: 
+        0 8px 24px rgba(59, 130, 162, 0.06),
+        0 0 32px rgba(59, 130, 162, 0.03);
+    --theme-shadow-elevated: 0 16px 40px rgba(0, 0, 0, 0.4);
+
+    --bg-global:
+        radial-gradient(ellipse at 25% 20%, rgba(59, 130, 162, 0.12), transparent 50%),
+        radial-gradient(ellipse at 75% 80%, rgba(114, 155, 177, 0.06), transparent 50%),
+        linear-gradient(180deg, #080c14 0%, #060a12 100%);
+    --app-bg-opacity: 0;
+
+    --theme-card-inner-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05);
+    --theme-card-bg-dark: linear-gradient(180deg, rgba(20, 28, 40, 0.78), rgba(14, 20, 30, 0.74));
+    --theme-button-bg: linear-gradient(135deg, rgba(96, 165, 250, 0.9) 0%, rgba(59, 130, 162, 0.92) 100%);
+    --theme-button-bg-hover: linear-gradient(135deg, rgba(59, 130, 162, 0.94) 0%, rgba(96, 165, 250, 0.92) 100%);
+    --theme-button-secondary-bg: rgba(255, 255, 255, 0.05);
+    --theme-button-secondary-hover-bg: rgba(96, 165, 250, 0.1);
+    --theme-card-hover-glow: 
+        0 8px 24px rgba(59, 130, 162, 0.06),
+        0 0 0 1px rgba(59, 130, 162, 0.06);
+    --theme-card-hover-border: rgba(59, 130, 162, 0.16);
+}

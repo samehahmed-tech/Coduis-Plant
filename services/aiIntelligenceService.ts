@@ -1,6 +1,6 @@
 import { eventBus } from './eventBus';
 import { AuditEventType, AuditLog } from '../types';
-import { aiApi } from './api';
+import { aiApi } from './api/ai';
 import { useOrderStore } from '../stores/useOrderStore';
 import { useInventoryStore } from '../stores/useInventoryStore';
 import { useAuthStore } from '../stores/useAuthStore';

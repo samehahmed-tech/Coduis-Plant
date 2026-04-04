@@ -1,10 +1,14 @@
 // Auth Store - Connected to Database API (Production Ready)
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import { User, AppSettings, AppPermission, UserRole, INITIAL_ROLE_PERMISSIONS, Branch, Printer } from '../types';
-import { usersApi, branchesApi, settingsApi, authApi, printersApi } from '../services/api';
+import { User, AppSettings, AppPermission, UserRole, INITIAL_ROLE_PERMISSIONS, Branch, Printer, CustomRole } from '../types';
+import { printersApi } from '../services/api/printers';
+import { authApi } from '../services/api/auth';
+import { usersApi } from '../services/api/users';
+import { branchesApi } from '../services/api/branches';
+import { settingsApi } from '../services/api/settings';
 import { localDb } from '../db/localDb';
-import { syncService } from '../services/syncService';
+import { syncService } from '../services/syncService'; export type LoginMode = 'pin' | 'password';
 
 interface AuthState {
     settings: AppSettings;
@@ -47,6 +51,12 @@ interface AuthState {
     toggleSidebar: () => void;
     setSidebarCollapsed: (collapsed: boolean) => void;
     clearError: () => void;
+
+    // Role Management
+    createCustomRole: (id: string, name: string, nameAr: string, permissions: AppPermission[]) => void;
+    updateCustomRole: (id: string, name: string, nameAr: string, permissions: AppPermission[]) => void;
+    deleteCustomRole: (id: string) => void;
+    saveRolePermissions: (roleId: string, permissions: AppPermission[]) => void;
 }
 
 const DEFAULT_SETTINGS: AppSettings = {
@@ -58,7 +68,7 @@ const DEFAULT_SETTINGS: AppSettings = {
     language: 'ar',
     isDarkMode: true,
     isTouchMode: false,
-    theme: 'xen',
+    theme: 'modern',
     branchAddress: '',
     phone: '',
     receiptLogoUrl: '',
@@ -72,6 +82,8 @@ const DEFAULT_SETTINGS: AppSettings = {
     activeBranchId: undefined,
     syncAuthority: 'SERVER',
     branchHierarchy: { id: 'central', level: 'MASTER' },
+    customRoles: [],
+    rolePermissionOverrides: {},
 };
 
 // Only keep ONE admin user for first login - rest comes from database
@@ -215,7 +227,7 @@ export const useAuthStore = create<AuthState>()(
                 } catch (error: any) {
                     set({ isLoading: false });
                     const code = String(error?.code || error?.message || '').toUpperCase();
-                    if (code.includes('INVALID_TOKEN') || Number(error?.status) === 401) return;
+                    if (code.includes('INVALID_TOKEN') || code.includes('FORBIDDEN') || [401, 403].includes(Number(error?.status))) return;
                     console.error('Failed to fetch users:', error);
                 }
             },
@@ -274,6 +286,8 @@ export const useAuthStore = create<AuthState>()(
                                     theme: data.theme || state.settings.theme,
                                     currencySymbol: data.currencySymbol || state.settings.currencySymbol,
                                     isTouchMode: data.isTouchMode ?? state.settings.isTouchMode,
+                                    customRoles: data.customRoles ?? state.settings.customRoles,
+                                    rolePermissionOverrides: data.rolePermissionOverrides ?? state.settings.rolePermissionOverrides,
                                 }
                             }));
                             await localDb.settings.put({ key: 'app', value: data, updatedAt: Date.now() });
@@ -304,6 +318,8 @@ export const useAuthStore = create<AuthState>()(
                                     theme: data.theme || state.settings.theme,
                                     currencySymbol: data.currencySymbol || state.settings.currencySymbol,
                                     isTouchMode: data.isTouchMode ?? state.settings.isTouchMode,
+                                    customRoles: data.customRoles ?? state.settings.customRoles,
+                                    rolePermissionOverrides: data.rolePermissionOverrides ?? state.settings.rolePermissionOverrides,
                                 }
                             }));
                         }
@@ -576,13 +592,83 @@ export const useAuthStore = create<AuthState>()(
 
             hasPermission: (permission) => {
                 const user = get().settings.currentUser;
+                const { customRoles = [], rolePermissionOverrides = {} } = get().settings;
+
                 if (!user) return false;
                 if (user.role === UserRole.SUPER_ADMIN) return true;
                 if (user.role === UserRole.BRANCH_MANAGER && permission.startsWith('NAV_')) return true;
-                return user.permissions.includes(permission);
+
+                // Explicit custom overrides per user
+                if (user.customOverrides?.added?.includes(permission)) return true;
+                if (user.customOverrides?.removed?.includes(permission)) return false;
+
+                // For existing users with baked permissions that match the default (to ensure updates propagate if default changes),
+                // we'll primarily rely on the dynamic overrides and customRoles first.
+                // If it's a built-in or custom role, we get its *current* permissions.
+
+                let curPerms: AppPermission[] = [];
+                // 1. Check custom overrides first
+                if (rolePermissionOverrides[user.role]) {
+                    curPerms = rolePermissionOverrides[user.role];
+                }
+                // 2. Check if it's a custom role
+                else if (customRoles.find(r => r.id === user.role)) {
+                    curPerms = customRoles.find(r => r.id === user.role)?.permissions || [];
+                }
+                // 3. Fallback to hardcoded initial if built-in
+                else if (user.role in INITIAL_ROLE_PERMISSIONS) {
+                    curPerms = INITIAL_ROLE_PERMISSIONS[user.role as UserRole] || [];
+                }
+                // 4. Ultimate fallback to the user document's own permissions array
+                else {
+                    curPerms = user.permissions;
+                }
+
+                return curPerms.includes(permission);
             },
 
             clearError: () => set({ error: null }),
+
+            // ============ Role Management ============
+            createCustomRole: (id, name, nameAr, permissions) => {
+                const newRole: CustomRole = { id, name, nameAr, permissions };
+                const settings = get().settings;
+                get().updateSettings({ customRoles: [...(settings.customRoles || []), newRole] });
+            },
+
+            updateCustomRole: (id, name, nameAr, permissions) => {
+                const settings = get().settings;
+                get().updateSettings({
+                    customRoles: (settings.customRoles || []).map(r => r.id === id ? { ...r, name, nameAr, permissions } : r)
+                });
+            },
+
+            deleteCustomRole: (id) => {
+                const settings = get().settings;
+                get().updateSettings({
+                    customRoles: (settings.customRoles || []).filter(r => r.id !== id),
+                    // Also clear any overrides just in case
+                    rolePermissionOverrides: Object.fromEntries(
+                        Object.entries(settings.rolePermissionOverrides || {}).filter(([k]) => k !== id)
+                    )
+                });
+            },
+
+            saveRolePermissions: (roleId, permissions) => {
+                const settings = get().settings;
+                const customRole = (settings.customRoles || []).find(r => r.id === roleId);
+
+                if (customRole) {
+                    get().updateCustomRole(roleId, customRole.name, customRole.nameAr || '', permissions);
+                } else {
+                    get().updateSettings({
+                        rolePermissionOverrides: {
+                            ...(settings.rolePermissionOverrides || {}),
+                            [roleId]: permissions
+                        }
+                    });
+                }
+            },
         }),
         {
             name: 'coduis-zen-auth',

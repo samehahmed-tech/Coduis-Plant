@@ -1,7 +1,8 @@
 // Order Store - Connected to Database API (Production Ready)
 import { create } from 'zustand';
 import { Order, OrderType, OrderItem, OrderStatus, Table, TableStatus, AuditEventType, FloorZone } from '../types';
-import { ordersApi, tablesApi } from '../services/api';
+import { ordersApi } from '../services/api/orders';
+import { tablesApi } from '../services/api/tables';
 import { localDb } from '../db/localDb';
 import { syncService } from '../services/syncService';
 import { useAuthStore } from './useAuthStore';
@@ -39,7 +40,7 @@ interface OrderState {
     // Async Actions (API)
     fetchOrders: (params?: { status?: string; branch_id?: string; date?: string; limit?: number }) => Promise<void>;
     placeOrder: (order: Order) => Promise<Order>;
-    updateOrderStatus: (orderId: string, status: OrderStatus, changedBy?: string, notes?: string) => Promise<void>;
+    updateOrderStatus: (orderId: string, status: OrderStatus, changedBy?: string, notes?: string, options?: { skipPrint?: boolean }) => Promise<void>;
 
     fetchTables: (branchId: string) => Promise<void>;
     updateTableStatus: (tableId: string, status: TableStatus) => Promise<void>;
@@ -52,6 +53,7 @@ interface OrderState {
     updateCartItemNotes: (itemId: string, notes: string) => void;
     updateCartItemSeat: (itemId: string, seatNumber: number) => void;
     updateCartItemCourse: (itemId: string, course: string) => void;
+    updateCartItemDiscount: (itemId: string, discount: number, discountType: 'percent' | 'flat') => void;
     setTipAmount: (amount: number) => void;
     clearCart: () => void;
     saveTableDraft: (tableId: string, cart: OrderItem[], discount: number) => void;
@@ -334,7 +336,7 @@ export const useOrderStore = create<OrderState>()(
                 }
             },
 
-            updateOrderStatus: async (orderId, status, changedBy, notes) => {
+            updateOrderStatus: async (orderId, status, changedBy, notes, options) => {
                 try {
                     const current = get().orders.find(o => o.id === orderId);
                     const previousStatus = current?.status;
@@ -361,7 +363,7 @@ export const useOrderStore = create<OrderState>()(
                         await localDb.orders.put({ ...existing, status, updatedAt: new Date() } as any);
                     }
 
-                    if (!isCompletionStatus(previousStatus) && isCompletionStatus(status)) {
+                    if (!options?.skipPrint && !isCompletionStatus(previousStatus) && isCompletionStatus(status)) {
                         const orderForPrint = current ? { ...current, status, updatedAt: new Date() } : get().orders.find(o => o.id === orderId);
                         if (orderForPrint) {
                             try {
@@ -420,6 +422,12 @@ export const useOrderStore = create<OrderState>()(
             updateCartItemCourse: (itemId, course) => set((state) => ({
                 activeCart: state.activeCart.map(item =>
                     item.cartId === itemId ? { ...item, course } : item
+                )
+            })),
+
+            updateCartItemDiscount: (itemId, discount, discountType) => set((state) => ({
+                activeCart: state.activeCart.map(item =>
+                    item.cartId === itemId ? { ...item, itemDiscount: discount, itemDiscountType: discountType } : item
                 )
             })),
 
@@ -656,4 +664,3 @@ export const useOrderStore = create<OrderState>()(
         { name: 'order-storage' }
     )
 );
-

@@ -2,22 +2,11 @@ import * as dotenv from 'dotenv';
 dotenv.config();
 
 import app from './app';
-import pg from 'pg';
 import http from 'http';
 import { initSocket, closeSocket } from './socket';
+import { closeDatabase } from './db';
 
-const { Pool } = pg;
 const PORT = process.env.API_PORT || 3001;
-
-// Global Pool setup for legacy components if needed,
-// though modular controllers use server/db/index.ts
-const pool = new Pool({
-    connectionString: process.env.DATABASE_URL,
-});
-
-pool.on('error', (err) => {
-    console.error('Database pool error:', err);
-});
 
 const server = http.createServer(app);
 
@@ -35,7 +24,7 @@ start().catch((error) => {
 
 const shutdown = async () => {
     await closeSocket();
-    await pool.end();
+    await closeDatabase();
     process.exit(0);
 };
 

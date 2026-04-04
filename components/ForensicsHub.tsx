@@ -70,7 +70,7 @@ const ForensicsHub: React.FC = () => {
     };
 
     return (
-        <div className="p-8 bg-slate-50 dark:bg-slate-950 min-h-screen transition-colors pb-24">
+        <div className="p-8 bg-app min-h-screen transition-colors pb-24">
             {/* Header */}
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 mb-12">
                 <div>
@@ -142,7 +142,7 @@ const ForensicsHub: React.FC = () => {
                                     return (
                                         <div
                                             onClick={() => setSelectedLogId(toSafeString(log.id))}
-                                            className={`w-full text-left p-6 rounded-[2rem] border-2 transition-all flex items-center gap-6 group cursor-pointer ${selectedLogId === toSafeString(log.id) ? 'card-primary border-indigo-600 shadow-2xl relative z-10' : 'bg-white/50 dark:bg-slate-900/30 border-slate-100 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700'}`}
+                                            className={`w-full text-left p-6 rounded-[2rem] border-2 transition-all flex items-center gap-6 group cursor-pointer ${selectedLogId === toSafeString(log.id) ? 'card-primary border-indigo-600 shadow-2xl relative z-10' : 'bg-elevated/400 dark:bg-slate-900/30 border-slate-100 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700'}`}
                                         >
                                             <div className={`w-14 h-14 rounded-2xl flex items-center justify-center flex-shrink-0 transition-all ${selectedLogId === toSafeString(log.id) ? 'bg-indigo-50 dark:bg-indigo-900/30 scale-110 shadow-lg' : 'bg-slate-100 dark:bg-slate-800'}`}>
                                                 {getEventIcon(log.eventType)}
@@ -236,7 +236,7 @@ const ForensicsHub: React.FC = () => {
                                 </div>
 
                                 <div className="space-y-6 relative z-10">
-                                    {selectedLog.payload.before && (
+                                    {selectedLog.payload?.before && (
                                         <div className="animate-in fade-in slide-in-from-top-4 duration-500">
                                             <div className="flex items-center gap-2 mb-3">
                                                 <div className="w-1.5 h-1.5 bg-slate-300 rounded-full" />
@@ -254,11 +254,11 @@ const ForensicsHub: React.FC = () => {
                                             <span className="text-[9px] font-black text-indigo-600 uppercase tracking-[0.2em]">New State Commit</span>
                                         </div>
                                         <div className="bg-indigo-950 text-indigo-200/90 p-6 rounded-[2rem] text-[11px] font-mono overflow-x-auto border-2 border-indigo-900/50 shadow-2xl ring-4 ring-indigo-500/5">
-                                            <pre className="no-scrollbar">{JSON.stringify(selectedLog.payload.after, null, 2)}</pre>
+                                            <pre className="no-scrollbar">{JSON.stringify(selectedLog.payload?.after, null, 2)}</pre>
                                         </div>
                                     </div>
 
-                                    {selectedLog.payload.reason && (
+                                    {selectedLog.payload?.reason && (
                                         <div className="bg-amber-50 dark:bg-amber-900/20 border-2 border-amber-100/50 dark:border-amber-800/30 p-6 rounded-3xl mt-4 animate-in slide-in-from-bottom-4 duration-500">
                                             <p className="text-[9px] font-black text-amber-600 uppercase mb-2 tracking-widest">Stated Intent / Reason</p>
                                             <p className="text-sm font-black text-amber-900 dark:text-amber-200 italic leading-snug">"{selectedLog.payload.reason}"</p>

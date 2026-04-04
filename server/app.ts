@@ -1,6 +1,7 @@
 import express from 'express';
 import path from 'path';
 import cors from 'cors';
+import compression from 'compression';
 import { helmetMiddleware, generalRateLimit, authRateLimit, inputSanitizer, hideErrorDetails } from './middleware/security';
 import logger from './utils/logger';
 import userRoutes from './routes/userRoutes';
@@ -41,15 +42,27 @@ import whatsappRoutes from './routes/whatsappRoutes';
 import inventoryIntelligenceRoutes from './routes/inventoryIntelligenceRoutes';
 import refundRoutes from './routes/refundRoutes';
 import hrExtendedRoutes from './routes/hrExtendedRoutes';
+import platformsRoutes from './routes/platformsRoutes';
+import budgetRoutes from './routes/budgetRoutes';
+import barcodeRoutes from './routes/barcodeRoutes';
 import { authenticateToken, requireRoles } from './middleware/auth';
 import { isOriginAllowed } from './config/cors';
 import { errorHandler, notFoundHandler } from './middleware/errorHandler';
 import { attachRequestId, requestLogger } from './middleware/requestContext';
 import { errorContractMiddleware } from './middleware/errorContract';
+import { apiCacheHeaders } from './middleware/cacheHeaders';
 import { errorTrackingMiddleware, getRecentErrors, getErrorStats } from './services/errorTrackingService';
+import { enforceHttps, hstsHeader } from './middleware/sslEnforcement';
 
 const app = express();
 app.set('trust proxy', 1);
+
+// ── Performance Middlewares ──
+app.use(compression({ threshold: 1024 })); // gzip/brotli for responses > 1KB
+
+// ── SSL/TLS Enforcement ──
+app.use(enforceHttps);
+app.use(hstsHeader);
 
 // ── Security Middlewares ──
 app.use(helmetMiddleware);
@@ -67,13 +80,14 @@ app.use(cors({
     },
     credentials: true,
 }));
-app.use(express.json({ limit: '50mb' }));
-app.use(express.urlencoded({ limit: '50mb', extended: true }));
+app.use(express.json({ limit: '5mb' }));
+app.use(express.urlencoded({ limit: '5mb', extended: true }));
 app.use(inputSanitizer);
 app.use(generalRateLimit);
 app.use(attachRequestId);
 app.use(requestLogger);
 app.use(errorContractMiddleware);
+app.use(apiCacheHeaders);
 
 logger.info({ port: process.env.API_PORT || 3001, env: process.env.NODE_ENV || 'development' }, 'RestoFlow ERP server initializing');
 
@@ -104,6 +118,7 @@ app.use('/api/call-center', requireRoles('SUPER_ADMIN', 'BRANCH_MANAGER', 'MANAG
 app.use('/api/analytics', requireRoles('SUPER_ADMIN', 'BRANCH_MANAGER', 'FINANCE', 'MANAGER'), analyticsRoutes);
 app.use('/api/hr', requireRoles('SUPER_ADMIN', 'BRANCH_MANAGER', 'MANAGER', 'FINANCE'), hrRoutes);
 app.use('/api/finance', requireRoles('SUPER_ADMIN', 'BRANCH_MANAGER', 'FINANCE'), financeRoutes);
+app.use('/api/budgets', requireRoles('SUPER_ADMIN', 'BRANCH_MANAGER', 'FINANCE'), budgetRoutes);
 app.use('/api/wastage', requireRoles('SUPER_ADMIN', 'BRANCH_MANAGER', 'MANAGER'), wastageRoutes);
 app.use('/api/production', requireRoles('SUPER_ADMIN', 'BRANCH_MANAGER', 'MANAGER'), productionRoutes);
 app.use('/api/suppliers', requireRoles('SUPER_ADMIN', 'BRANCH_MANAGER', 'MANAGER'), supplierRoutes);
@@ -112,10 +127,12 @@ app.use('/api/printers', requireRoles('SUPER_ADMIN', 'BRANCH_MANAGER', 'MANAGER'
 app.use('/api/customers', customerRoutes);
 app.use('/api/settings', requireRoles('SUPER_ADMIN', 'BRANCH_MANAGER'), settingsRoutes);
 app.use('/api/tables', tableRoutes);
+app.use('/api/platforms', requireRoles('SUPER_ADMIN', 'BRANCH_MANAGER', 'MANAGER'), platformsRoutes);
 app.use('/api/inventory', inventoryRoutes);
+app.use('/api/barcode', barcodeRoutes);
 app.use('/api/warehouses', warehouseRoutes);
 app.use('/api/audit-logs', requireRoles('SUPER_ADMIN', 'BRANCH_MANAGER', 'MANAGER'), auditRoutes);
-app.use('/api/images', imageRoutes);
+app.use('/api/images', express.json({ limit: '50mb' }), imageRoutes); // Images need larger payload
 app.use('/api/fiscal', requireRoles('SUPER_ADMIN', 'BRANCH_MANAGER', 'FINANCE'), fiscalRoutes);
 app.use('/api/day-close', requireRoles('SUPER_ADMIN', 'BRANCH_MANAGER', 'MANAGER', 'FINANCE'), dayCloseRoutes);
 app.use('/api/ai', requireRoles('SUPER_ADMIN', 'BRANCH_MANAGER', 'MANAGER'), aiRoutes);

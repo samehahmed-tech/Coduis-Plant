@@ -144,11 +144,36 @@ export const receivePO = async (req: Request, res: Response) => {
                     });
                 }
 
-                // 3. Create stock movement
+                // 3. Dynamic Costing (Moving Average)
+                const [invItem] = await tx.select().from(inventoryItems).where(eq(inventoryItems.id, itemId));
+                const allStock = await tx.select().from(inventoryStock).where(eq(inventoryStock.itemId, itemId));
+
+                // We calculate old qty using the existing stock *before* we updated the quantity in step 2 (if it was an update).
+                // Wait, in step 2 we already did sql`quantity + ${qty}`, so the current `allStock` reflects the NEW total quantity.
+                // Let's calculate based on that.
+                const newTotalQty = allStock.reduce((sum, s) => sum + Number(s.quantity || 0), 0);
+                const oldTotalQty = Math.max(0, newTotalQty - qty); // Backtrack since we already updated stock table
+
+                const oldTotalValue = oldTotalQty * Number(invItem?.costPrice || 0);
+                const receivedValue = qty * unitPrice;
+
+                const newAverageCost = newTotalQty > 0 ? (oldTotalValue + receivedValue) / newTotalQty : unitPrice;
+
+                await tx.update(inventoryItems)
+                    .set({
+                        costPrice: newAverageCost,
+                        purchasePrice: unitPrice,
+                        updatedAt: new Date(),
+                    })
+                    .where(eq(inventoryItems.id, itemId));
+
+                // 4. Create stock movement
                 await tx.insert(stockMovements).values({
                     itemId,
                     toWarehouseId: warehouseId,
                     quantity: qty,
+                    unitCost: unitPrice,
+                    totalCost: receivedValue,
                     type: 'PURCHASE',
                     referenceId: id,
                     reason: 'Goods Receipt from PO',
@@ -157,7 +182,7 @@ export const receivePO = async (req: Request, res: Response) => {
                 });
             }
 
-            // 4. Update PO status
+            // 5. Update PO status
             const poItems = await tx.select().from(purchaseOrderItems).where(eq(purchaseOrderItems.poId, id));
             const allReceived = poItems.every(item => Number(item.receivedQty) >= Number(item.orderedQty));
             const anyReceived = poItems.some(item => Number(item.receivedQty) > 0);

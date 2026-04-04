@@ -1,10 +1,11 @@
-import React from 'react';
-import { Banknote, CreditCard, Smartphone, Landmark, Calculator, Trash, Zap, ChefHat, X, ChevronDown, ChevronUp } from 'lucide-react';
+import React, { useState } from 'react';
+import { Banknote, CreditCard, Smartphone, Landmark, Calculator, Trash, ChefHat, ChevronDown, Tag, HandCoins } from 'lucide-react';
 import { PaymentMethod } from '../../types';
 
 interface PaymentSummaryProps {
     subtotal: number;
     discount: number;
+    discountAmount?: number;
     tax: number;
     total: number;
     currencySymbol: string;
@@ -27,41 +28,20 @@ interface PaymentSummaryProps {
     onCouponCodeChange: (value: string) => void;
     onApplyCoupon: () => void;
     onClearCoupon: () => void;
-    collapsed?: boolean;
-    onToggleCollapsed?: () => void;
     itemCount?: number;
 }
 
 const PaymentSummary: React.FC<PaymentSummaryProps> = ({
-    subtotal,
-    discount,
-    tax,
-    total,
-    currencySymbol,
-    paymentMethod,
-    onSetPaymentMethod,
-    onShowSplitModal,
-    isTouchMode,
-    lang,
-    t,
-    tipAmount,
-    onSetTipAmount,
-    onVoid,
-    onSubmit,
-    onQuickPay,
-    onSendKitchen,
-    canSubmit,
-    couponCode,
-    activeCoupon,
-    isApplyingCoupon,
-    onCouponCodeChange,
-    onApplyCoupon,
-    onClearCoupon,
-    collapsed = false,
-    onToggleCollapsed,
-    itemCount = 0,
+    subtotal, discount, discountAmount = 0, tax, total, currencySymbol, paymentMethod, onSetPaymentMethod, onShowSplitModal,
+    isTouchMode, lang, t, tipAmount, onSetTipAmount, onVoid, onSubmit, onQuickPay, onSendKitchen,
+    canSubmit, couponCode, activeCoupon, isApplyingCoupon, onCouponCodeChange, onApplyCoupon, onClearCoupon, itemCount = 0
 }) => {
-    const paymentMethods = [
+    const [openSection, setOpenSection] = useState<'methods' | 'tips' | 'coupon' | null>(null);
+    const [amountTendered, setAmountTendered] = useState<number>(0);
+    const toggleSection = (section: 'methods' | 'tips' | 'coupon') => setOpenSection(p => p === section ? null : section);
+    const changeDue = amountTendered > 0 ? amountTendered - total : 0;
+
+    const paymentMethodsList = [
         { id: PaymentMethod.CASH, label: t.cash, icon: Banknote },
         { id: PaymentMethod.VISA, label: t.visa, icon: CreditCard },
         { id: PaymentMethod.VODAFONE_CASH, label: t.v_cash, icon: Smartphone },
@@ -69,186 +49,182 @@ const PaymentSummary: React.FC<PaymentSummaryProps> = ({
         { id: PaymentMethod.SPLIT, label: t.split, icon: Calculator },
     ];
 
+    const isAr = lang === 'ar';
+    const activeMethodLabel = paymentMethodsList.find(m => m.id === paymentMethod)?.label.split(' ')[0] || t.cash;
+
     return (
-        <div className="p-3 md:p-4 bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl border-t border-slate-200/50 dark:border-slate-700/30 space-y-3 shrink-0 relative z-30 shadow-[0_-8px_30px_rgba(0,0,0,0.06)]">
-            {/* ═══ TOTAL — Clean & Bold (No Box) ═══ */}
-            <div className="px-2 pt-2 pb-4">
-                <div className="flex items-end justify-between">
-                    <div>
-                        <p className="text-[11px] font-black uppercase tracking-[0.2em] text-slate-500 dark:text-slate-400 mb-1">
-                            {t.total} {itemCount > 0 ? `(${itemCount})` : ''}
-                        </p>
-                        <p className="text-4xl md:text-5xl font-black text-slate-900 dark:text-white leading-none tracking-tight" style={{ fontVariantNumeric: 'tabular-nums' }}>
-                            {currencySymbol}{total.toFixed(2)}
-                        </p>
-                    </div>
-                    {onToggleCollapsed && (
-                        <button
-                            onClick={onToggleCollapsed}
-                            className="p-2 rounded-xl text-slate-400 hover:text-slate-800 dark:hover:text-white transition-colors active:scale-95"
-                            title={collapsed ? 'Expand' : 'Collapse'}
-                        >
-                            {collapsed ? <ChevronDown size={24} /> : <ChevronUp size={24} />}
-                        </button>
-                    )}
+        <div className="space-y-2.5 shrink-0 flex flex-col pt-0.5">
+            {/* Breakdown */}
+            <div className="flex items-center justify-between px-1">
+                <div className="flex items-center gap-3 text-[9px] font-bold uppercase tracking-wider text-muted">
+                    <span className="flex items-center gap-1">
+                        {t.subtotal} <b className="text-main tabular-nums bg-elevated/40 px-1.5 py-0.5 rounded border border-border/15">{subtotal.toFixed(2)}</b>
+                    </span>
+                    <span className="flex items-center gap-1 opacity-70">
+                        {t.tax} <b className="tabular-nums">{tax.toFixed(2)}</b>
+                    </span>
                 </div>
+                {discount > 0 && (
+                    <span className="text-[9px] font-bold uppercase tracking-wider text-success bg-success/8 px-1.5 py-0.5 rounded flex items-center gap-1 border border-success/15">
+                        {t.discount} <b className="tabular-nums">-{discountAmount.toFixed(2)}</b>
+                    </span>
+                )}
             </div>
 
-            {collapsed ? (
-                <div className="grid grid-cols-2 gap-3 relative z-10">
+            {/* Action Toggles */}
+            <div className="flex gap-1.5">
+                <button
+                    onClick={() => toggleSection('methods')}
+                    className={`flex-1 h-9 flex items-center justify-between px-2.5 rounded-xl border text-[9px] font-bold uppercase tracking-wider transition-colors active:scale-[0.97] ${openSection === 'methods' ? 'bg-primary text-white border-primary' : 'bg-elevated/40 border-border/15 text-muted hover:text-main'}`}
+                >
+                    <div className="flex items-center gap-1.5">
+                        <Banknote size={12} />
+                        <span className="truncate max-w-[70px]">{isAr ? `دفع: ${activeMethodLabel}` : `Pay ${activeMethodLabel}`}</span>
+                    </div>
+                    <ChevronDown size={12} className={`transition-transform duration-200 ${openSection === 'methods' ? 'rotate-180' : ''}`} />
+                </button>
+
+                <button
+                    onClick={() => toggleSection('tips')}
+                    className={`flex-1 h-9 flex items-center justify-between px-2.5 rounded-xl border text-[9px] font-bold uppercase tracking-wider transition-colors active:scale-[0.97] ${openSection === 'tips' ? 'bg-primary text-white border-primary' : 'bg-elevated/40 border-border/15 text-muted hover:text-main'}`}
+                >
+                    <div className="flex items-center gap-1.5">
+                        <HandCoins size={12} />
+                        <span className="truncate">{isAr ? 'إكرامية:' : 'Tip:'} <b className={openSection === 'tips' ? 'text-white' : 'text-primary'}>{tipAmount}</b></span>
+                    </div>
+                    <ChevronDown size={12} className={`transition-transform duration-200 ${openSection === 'tips' ? 'rotate-180' : ''}`} />
+                </button>
+
+                <button
+                    onClick={() => toggleSection('coupon')}
+                    className={`shrink-0 w-9 h-9 flex items-center justify-center rounded-xl border transition-colors active:scale-[0.97] ${openSection === 'coupon' || activeCoupon ? 'bg-primary text-white border-primary' : 'bg-elevated/40 border-border/15 text-muted hover:text-main'}`}
+                    title={isAr ? 'كوبون' : 'Coupon'}
+                >
+                    <Tag size={14} />
+                </button>
+            </div>
+
+            {/* Expanded Panels */}
+            {openSection === 'methods' && (
+                <div className="flex bg-elevated/30 rounded-xl p-1 gap-0.5 border border-border/15 animate-fade-in">
+                    {paymentMethodsList.map(btn => (
+                        <button
+                            key={btn.id}
+                            onClick={() => {
+                                onSetPaymentMethod(btn.id);
+                                if (btn.id === PaymentMethod.SPLIT) onShowSplitModal();
+                                setOpenSection(null);
+                            }}
+                            className={`flex flex-col flex-1 items-center justify-center py-1.5 px-1 rounded-lg transition-colors active:scale-95 ${paymentMethod === btn.id ? 'bg-card text-main shadow ring-1 ring-border/20' : 'text-muted hover:text-main hover:bg-elevated/60'}`}
+                        >
+                            <btn.icon size={14} />
+                            <span className="text-[8px] font-bold uppercase tracking-wider mt-1 leading-none truncate w-full text-center">{btn.label.split(' ')[0]}</span>
+                        </button>
+                    ))}
+                </div>
+            )}
+
+            {openSection === 'tips' && (
+                <div className="flex bg-elevated/30 rounded-xl p-1 gap-0.5 border border-border/15 animate-fade-in">
+                    {[0, Math.round(subtotal * 0.05), Math.round(subtotal * 0.1), Math.round(subtotal * 0.15)].map((amt, i) => (
+                        <button
+                            key={amt}
+                            onClick={() => { onSetTipAmount(amt); setOpenSection(null); }}
+                            className={`flex-1 flex flex-col items-center justify-center py-1.5 rounded-lg transition-colors active:scale-95 ${tipAmount === amt ? 'bg-card text-primary shadow ring-1 ring-border/20' : 'text-muted hover:text-main hover:bg-elevated/60'}`}
+                        >
+                            <span className="text-xs font-extrabold tabular-nums leading-none">{amt === 0 ? '0' : `+${amt}`}</span>
+                            {i > 0 && <span className="text-[7px] font-bold mt-0.5 uppercase opacity-60">{i * 5}%</span>}
+                        </button>
+                    ))}
+                </div>
+            )}
+
+            {openSection === 'coupon' && (
+                <div className="flex gap-1.5 animate-fade-in">
+                    <div className="flex-1 flex items-center bg-elevated/30 border border-border/15 rounded-xl px-2.5 shadow-inner focus-within:ring-2 focus-within:ring-primary/15 transition-all h-9">
+                        <Tag size={12} className="text-muted mr-1.5" />
+                        <input
+                            type="text" placeholder={isAr ? 'أدخل كود الكوبون' : 'Discount Code'}
+                            value={couponCode} onChange={(e) => onCouponCodeChange(e.target.value)}
+                            className="w-full bg-transparent text-xs font-bold outline-none uppercase placeholder:text-muted/50"
+                        />
+                    </div>
                     <button
-                        onClick={onSendKitchen}
-                        disabled={!canSubmit}
-                        className="py-3.5 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 rounded-xl font-bold text-xs uppercase tracking-widest hover:bg-slate-200 dark:hover:bg-slate-700 disabled:opacity-40 transition-all active:scale-95"
+                        onClick={activeCoupon ? onClearCoupon : onApplyCoupon}
+                        disabled={isApplyingCoupon || (!activeCoupon && !couponCode)}
+                        className={`shrink-0 w-20 rounded-xl text-[9px] font-bold uppercase tracking-wider flex items-center justify-center transition-colors disabled:opacity-40 h-9 ${activeCoupon ? 'bg-rose-500/8 text-rose-500 hover:bg-rose-500/15' : 'bg-card text-main border border-border/20 hover:bg-elevated'}`}
                     >
-                        {lang === 'ar' ? 'مطبخ' : 'Kitchen'}
-                    </button>
-                    <button
-                        onClick={onSubmit}
-                        disabled={!canSubmit}
-                        className="py-3.5 bg-indigo-600 text-white rounded-xl font-black text-xs uppercase tracking-widest hover:bg-indigo-700 disabled:opacity-40 transition-all active:scale-95 shadow-md shadow-indigo-600/20"
-                    >
-                        {lang === 'ar' ? 'تنفيذ' : 'Pay'} {currencySymbol}{total.toFixed(2)}
+                        {activeCoupon ? (isAr ? 'حذف' : 'Remove') : (isApplyingCoupon ? '...' : (isAr ? 'تطبيق' : 'Apply'))}
                     </button>
                 </div>
-            ) : (
-                <>
-                    {/* ═══ PRIMARY ACTION — Process Payment ═══ */}
-                    <button
-                        onClick={onSubmit}
-                        disabled={!canSubmit}
-                        className="w-full py-4 bg-indigo-600 hover:bg-indigo-700 text-white rounded-[1.2rem] font-black text-base uppercase tracking-widest disabled:opacity-40 transition-all active:scale-[0.98] shadow-lg shadow-indigo-600/20 flex items-center justify-center gap-3"
-                    >
-                        <span>{lang === 'ar' ? 'تنفيذ الدفع' : 'PROCESS PAYMENT'}</span>
-                        <div className="w-1.5 h-1.5 rounded-full bg-white/50" />
-                        <span style={{ fontVariantNumeric: 'tabular-nums' }}>{currencySymbol}{total.toFixed(2)}</span>
-                    </button>
-
-                    {/* Secondary actions row */}
-                    <div className="grid grid-cols-3 gap-2">
-                        <button
-                            onClick={onVoid}
-                            className="py-2.5 bg-slate-100 dark:bg-slate-800 text-slate-500 rounded-xl font-bold text-[10px] uppercase tracking-wider hover:bg-rose-50 hover:text-rose-600 dark:hover:bg-rose-500/10 transition-all flex items-center justify-center gap-1.5 active:scale-95"
-                        >
-                            <Trash size={14} />
-                            <span>{t.void}</span>
-                        </button>
-                        <button
-                            onClick={onSendKitchen}
-                            disabled={!canSubmit}
-                            className="py-2.5 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 rounded-xl font-bold text-[10px] uppercase tracking-wider hover:bg-indigo-50 hover:text-indigo-600 dark:hover:bg-indigo-500/10 disabled:opacity-40 transition-all flex items-center justify-center gap-1.5 active:scale-95"
-                        >
-                            <ChefHat size={14} />
-                            <span>{t.send_kitchen}</span>
-                        </button>
-                        <button
-                            onClick={onQuickPay}
-                            disabled={!canSubmit}
-                            className="py-2.5 bg-emerald-600 text-white rounded-xl font-black text-[10px] uppercase tracking-wider hover:bg-emerald-700 disabled:opacity-40 transition-all flex items-center justify-center gap-1.5 active:scale-95"
-                        >
-                            <Zap size={14} />
-                            <span>{lang === 'ar' ? 'كاش سريع' : 'Quick Pay'}</span>
-                        </button>
-                    </div>
-
-                    <div className="space-y-2">
-                        <h4 className="text-[9px] font-black uppercase text-muted tracking-[0.2em] px-1">
-                            {t.payment_method}
-                        </h4>
-                        <div className="flex items-stretch gap-2.5 overflow-x-auto no-scrollbar pb-1">
-                            {paymentMethods.map(btn => (
-                                <button
-                                    key={btn.id}
-                                    onClick={() => {
-                                        onSetPaymentMethod(btn.id);
-                                        if (btn.id === PaymentMethod.SPLIT) onShowSplitModal();
-                                    }}
-                                    className={`shrink-0 min-w-[80px] flex flex-col items-center justify-center gap-1.5 rounded-[1.2rem] border-2 transition-all active:scale-95 ${paymentMethod === btn.id ? 'bg-indigo-500/10 border-indigo-500/50 text-indigo-500 shadow-[0_0_15px_rgba(99,102,241,0.15)]' : 'bg-elevated border-border/50 text-muted hover:border-indigo-500/30 hover:bg-indigo-500/5'} ${isTouchMode ? 'py-3 px-2' : 'py-2.5 px-2'}`}
-                                >
-                                    <btn.icon size={isTouchMode ? 20 : 16} strokeWidth={2.5} />
-                                    <span className="text-[9px] font-black uppercase tracking-widest text-center leading-none">
-                                        {btn.label}
-                                    </span>
-                                </button>
-                            ))}
-                        </div>
-                    </div>
-
-                    <div className="space-y-2 bg-card/60 backdrop-blur-md border border-border/50 rounded-[1.5rem] p-3.5 shadow-sm">
-                        <div className="flex items-center gap-2 mb-2 bg-elevated/50 p-1.5 rounded-[1.2rem] border border-border/30">
-                            <input
-                                type="text"
-                                placeholder={lang === 'ar' ? 'كوبون الخصم' : 'Coupon Code'}
-                                value={couponCode}
-                                onChange={(e) => onCouponCodeChange(e.target.value)}
-                                className="flex-1 px-3 py-2 rounded-xl bg-transparent text-xs font-black uppercase tracking-wider outline-none text-main placeholder-muted"
-                            />
-                            <button
-                                onClick={onApplyCoupon}
-                                disabled={!couponCode.trim() || isApplyingCoupon}
-                                className="px-4 py-2 rounded-[1rem] bg-indigo-500/10 text-indigo-500 border border-indigo-500/20 text-[10px] font-black uppercase tracking-widest disabled:opacity-50 hover:bg-indigo-500/20 transition-all active:scale-95"
-                            >
-                                {isApplyingCoupon ? '...' : (lang === 'ar' ? 'تطبيق' : 'Apply')}
-                            </button>
-                            {activeCoupon && (
-                                <button
-                                    onClick={onClearCoupon}
-                                    className="p-2 rounded-[1rem] bg-rose-500/10 text-rose-500 border border-rose-500/20 hover:bg-rose-500/20 transition-all active:scale-95"
-                                    title={lang === 'ar' ? 'Clear Coupon' : 'Clear Coupon'}
-                                >
-                                    <X size={16} />
-                                </button>
-                            )}
-                        </div>
-                        <div className="flex justify-between text-[10px] font-black text-muted uppercase tracking-widest px-1">
-                            <span>{t.subtotal}</span>
-                            <span>{currencySymbol}{subtotal.toFixed(2)}</span>
-                        </div>
-                        {discount > 0 && (
-                            <div className="flex justify-between text-[10px] font-black text-emerald-500 uppercase tracking-widest px-1 bg-emerald-500/5 rounded-lg py-1 border border-emerald-500/10">
-                                <span>{t.discount} ({discount.toFixed(2)}%) {activeCoupon ? `- ${activeCoupon}` : ''}</span>
-                                <span>-{currencySymbol}{(subtotal * discount / 100).toFixed(2)}</span>
-                            </div>
-                        )}
-                        <div className="flex justify-between text-[10px] font-black text-muted uppercase tracking-widest px-1">
-                            <span>{t.tax}</span>
-                            <span>{currencySymbol}{tax.toFixed(2)}</span>
-                        </div>
-
-                        {/* Tips Section */}
-                        <div className="border-t border-border/50 pt-2 space-y-2 mt-1 -mx-1 px-2">
-                            <div className="flex justify-between text-[10px] items-center mb-1">
-                                <span className="font-black text-muted uppercase tracking-[0.2em]">{lang === 'ar' ? 'إكرامية (Tip)' : 'Tip Amount'}</span>
-                                <div className="flex gap-1.5">
-                                    {[0, Math.round(subtotal * 0.05), Math.round(subtotal * 0.1), Math.round(subtotal * 0.15)].map((amt) => {
-                                        const isSelected = tipAmount === amt;
-                                        return (
-                                            <button
-                                                key={amt}
-                                                onClick={() => onSetTipAmount(amt)}
-                                                className={`px-2 py-1 text-[9px] font-black uppercase tracking-widest rounded-lg transition-all ${isSelected ? 'bg-indigo-500/10 text-indigo-500 border border-indigo-500/30 shadow-sm' : 'bg-elevated border border-border/50 text-muted hover:border-indigo-500/30'}`}
-                                            >
-                                                {amt === 0 ? (lang === 'ar' ? 'بدون' : '0') : `+${amt}`}
-                                            </button>
-                                        );
-                                    })}
-                                </div>
-                            </div>
-                            {tipAmount > 0 && (
-                                <div className="flex justify-between text-[10px] font-black text-cyan-500 uppercase tracking-widest bg-cyan-500/5 border border-cyan-500/10 rounded-lg p-1.5">
-                                    <span>{lang === 'ar' ? 'الإكرامية المضافة' : 'Added Tip'}</span>
-                                    <span>{currencySymbol}{tipAmount.toFixed(2)}</span>
-                                </div>
-                            )}
-                        </div>
-
-                        <div className="flex justify-between text-lg md:text-xl font-black text-main pt-1.5 border-t border-border/50">
-                            <span>{t.total}</span>
-                            <span>{currencySymbol}{total.toFixed(2)}</span>
-                        </div>
-                    </div>
-                </>
             )}
+
+            {/* Cash tender */}
+            {paymentMethod === PaymentMethod.CASH && total > 0 && (
+                <div className="bg-elevated/30 border border-border/15 rounded-xl p-2.5 space-y-1.5 animate-fade-in">
+                    <div className="flex items-center justify-between">
+                        <span className="text-[8px] font-bold uppercase tracking-wider text-muted">{isAr ? 'المبلغ المدفوع' : 'Tendered'}</span>
+                        {amountTendered > 0 && <button onClick={() => setAmountTendered(0)} className="text-[8px] font-bold text-rose-500 hover:text-rose-600 uppercase transition-colors">{isAr ? 'مسح' : 'Clear'}</button>}
+                    </div>
+                    <div className="flex gap-1">
+                        {[50, 100, 200, 500].map(amt => (
+                            <button
+                                key={amt} onClick={() => setAmountTendered(amt)}
+                                className={`flex-1 h-8 rounded-lg text-xs font-bold transition-colors active:scale-95 border ${amountTendered === amt ? 'bg-primary text-white border-primary shadow-sm' : 'bg-card text-muted hover:text-main border-border/20'}`}
+                            >
+                                {amt}
+                            </button>
+                        ))}
+                        <button
+                            onClick={() => setAmountTendered(Math.ceil(total))}
+                            className={`flex-1 h-8 rounded-lg text-[10px] font-bold transition-colors active:scale-95 border ${amountTendered === Math.ceil(total) ? 'bg-success text-white border-success shadow-sm' : 'bg-card border-border/20 text-success'}`}
+                        >
+                            {isAr ? 'بالضبط' : 'Exact'}
+                        </button>
+                    </div>
+                    {amountTendered > 0 && (
+                        <div className={`flex items-center justify-between px-2.5 py-1.5 rounded-lg border ${changeDue >= 0 ? 'bg-success/8 border-success/15' : 'bg-rose-500/8 border-rose-500/15'}`}>
+                            <span className={`text-[9px] font-bold uppercase tracking-wider ${changeDue >= 0 ? 'text-success' : 'text-rose-500'}`}>
+                                {changeDue >= 0 ? (isAr ? 'الباقي' : 'Change') : (isAr ? 'ناقص' : 'Short')}
+                            </span>
+                            <span className={`text-base font-extrabold tabular-nums ${changeDue >= 0 ? 'text-success' : 'text-rose-500'}`}>
+                                {Math.abs(changeDue).toFixed(2)} <span className="text-[9px] uppercase opacity-60">{currencySymbol}</span>
+                            </span>
+                        </div>
+                    )}
+                </div>
+            )}
+
+            {/* Action Buttons */}
+            <div className="flex gap-1.5 pt-0.5">
+                <div className="flex flex-col gap-1.5 shrink-0">
+                    <button
+                        onClick={onSendKitchen} disabled={!canSubmit}
+                        className="w-11 flex-1 bg-elevated/40 border border-border/15 text-muted hover:text-primary hover:bg-primary/8 rounded-xl flex items-center justify-center disabled:opacity-30 transition-colors"
+                        title={t.send_kitchen}
+                    >
+                        <ChefHat size={16} />
+                    </button>
+                    <button
+                        onClick={onVoid} disabled={!canSubmit}
+                        className="w-11 flex-1 bg-elevated/40 border border-border/15 text-muted hover:text-rose-500 hover:bg-rose-500/8 rounded-xl flex items-center justify-center disabled:opacity-30 transition-colors"
+                        title={isAr ? 'إلغاء' : 'Void'}
+                    >
+                        <Trash size={16} />
+                    </button>
+                </div>
+
+                <button
+                    onClick={onSubmit} disabled={!canSubmit}
+                    className="flex-1 h-14 bg-primary hover:bg-primary-hover text-white rounded-2xl shadow-lg shadow-primary/20 hover:shadow-xl hover:shadow-primary/25 hover:-translate-y-0.5 active:translate-y-0.5 active:shadow-sm flex items-center justify-between px-5 disabled:opacity-40 disabled:hover:translate-y-0 transition-all relative overflow-hidden group will-change-transform"
+                >
+                    <span className="font-extrabold text-base md:text-lg uppercase tracking-wider z-10">{isAr ? 'دفع' : 'Pay'}</span>
+                    <div className="flex items-center gap-1 z-10">
+                        <span className="text-xl md:text-2xl font-extrabold tabular-nums tracking-tight">{total.toFixed(2)}</span>
+                        <span className="text-[10px] font-bold uppercase tracking-wider leading-none mt-1.5 opacity-70">{currencySymbol}</span>
+                    </div>
+                </button>
+            </div>
         </div>
     );
 };

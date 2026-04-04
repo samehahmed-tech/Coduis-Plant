@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { getActionableErrorMessage } from '../services/api';
+import { getActionableErrorMessage } from '../services/api/core';
 
 describe('frontend error UX mapping', () => {
     it('maps conflict code to actionable arabic guidance', () => {

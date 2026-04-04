@@ -1,4 +1,4 @@
-﻿/**
+/**
  * POS — Main Point of Sale Orchestrator
  * State management + layout composition only.
  * UI is delegated to: POSToolbar, POSItemsPanel, POSCartSidebar
@@ -24,6 +24,7 @@ import CalculatorWidget from './common/CalculatorWidget';
 import { ShiftOverlays, CloseShiftModal } from './pos/ShiftOverlays';
 import { ManagerApprovalModal } from './pos/ManagerApprovalModal';
 import TableManagementModal from './pos/TableManagementModal';
+import ItemOptionsModal from './pos/ItemOptionsModal';
 import POSToolbar from './pos/POSToolbar';
 import POSItemsPanel from './pos/POSItemsPanel';
 import CategorySidebar from './pos/CategorySidebar';
@@ -35,6 +36,7 @@ import { formatReceipt } from '../services/receiptFormatter';
 import { printKitchenTicketsByRouting, printOrderReceipt } from '../services/posPrintOrchestrator';
 import { useToast } from './Toast';
 import { useModal } from './Modal';
+import { useBarcodeScanner } from '../hooks/useBarcodeScanner';
 
 // Services
 import { translations } from '../services/translations';
@@ -145,6 +147,18 @@ const POS: React.FC = () => {
    const [couponCode, setCouponCode] = useState('');
    const [isApplyingCoupon, setIsApplyingCoupon] = useState(false);
    const [approvalCallback, setApprovalCallback] = useState<{ fn: () => void; action: string } | null>(null);
+
+   // --- Item Options / Discount / Void Reason State ---
+   const [selectedItemForOptions, setSelectedItemForOptions] = useState<MenuItem | null>(null);
+   const [editingDiscountItemId, setEditingDiscountItemId] = useState<string | null>(null);
+   const [itemDiscountType, setItemDiscountType] = useState<'percent' | 'flat'>('percent');
+   const [itemDiscountValue, setItemDiscountValue] = useState('');
+   const [voidReasonItemId, setVoidReasonItemId] = useState<string | null>(null);
+   const [voidReason, setVoidReason] = useState('');
+
+   // --- Audio Feedback Refs ---
+   const scanSuccessAudioRef = useRef<HTMLAudioElement | null>(null);
+   const scanErrorAudioRef = useRef<HTMLAudioElement | null>(null);
    const activeShift = useFinanceStore(state => state.activeShift);
    const setShift = useFinanceStore(state => state.setShift);
    const isCloseShiftModalOpen = useFinanceStore(state => state.isCloseShiftModalOpen);
@@ -551,15 +565,22 @@ const POS: React.FC = () => {
       return pool.slice(0, 6);
    }, [safeActiveCart, pricedItems]);
 
-   const { cartSubtotal, cartTotal } = useMemo(() => {
+   const itemDiscountTotal = useMemo(() =>
+      safeActiveCart.reduce((sum, item) => sum + ((item as any).discountAmount || 0) * item.quantity, 0),
+      [safeActiveCart]
+   );
+
+   const { cartSubtotal, cartTotal, cartTax, orderDiscountAmount } = useMemo(() => {
       const subtotal = safeActiveCart.reduce((acc, item) => {
          const modsPrice = (item.selectedModifiers || []).reduce((sum, mod) => sum + mod.price, 0);
          return acc + ((item.price + modsPrice) * item.quantity);
       }, 0);
-      const afterDiscount = subtotal * (1 - discount / 100);
-      const total = afterDiscount * 1.1 + tipAmount; // 10% tax + tip
-      return { cartSubtotal: subtotal, cartTotal: total };
-   }, [safeActiveCart, discount, tipAmount]);
+      const orderDiscountAmount = subtotal * (discount / 100);
+      const afterDiscount = subtotal - orderDiscountAmount - itemDiscountTotal;
+      const tax = afterDiscount * 0.1; // 10% tax
+      const total = afterDiscount + tax + tipAmount;
+      return { cartSubtotal: subtotal, cartTotal: total, cartTax: tax, orderDiscountAmount };
+   }, [safeActiveCart, discount, tipAmount, itemDiscountTotal]);
 
    const cartQuery = useMemo(() => cartSearchQuery.trim().toLowerCase(), [cartSearchQuery]);
    const filteredCartItems = useMemo(() => {
@@ -998,8 +1019,66 @@ const POS: React.FC = () => {
       recallOrder
    ]);
 
+   // --- Audio Feedback ---
+   const playAudioFeedback = useCallback((type: 'success' | 'error') => {
+      try {
+         const audio = type === 'success' ? scanSuccessAudioRef.current : scanErrorAudioRef.current;
+         if (audio) {
+            audio.currentTime = 0;
+            audio.play().catch(() => {});
+         }
+      } catch {
+         // Audio playback is non-critical
+      }
+   }, []);
+
+   // --- Barcode Scanner Integration ---
+   useBarcodeScanner({
+      enabled: true,
+      onScan: (code) => {
+         const matched = indexedItems.find((item) => {
+            const barcode = String((item as any).barcode || '').toLowerCase();
+            const sku = String((item as any).sku || '').toLowerCase();
+            return barcode === code.toLowerCase() || sku === code.toLowerCase();
+         });
+         if (matched) {
+            const existingItem = safeActiveCart.find(ci =>
+               ci.id === matched.id && JSON.stringify(ci.selectedModifiers) === JSON.stringify([])
+            );
+            if (existingItem) {
+               updateCartItemQuantity(existingItem.cartId, 1);
+            } else {
+               addToCart({ ...matched, cartId: Math.random().toString(36).substr(2, 9), quantity: 1, selectedModifiers: [] });
+            }
+            setLastAddedItemId(matched.id);
+            setIsCartOpenMobile(true);
+            playAudioFeedback('success');
+            showToast(
+               lang === 'ar'
+                  ? `تمت إضافة ${matched.nameAr || matched.name}`
+                  : `${matched.name} added`,
+               'success'
+            );
+         } else {
+            playAudioFeedback('error');
+            showToast(
+               lang === 'ar'
+                  ? `لم يتم العثور على منتج للكود: ${code}`
+                  : `No product found for code: ${code}`,
+               'error'
+            );
+         }
+      }
+   });
+
    // --- Handlers (Memoized to prevent child re-renders) ---
    const handleAddItem = useCallback((item: any) => {
+      // If item has sizes or modifierGroups, show options modal
+      if ((item.sizes && item.sizes.length > 0) || (item.modifierGroups && item.modifierGroups.length > 0) || item.price === 0 || item.isWeighted) {
+         setSelectedItemForOptions(item);
+         return;
+      }
+
       const existingItem = safeActiveCart.find(ci =>
          ci.id === item.id && JSON.stringify(ci.selectedModifiers) === JSON.stringify([])
       );
@@ -1010,6 +1089,7 @@ const POS: React.FC = () => {
          addToCart({ ...item, cartId: Math.random().toString(36).substr(2, 9), quantity: 1, selectedModifiers: [] });
       }
       setLastAddedItemId(item.id);
+      playAudioFeedback('success');
       setItemUsageMap(prev => {
          const next = { ...prev, [item.id]: (prev[item.id] || 0) + 1 };
          try {
@@ -1020,7 +1100,86 @@ const POS: React.FC = () => {
          return next;
       });
       setIsCartOpenMobile(true);
-   }, [safeActiveCart, addToCart, updateCartItemQuantity]);
+   }, [safeActiveCart, addToCart, updateCartItemQuantity, playAudioFeedback]);
+
+   const handleConfirmItemOptions = useCallback((item: MenuItem, selectedModifiers: { groupName: string; optionName: string; price: number }[], quantity: number) => {
+      for (let i = 0; i < quantity; i++) {
+         addToCart({
+            ...item,
+            cartId: Math.random().toString(36).substr(2, 9),
+            quantity: 1,
+            selectedModifiers,
+         });
+      }
+      setSelectedItemForOptions(null);
+      setLastAddedItemId(item.id);
+      playAudioFeedback('success');
+      setIsCartOpenMobile(true);
+      setItemUsageMap(prev => {
+         const next = { ...prev, [item.id]: (prev[item.id] || 0) + quantity };
+         try {
+            localStorage.setItem(POS_ITEM_USAGE_KEY, JSON.stringify(next));
+         } catch {}
+         return next;
+      });
+   }, [addToCart, playAudioFeedback]);
+
+   const handleEditItemDiscount = useCallback((cartId: string) => {
+      setEditingDiscountItemId(cartId);
+      const item = safeActiveCart.find(i => i.cartId === cartId);
+      const existingDiscount = (item as any)?.discountPercent;
+      if (existingDiscount) {
+         setItemDiscountType('percent');
+         setItemDiscountValue(String(existingDiscount));
+      } else {
+         setItemDiscountValue('');
+      }
+   }, [safeActiveCart]);
+
+   const handleApplyItemDiscount = useCallback(() => {
+      if (!editingDiscountItemId) return;
+      const val = parseFloat(itemDiscountValue) || 0;
+      const item = safeActiveCart.find(i => i.cartId === editingDiscountItemId);
+      if (!item) { setEditingDiscountItemId(null); return; }
+      const modsPrice = (item.selectedModifiers || []).reduce((s, m) => s + m.price, 0);
+      const basePrice = item.price + modsPrice;
+      const discountAmount = itemDiscountType === 'percent'
+         ? (basePrice * Math.min(val, 100)) / 100
+         : Math.min(val, basePrice);
+      // Store discount on the cart item (using any-cast for flexibility)
+      const updatedItem = { ...item, discountPercent: itemDiscountType === 'percent' ? val : undefined, discountAmount } as any;
+      // Use existing store method or direct update
+      removeFromCart(editingDiscountItemId);
+      addToCart(updatedItem);
+      setEditingDiscountItemId(null);
+   }, [editingDiscountItemId, itemDiscountValue, itemDiscountType, safeActiveCart, removeFromCart, addToCart]);
+
+   const handleRemoveWithReason = useCallback((cartId: string) => {
+      const item = safeActiveCart.find(i => i.cartId === cartId);
+      if (item && item.quantity > 1) {
+         // For quantity > 1, just decrement
+         updateCartItemQuantity(cartId, -1);
+         return;
+      }
+      // For last item, require void reason
+      setVoidReasonItemId(cartId);
+      setVoidReason('');
+   }, [safeActiveCart, updateCartItemQuantity]);
+
+   const confirmVoidItem = useCallback(() => {
+      if (!voidReasonItemId || !voidReason) return;
+      removeFromCart(voidReasonItemId);
+      showToast(
+         lang === 'ar' ? 'تم حذف الصنف' : 'Item removed',
+         'success'
+      );
+      setVoidReasonItemId(null);
+      setVoidReason('');
+   }, [voidReasonItemId, voidReason, removeFromCart, showToast, lang]);
+
+   const handleSetActiveCategory = useCallback((catId: string) => {
+      setActiveCategory(catId);
+   }, []);
 
    const handleUpdateQuantity = useCallback((cartId: string, delta: number) => {
       updateCartItemQuantity(cartId, delta);
@@ -1357,17 +1516,13 @@ const POS: React.FC = () => {
    const hasCartItems = safeActiveCart.length > 0;
    const cartPanelWidthClass =
       cartPanelWidth === 'compact'
-         ? 'sm:w-[340px] lg:w-[360px]'
+         ? 'pos-cart-compact'
          : cartPanelWidth === 'wide'
-            ? 'sm:w-[440px] lg:w-[480px]'
-            : 'sm:w-[380px] lg:w-[420px]';
+            ? 'pos-cart-wide'
+            : 'pos-cart-normal';
    const desktopWorkspaceClass = shouldRenderCartPanel
-      ? (cartPanelWidth === 'compact'
-         ? 'lg:grid-cols-[minmax(0,1fr)_360px] 2xl:grid-cols-[minmax(0,1fr)_380px]'
-         : cartPanelWidth === 'wide'
-            ? 'lg:grid-cols-[minmax(0,1fr)_480px] 2xl:grid-cols-[minmax(0,1fr)_500px]'
-            : 'lg:grid-cols-[minmax(0,1fr)_420px] 2xl:grid-cols-[minmax(0,1fr)_450px]')
-      : 'lg:grid-cols-1';
+      ? `has-cart cart-${cartPanelWidth}`
+      : '';
 
    useEffect(() => {
       if (showMap || showCustomerSelect) setIsCartOpenMobile(false);
@@ -1378,7 +1533,10 @@ const POS: React.FC = () => {
    }, [safeActiveCart.length, selectedTableId]);
 
    return (
-      <div className="flex app-viewport pos-shell bg-app text-main transition-colors overflow-hidden min-h-0">
+      <div className="flex h-full app-viewport pos-shell bg-app text-main transition-colors overflow-hidden min-h-0">
+         {/* Hidden audio elements for scanner feedback */}
+         <audio ref={scanSuccessAudioRef} preload="auto" src="data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJN3aGd3aJV7iYB0bHJ/o5aJgXR0fIiUh4R/dnl7j5CDgXl2eYqXioR8dnd+ipKEfnp0eH6WkYV+eHZ5g5OPgoB3d3d/k5GCfnp2d3+UkYJ+e3V3fpORgn56dnd/k5GCfnt1d36TkYJ+enZ3f5ORgn57dQ==" />
+         <audio ref={scanErrorAudioRef} preload="auto" src="data:audio/wav;base64,UklGRrQEAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YZAEAACAf3+AgIGAgIGBgYKCgoODg4SEhIWFhYaGhoeHh4iIiImIiIeHh4aGhoWFhISEg4OCgoGBgYCAgIB/f39+fn59fX18fHx7e3t6enp5eXl4eHh4d3d3d3d3eHh4eHl5eXp6ent7e3x8fH19fn5+f3+AgICBgYGCgoKDg4OEhA==" />
          <ShiftOverlays onOpen={() => console.log('Shift opened')} />
 
          <CloseShiftModal
@@ -1479,7 +1637,7 @@ const POS: React.FC = () => {
             <div className="flex-1 flex overflow-hidden relative min-h-0 bg-app">
                {/* Cart Mobile Overlay */}
                {shouldShowCart && isCartOpenMobile && (
-                  <div className="xl:hidden fixed inset-0 bg-black/30 z-30 animate-in fade-in" onClick={() => setIsCartOpenMobile(false)} />
+                  <div className="pos-cart-overlay fixed inset-0 bg-black/30 z-30 animate-in fade-in" onClick={() => setIsCartOpenMobile(false)} />
                )}
 
                {showMap ? (
@@ -1531,15 +1689,15 @@ const POS: React.FC = () => {
                   />
                ) : (
                   <>
-                     <div className={`flex-1 min-h-0 h-full overflow-hidden grid grid-cols-1 ${desktopWorkspaceClass} gap-0`}>
-                        <div className="flex overflow-hidden min-h-0 min-w-0">
+                     <div className={`pos-workspace-grid flex-1 min-h-0 h-full overflow-hidden ${desktopWorkspaceClass}`}>
+                        <div className="flex h-full overflow-hidden min-h-0 min-w-0">
                            
 
                            {/* ═══ Items Panel (Left) ═══ */}
                            <POSItemsPanel
                               categories={currentCategories}
                               activeCategory={activeCategory}
-                              onSetCategory={setActiveCategory}
+                              onSetCategory={handleSetActiveCategory}
                               categoryResultCounts={categoryResultCounts}
                               totalMatchedCount={totalMatchedAcrossCategories}
                               hasActiveFiltering={Boolean(normalizedSearchQuery || itemFilter !== 'all')}
@@ -1555,8 +1713,8 @@ const POS: React.FC = () => {
                               onSetFilter={setItemFilter}
                               itemSort={itemSort}
                               onSetSort={setItemSort}
-                              itemDensity={itemDensity}
-                              onSetDensity={setItemDensity}
+                              itemDensity={itemDensity as any}
+                              onSetDensity={setItemDensity as any}
                               showMobileFilters={showMobileFilters}
                               onToggleFilters={() => setShowMobileFilters(prev => !prev)}
                               onResetFilters={() => { setSearchQuery(''); setItemFilter('all'); setItemSort('smart'); }}
@@ -1582,29 +1740,27 @@ const POS: React.FC = () => {
                         </div>
 
                         {/* ═══ Mobile FAB (fixed bottom cart button) ═══ */}
-                        {shouldRenderCartPanel && !isCartOpenMobile && !showMap && !showCustomerSelect && (
-                           <div className={`xl:hidden fixed bottom-[max(1rem,var(--safe-bottom))] ${lang === 'ar' ? 'right-4 left-4' : 'left-4 right-4'} z-40`}>
+                        {shouldRenderCartPanel && !isCartOpenMobile && !showMap && !showCustomerSelect && hasCartItems && (
+                           <div className={`pos-mobile-fab fixed bottom-[max(1rem,var(--safe-bottom))] ${lang === 'ar' ? 'right-4 left-4' : 'left-4 right-4'} z-40`}>
                               <button
                                  onClick={() => setIsCartOpenMobile(true)}
-                                 className="w-full h-14 px-4 rounded-[1.2rem] bg-card/80 backdrop-blur-xl border border-border/50 shadow-[0_8px_30px_rgb(0,0,0,0.12)] flex items-center justify-between active:scale-[0.98] transition-all overflow-hidden relative group"
+                                 className="w-full h-12 px-4 rounded-2xl bg-card/90 backdrop-blur-xl border border-border/40 shadow-[0_6px_24px_rgb(0,0,0,0.1)] flex items-center justify-between active:scale-[0.98] transition-all overflow-hidden relative group"
                               >
-                                 <div className="absolute inset-0 bg-gradient-to-r from-indigo-500/10 to-cyan-500/5 opacity-50 pointer-events-none" />
-                                 <div className="min-w-0 flex items-center gap-3 relative z-10">
-                                    <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-500 to-cyan-500 flex items-center justify-center shadow-lg shadow-indigo-500/25 border border-white/20">
-                                       <ShoppingBag size={18} className="text-white relative z-10" />
+                                 <div className="absolute inset-0 bg-gradient-to-r from-primary/8 to-primary/3 pointer-events-none" />
+                                 <div className="min-w-0 flex items-center gap-2.5 relative z-10">
+                                    <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center shadow-sm">
+                                       <ShoppingBag size={14} className="text-white" />
                                     </div>
                                     <div className="text-left min-w-0">
-                                       <p className="text-[10px] font-black uppercase tracking-[0.2em] text-indigo-500 drop-shadow-sm">
-                                          {lang === 'ar' ? 'الطلب الحالي' : 'Current Order'}
+                                       <p className="text-[10px] font-bold text-primary leading-none">
+                                          {safeActiveCart.length} {lang === 'ar' ? 'بنود' : 'items'}
                                        </p>
-                                       <p className="text-sm font-black truncate text-transparent bg-clip-text bg-gradient-to-r from-indigo-500 to-cyan-500">
-                                          {safeActiveCart.length > 0
-                                             ? `${safeActiveCart.length} ${lang === 'ar' ? 'بنود' : 'lines'} • ${currencySymbol}{(cartTotal || 0).toFixed(2)}`
-                                             : (lang === 'ar' ? 'السلة فارغة' : 'Cart empty')}
+                                       <p className="text-xs font-extrabold text-main tabular-nums">
+                                          {currencySymbol}{(cartTotal || 0).toFixed(2)}
                                        </p>
                                     </div>
                                  </div>
-                                 <span className="text-[10px] font-black uppercase tracking-[0.2em] text-white bg-gradient-to-r from-indigo-500 to-cyan-500 px-3 py-1.5 rounded-lg shadow-sm relative z-10 hidden sm:inline-block">
+                                 <span className="text-[10px] font-bold uppercase tracking-wider text-primary bg-primary/8 px-3 py-1.5 rounded-lg relative z-10">
                                     {lang === 'ar' ? 'فتح السلة' : 'Open Cart'}
                                  </span>
                               </button>
@@ -1618,8 +1774,11 @@ const POS: React.FC = () => {
                               filteredCartItems={filteredCartItems}
                               cartSubtotal={cartSubtotal}
                               cartTotal={cartTotal}
+                              cartTax={cartTax}
                               cartStats={cartStats}
                               discount={discount}
+                              orderDiscountAmount={orderDiscountAmount}
+                              itemDiscountTotal={itemDiscountTotal}
                               orderTypeLabel={orderTypeLabel}
                               orderTypeSubLabel={orderTypeSubLabel}
                               activeOrderType={activeOrderType}
@@ -1644,7 +1803,8 @@ const POS: React.FC = () => {
                               onEditSeat={(cartId, curSeat) => { setEditingSeatItemId(cartId); setSeatInput(curSeat); }}
                               onEditCourse={(cartId, curCourse) => { setEditingCourseItemId(cartId); setCourseInput(curCourse); }}
                               onUpdateQuantity={handleUpdateQuantity}
-                              onRemoveItem={(cartId) => removeFromCart(cartId)}
+                              onRemoveItem={handleRemoveWithReason}
+                              onEditItemDiscount={handleEditItemDiscount}
                               onVoid={handleVoidOrder}
                               onSendKitchen={handleSendKitchen}
                               onSubmit={handleSubmitOrder}
@@ -1667,6 +1827,7 @@ const POS: React.FC = () => {
                )}
             </div>
 
+            <React.Suspense fallback={null}>
             <SplitBillModal
                isOpen={showSplitModal}
                onClose={() => setShowSplitModal(false)}
@@ -1684,8 +1845,10 @@ const POS: React.FC = () => {
                onRemovePayment={(idx) => setSplitPayments(prev => prev.filter((_, i) => i !== idx))}
                onUpdateAmount={(idx, val) => setSplitPayments(prev => prev.map((p, i) => i === idx ? { ...p, amount: val } : p))}
             />
+            </React.Suspense>
 
             {managedTableId && (
+               <React.Suspense fallback={null}>
                <TableManagementModal
                   sourceTable={tables.find(t => t.id === managedTableId)!}
                   allTables={tables}
@@ -1711,8 +1874,114 @@ const POS: React.FC = () => {
                      setManagedTableId(null);
                   }}
                />
+               </React.Suspense>
             )}
          </div>
+
+         <ItemOptionsModal
+            isOpen={!!selectedItemForOptions}
+            item={selectedItemForOptions}
+            onClose={() => setSelectedItemForOptions(null)}
+            onConfirm={handleConfirmItemOptions}
+            currencySymbol={currencySymbol}
+            lang={lang as any}
+         />
+
+         {/* ═══ Item Discount Modal ═══ */}
+         {editingDiscountItemId && (
+            <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 animate-in fade-in duration-200" onClick={() => setEditingDiscountItemId(null)}>
+               <div className="bg-card rounded-2xl shadow-2xl w-[360px] max-w-[90vw] p-6 animate-in zoom-in-95 duration-200 border border-border/30" onClick={e => e.stopPropagation()}>
+                  <h3 className="text-lg font-black text-main mb-4 text-center">
+                     {lang === 'ar' ? '💰 خصم على الصنف' : '💰 Item Discount'}
+                  </h3>
+                  <div className="flex gap-2 mb-4">
+                     {[5, 10, 15, 20, 50].map(pct => (
+                        <button
+                           key={pct}
+                           onClick={() => { setItemDiscountValue(String(pct)); setItemDiscountType('percent'); }}
+                           className={`flex-1 py-2.5 rounded-xl text-xs font-black transition-all active:scale-95 ${itemDiscountType === 'percent' && itemDiscountValue === String(pct)
+                              ? 'bg-success text-white shadow-lg shadow-success/30'
+                              : 'bg-elevated text-muted hover:bg-success/10'
+                              }`}
+                        >
+                           {pct}%
+                        </button>
+                     ))}
+                  </div>
+                  <div className="flex bg-elevated rounded-xl p-1 mb-3">
+                     <button onClick={() => setItemDiscountType('percent')} className={`flex-1 py-2 rounded-lg text-xs font-black transition-all ${itemDiscountType === 'percent' ? 'bg-card shadow text-success' : 'text-muted'}`}>
+                        {lang === 'ar' ? 'نسبة %' : 'Percent %'}
+                     </button>
+                     <button onClick={() => setItemDiscountType('flat')} className={`flex-1 py-2 rounded-lg text-xs font-black transition-all ${itemDiscountType === 'flat' ? 'bg-card shadow text-success' : 'text-muted'}`}>
+                        {lang === 'ar' ? `مبلغ ثابت ${currencySymbol}` : `Fixed ${currencySymbol}`}
+                     </button>
+                  </div>
+                  <input
+                     type="number" value={itemDiscountValue} onChange={e => setItemDiscountValue(e.target.value)}
+                     placeholder={itemDiscountType === 'percent' ? '0 - 100' : '0.00'}
+                     className="w-full px-4 py-3 bg-elevated border border-border rounded-xl text-center text-lg font-black text-main outline-none focus:ring-2 focus:ring-success/50 mb-4" autoFocus
+                     onKeyDown={e => e.key === 'Enter' && handleApplyItemDiscount()}
+                  />
+                  <div className="flex gap-3">
+                     <button onClick={() => { setItemDiscountValue('0'); handleApplyItemDiscount(); }} className="flex-1 py-3 bg-elevated rounded-xl text-xs font-black uppercase tracking-widest text-muted hover:bg-border transition-colors">
+                        {lang === 'ar' ? 'إزالة الخصم' : 'Remove'}
+                     </button>
+                     <button onClick={handleApplyItemDiscount} className="flex-1 py-3 bg-success text-white rounded-xl text-xs font-black uppercase tracking-widest shadow-lg shadow-success/30 hover:opacity-90 active:scale-95 transition-all">
+                        {lang === 'ar' ? 'تطبيق' : 'Apply'}
+                     </button>
+                  </div>
+               </div>
+            </div>
+         )}
+
+         {/* ═══ Void Reason Modal ═══ */}
+         {voidReasonItemId && (() => {
+            const voidItem = safeActiveCart.find(i => i.cartId === voidReasonItemId);
+            const voidReasons = lang === 'ar'
+               ? ['طلب العميل', 'خطأ في المطبخ', 'صنف خاطئ', 'تجاوز المدير', 'أخرى']
+               : ['Customer Request', 'Kitchen Error', 'Wrong Item', 'Manager Override', 'Other'];
+            return (
+               <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 animate-in fade-in duration-200" onClick={() => setVoidReasonItemId(null)}>
+                  <div className="bg-card rounded-2xl shadow-2xl w-[380px] max-w-[90vw] p-6 animate-in zoom-in-95 duration-200 border border-border/30" onClick={e => e.stopPropagation()}>
+                     <h3 className="text-lg font-black text-rose-600 mb-1 text-center">
+                        {lang === 'ar' ? '🗑️ حذف صنف' : '🗑️ Remove Item'}
+                     </h3>
+                     {voidItem && (
+                        <p className="text-sm font-bold text-muted text-center mb-4">
+                           {lang === 'ar' ? (voidItem.nameAr || voidItem.name) : voidItem.name} × {voidItem.quantity}
+                        </p>
+                     )}
+                     <p className="text-xs font-black uppercase tracking-widest text-muted mb-3 text-center">
+                        {lang === 'ar' ? 'اختر سبب الحذف' : 'Select Void Reason'}
+                     </p>
+                     <div className="flex flex-col gap-2 mb-4">
+                        {voidReasons.map(reason => (
+                           <button key={reason} onClick={() => setVoidReason(reason)}
+                              className={`w-full py-3 px-4 rounded-xl text-sm font-bold transition-all text-left ${voidReason === reason ? 'bg-rose-500 text-white shadow-lg shadow-rose-500/30' : 'bg-elevated text-muted hover:bg-rose-50 dark:hover:bg-rose-500/10'}`}
+                           >{reason}</button>
+                        ))}
+                     </div>
+                     {voidReason === (lang === 'ar' ? 'أخرى' : 'Other') && (
+                        <input type="text" placeholder={lang === 'ar' ? 'اكتب السبب...' : 'Type reason...'}
+                           className="w-full px-4 py-3 bg-elevated border border-border rounded-xl text-sm font-bold text-main outline-none focus:ring-2 focus:ring-rose-500/50 mb-4"
+                           onChange={e => setVoidReason(e.target.value)} autoFocus
+                        />
+                     )}
+                     <div className="flex gap-3 mt-2">
+                        <button onClick={() => setVoidReasonItemId(null)} className="flex-1 py-3 bg-elevated rounded-xl text-xs font-black uppercase tracking-widest text-muted hover:bg-border transition-colors">
+                           {lang === 'ar' ? 'إلغاء' : 'Cancel'}
+                        </button>
+                        <button onClick={confirmVoidItem} disabled={!voidReason}
+                           className={`flex-1 py-3 rounded-xl text-xs font-black uppercase tracking-widest transition-all ${voidReason ? 'bg-rose-500 text-white shadow-lg shadow-rose-500/30 hover:bg-rose-600 active:scale-95' : 'bg-elevated text-muted cursor-not-allowed'}`}
+                        >
+                           {lang === 'ar' ? 'حذف الصنف' : 'Remove Item'}
+                        </button>
+                     </div>
+                  </div>
+               </div>
+            );
+         })()}
+
       </div>
    );
 };

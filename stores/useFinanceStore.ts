@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { FinancialAccount, JournalEntry } from '../types';
-import { financeApi } from '../services/api';
+import { financeApi } from '../services/api/finance';
 
 interface Shift {
     id: string;

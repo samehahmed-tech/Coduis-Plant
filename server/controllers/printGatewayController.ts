@@ -7,6 +7,8 @@ import {
     getPrintQueueStats,
     listPrintJobs,
     retryPrintJob,
+    cancelPrintJob,
+    purgePrintJobs,
 } from '../services/printQueueService';
 
 const getGatewayToken = () => {
@@ -44,6 +46,7 @@ export const enqueueJob = async (req: Request, res: Response) => {
             branchId,
             type: type as 'RECEIPT' | 'KITCHEN',
             content,
+            contentType: req.body?.contentType || 'text',
             printerId: req.body?.printerId || null,
             printerAddress: req.body?.printerAddress || null,
             printerType: req.body?.printerType || null,
@@ -142,5 +145,26 @@ export const retryJob = async (req: Request, res: Response) => {
         return res.json({ ok: true, job });
     } catch (error: any) {
         return res.status(500).json({ error: error.message || 'PRINT_JOB_RETRY_FAILED' });
+    }
+};
+
+export const purgeJobs = async (req: Request, res: Response) => {
+    try {
+        const count = await purgePrintJobs();
+        return res.json({ ok: true, purged: count });
+    } catch (error: any) {
+        return res.status(500).json({ error: error.message || 'PRINT_JOB_PURGE_FAILED' });
+    }
+};
+
+export const cancelJob = async (req: Request, res: Response) => {
+    try {
+        const jobId = String(req.params?.jobId || '').trim();
+        if (!jobId) return res.status(400).json({ error: 'JOB_ID_REQUIRED' });
+        const job = await cancelPrintJob(jobId);
+        if (!job) return res.status(404).json({ error: 'JOB_NOT_FOUND_OR_PROCESSING' });
+        return res.json({ ok: true, job });
+    } catch (error: any) {
+        return res.status(500).json({ error: error.message || 'PRINT_JOB_CANCEL_FAILED' });
     }
 };

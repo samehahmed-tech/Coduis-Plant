@@ -1,0 +1,82 @@
+/* ═══ Theme: TILES — GitHub-Inspired / Clean Grey + Green Accent ═══ */
+[data-theme='tiles'] {
+    --primary: 36 94 72;
+    --primary-hover: 28 74 57;
+    --secondary: 91 99 108;
+    --accent: 97 137 117;
+    --success: 34 197 94;
+    --warning: 234 179 8;
+    --danger: 220 38 38;
+    --bg-app: 245 247 248;
+    --bg-card: 255 255 255;
+    --bg-sidebar: 246 248 250;
+    --bg-elevated: 236 240 243;
+    --text-main: 34 39 43;
+    --text-muted: 99 108 116;
+    --border-color: 218 224 229;
+    --border-subtle: 0 0 0 / 0.06;
+    --glass-bg: 255 255 255 / 1;
+
+    --theme-radius: 10px;
+    --theme-radius-sm: 6px;
+    --theme-radius-lg: 12px;
+    --theme-radius-xl: 16px;
+    --theme-blur: 0px;
+    --theme-surface-opacity: 1;
+    --theme-border-width: 1px;
+    --theme-border-opacity: 0.15;
+    --theme-shadow-card: 0 1px 0 rgba(27, 31, 36, 0.03);
+    --theme-shadow-hover: 0 1px 0 rgba(27, 31, 36, 0.03), 0 8px 20px rgba(27, 31, 36, 0.06);
+    --theme-shadow-elevated: 0 14px 30px rgba(27, 31, 36, 0.08);
+    --theme-ease: cubic-bezier(0.3, 0, 0.5, 1);
+    --theme-duration: 120ms;
+    --theme-duration-slow: 200ms;
+    --theme-font-weight: 500;
+    --theme-heading-weight: 700;
+    --theme-letter-spacing: 0em;
+
+    --bg-global: linear-gradient(180deg, #f5f7f8 0%, #f5f7f8 100%);
+    --app-bg-opacity: 0;
+
+    --theme-card-overlay: none;
+    --theme-card-inner-shadow: none;
+    --theme-card-bg: linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(247, 249, 250, 0.98));
+    --theme-card-hover-bg: linear-gradient(180deg, rgba(255, 255, 255, 1), rgba(244, 247, 248, 1));
+    --theme-button-bg: linear-gradient(135deg, rgb(36 94 72) 0%, rgb(57 116 91) 100%);
+    --theme-button-bg-hover: linear-gradient(135deg, rgb(28 74 57) 0%, rgb(36 94 72) 100%);
+    --theme-button-secondary-bg: rgba(248, 250, 251, 0.96);
+    --theme-button-secondary-hover-bg: rgba(36, 94, 72, 0.08);
+    --theme-card-hover-glow: 0 1px 0 rgba(27, 31, 36, 0.03), 0 8px 20px rgba(27, 31, 36, 0.06);
+    --theme-card-hover-transform: none;
+    --theme-card-hover-border: rgba(27, 31, 36, 0.15);
+    --theme-card-hover-overlay-opacity: 1;
+}
+
+[data-theme='tiles'].dark,
+.dark [data-theme='tiles'] {
+    --bg-app: 17 21 26;
+    --bg-card: 24 29 35;
+    --bg-sidebar: 17 21 26;
+    --bg-elevated: 34 40 47;
+    --text-main: 232 237 240;
+    --text-muted: 130 138 145;
+    --border-color: 51 58 65;
+    --border-subtle: 255 255 255 / 0.06;
+    --glass-bg: 22 27 34 / 1;
+    --secondary: 125 133 144;
+    --accent: 88 140 112;
+    --theme-shadow-card: 0 1px 0 rgba(0, 0, 0, 0.3);
+    --theme-shadow-hover: 0 1px 0 rgba(0, 0, 0, 0.3), 0 3px 12px rgba(0, 0, 0, 0.2);
+    --theme-shadow-elevated: 0 8px 24px rgba(0, 0, 0, 0.4);
+
+    --bg-global: linear-gradient(180deg, #11151a 0%, #11151a 100%);
+    --app-bg-opacity: 0;
+
+    --theme-card-bg-dark: linear-gradient(180deg, rgba(28, 34, 40, 0.98), rgba(24, 29, 34, 0.98));
+    --theme-button-bg: linear-gradient(135deg, rgb(88 140 112) 0%, rgb(58 110 84) 100%);
+    --theme-button-bg-hover: linear-gradient(135deg, rgb(58 110 84) 0%, rgb(88 140 112) 100%);
+    --theme-button-secondary-bg: rgba(255, 255, 255, 0.04);
+    --theme-button-secondary-hover-bg: rgba(88, 140, 112, 0.12);
+    --theme-card-hover-glow: 0 1px 0 rgba(0, 0, 0, 0.3), 0 3px 12px rgba(0, 0, 0, 0.2);
+    --theme-card-hover-border: rgba(48, 54, 61, 1);
+}

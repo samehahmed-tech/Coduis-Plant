@@ -1,0 +1,99 @@
+/* ═══ Theme: GLASSY — Apple-Inspired / Frosted Glass + Ocean Blue ═══ */
+[data-theme='glassy'] {
+    --primary: 37 99 235;
+    --primary-hover: 29 78 216;
+    --secondary: 100 116 139;
+    --accent: 168 85 247;
+    --success: 22 163 74;
+    --warning: 245 158 11;
+    --danger: 220 38 38;
+    --bg-app: 240 245 250;
+    --bg-card: 249 251 254;
+    --bg-sidebar: 234 240 247;
+    --bg-elevated: 226 234 242;
+    --text-main: 15 23 42;
+    --text-muted: 100 116 139;
+    --border-color: 218 228 238;
+    --border-subtle: 0 0 0 / 0.04;
+    --glass-bg: 255 255 255 / 0.52;
+
+    --theme-radius: 22px;
+    --theme-radius-sm: 14px;
+    --theme-radius-lg: 26px;
+    --theme-radius-xl: 34px;
+    --theme-blur: 32px;
+    --theme-surface-opacity: 0.72;
+    --theme-border-width: 1px;
+    --theme-border-opacity: 0.06;
+    --theme-shadow-card: 0 2px 8px rgba(15, 23, 42, 0.04), 0 0 0 1px rgba(255, 255, 255, 0.5);
+    --theme-shadow-hover: 0 14px 34px rgba(15, 23, 42, 0.08);
+    --theme-shadow-elevated: 0 24px 50px rgba(15, 23, 42, 0.12);
+    --theme-ease: cubic-bezier(0.25, 0.46, 0.45, 0.94);
+    --theme-duration: 250ms;
+    --theme-duration-slow: 400ms;
+    --theme-font-weight: 400;
+    --theme-heading-weight: 700;
+    --theme-letter-spacing: 0em;
+
+    --bg-global:
+        radial-gradient(ellipse at 20% 12%, rgba(37, 99, 235, 0.08), transparent 40%),
+        radial-gradient(ellipse at 80% 20%, rgba(168, 85, 247, 0.05), transparent 35%),
+        radial-gradient(ellipse at 50% 85%, rgba(37, 99, 235, 0.03), transparent 40%),
+        linear-gradient(170deg, #f0f5fa 0%, #e6eff8 50%, #f2f6fb 100%);
+    --app-bg-opacity: 0;
+
+    --theme-card-overlay: none;
+    --theme-card-inner-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.75), inset 0 -1px 0 rgba(0, 0, 0, 0.02);
+    --theme-card-bg: linear-gradient(180deg, rgba(255, 255, 255, 0.68), rgba(244, 249, 254, 0.56));
+    --theme-card-hover-bg: linear-gradient(180deg, rgba(255, 255, 255, 0.82), rgba(238, 246, 254, 0.68));
+    --theme-button-bg: linear-gradient(135deg, rgba(37, 99, 235, 0.96) 0%, rgba(99, 146, 255, 0.96) 100%);
+    --theme-button-bg-hover: linear-gradient(135deg, rgba(29, 78, 216, 0.98) 0%, rgba(37, 99, 235, 0.98) 100%);
+    --theme-button-secondary-bg: rgba(255, 255, 255, 0.55);
+    --theme-button-secondary-hover-bg: rgba(37, 99, 235, 0.06);
+    --theme-card-hover-glow: 0 16px 36px rgba(15, 23, 42, 0.08), 0 0 0 1px rgba(37, 99, 235, 0.06);
+    --theme-card-hover-transform: translateY(-2px);
+    --theme-card-hover-border: rgba(37, 99, 235, 0.1);
+    --theme-card-hover-overlay-opacity: 1;
+}
+
+[data-theme='glassy'].dark,
+.dark [data-theme='glassy'] {
+    --primary: 96 165 250;
+    --primary-hover: 59 130 246;
+    --bg-app: 4 6 14;
+    --bg-card: 12 16 26;
+    --bg-sidebar: 8 10 20;
+    --bg-elevated: 22 28 42;
+    --text-main: 248 250 252;
+    --text-muted: 148 163 184;
+    --border-color: 32 42 62;
+    --border-subtle: 255 255 255 / 0.05;
+    --glass-bg: 14 18 32 / 0.55;
+    --secondary: 148 160 184;
+    --accent: 192 132 252;
+    --theme-shadow-card: 
+        0 2px 8px rgba(96, 165, 250, 0.04),
+        0 0 0 1px rgba(96, 165, 250, 0.03);
+    --theme-shadow-hover: 
+        0 12px 28px rgba(96, 165, 250, 0.08),
+        0 0 40px rgba(96, 165, 250, 0.03);
+    --theme-shadow-elevated: 0 20px 48px rgba(0, 0, 0, 0.45);
+
+    --bg-global:
+        radial-gradient(ellipse at 20% 8%, rgba(96, 165, 250, 0.12), transparent 35%),
+        radial-gradient(ellipse at 80% 18%, rgba(192, 132, 252, 0.08), transparent 30%),
+        radial-gradient(ellipse at 50% 85%, rgba(96, 165, 250, 0.04), transparent 40%),
+        linear-gradient(170deg, #04060e 0%, #060810 50%, #080c16 100%);
+    --app-bg-opacity: 0;
+
+    --theme-card-inner-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05);
+    --theme-card-bg-dark: linear-gradient(180deg, rgba(16, 22, 36, 0.72), rgba(10, 14, 24, 0.68));
+    --theme-button-bg: linear-gradient(135deg, rgba(96, 165, 250, 0.92) 0%, rgba(59, 130, 246, 0.92) 100%);
+    --theme-button-bg-hover: linear-gradient(135deg, rgba(59, 130, 246, 0.96) 0%, rgba(96, 165, 250, 0.94) 100%);
+    --theme-button-secondary-bg: rgba(255, 255, 255, 0.05);
+    --theme-button-secondary-hover-bg: rgba(96, 165, 250, 0.1);
+    --theme-card-hover-glow: 
+        0 14px 32px rgba(96, 165, 250, 0.06),
+        0 0 0 1px rgba(96, 165, 250, 0.08);
+    --theme-card-hover-border: rgba(96, 165, 250, 0.18);
+}

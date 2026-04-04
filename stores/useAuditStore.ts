@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { AuditLog, AuditEventType } from '../types';
-import { auditApi } from '../services/api';
+import { auditApi } from '../services/api/audit';
 import { localDb } from '../db/localDb';
 
 interface AuditState {

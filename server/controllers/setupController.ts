@@ -102,7 +102,7 @@ export const bootstrapSetup = async (req: Request, res: Response) => {
                 { key: 'taxRate', value: appSettings.taxRate ?? 14 },
                 { key: 'serviceCharge', value: appSettings.serviceCharge ?? 0 },
                 { key: 'language', value: appSettings.language || 'ar' },
-                { key: 'theme', value: appSettings.theme || 'xen' },
+                { key: 'theme', value: appSettings.theme || 'modern' },
                 { key: 'isDarkMode', value: appSettings.isDarkMode ?? true },
                 { key: 'isTouchMode', value: appSettings.isTouchMode ?? false },
             ];

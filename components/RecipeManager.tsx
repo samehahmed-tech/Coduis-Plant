@@ -101,7 +101,7 @@ const RecipeManager: React.FC = () => {
     };
 
     return (
-        <div className="p-8 bg-slate-50 dark:bg-slate-950 min-h-screen transition-colors pb-24">
+        <div className="p-8 bg-app min-h-screen transition-colors pb-24">
             {/* Header */}
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 mb-12">
                 <div>
@@ -136,7 +136,7 @@ const RecipeManager: React.FC = () => {
                                     onClick={() => setSelectedMenuItemId(item.id)}
                                     className={`w-full text-left p-4 rounded-2xl transition-all flex items-center gap-4 group ${selectedMenuItemId === item.id ? 'bg-indigo-600 text-white shadow-xl shadow-indigo-600/30' : 'hover:bg-slate-50 dark:hover:bg-indigo-900/10 text-slate-600 dark:text-slate-400 border border-transparent'}`}
                                 >
-                                    <div className={`w-12 h-12 rounded-xl flex-shrink-0 flex items-center justify-center font-black text-sm border ${selectedMenuItemId === item.id ? 'bg-white/20 border-white/10' : 'bg-slate-100 dark:bg-slate-800 border-slate-200 dark:border-slate-700'}`}>
+                                    <div className={`w-12 h-12 rounded-xl flex-shrink-0 flex items-center justify-center font-black text-sm border ${selectedMenuItemId === item.id ? 'bg-elevated/70 border-border/30' : 'bg-slate-100 dark:bg-slate-800 border-slate-200 dark:border-slate-700'}`}>
                                         {item.image ? <img src={item.image} className="w-full h-full object-cover rounded-xl" /> : item.name.charAt(0)}
                                     </div>
                                     <div className="flex-1 overflow-hidden">

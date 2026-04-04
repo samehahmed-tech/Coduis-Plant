@@ -1,5 +1,5 @@
-import React from 'react';
-import { Minus, Plus, Trash2, Pencil, User, Utensils } from 'lucide-react';
+import React, { useState, useRef, useCallback } from 'react';
+import { Minus, Plus, Trash2, Pencil, Tag, Percent } from 'lucide-react';
 import { OrderItem } from '../../types';
 
 interface CartItemProps {
@@ -11,81 +11,146 @@ interface CartItemProps {
     onRemove: (cartId: string) => void;
     onEditSeat: (cartId: string, currentSeat?: number) => void;
     onEditCourse?: (cartId: string, currentCourse?: string) => void;
+    onEditItemDiscount?: (cartId: string) => void;
     lang: 'en' | 'ar';
     isLastAdded?: boolean;
 }
 
 const CartItem: React.FC<CartItemProps> = React.memo(({
-    item, currencySymbol, isTouchMode, onEditNote, onUpdateQuantity, onRemove, onEditSeat, onEditCourse, lang, isLastAdded,
+    item, currencySymbol, isTouchMode, onEditNote, onUpdateQuantity, onRemove, onEditItemDiscount, lang, isLastAdded,
 }) => {
     const displayName = lang === 'ar' ? (item.nameAr || item.name) : item.name;
     const unitPrice = Number(item.price || 0);
-    const lineTotal = unitPrice * Number(item.quantity || 0);
+    const modPrice = (item.selectedModifiers || []).reduce((s, m) => s + (m.price || 0), 0);
+    const lineGross = (unitPrice + modPrice) * Number(item.quantity || 0);
+
+    let discountAmount = 0;
+    if (item.itemDiscount && item.itemDiscount > 0) {
+        discountAmount = item.itemDiscountType === 'percent'
+            ? lineGross * (item.itemDiscount / 100)
+            : item.itemDiscount;
+    }
+    const lineTotal = lineGross - discountAmount;
+
+    const [editing, setEditing] = useState(false);
+    const [draft, setDraft] = useState('');
+    const inputRef = useRef<HTMLInputElement>(null);
+
+    const startEdit = () => {
+        setDraft(String(item.quantity));
+        setEditing(true);
+        setTimeout(() => { inputRef.current?.select(); }, 0);
+    };
+
+    const commitEdit = useCallback(() => {
+        const parsed = parseInt(draft, 10);
+        if (!isNaN(parsed) && parsed > 0) {
+            const delta = parsed - item.quantity;
+            if (delta !== 0) onUpdateQuantity(item.cartId, delta);
+        }
+        setEditing(false);
+    }, [draft, item.quantity, item.cartId, onUpdateQuantity]);
+
+    const cancelEdit = () => setEditing(false);
 
     return (
-        <div className={`group flex items-center justify-between gap-3 px-4 py-3 bg-white dark:bg-slate-900 border-b border-slate-100 dark:border-slate-800 transition-all duration-300 hover:bg-slate-50 dark:hover:bg-slate-800/50 ${isLastAdded ? 'bg-indigo-50/50 dark:bg-indigo-900/10' : ''}`}>
-            {/* Qty controls - Horizontal & Bigger */}
-            <div className="flex items-center gap-1 shrink-0 bg-slate-100 dark:bg-slate-800 rounded-lg p-1">
+        <div className={`group relative flex items-center gap-2 px-2 py-1.5 rounded-xl border transition-all duration-100
+            ${isLastAdded
+                ? 'bg-primary/4 border-primary/15 shadow-sm shadow-primary/5'
+                : 'bg-white/60 border-border/8 hover:bg-white/90 hover:border-border/15'
+            }`}
+        >
+            {/* Quantity Stepper */}
+            <div className="flex items-center bg-elevated/40 rounded-lg border border-border/10 overflow-hidden shrink-0">
                 <button
                     onClick={(e) => { e.stopPropagation(); onUpdateQuantity(item.cartId, -1); }}
-                    className="w-8 h-8 rounded-md bg-white dark:bg-slate-700 text-slate-600 dark:text-slate-300 flex items-center justify-center hover:text-indigo-600 shadow-sm active:scale-95 transition-colors"
+                    className="w-6 h-6 flex items-center justify-center text-muted hover:text-rose-500 hover:bg-rose-500/8 active:scale-90 transition-colors"
                 >
-                    <Minus size={16} />
+                    <Minus size={10} />
                 </button>
-                <div className="w-8 text-center text-sm font-black text-slate-900 dark:text-white tabular-nums">
-                    {item.quantity}
-                </div>
+
+                {editing ? (
+                    <input
+                        ref={inputRef}
+                        type="number" min={1}
+                        value={draft}
+                        onChange={e => setDraft(e.target.value)}
+                        onBlur={commitEdit}
+                        onKeyDown={e => {
+                            e.stopPropagation();
+                            if (e.key === 'Enter') { e.preventDefault(); commitEdit(); }
+                            if (e.key === 'Escape') cancelEdit();
+                        }}
+                        className="w-7 h-6 text-center text-[11px] font-extrabold text-primary bg-primary/8 border-x border-primary/15 outline-none tabular-nums [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                    />
+                ) : (
+                    <button
+                        onClick={startEdit}
+                        title={lang === 'ar' ? 'اضغط لتعديل الكمية' : 'Tap to edit qty'}
+                        className="w-7 h-6 flex items-center justify-center text-[11px] font-extrabold text-main tabular-nums hover:text-primary hover:bg-primary/5 transition-colors cursor-text"
+                    >
+                        {item.quantity}
+                    </button>
+                )}
+
                 <button
                     onClick={(e) => { e.stopPropagation(); onUpdateQuantity(item.cartId, 1); }}
-                    className="w-8 h-8 rounded-md bg-white dark:bg-slate-700 text-slate-600 dark:text-slate-300 flex items-center justify-center hover:text-indigo-600 shadow-sm active:scale-95 transition-colors"
+                    className="w-6 h-6 flex items-center justify-center text-muted hover:text-primary hover:bg-primary/8 active:scale-90 transition-colors"
                 >
-                    <Plus size={16} />
+                    <Plus size={10} />
                 </button>
             </div>
 
-            {/* Name & Details */}
-            <div className="flex-1 min-w-0 pr-2">
-                <div className="flex items-baseline justify-between gap-2">
-                    <span className="text-sm font-bold text-slate-800 dark:text-slate-200 truncate">{displayName}</span>
-                    <span className="shrink-0 text-base font-black text-slate-900 dark:text-white tabular-nums">
-                        {lineTotal.toFixed(2)}
-                    </span>
-                </div>
-
-                <div className="flex flex-wrap items-center gap-2 mt-1">
-                    {item.seatNumber && (
-                        <span className="text-[10px] text-indigo-600 font-bold bg-indigo-50 dark:bg-indigo-500/10 px-1.5 py-0.5 rounded">
-                            Seat {item.seatNumber}
-                        </span>
-                    )}
-                    {item.course && (
-                        <span className="text-[10px] text-amber-600 font-bold bg-amber-50 dark:bg-amber-500/10 px-1.5 py-0.5 rounded uppercase">
-                            {item.course}
-                        </span>
-                    )}
-                    {item.notes && (
-                        <span className="text-[10px] text-slate-500 truncate mt-0.5 max-w-full block">
-                            Note: {item.notes}
-                        </span>
-                    )}
-                </div>
+            {/* Name + Modifiers */}
+            <div className="flex-1 min-w-0 overflow-hidden">
+                <p className="text-[11px] font-bold text-main leading-snug truncate">{displayName}</p>
+                {((item.selectedModifiers && item.selectedModifiers.length > 0) || item.notes || (item.itemDiscount && item.itemDiscount > 0)) && (
+                    <div className="flex flex-wrap items-center gap-1 mt-0.5">
+                        {item.selectedModifiers && item.selectedModifiers.length > 0 && (
+                            <span className="text-[8px] text-muted/70 font-medium truncate max-w-[80px]">+{item.selectedModifiers.map(m => m.optionName).join(', ')}</span>
+                        )}
+                        {item.notes && (
+                            <span className="text-[8px] font-bold text-warning/80 bg-warning/6 px-1 py-px rounded border border-warning/10 truncate max-w-[60px]">{item.notes}</span>
+                        )}
+                        {item.itemDiscount && item.itemDiscount > 0 && (
+                            <span className="text-[8px] font-bold text-success bg-success/6 px-1 py-px rounded border border-success/10 flex items-center gap-0.5">
+                                <Percent size={6} />
+                                {item.itemDiscountType === 'percent' ? `${item.itemDiscount}%` : `-${item.itemDiscount.toFixed(0)}`}
+                            </span>
+                        )}
+                    </div>
+                )}
             </div>
 
-            {/* Always Visible Actions */}
-            <div className="flex items-center gap-1 shrink-0">
+            {/* Total */}
+            <div className="shrink-0 text-right">
+                <span className="text-[11px] font-extrabold text-main tabular-nums">{lineTotal.toFixed(2)}</span>
+                {discountAmount > 0 && (
+                    <div className="text-[8px] text-muted/50 line-through tabular-nums">{lineGross.toFixed(2)}</div>
+                )}
+            </div>
+
+            {/* Actions — absolutely positioned, zero layout impact */}
+            <div className="absolute right-1 top-1/2 -translate-y-1/2 flex items-center gap-0.5 invisible group-hover:visible bg-card/95 backdrop-blur-sm rounded-lg border border-border/15 px-1 py-0.5 shadow-md z-10 transition-all">
+                {onEditItemDiscount && (
+                    <button
+                        onClick={(e) => { e.stopPropagation(); onEditItemDiscount(item.cartId); }}
+                        className={`w-6 h-6 rounded flex items-center justify-center transition-colors ${item.itemDiscount && item.itemDiscount > 0 ? 'text-success bg-success/8' : 'text-muted hover:text-success hover:bg-success/8'}`}
+                    >
+                        <Tag size={9} />
+                    </button>
+                )}
                 <button
                     onClick={(e) => { e.stopPropagation(); onEditNote(item.cartId, item.notes || ''); }}
-                    className="w-9 h-9 rounded-xl text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-500/10 flex items-center justify-center transition-colors"
-                    title={lang === 'ar' ? 'ملاحظة' : 'Note'}
+                    className="w-6 h-6 rounded text-muted hover:text-primary hover:bg-primary/8 transition-colors flex items-center justify-center"
                 >
-                    <Pencil size={18} />
+                    <Pencil size={9} />
                 </button>
                 <button
                     onClick={(e) => { e.stopPropagation(); onRemove(item.cartId); }}
-                    className="w-9 h-9 rounded-xl text-rose-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-500/10 flex items-center justify-center transition-colors shadow-sm bg-white dark:bg-slate-800 border border-slate-100 dark:border-slate-700"
-                    title={lang === 'ar' ? 'حذف' : 'Remove'}
+                    className="w-6 h-6 rounded text-muted hover:text-rose-500 hover:bg-rose-500/8 transition-colors flex items-center justify-center"
                 >
-                    <Trash2 size={18} />
+                    <Trash2 size={9} />
                 </button>
             </div>
         </div>

@@ -16,7 +16,8 @@ import {
 } from 'lucide-react';
 import { useAuthStore } from '../stores/useAuthStore';
 import { translations } from '../services/translations';
-import { campaignsApi } from '../services/api';
+import { campaignsApi } from '../services/api/campaigns';
+import { useToast } from './common/ToastProvider';
 
 type Campaign = {
     id: string;
@@ -31,6 +32,7 @@ type Campaign = {
 const CampaignHub: React.FC = () => {
     const { settings } = useAuthStore();
     const lang = settings.language || 'en';
+    const { success, error: showError } = useToast();
     const [campaigns, setCampaigns] = useState<Campaign[]>([]);
     const [stats, setStats] = useState<any>(null);
     const [creating, setCreating] = useState(false);
@@ -62,6 +64,7 @@ const CampaignHub: React.FC = () => {
                 conversions: 0,
             });
             await loadData();
+            success(lang === 'ar' ? 'تم إنشاء الحملة' : 'Campaign created successfully');
         } finally {
             setCreating(false);
         }
@@ -71,7 +74,7 @@ const CampaignHub: React.FC = () => {
         const fallbackPhone = String(settings?.phone || '').trim();
         const phones = fallbackPhone ? [fallbackPhone] : [];
         if (phones.length === 0) {
-            alert(lang === 'ar' ? 'لا يوجد رقم افتراضي في الإعدادات للإرسال التجريبي.' : 'No default phone in settings for test dispatch.');
+            showError(lang === 'ar' ? 'لا يوجد رقم افتراضي في الإعدادات للإرسال التجريبي.' : 'No default phone in settings for test dispatch.');
             return;
         }
         setDispatchingId(campaign.id);
@@ -82,8 +85,9 @@ const CampaignHub: React.FC = () => {
                 message: `${campaign.name}${campaign.discount ? ` - ${campaign.discount}` : ''}`,
             });
             await loadData();
+            success(lang === 'ar' ? 'تم الإرسال بنجاح' : 'Campaign dispatched successfully');
         } catch (error: any) {
-            alert(error?.message || 'Dispatch failed');
+            showError(error?.message || 'Dispatch failed');
         } finally {
             setDispatchingId(null);
         }
@@ -270,10 +274,10 @@ const CampaignHub: React.FC = () => {
 
                     <div className="bg-gradient-to-br from-primary to-indigo-700 p-8 rounded-[2.5rem] text-white shadow-2xl shadow-primary/30 group">
                         <div className="flex justify-between items-start mb-6">
-                            <div className="p-4 bg-white/10 rounded-2xl backdrop-blur-md">
+                            <div className="p-4 bg-elevated/60 rounded-2xl backdrop-blur-md">
                                 <Users size={28} />
                             </div>
-                            <button className="p-3 bg-white/20 rounded-xl hover:bg-white/30 transition-all">
+                            <button className="p-3 bg-elevated/70 rounded-xl hover:bg-white/30 transition-all">
                                 <Plus size={16} />
                             </button>
                         </div>
@@ -282,11 +286,11 @@ const CampaignHub: React.FC = () => {
                             {lang === 'ar' ? 'تصنيف العملاء بناءً على سلوك الشراء' : 'Automatically group customers by purchase behavior & lifetime value.'}
                         </p>
                         <div className="space-y-2">
-                            <div className="flex justify-between items-center px-4 py-2 bg-white/5 rounded-xl border border-white/5 group-hover:bg-white/10 transition-all">
+                            <div className="flex justify-between items-center px-4 py-2 bg-elevated/40 rounded-xl border border-border/20 group-hover:bg-elevated/60 transition-all">
                                 <span className="text-[10px] font-black uppercase">Platinum (VIP)</span>
                                 <span className="text-[10px] font-bold opacity-80">{Math.max(0, Math.round(totalConversions * 0.2))} Profiles</span>
                             </div>
-                            <div className="flex justify-between items-center px-4 py-2 bg-white/5 rounded-xl border border-white/5 opacity-50">
+                            <div className="flex justify-between items-center px-4 py-2 bg-elevated/40 rounded-xl border border-border/20 opacity-50">
                                 <span className="text-[10px] font-black uppercase">Dormant</span>
                                 <span className="text-[10px] font-bold opacity-80">{Math.max(0, Math.round(totalReach * 0.15))} Profiles</span>
                             </div>

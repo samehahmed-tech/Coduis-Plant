@@ -1,0 +1,114 @@
+/* ═══════════════════════════════════════════════════════════════════════════
+   WALLPAPER ENGINE — Semi-transparent CSS-only backgrounds
+   Controlled by --wallpaper-url and --wallpaper-opacity CSS variables.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* ── Fixed background layer ── */
+.workspace-shell::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    z-index: 0;
+    pointer-events: none;
+    background: var(--wallpaper-bg, none);
+    background-size: var(--wallpaper-size, cover);
+    background-position: center;
+    background-repeat: var(--wallpaper-repeat, no-repeat);
+    opacity: var(--wallpaper-opacity, 0);
+    transition: opacity 0.6s ease, background 0.6s ease;
+    filter: saturate(0.92) contrast(1.02);
+}
+
+/* ── Preset wallpapers (CSS-only patterns) ── */
+
+/* Geometric Grid */
+.workspace-shell[data-wallpaper='geometric']::before {
+    --wallpaper-bg:
+        linear-gradient(rgba(var(--primary), 0.028) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(var(--primary), 0.028) 1px, transparent 1px),
+        linear-gradient(rgba(var(--accent), 0.015) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(var(--accent), 0.015) 1px, transparent 1px);
+    --wallpaper-size: 88px 88px, 88px 88px, 18px 18px, 18px 18px;
+    --wallpaper-repeat: repeat;
+}
+
+/* Diagonal Stripes */
+.workspace-shell[data-wallpaper='stripes']::before {
+    --wallpaper-bg: repeating-linear-gradient(45deg,
+            transparent,
+            transparent 20px,
+            rgba(var(--primary), 0.025) 20px,
+            rgba(var(--primary), 0.025) 21px);
+    --wallpaper-size: auto;
+    --wallpaper-repeat: repeat;
+}
+
+/* Dots Matrix */
+.workspace-shell[data-wallpaper='dots']::before {
+    --wallpaper-bg:
+        radial-gradient(circle, rgba(var(--primary), 0.05) 1.2px, transparent 1.2px),
+        radial-gradient(circle, rgba(var(--accent), 0.03) 1px, transparent 1px);
+    --wallpaper-size: 26px 26px, 52px 52px;
+    --wallpaper-repeat: repeat;
+}
+
+/* Hexagon Mesh */
+.workspace-shell[data-wallpaper='hexagons']::before {
+    --wallpaper-bg:
+        linear-gradient(30deg, rgba(var(--primary), 0.025) 12%, transparent 12.5%, transparent 87%, rgba(var(--primary), 0.025) 87.5%),
+        linear-gradient(150deg, rgba(var(--primary), 0.025) 12%, transparent 12.5%, transparent 87%, rgba(var(--primary), 0.025) 87.5%),
+        linear-gradient(30deg, rgba(var(--primary), 0.025) 12%, transparent 12.5%, transparent 87%, rgba(var(--primary), 0.025) 87.5%),
+        linear-gradient(150deg, rgba(var(--primary), 0.025) 12%, transparent 12.5%, transparent 87%, rgba(var(--primary), 0.025) 87.5%),
+        linear-gradient(60deg, rgba(var(--accent), 0.02) 25%, transparent 25.5%, transparent 75%, rgba(var(--accent), 0.02) 75%),
+        linear-gradient(60deg, rgba(var(--accent), 0.02) 25%, transparent 25.5%, transparent 75%, rgba(var(--accent), 0.02) 75%);
+    --wallpaper-size: 50px 87px;
+    --wallpaper-repeat: repeat;
+}
+
+/* Waves */
+.workspace-shell[data-wallpaper='waves']::before {
+    --wallpaper-bg:
+        radial-gradient(ellipse at 18% 44%, rgba(var(--primary), 0.12), transparent 0 46%),
+        radial-gradient(ellipse at 82% 24%, rgba(var(--accent), 0.08), transparent 0 42%),
+        radial-gradient(ellipse at 52% 82%, rgba(var(--primary), 0.06), transparent 0 40%);
+    --wallpaper-size: cover;
+    --wallpaper-repeat: no-repeat;
+}
+
+.workspace-shell[data-wallpaper='none']::before {
+    --wallpaper-opacity: 0;
+}
+
+/* Circuit Board */
+.workspace-shell[data-wallpaper='circuit']::before {
+    --wallpaper-bg:
+        linear-gradient(rgba(var(--primary), 0.02) 2px, transparent 2px),
+        linear-gradient(90deg, rgba(var(--primary), 0.02) 2px, transparent 2px),
+        linear-gradient(rgba(var(--primary), 0.01) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(var(--primary), 0.01) 1px, transparent 1px),
+        radial-gradient(circle, rgba(var(--primary), 0.04) 2px, transparent 2px);
+    --wallpaper-size: 80px 80px, 80px 80px, 20px 20px, 20px 20px, 40px 40px;
+    --wallpaper-repeat: repeat;
+}
+
+/* Topography Lines */
+.workspace-shell[data-wallpaper='topography']::before {
+    --wallpaper-bg:
+        radial-gradient(circle at 20% 30%, transparent 60px, rgba(var(--primary), 0.02) 61px, transparent 62px),
+        radial-gradient(circle at 70% 60%, transparent 90px, rgba(var(--primary), 0.015) 91px, transparent 92px),
+        radial-gradient(circle at 50% 80%, transparent 40px, rgba(var(--accent), 0.015) 41px, transparent 42px),
+        radial-gradient(circle at 80% 20%, transparent 120px, rgba(var(--primary), 0.01) 121px, transparent 122px);
+    --wallpaper-size: 200px 200px;
+    --wallpaper-repeat: repeat;
+}
+
+/* Diamond Lattice */
+.workspace-shell[data-wallpaper='diamonds']::before {
+    --wallpaper-bg:
+        linear-gradient(45deg, rgba(var(--primary), 0.03) 25%, transparent 25%),
+        linear-gradient(-45deg, rgba(var(--primary), 0.03) 25%, transparent 25%),
+        linear-gradient(45deg, transparent 75%, rgba(var(--primary), 0.03) 75%),
+        linear-gradient(-45deg, transparent 75%, rgba(var(--primary), 0.03) 75%);
+    --wallpaper-size: 40px 40px;
+    --wallpaper-repeat: repeat;
+}

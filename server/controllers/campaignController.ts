@@ -1,125 +1,141 @@
 import { Request, Response } from 'express';
 import { db } from '../db';
-import { settings, orders, customers } from '../../src/db/schema';
-import { and, desc, eq, gte, inArray } from 'drizzle-orm';
+import { campaigns, orders, customers } from '../../src/db/schema';
+import { and, desc, eq, gte, inArray, sql } from 'drizzle-orm';
 import { sendWhatsAppText } from '../services/whatsappService';
+import { nanoid } from 'nanoid';
 
-type Campaign = {
-    id: string;
-    name: string;
-    status: 'ACTIVE' | 'AUTOMATED' | 'SCHEDULED' | 'PAUSED';
-    method: 'SMS' | 'Email' | 'Push' | 'WHATSAPP';
-    discount?: string;
-    outreach: number;
-    conversions: number;
-    spend?: number;
-    createdAt: string;
-    updatedAt: string;
-};
-
-const CAMPAIGN_KEY = 'marketing_campaigns';
+// Optional: keep dispatch logs in settings for now, or just don't log them extensively like before.
+import { settings } from '../../src/db/schema';
 const CAMPAIGN_DISPATCH_LOG_KEY = 'marketing_campaign_dispatches_v1';
-const MAX_DISPATCH_RECIPIENTS = 500;
-
-const loadCampaigns = async (): Promise<Campaign[]> => {
-    const [row] = await db.select().from(settings).where(eq(settings.key, CAMPAIGN_KEY));
-    return (row?.value as Campaign[]) || [];
-};
-
-const saveCampaigns = async (campaigns: Campaign[], updatedBy?: string) => {
-    const payload = {
-        key: CAMPAIGN_KEY,
-        value: campaigns,
-        category: 'marketing',
-        updatedBy: updatedBy || 'system',
-        updatedAt: new Date(),
-    };
-    const [existing] = await db.select().from(settings).where(eq(settings.key, CAMPAIGN_KEY));
-    if (existing) {
-        await db.update(settings)
-            .set({ value: campaigns, category: 'marketing', updatedBy: payload.updatedBy, updatedAt: new Date() })
-            .where(eq(settings.key, CAMPAIGN_KEY));
-        return;
-    }
-    await db.insert(settings).values(payload as any);
-};
 
 export const getCampaigns = async (_req: Request, res: Response) => {
     try {
-        const campaigns = await loadCampaigns();
-        res.json(campaigns);
+        const result = await db.query.campaigns.findMany({
+            orderBy: (campaigns, { desc }) => [desc(campaigns.createdAt)],
+        });
+
+        // Map to frontend expected shape
+        const mapped = result.map(c => ({
+            id: c.id,
+            name: c.name,
+            method: c.type,
+            status: c.status,
+            targetAudience: c.targetAudience,
+            content: c.content,
+            outreach: c.reach || 0,
+            conversions: c.conversions || 0,
+            spend: c.budget || 0,
+            revenue: c.revenue || 0,
+            scheduledAt: c.scheduledAt ? c.scheduledAt.toISOString() : null,
+            createdAt: c.createdAt ? c.createdAt.toISOString() : new Date().toISOString(),
+            updatedAt: c.updatedAt ? c.updatedAt.toISOString() : new Date().toISOString(),
+        }));
+
+        res.json(mapped);
     } catch (error: any) {
-        res.status(500).json({ error: error.message });
+        console.error('Error fetching campaigns:', error);
+        res.status(500).json({ error: 'Failed to fetch campaigns' });
     }
 };
 
 export const createCampaign = async (req: Request, res: Response) => {
     try {
         const body = req.body || {};
-        const campaigns = await loadCampaigns();
-        const created: Campaign = {
-            id: body.id || `CMP-${Date.now()}`,
+
+        const [created] = await db.insert(campaigns).values({
+            id: body.id || `CMP-${nanoid(8)}`,
             name: body.name || 'Untitled Campaign',
+            type: body.method || body.type || 'SMS',
             status: body.status || 'SCHEDULED',
-            method: body.method || 'SMS',
-            discount: body.discount || '',
-            outreach: Number(body.outreach || 0),
-            conversions: Number(body.conversions || 0),
-            spend: Number(body.spend || 0),
-            createdAt: new Date().toISOString(),
-            updatedAt: new Date().toISOString(),
-        };
-        const next = [created, ...campaigns];
-        await saveCampaigns(next, req.user?.id);
-        res.status(201).json(created);
+            targetAudience: body.targetAudience || 'ALL',
+            content: body.content || body.message || '',
+            scheduledAt: body.scheduledAt ? new Date(body.scheduledAt) : null,
+            budget: Number(body.spend || body.budget || 0),
+        }).returning();
+
+        res.status(201).json({
+            id: created.id,
+            name: created.name,
+            method: created.type,
+            status: created.status,
+            outreach: created.reach,
+            conversions: created.conversions,
+            spend: created.budget,
+            targetAudience: created.targetAudience,
+            content: created.content,
+            createdAt: created.createdAt?.toISOString(),
+            updatedAt: created.updatedAt?.toISOString()
+        });
     } catch (error: any) {
-        res.status(500).json({ error: error.message });
+        console.error('Error creating campaign:', error);
+        res.status(500).json({ error: 'Failed to create campaign' });
     }
 };
 
 export const updateCampaign = async (req: Request, res: Response) => {
     try {
-        const id = req.params.id;
-        const campaigns = await loadCampaigns();
-        const idx = campaigns.findIndex(c => c.id === id);
-        if (idx < 0) return res.status(404).json({ error: 'Campaign not found' });
-        const updated: Campaign = {
-            ...campaigns[idx],
-            ...req.body,
-            updatedAt: new Date().toISOString(),
-        };
-        campaigns[idx] = updated;
-        await saveCampaigns(campaigns, req.user?.id);
-        res.json(updated);
+        const id = req.params.id as string;
+        const body = req.body || {};
+
+        const [updated] = await db.update(campaigns).set({
+            name: body.name,
+            type: body.method || body.type,
+            status: body.status,
+            targetAudience: body.targetAudience,
+            content: body.content || body.message,
+            scheduledAt: body.scheduledAt ? new Date(body.scheduledAt) : undefined,
+            budget: body.spend !== undefined ? Number(body.spend) : undefined,
+            updatedAt: new Date(),
+        })
+            .where(eq(campaigns.id, id))
+            .returning();
+
+        if (!updated) return res.status(404).json({ error: 'Campaign not found' });
+
+        res.json({
+            id: updated.id,
+            name: updated.name,
+            method: updated.type,
+            status: updated.status,
+            outreach: updated.reach,
+            conversions: updated.conversions,
+            spend: updated.budget,
+            targetAudience: updated.targetAudience,
+            content: updated.content,
+            createdAt: updated.createdAt?.toISOString(),
+            updatedAt: updated.updatedAt?.toISOString()
+        });
     } catch (error: any) {
-        res.status(500).json({ error: error.message });
+        console.error('Error updating campaign:', error);
+        res.status(500).json({ error: 'Failed to update campaign' });
     }
 };
 
 export const deleteCampaign = async (req: Request, res: Response) => {
     try {
-        const id = req.params.id;
-        const campaigns = await loadCampaigns();
-        const next = campaigns.filter(c => c.id !== id);
-        await saveCampaigns(next, req.user?.id);
+        const id = req.params.id as string;
+        await db.delete(campaigns).where(eq(campaigns.id, id));
         res.json({ success: true });
     } catch (error: any) {
-        res.status(500).json({ error: error.message });
+        console.error('Error deleting campaign:', error);
+        res.status(500).json({ error: 'Failed to delete campaign' });
     }
 };
 
 export const getCampaignStats = async (req: Request, res: Response) => {
     try {
-        const campaigns = await loadCampaigns();
+        const allCampaigns = await db.query.campaigns.findMany();
+
         const start = new Date();
         start.setDate(start.getDate() - 30);
         const recentOrders = await db.select().from(orders).where(gte(orders.createdAt, start)).orderBy(desc(orders.createdAt));
 
-        const totalReach = campaigns.reduce((s, c) => s + (c.outreach || 0), 0);
-        const totalConversions = campaigns.reduce((s, c) => s + (c.conversions || 0), 0);
-        const campaignRevenueEstimate = campaigns.reduce((s, c) => s + ((c.conversions || 0) * 120), 0);
+        const totalReach = allCampaigns.reduce((s: number, c) => s + (Number(c.reach) || 0), 0);
+        const totalConversions = allCampaigns.reduce((s: number, c) => s + (Number(c.conversions) || 0), 0);
+        const campaignRevenueEstimate = allCampaigns.reduce((s: number, c) => s + ((Number(c.conversions) || 0) * 120), 0);
         const conversionRate = totalReach > 0 ? (totalConversions / totalReach) * 100 : 0;
-        const recentRevenue = recentOrders.reduce((s, o) => s + (o.total || 0), 0);
+        const recentRevenue = recentOrders.reduce((s: number, o) => s + (Number(o.total) || 0), 0);
 
         res.json({
             totalReach,
@@ -127,23 +143,24 @@ export const getCampaignStats = async (req: Request, res: Response) => {
             conversionRate,
             campaignRevenueEstimate,
             recentRevenue,
-            activeCoupons: campaigns.filter(c => c.status === 'ACTIVE').length,
+            activeCoupons: allCampaigns.filter(c => c.status === 'ACTIVE').length,
             channels: {
-                SMS: campaigns.filter(c => c.method === 'SMS').length,
-                Email: campaigns.filter(c => c.method === 'Email').length,
-                Push: campaigns.filter(c => c.method === 'Push').length,
-                WHATSAPP: campaigns.filter(c => c.method === 'WHATSAPP').length,
+                SMS: allCampaigns.filter(c => c.type === 'SMS').length,
+                Email: allCampaigns.filter(c => c.type === 'Email' || c.type === 'EMAIL').length,
+                Push: allCampaigns.filter(c => c.type === 'Push' || c.type === 'PUSH').length,
+                WHATSAPP: allCampaigns.filter(c => c.type === 'WHATSAPP').length,
             }
         });
     } catch (error: any) {
-        res.status(500).json({ error: error.message });
+        console.error('Error calculating campaign stats:', error);
+        res.status(500).json({ error: 'Failed to calculate stats' });
     }
 };
 
 type CampaignDispatchLog = {
     id: string;
     campaignId: string;
-    method: Campaign['method'];
+    method: string;
     sent: number;
     failed: number;
     dryRun: boolean;
@@ -191,7 +208,7 @@ const collectRecipientPhones = async (input: {
         customerPhones = rows.map((r) => normalizePhone(String(r.phone || ''))).filter(Boolean);
     }
     const unique = Array.from(new Set([...direct, ...customerPhones]));
-    return unique.slice(0, MAX_DISPATCH_RECIPIENTS);
+    return unique.slice(0, 500); // MAX_DISPATCH_RECIPIENTS
 };
 
 export const dispatchCampaign = async (req: Request, res: Response) => {
@@ -199,19 +216,25 @@ export const dispatchCampaign = async (req: Request, res: Response) => {
         const id = String(req.params?.id || '').trim();
         if (!id) return res.status(400).json({ error: 'CAMPAIGN_ID_REQUIRED' });
 
-        const campaigns = await loadCampaigns();
-        const idx = campaigns.findIndex((c) => c.id === id);
-        if (idx < 0) return res.status(404).json({ error: 'CAMPAIGN_NOT_FOUND' });
-        const campaign = campaigns[idx];
+        const campaign = await db.query.campaigns.findFirst({ where: eq(campaigns.id, id) });
+        if (!campaign) return res.status(404).json({ error: 'CAMPAIGN_NOT_FOUND' });
 
         const dryRun = String(req.body?.mode || '').toUpperCase() === 'DRY_RUN';
         const recipientPhones = await collectRecipientPhones({
             customerIds: Array.isArray(req.body?.customerIds) ? req.body.customerIds : [],
             phones: Array.isArray(req.body?.phones) ? req.body.phones : [],
         });
-        if (recipientPhones.length === 0) return res.status(400).json({ error: 'CAMPAIGN_RECIPIENTS_REQUIRED' });
 
-        const message = String(req.body?.message || `Offer from ${campaign.name}${campaign.discount ? `: ${campaign.discount}` : ''}`).trim();
+        if (recipientPhones.length === 0) {
+            // IF no explicit recipients passed, default simulate targeting all customer DB (max 500)
+            const allCust = await db.query.customers.findMany({ limit: 500 });
+            allCust.forEach(c => {
+                if (c.phone) recipientPhones.push(normalizePhone(c.phone));
+            });
+            if (recipientPhones.length === 0) return res.status(400).json({ error: 'CAMPAIGN_RECIPIENTS_REQUIRED' });
+        }
+
+        const message = String(req.body?.message || campaign.content || `Offer from ${campaign.name}`).trim();
         if (!message) return res.status(400).json({ error: 'CAMPAIGN_MESSAGE_REQUIRED' });
 
         let sent = 0;
@@ -219,7 +242,7 @@ export const dispatchCampaign = async (req: Request, res: Response) => {
         const startedAt = new Date().toISOString();
 
         if (!dryRun) {
-            if (campaign.method === 'WHATSAPP') {
+            if (campaign.type === 'WHATSAPP') {
                 for (const phone of recipientPhones) {
                     try {
                         await sendWhatsAppText({ to: phone, text: message });
@@ -229,25 +252,26 @@ export const dispatchCampaign = async (req: Request, res: Response) => {
                     }
                 }
             } else {
-                // Placeholder for SMS/Email/Push providers.
+                // Placeholder for SMS/Email/Push
                 sent = recipientPhones.length;
             }
         } else {
             sent = recipientPhones.length;
         }
 
-        campaigns[idx] = {
-            ...campaign,
-            outreach: Number(campaign.outreach || 0) + sent,
-            status: campaign.status === 'SCHEDULED' ? 'ACTIVE' : campaign.status,
-            updatedAt: new Date().toISOString(),
-        };
-        await saveCampaigns(campaigns, req.user?.id);
+        const newReach = Number(campaign.reach || 0) + sent;
+        const newStatus = campaign.status === 'SCHEDULED' ? 'ACTIVE' : campaign.status;
+
+        await db.update(campaigns).set({
+            reach: newReach,
+            status: newStatus,
+            updatedAt: new Date()
+        }).where(eq(campaigns.id, campaign.id));
 
         const dispatchLog: CampaignDispatchLog = {
             id: `CMP-DISPATCH-${Date.now()}`,
             campaignId: campaign.id,
-            method: campaign.method,
+            method: campaign.type,
             sent,
             failed,
             dryRun,
@@ -262,7 +286,7 @@ export const dispatchCampaign = async (req: Request, res: Response) => {
         return res.json({
             ok: true,
             campaignId: campaign.id,
-            method: campaign.method,
+            method: campaign.type,
             dryRun,
             recipients: recipientPhones.length,
             sent,
@@ -270,6 +294,7 @@ export const dispatchCampaign = async (req: Request, res: Response) => {
             dispatchId: dispatchLog.id,
         });
     } catch (error: any) {
+        console.error('Dispatch error:', error);
         return res.status(500).json({ error: error.message || 'CAMPAIGN_DISPATCH_FAILED' });
     }
 };

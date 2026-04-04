@@ -1,7 +1,8 @@
 // Menu Store - Connected to Database API (Production Ready)
 import { create } from 'zustand';
-import { RestaurantMenu, MenuCategory, MenuItem, DeliveryPlatform, Printer } from '../types';
-import { menuApi } from '../services/api';
+import { RestaurantMenu, MenuCategory, MenuItem, DeliveryPlatform, Printer, ItemVersionEntry } from '../types';
+import { menuApi } from '../services/api/menu';
+import { platformsApi } from '../services/api/platforms';
 import { localDb } from '../db/localDb';
 import { syncService } from '../services/syncService';
 
@@ -17,11 +18,13 @@ interface MenuState {
 
     // Async Actions (API)
     fetchMenu: (availableOnly?: boolean) => Promise<void>;
+    fetchPlatforms: () => Promise<void>;
 
     // Category Actions
     addCategory: (menuId: string, category: MenuCategory) => Promise<void>;
     updateCategory: (category: MenuCategory) => Promise<void>;
     deleteCategory: (menuId: string, categoryId: string) => Promise<void>;
+    reorderCategories: (menuId: string, reorderedCategories: MenuCategory[]) => Promise<void>;
 
     // Item Actions
     addMenuItem: (menuId: string, categoryId: string, item: MenuItem) => Promise<void>;
@@ -39,6 +42,18 @@ interface MenuState {
     setCategories: (categories: MenuCategory[]) => void;
     setPriceList: (id: string | null) => void;
     syncToDatabase: () => Promise<void>;
+
+    // Platforms Actions
+    addPlatform: (platform: Omit<DeliveryPlatform, 'id'> | DeliveryPlatform) => Promise<void>;
+    updatePlatform: (platform: DeliveryPlatform) => Promise<void>;
+    deletePlatform: (id: string) => Promise<void>;
+
+    // --- Profit Control Center Extensions ---
+    bulkUpdateItems: (updates: { menuId: string; categoryId: string; itemId: string; changes: Partial<MenuItem> }[]) => void;
+    archiveItem: (menuId: string, categoryId: string, itemId: string) => void;
+    restoreItem: (menuId: string, categoryId: string, itemId: string) => void;
+    duplicateItem: (menuId: string, categoryId: string, itemId: string) => MenuItem | null;
+    addVersionEntry: (categoryId: string, itemId: string, entry: ItemVersionEntry) => void;
 }
 
 import { persist } from 'zustand/middleware';
@@ -53,7 +68,7 @@ export const useMenuStore = create<MenuState>()(
         (set, get) => ({
             menus: INITIAL_MENUS,
             categories: [], // Empty - loads from database
-            platforms: [{ id: 'p1', name: 'Store Direct', isActive: true }],
+            platforms: [], // Loaded from DB
             printers: [],
             isLoading: false,
             error: null,
@@ -99,6 +114,7 @@ export const useMenuStore = create<MenuState>()(
                                 modifierGroups: item.modifierGroups || item.modifier_groups || [],
                                 priceLists: item.priceLists || item.price_lists || [],
                                 printerIds: item.printerIds || item.printer_ids || [],
+                                dietaryBadges: item.dietaryBadges || item.dietary_badges || [],
                             }))
                         }));
 
@@ -128,11 +144,33 @@ export const useMenuStore = create<MenuState>()(
                 }
             },
 
+            fetchPlatforms: async () => {
+                try {
+                    if (navigator.onLine) {
+                        const platforms = await platformsApi.getAll();
+                        set({ platforms });
+                    }
+                } catch (error) {
+                    console.error('Failed to fetch delivery platforms:', error);
+                }
+            },
+
             // ============ Category Actions ============
 
             addCategory: async (menuId, category) => {
                 set({ isLoading: true, error: null });
                 try {
+                    // Validation: Prevent duplicate category names
+                    const isDuplicate = get().categories.some(c =>
+                        c.id !== category.id && (
+                            c.name.trim().toLowerCase() === category.name.trim().toLowerCase() ||
+                            (c.nameAr && category.nameAr && c.nameAr.trim() === category.nameAr.trim())
+                        )
+                    );
+                    if (isDuplicate) {
+                        throw new Error('Category name already exists / اسم القسم موجود مسبقاً');
+                    }
+
                     const payload = {
                         id: category.id,
                         name: category.name,
@@ -166,6 +204,17 @@ export const useMenuStore = create<MenuState>()(
             updateCategory: async (category) => {
                 set({ isLoading: true, error: null });
                 try {
+                    // Validation: Prevent duplicate category names
+                    const isDuplicate = get().categories.some(c =>
+                        c.id !== category.id && (
+                            c.name.trim().toLowerCase() === category.name.trim().toLowerCase() ||
+                            (c.nameAr && category.nameAr && c.nameAr.trim() === category.nameAr.trim())
+                        )
+                    );
+                    if (isDuplicate) {
+                        throw new Error('Category name already exists / اسم القسم موجود مسبقاً');
+                    }
+
                     const payload = {
                         name: category.name,
                         nameAr: category.nameAr,
@@ -211,11 +260,55 @@ export const useMenuStore = create<MenuState>()(
                 }
             },
 
+            reorderCategories: async (menuId, reorderedCategories) => {
+                // Optimistic UI update
+                set((state) => {
+                    const otherCategories = state.categories.filter(c => !c.menuIds.includes(menuId));
+                    return { categories: [...otherCategories, ...reorderedCategories] };
+                });
+
+                try {
+                    const payloads = reorderedCategories.map(c => ({ id: c.id, sortOrder: c.sortOrder }));
+
+                    if (navigator.onLine) {
+                        // Assuming the backend can handle a bulk update. If not, we might need Promise.all
+                        // For now we simulate an API call or use the existing update logic in a loop
+                        await Promise.all(reorderedCategories.map(c =>
+                            menuApi.updateCategory(c.id, { sortOrder: c.sortOrder })
+                        ));
+                    } else {
+                        reorderedCategories.forEach(c => {
+                            syncService.queue('menuCategory', 'UPDATE', { id: c.id, sortOrder: c.sortOrder });
+                        });
+                    }
+
+                    for (const cat of reorderedCategories) {
+                        await localDb.menuCategories.put({ ...cat, updatedAt: Date.now() });
+                    }
+                } catch (error: any) {
+                    console.error('Failed to reorder categories:', error);
+                    set({ error: 'Failed to save new category order.', isLoading: false });
+                    // Ideally, we should rollback state here if it fails
+                }
+            },
+
             // ============ Item Actions ============
 
             addMenuItem: async (menuId, categoryId, item) => {
                 set({ isLoading: true });
                 try {
+                    // Validation: Prevent duplicate item names across all categories
+                    const allItems = get().categories.flatMap(c => c.items);
+                    const isDuplicate = allItems.some(i =>
+                        i.id !== item.id && (
+                            i.name.trim().toLowerCase() === item.name.trim().toLowerCase() ||
+                            (i.nameAr && item.nameAr && i.nameAr.trim() === item.nameAr.trim())
+                        )
+                    );
+                    if (isDuplicate) {
+                        throw new Error('Item name already exists / اسم الصنف موجود مسبقاً');
+                    }
+
                     const payload = {
                         id: item.id,
                         categoryId: categoryId,
@@ -234,6 +327,7 @@ export const useMenuStore = create<MenuState>()(
                         modifierGroups: item.modifierGroups,
                         priceLists: item.priceLists,
                         printerIds: item.printerIds,
+                        dietaryBadges: item.dietaryBadges || [],
                     };
 
                     if (navigator.onLine) {
@@ -267,6 +361,18 @@ export const useMenuStore = create<MenuState>()(
 
             updateMenuItem: async (menuId, categoryId, item) => {
                 try {
+                    // Validation: Prevent duplicate item names
+                    const allItems = get().categories.flatMap(c => c.items);
+                    const isDuplicate = allItems.some(i =>
+                        i.id !== item.id && (
+                            i.name.trim().toLowerCase() === item.name.trim().toLowerCase() ||
+                            (i.nameAr && item.nameAr && i.nameAr.trim() === item.nameAr.trim())
+                        )
+                    );
+                    if (isDuplicate) {
+                        throw new Error('Item name already exists / اسم الصنف موجود مسبقاً');
+                    }
+
                     const payload = {
                         categoryId: categoryId,
                         name: item.name,
@@ -370,13 +476,119 @@ export const useMenuStore = create<MenuState>()(
             syncToDatabase: async () => {
                 await syncService.syncPending();
             },
+
+            // ============ Platforms Actions ============
+
+            addPlatform: async (platform) => {
+                try {
+                    const apiSource = await import('../services/api');
+                    const created = await apiSource.api.platforms.create(platform);
+                    set(state => ({ platforms: [...state.platforms, created] }));
+                } catch (error) {
+                    console.error('Failed to add platform:', error);
+                    throw error;
+                }
+            },
+
+            updatePlatform: async (platform) => {
+                try {
+                    const apiSource = await import('../services/api');
+                    const updated = await apiSource.api.platforms.update(platform.id, platform);
+                    set(state => ({
+                        platforms: state.platforms.map(p => p.id === updated.id ? updated : p)
+                    }));
+                } catch (error) {
+                    console.error('Failed to update platform:', error);
+                    throw error;
+                }
+            },
+
+            deletePlatform: async (id) => {
+                try {
+                    const apiSource = await import('../services/api');
+                    await apiSource.api.platforms.delete(id);
+                    set(state => ({
+                        platforms: state.platforms.filter(p => p.id !== id)
+                    }));
+                } catch (error) {
+                    console.error('Failed to delete platform:', error);
+                    throw error;
+                }
+            },
+
+            // ============ Profit Control Center Extensions ============
+
+            bulkUpdateItems: (updates) => set((state) => {
+                const cats = [...state.categories];
+                for (const u of updates) {
+                    const catIdx = cats.findIndex(c => c.id === u.categoryId);
+                    if (catIdx === -1) continue;
+                    const itemIdx = cats[catIdx].items.findIndex(i => i.id === u.itemId);
+                    if (itemIdx === -1) continue;
+                    cats[catIdx] = {
+                        ...cats[catIdx],
+                        items: cats[catIdx].items.map(i => i.id === u.itemId ? { ...i, ...u.changes } : i)
+                    };
+                }
+                return { categories: cats };
+            }),
+
+            archiveItem: (menuId, categoryId, itemId) => set((state) => ({
+                categories: state.categories.map(c =>
+                    c.id === categoryId
+                        ? { ...c, items: c.items.map(i => i.id === itemId ? { ...i, archivedAt: new Date().toISOString(), isAvailable: false } : i) }
+                        : c
+                )
+            })),
+
+            restoreItem: (menuId, categoryId, itemId) => set((state) => ({
+                categories: state.categories.map(c =>
+                    c.id === categoryId
+                        ? { ...c, items: c.items.map(i => i.id === itemId ? { ...i, archivedAt: undefined, isAvailable: true } : i) }
+                        : c
+                )
+            })),
+
+            duplicateItem: (menuId, categoryId, itemId) => {
+                const state = get();
+                const cat = state.categories.find(c => c.id === categoryId);
+                const item = cat?.items.find(i => i.id === itemId);
+                if (!item) return null;
+                const newItem: MenuItem = {
+                    ...item,
+                    id: `item-${Date.now()}`,
+                    name: `${item.name} (Copy)`,
+                    nameAr: item.nameAr ? `${item.nameAr} (نسخة)` : undefined,
+                    sortOrder: (item.sortOrder || 0) + 1,
+                    versionHistory: [],
+                };
+                set((state) => ({
+                    categories: state.categories.map(c =>
+                        c.id === categoryId ? { ...c, items: [...c.items, newItem] } : c
+                    )
+                }));
+                return newItem;
+            },
+
+            addVersionEntry: (categoryId, itemId, entry) => set((state) => ({
+                categories: state.categories.map(c =>
+                    c.id === categoryId
+                        ? {
+                            ...c,
+                            items: c.items.map(i => i.id === itemId
+                                ? { ...i, versionHistory: [...(i.versionHistory || []), entry].slice(-50) }
+                                : i
+                            )
+                        }
+                        : c
+                )
+            })),
         }),
         {
             name: 'menu-storage',
             // Only persist menus and UI state, NOT categories/items which must come from DB
             partialize: (state) => ({
                 menus: state.menus,
-                platforms: state.platforms,
                 activePriceListId: state.activePriceListId
             }),
         }

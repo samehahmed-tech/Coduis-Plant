@@ -5,8 +5,13 @@ import {
     X, Network, Monitor, Building2,
     AlertCircle, RefreshCcw
 } from 'lucide-react';
-import { Printer, OrderType, PrinterRole } from '../types';
-import { printGatewayApi } from '../services/api';
+import { OrderStatus, OrderType, PaymentMethod, Printer, PrinterRole } from '../types';
+import { printGatewayApi } from '../services/api/printGateway';
+import { printService } from '../src/services/printService';
+import { findDefaultTemplate, findTemplateForPrinter, generateHtmlFromTemplate } from '../services/templateReceiptGenerator';
+import { generateReceiptHTML } from '../services/receiptTemplate';
+import { createImagePrintPayload } from '../services/receiptImageRenderer';
+import { loadPrinterReceiptModes, setPrinterReceiptMode, type PrinterReceiptMode } from '../services/printerReceiptMode';
 
 // Stores
 import { useAuthStore } from '../stores/useAuthStore';
@@ -20,6 +25,9 @@ const PrinterManager: React.FC = () => {
     const [searchQuery, setSearchQuery] = useState('');
     const [isSaving, setIsSaving] = useState(false);
     const [testingId, setTestingId] = useState<string | null>(null);
+    const [testPrintingId, setTestPrintingId] = useState<string | null>(null);
+    const [testPrintResult, setTestPrintResult] = useState<{ id: string; ok: boolean; msg: string } | null>(null);
+    const [printerReceiptModes, setPrinterReceiptModes] = useState<Record<string, PrinterReceiptMode>>(() => loadPrinterReceiptModes());
     const [queueLoading, setQueueLoading] = useState(false);
     const [queueError, setQueueError] = useState<string | null>(null);
     const [queueStats, setQueueStats] = useState<{ queued: number; processing: number; completed: number; failed: number; total: number }>({
@@ -150,9 +158,300 @@ const PrinterManager: React.FC = () => {
         setTestingId(null);
     };
 
+    const handleReceiptModeChange = (printerId: string, mode: PrinterReceiptMode) => {
+        const next = setPrinterReceiptMode(printerId, mode);
+        setPrinterReceiptModes(next);
+    };
+
+    const handleTestPrint = async (printer: Printer) => {
+        setTestPrintingId(printer.id);
+        setTestPrintResult(null);
+        try {
+            const now = new Date().toLocaleString();
+            const testContent = [
+                '\x1B\x40',          // ESC @ — Initialize printer
+                '\x1B\x61\x01',      // Center align
+                '\x1B\x45\x01',      // Bold ON
+                '================================',
+                '       TEST PRINT PAGE',
+                '================================',
+                '\x1B\x45\x00',      // Bold OFF
+                '',
+                `Printer: ${printer.name}`,
+                `Code: ${printer.code || 'N/A'}`,
+                `Role: ${printer.role || 'OTHER'}`,
+                `Type: ${printer.type}`,
+                `Address: ${printer.address}`,
+                '',
+                '--------------------------------',
+                `Date: ${now}`,
+                '--------------------------------',
+                '',
+                '\x1B\x45\x01',      // Bold ON
+                'If you can read this,',
+                'the printer is working!',
+                '\x1B\x45\x00',      // Bold OFF
+                '',
+                '================================',
+                '      Coduis Zen ERP',
+                '================================',
+                '',
+            ].join('\n');
+
+            // Send directly to hardware bridge for immediate feedback
+            const res = await fetch('http://localhost:3002/print', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    type: 'RECEIPT',
+                    content: testContent,
+                    printerAddress: printer.address,
+                    printerType: printer.type,
+                }),
+            });
+            const data = await res.json().catch(() => ({}));
+            const ok = res.ok && data?.ok !== false;
+            const errorDetail = data?.error || '';
+
+            if (ok) {
+                setTestPrintResult({ id: printer.id, ok: true, msg: '✅ Test page printed successfully!' });
+            } else {
+                setTestPrintResult({ id: printer.id, ok: false, msg: `❌ ${errorDetail || `Bridge error ${res.status}`}` });
+            }
+        } catch (err: any) {
+            setTestPrintResult({ id: printer.id, ok: false, msg: err?.message || 'Print error' });
+        } finally {
+            setTestPrintingId(null);
+            setTimeout(() => setTestPrintResult(null), 5000);
+        }
+    };
+
+    const handleReceiptPipelineTestPrint = async (printer: Printer) => {
+        setTestPrintingId(printer.id);
+        setTestPrintResult(null);
+        try {
+            const branch = branches.find((item) => item.id === (printer.branchId || settings.activeBranchId)) || branches[0];
+            const linkedTemplate = findTemplateForPrinter(printer.id) || findDefaultTemplate('receipt');
+            const printerWidth = Number((printer as any).paperWidth || 0);
+            const paperWidth = linkedTemplate?.paperWidth || (printerWidth > 0 && printerWidth <= 58 ? '58mm' : '80mm');
+            const sampleOrder = {
+                id: `test-${printer.id}-${Date.now()}`,
+                orderNumber: 9999,
+                type: OrderType.DINE_IN,
+                branchId: branch?.id || settings.activeBranchId || 'b1',
+                tableId: 'T-7',
+                customerName: lang === 'ar' ? 'عميل تجريبي' : 'Test Customer',
+                customerPhone: '01000000000',
+                deliveryAddress: lang === 'ar' ? 'اختبار الطباعة - بدون رموز' : 'Print test - no symbols expected',
+                items: [
+                    {
+                        id: 'itm-test-1',
+                        cartId: 'cart-test-1',
+                        name: 'Chicken Shawarma',
+                        nameAr: 'شاورما فراخ',
+                        price: 95,
+                        categoryId: 'test',
+                        isAvailable: true,
+                        quantity: 2,
+                        selectedModifiers: [
+                            { groupName: 'Sauce', optionName: lang === 'ar' ? 'ثومية' : 'Garlic', price: 0 },
+                        ],
+                        notes: lang === 'ar' ? 'اختبار عربي English 123' : 'Arabic test: عربي 123',
+                    },
+                    {
+                        id: 'itm-test-2',
+                        cartId: 'cart-test-2',
+                        name: 'Fries',
+                        nameAr: 'بطاطس',
+                        price: 35,
+                        categoryId: 'test',
+                        isAvailable: true,
+                        quantity: 1,
+                        selectedModifiers: [],
+                    },
+                ],
+                status: OrderStatus.PENDING,
+                subtotal: 225,
+                tax: 31.5,
+                total: 256.5,
+                discount: 0,
+                createdAt: new Date(),
+                paymentMethod: PaymentMethod.CASH,
+                notes: lang === 'ar'
+                    ? `اختبار طابعة: ${printer.name} | لو ظهر رموز فراجع bridge أو وضع النص`
+                    : `Printer test: ${printer.name} | If symbols appear, review bridge/text mode`,
+                tipAmount: 0,
+            };
+
+            const htmlReceipt = linkedTemplate
+                ? generateHtmlFromTemplate({
+                    template: linkedTemplate,
+                    order: sampleOrder,
+                    settings,
+                    currencySymbol: settings.currencySymbol || 'EGP',
+                    lang,
+                    t: {},
+                    branch,
+                    title: lang === 'ar' ? 'شيك اختبار الطباعة' : 'Printer Test Receipt',
+                })
+                : generateReceiptHTML({
+                    order: sampleOrder,
+                    settings,
+                    currencySymbol: settings.currencySymbol || 'EGP',
+                    lang,
+                    t: {},
+                    branch,
+                    title: lang === 'ar' ? 'شيك اختبار الطباعة' : 'Printer Test Receipt',
+                });
+
+            const imagePayload = await createImagePrintPayload(htmlReceipt, paperWidth);
+            const ok = await printService.print({
+                type: 'RECEIPT',
+                content: imagePayload.content,
+                contentType: 'image',
+                printerId: printer.id,
+                printerAddress: printer.address,
+                printerType: printer.type,
+                branchId: sampleOrder.branchId,
+            });
+
+            setTestPrintResult({
+                id: printer.id,
+                ok,
+                msg: ok
+                    ? (lang === 'ar'
+                        ? 'تم إرسال شيك اختبار فعلي بنفس مسار الطباعة.'
+                        : 'Real receipt test sent through the live print pipeline.')
+                    : (lang === 'ar'
+                        ? 'فشل إرسال شيك الاختبار. تأكد من الـ bridge والطابعة.'
+                        : 'Failed to send the test receipt. Check the bridge and printer.'),
+            });
+        } catch (err: any) {
+            setTestPrintResult({ id: printer.id, ok: false, msg: err?.message || 'Print error' });
+        } finally {
+            setTestPrintingId(null);
+            setTimeout(() => setTestPrintResult(null), 7000);
+        }
+    };
+
+    const handleReceiptPipelineTestPrintV2 = async (printer: Printer) => {
+        setTestPrintingId(printer.id);
+        setTestPrintResult(null);
+        try {
+            const branch = branches.find((item) => item.id === (printer.branchId || settings.activeBranchId)) || branches[0];
+            const linkedTemplate = findTemplateForPrinter(printer.id) || findDefaultTemplate('receipt');
+            const printerWidth = Number((printer as any).paperWidth || 0);
+            const paperWidth = linkedTemplate?.paperWidth || (printerWidth > 0 && printerWidth <= 58 ? '58mm' : '80mm');
+            const sampleOrder = {
+                id: `test-v2-${printer.id}-${Date.now()}`,
+                orderNumber: 9999,
+                type: OrderType.DINE_IN,
+                branchId: branch?.id || settings.activeBranchId || 'b1',
+                tableId: 'T-7',
+                customerName: lang === 'ar' ? '\u0639\u0645\u064a\u0644 \u062a\u062c\u0631\u064a\u0628\u064a' : 'Test Customer',
+                customerPhone: '01000000000',
+                deliveryAddress: lang === 'ar' ? '\u0627\u062e\u062a\u0628\u0627\u0631 \u0637\u0628\u0627\u0639\u0629 \u0639\u0631\u0628\u064a \u0648\u0627\u0636\u062d' : 'Print test - no symbols expected',
+                items: [
+                    {
+                        id: 'itm-test-v2-1',
+                        cartId: 'cart-test-v2-1',
+                        name: 'Chicken Shawarma',
+                        nameAr: '\u0634\u0627\u0648\u0631\u0645\u0627 \u0641\u0631\u0627\u062e',
+                        price: 95,
+                        categoryId: 'test',
+                        isAvailable: true,
+                        quantity: 2,
+                        selectedModifiers: [
+                            { groupName: 'Sauce', optionName: lang === 'ar' ? '\u062b\u0648\u0645\u064a\u0629' : 'Garlic', price: 0 },
+                        ],
+                        notes: lang === 'ar' ? '\u0628\u062f\u0648\u0646 \u0628\u0635\u0644 - \u0627\u062e\u062a\u0628\u0627\u0631 \u0639\u0631\u0628\u064a' : 'No onions - English test',
+                    },
+                    {
+                        id: 'itm-test-v2-2',
+                        cartId: 'cart-test-v2-2',
+                        name: 'Fries',
+                        nameAr: '\u0628\u0637\u0627\u0637\u0633',
+                        price: 35,
+                        categoryId: 'test',
+                        isAvailable: true,
+                        quantity: 1,
+                        selectedModifiers: [],
+                    },
+                ],
+                status: OrderStatus.PENDING,
+                subtotal: 225,
+                tax: 31.5,
+                total: 256.5,
+                discount: 0,
+                createdAt: new Date(),
+                paymentMethod: PaymentMethod.CASH,
+                notes: lang === 'ar'
+                    ? `\u0627\u062e\u062a\u0628\u0627\u0631 \u0637\u0627\u0628\u0639\u0629: ${printer.name} | \u0627\u0644\u0639\u0631\u0628\u064a \u064a\u062c\u0628 \u0623\u0646 \u064a\u0638\u0647\u0631 \u0628\u0648\u0636\u0648\u062d`
+                    : `Printer test: ${printer.name} | Arabic should render clearly`,
+                tipAmount: 0,
+            };
+
+            const htmlReceipt = linkedTemplate
+                ? generateHtmlFromTemplate({
+                    template: linkedTemplate,
+                    order: sampleOrder,
+                    settings,
+                    currencySymbol: settings.currencySymbol || 'EGP',
+                    lang,
+                    t: {},
+                    branch,
+                    title: lang === 'ar' ? '\u0634\u064a\u0643 \u0627\u062e\u062a\u0628\u0627\u0631 \u0627\u0644\u0637\u0628\u0627\u0639\u0629' : 'Printer Test Receipt',
+                })
+                : generateReceiptHTML({
+                    order: sampleOrder,
+                    settings,
+                    currencySymbol: settings.currencySymbol || 'EGP',
+                    lang,
+                    t: {},
+                    branch,
+                    title: lang === 'ar' ? '\u0634\u064a\u0643 \u0627\u062e\u062a\u0628\u0627\u0631 \u0627\u0644\u0637\u0628\u0627\u0639\u0629' : 'Printer Test Receipt',
+                });
+
+            const imagePayload = await createImagePrintPayload(htmlReceipt, paperWidth);
+            const ok = await printService.print({
+                type: 'RECEIPT',
+                content: imagePayload.content,
+                contentType: 'image',
+                printerId: printer.id,
+                printerAddress: printer.address,
+                printerType: printer.type,
+                branchId: sampleOrder.branchId,
+            });
+
+            setTestPrintResult({
+                id: printer.id,
+                ok,
+                msg: ok
+                    ? (lang === 'ar'
+                        ? '\u062a\u0645 \u0625\u0631\u0633\u0627\u0644 \u0634\u064a\u0643 \u0627\u062e\u062a\u0628\u0627\u0631 \u0641\u0639\u0644\u064a \u0628\u0646\u0641\u0633 \u0645\u0633\u0627\u0631 \u0627\u0644\u0637\u0628\u0627\u0639\u0629.'
+                        : 'Real receipt test sent through the live print pipeline.')
+                    : (lang === 'ar'
+                        ? '\u0641\u0634\u0644 \u0625\u0631\u0633\u0627\u0644 \u0634\u064a\u0643 \u0627\u0644\u0627\u062e\u062a\u0628\u0627\u0631. \u062a\u0623\u0643\u062f \u0645\u0646 \u0627\u0644\u0640 bridge \u0648\u0627\u0644\u0637\u0627\u0628\u0639\u0629.'
+                        : 'Failed to send the test receipt. Check the bridge and printer.'),
+            });
+        } catch (err: any) {
+            setTestPrintResult({ id: printer.id, ok: false, msg: err?.message || 'Print error' });
+        } finally {
+            setTestPrintingId(null);
+            setTimeout(() => setTestPrintResult(null), 7000);
+        }
+    };
+
     const handleRetryJob = async (jobId: string) => {
         await printGatewayApi.retryJob(jobId);
         await loadQueue();
+    };
+
+    const handleCancelJob = async (jobId: string) => {
+        try {
+            await printGatewayApi.cancelJob(jobId);
+            await loadQueue();
+        } catch { /* ignore — queue will refresh anyway */ }
     };
 
     return (
@@ -273,13 +572,21 @@ const PrinterManager: React.FC = () => {
                         <h3 className="text-lg font-black text-slate-800 dark:text-white uppercase tracking-widest">Print Queue Monitor</h3>
                         <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mt-1">Live branch queue and failures</p>
                     </div>
-                    <button
-                        onClick={loadQueue}
-                        className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-slate-100 dark:bg-slate-800 text-[10px] font-black uppercase tracking-widest"
-                    >
-                        <RefreshCcw size={12} className={queueLoading ? 'animate-spin' : ''} />
-                        Refresh
-                    </button>
+                    <div className="flex gap-2">
+                        <button
+                            onClick={async () => { await printGatewayApi.purgeJobs(); for (const j of queueJobs) { try { await printGatewayApi.cancelJob(j.id); } catch { } } await loadQueue(); }}
+                            className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-red-100 dark:bg-red-900/20 text-red-600 text-[10px] font-black uppercase tracking-widest hover:bg-red-200 dark:hover:bg-red-900/40 transition-all"
+                        >
+                            🗑 {lang === 'ar' ? 'مسح الكل' : 'Clear All'}
+                        </button>
+                        <button
+                            onClick={loadQueue}
+                            className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-slate-100 dark:bg-slate-800 text-[10px] font-black uppercase tracking-widest"
+                        >
+                            <RefreshCcw size={12} className={queueLoading ? 'animate-spin' : ''} />
+                            Refresh
+                        </button>
+                    </div>
                 </div>
 
                 <div className="grid grid-cols-2 md:grid-cols-5 gap-3 mb-5">
@@ -296,23 +603,50 @@ const PrinterManager: React.FC = () => {
                     {queueJobs.length === 0 && !queueLoading && (
                         <div className="text-[11px] font-bold text-slate-500">No recent print jobs.</div>
                     )}
-                    {queueJobs.map((job) => (
-                        <div key={job.id} className="rounded-xl border border-slate-200 dark:border-slate-800 p-3 flex items-center justify-between gap-3">
-                            <div className="min-w-0">
-                                <p className="text-[11px] font-black text-slate-800 dark:text-white truncate">{job.id}</p>
-                                <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">{job.type} | {job.status} | attempts {job.attempts}/{job.max_attempts}</p>
-                                {job.last_error && <p className="text-[10px] font-bold text-rose-500 truncate">{job.last_error}</p>}
+                    {queueJobs.map((job) => {
+                        const status = String(job.status || '').toUpperCase();
+                        const isQueued = status === 'QUEUED';
+                        const isFailed = status === 'FAILED';
+                        const isProcessing = status === 'PROCESSING';
+                        return (
+                            <div key={job.id} className="rounded-xl border border-slate-200 dark:border-slate-800 p-3 flex items-center justify-between gap-3">
+                                <div className="min-w-0">
+                                    <p className="text-[11px] font-black text-slate-800 dark:text-white truncate">{job.id}</p>
+                                    <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">{job.type} | {job.status} | attempts {job.attempts}/{job.max_attempts}</p>
+                                    {job.last_error && <p className="text-[10px] font-bold text-rose-500 truncate">{job.last_error}</p>}
+                                </div>
+                                <div className="flex gap-2 shrink-0">
+                                    {isFailed && (
+                                        <button
+                                            onClick={() => handleRetryJob(job.id)}
+                                            className="px-3 py-2 rounded-xl bg-rose-600 text-white text-[10px] font-black uppercase tracking-widest hover:bg-rose-700 transition-all"
+                                            title="Retry"
+                                        >
+                                            Retry
+                                        </button>
+                                    )}
+                                    {(isQueued || isFailed) && (
+                                        <button
+                                            onClick={() => handleCancelJob(job.id)}
+                                            className="px-3 py-2 rounded-xl bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300 text-[10px] font-black uppercase tracking-widest hover:bg-red-100 hover:text-red-600 dark:hover:bg-red-900/30 dark:hover:text-red-400 transition-all"
+                                            title={lang === 'ar' ? 'حذف' : 'Cancel'}
+                                        >
+                                            🗑 {lang === 'ar' ? 'حذف' : 'Cancel'}
+                                        </button>
+                                    )}
+                                    {isProcessing && (
+                                        <button
+                                            onClick={() => handleCancelJob(job.id)}
+                                            className="px-3 py-2 rounded-xl bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 text-[10px] font-black uppercase tracking-widest hover:bg-amber-200 dark:hover:bg-amber-800/40 transition-all"
+                                            title={lang === 'ar' ? 'إيقاف' : 'Stop'}
+                                        >
+                                            ⏹ {lang === 'ar' ? 'إيقاف' : 'Stop'}
+                                        </button>
+                                    )}
+                                </div>
                             </div>
-                            {String(job.status || '').toUpperCase() === 'FAILED' && (
-                                <button
-                                    onClick={() => handleRetryJob(job.id)}
-                                    className="px-3 py-2 rounded-xl bg-rose-600 text-white text-[10px] font-black uppercase tracking-widest"
-                                >
-                                    Retry
-                                </button>
-                            )}
-                        </div>
-                    ))}
+                        );
+                    })}
                 </div>
             </div>
 
@@ -320,6 +654,7 @@ const PrinterManager: React.FC = () => {
             <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-10">
                 {filteredPrinters.map(printer => {
                     const branch = branches.find(b => b.id === printer.branchId);
+                    const receiptMode = printerReceiptModes[printer.id] || 'RASTER_IMAGE';
                     return (
                         <div key={printer.id} className="group card-primary rounded-[3rem] border border-slate-200 dark:border-slate-800 p-8 shadow-sm hover:shadow-2xl transition-all relative overflow-hidden flex flex-col border-b-[8px] border-b-indigo-600/5 hover:border-b-indigo-600 duration-500">
                             <div className="flex justify-between items-start mb-8">
@@ -350,20 +685,62 @@ const PrinterManager: React.FC = () => {
                                     </div>
                                     <div className={`w-3 h-3 rounded-full shadow-[0_0_12px] ${printer.isActive ? 'bg-emerald-500 shadow-emerald-500/50 animate-pulse' : 'bg-slate-300 shadow-transparent'}`} />
                                 </div>
+
+                                <div className="rounded-3xl border border-slate-100 dark:border-slate-800 p-4 bg-slate-50 dark:bg-slate-800/40">
+                                    <p className="text-[9px] font-black text-slate-400 uppercase mb-2 tracking-widest">Receipt Mode</p>
+                                    <div className="grid grid-cols-2 gap-2">
+                                        <button
+                                            onClick={() => handleReceiptModeChange(printer.id, 'RASTER_IMAGE')}
+                                            className={`py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all ${receiptMode === 'RASTER_IMAGE' ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-600/20' : 'bg-white dark:bg-slate-900 text-slate-500 border border-slate-200 dark:border-slate-700'}`}
+                                        >
+                                            Raster
+                                        </button>
+                                        <button
+                                            onClick={() => handleReceiptModeChange(printer.id, 'TEXT_RAW')}
+                                            className={`py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all ${receiptMode === 'TEXT_RAW' ? 'bg-amber-500 text-white shadow-lg shadow-amber-500/20' : 'bg-white dark:bg-slate-900 text-slate-500 border border-slate-200 dark:border-slate-700'}`}
+                                        >
+                                            Raw Text
+                                        </button>
+                                    </div>
+                                    <p className="mt-2 text-[10px] font-bold text-slate-400">
+                                        {receiptMode === 'RASTER_IMAGE'
+                                            ? 'Uses full receipt image when the printer supports it.'
+                                            : 'Uses the same template blocks but sends them as raw text without images.'}
+                                    </p>
+                                </div>
                             </div>
 
-                            <div className="mt-10 flex gap-4">
+                            <div className="mt-10 flex gap-3">
                                 <button
                                     onClick={() => handlePacketTest(printer.id)}
                                     disabled={testingId === printer.id}
-                                    className="flex-[2] py-4 bg-slate-900 dark:bg-slate-700 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-black transition-all shadow-lg active:scale-95 disabled:opacity-60 disabled:cursor-not-allowed"
+                                    className="flex-1 py-4 bg-slate-900 dark:bg-slate-700 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-black transition-all shadow-lg active:scale-95 disabled:opacity-60 disabled:cursor-not-allowed"
                                 >
-                                    {testingId === printer.id ? 'Testing...' : 'Test Connection'}
+                                    {testingId === printer.id ? 'Pinging...' : 'Ping'}
+                                </button>
+                                <button
+                                    onClick={() => handleTestPrint(printer)}
+                                    disabled={testPrintingId === printer.id || !printer.address}
+                                    className="flex-[1.4] py-4 bg-amber-500 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-amber-600 transition-all shadow-lg shadow-amber-500/20 active:scale-95 disabled:opacity-60 disabled:cursor-not-allowed"
+                                >
+                                    {testPrintingId === printer.id ? 'Testing...' : 'Raw ESC/POS Text'}
+                                </button>
+                                <button
+                                    onClick={() => handleReceiptPipelineTestPrintV2(printer)}
+                                    disabled={testPrintingId === printer.id || !printer.address}
+                                    className="flex-[1.6] py-4 bg-indigo-600 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-600/20 active:scale-95 disabled:opacity-60 disabled:cursor-not-allowed"
+                                >
+                                    {testPrintingId === printer.id ? 'Testing...' : 'Raster Image Test'}
                                 </button>
                                 <div className={`flex-1 py-4 rounded-2xl flex items-center justify-center font-black text-[10px] uppercase tracking-widest border ${printer.isActive ? 'bg-emerald-50 dark:bg-emerald-900/10 text-emerald-600 border-emerald-100' : 'bg-rose-50 dark:bg-rose-900/10 text-rose-600 border-rose-100'}`}>
                                     {(printer.isOnline ?? printer.isActive) ? 'Online' : 'Offline'}
                                 </div>
                             </div>
+                            {testPrintResult && testPrintResult.id === printer.id && (
+                                <div className={`mt-3 px-4 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest text-center animate-in fade-in duration-300 ${testPrintResult.ok ? 'bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 border border-emerald-200 dark:border-emerald-800' : 'bg-rose-50 dark:bg-rose-900/20 text-rose-600 border border-rose-200 dark:border-rose-800'}`}>
+                                    {testPrintResult.ok ? '✅' : '❌'} {testPrintResult.msg}
+                                </div>
+                            )}
                             <div className="mt-3 flex items-center justify-between text-[10px] font-bold">
                                 <span className={`${printer.isPrimaryCashier ? 'text-indigo-600' : 'text-slate-400'}`}>
                                     {printer.isPrimaryCashier ? 'Primary Cashier Printer' : 'Secondary Printer'}

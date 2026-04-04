@@ -40,7 +40,7 @@ const orderItemSchema = z.object({
     menu_item_id: z.string().min(1),
     name: z.string().optional(),
     price: z.number().min(0).optional(),
-    quantity: z.number().int().min(1).max(999),
+    quantity: z.number().int().min(1).max(9999),
     notes: z.string().max(500).optional().nullable(),
     modifiers: z.array(z.object({
         groupName: z.string(),
@@ -76,7 +76,7 @@ export const createOrderSchema = z.object({
     delivery_notes: z.string().max(1000).optional().nullable(),
     status: z.string().optional(),
     subtotal: z.number().min(0).optional(),
-    discount: z.number().min(0).max(100).optional().nullable(),
+    discount: z.number().min(0).max(999999).optional().nullable(),
     tax: z.number().min(0).optional(),
     total: z.number().min(0).optional(),
     freeDelivery: z.boolean().optional().nullable(),
@@ -97,7 +97,7 @@ export const createOrderSchema = z.object({
 });
 
 export const updateOrderStatusSchema = z.object({
-    status: z.enum(['PENDING', 'PREPARING', 'READY', 'OUT_FOR_DELIVERY', 'DELIVERED', 'CANCELLED']),
+    status: z.enum(['PENDING', 'PREPARING', 'READY', 'OUT_FOR_DELIVERY', 'DELIVERED', 'COMPLETED', 'CANCELLED']),
     changed_by: z.string().optional(),
     notes: z.string().max(1000).optional(),
     expected_updated_at: z.string().optional(),

@@ -128,6 +128,46 @@ export interface ModifierGroup {
   options: ModifierOption[];
 }
 
+// --- Menu Item Extensions (Profit Control Center) ---
+
+export interface ItemSize {
+  id: string;
+  name: string;       // e.g., 'Small', 'Medium', 'Large', 'Family'
+  nameAr?: string;
+  price: number;
+  cost?: number;
+  isAvailable: boolean;
+}
+
+export interface PlatformPrice {
+  platformId: string;  // e.g., 'talabat', 'elmenus'
+  price: number;
+  commission?: number; // e.g., 0.15 = 15%
+}
+
+export interface ItemVersionEntry {
+  timestamp: string;
+  userId: string;
+  userName: string;
+  field: string;
+  oldValue: any;
+  newValue: any;
+}
+
+export interface ScheduledWindow {
+  label: string;        // e.g., 'Breakfast', 'Happy Hour'
+  startTime: string;    // '08:00'
+  endTime: string;      // '12:00'
+  days: string[];       // ['mon','tue',...]
+  priceOverride?: number;
+}
+
+export interface BundleItem {
+  itemId: string;
+  sizeId?: string;
+  qty: number;
+}
+
 export interface MenuItem {
   id: string;
   name: string;
@@ -158,6 +198,25 @@ export interface MenuItem {
     price: number;
     branchIds?: string[]; // Specific price for specific branches
   }[];
+  // --- Profit Control Center Extensions ---
+  sku?: string;
+  barcode?: string;
+  cost?: number;                      // Food cost for margin calculation
+  sizes?: ItemSize[];                 // Multi-size support (S/M/L/Family)
+  platformPricing?: PlatformPrice[];  // Per-delivery-platform price overrides
+  tags?: string[];                    // 'best-seller','low-margin','new', etc.
+  salesData?: {
+    today: number;
+    last30: number;
+    revenue30: number;
+  };
+  versionHistory?: ItemVersionEntry[];
+  archivedAt?: string;                // ISO date, set when soft-archived
+  scheduledAvailability?: ScheduledWindow[];
+  // Multi-Branch Enterprise Extensions
+  branchPricing?: { branchId: string; price: number; isLocked?: boolean }[];
+  branchSalesData?: { branchId: string; today: number; last30: number; revenue30: number }[];
+  dietaryBadges?: string[]; // Phase 1: Dietary Badges (e.g. 'Spicy', 'Vegan', etc.)
 }
 
 export enum WarehouseType {
@@ -235,6 +294,9 @@ export interface OrderItem extends MenuItem {
     optionName: string;
     price: number
   }[];
+  // Per-item discount
+  itemDiscount?: number; // discount value
+  itemDiscountType?: 'percent' | 'flat'; // percentage or fixed amount
 }
 
 export interface Order {
@@ -242,6 +304,7 @@ export interface Order {
   orderNumber?: number;
   type: OrderType;
   branchId: string; // The branch handling this order
+  shiftId?: string; // The active shift when the order was created
   tableId?: string;
   customerId?: string;
   customerName?: string; // Call Center - customer name for display
@@ -265,7 +328,9 @@ export interface Order {
   kitchenNotes?: string; // Notes for kitchen staff
   deliveryNotes?: string;
   driverId?: string; // Link to the assigned driver
+  deliveryFee?: number;
   updatedAt?: Date;
+  voidedItems?: { item: OrderItem; reason: string; voidedBy?: string; voidedAt?: Date }[];
 }
 
 export interface Supplier {
@@ -366,6 +431,8 @@ export interface DeliveryPlatform {
   name: string;
   icon?: string;
   isActive: boolean;
+  feePercentage?: number;
+  integrationType?: string;
 }
 
 export interface Table {
@@ -438,10 +505,29 @@ export enum AuditEventType {
 export interface Offer {
   id: string;
   title: string;
+  titleAr?: string;
   description: string;
-  discountType: 'PERCENTAGE' | 'FIXED';
+  descriptionAr?: string;
+  discountType: 'PERCENTAGE' | 'FIXED' | 'BUNDLE' | 'BOGO';
   discountValue: number;
   isActive: boolean;
+  image?: string;
+  // Bundle / Combo support
+  bundleItems?: BundleItem[];
+  bundlePrice?: number;
+  profitThreshold?: number; // Min margin % before auto-deactivation
+  // Scheduling
+  schedule?: {
+    startDate: string;
+    endDate: string;
+    startTime?: string;
+    endTime?: string;
+    days?: string[];
+  };
+  // Platform targeting
+  platformIds?: string[];
+  branchIds?: string[];
+  campaignTag?: string; // 'ramadan', 'summer', 'eid', 'limited'
 }
 
 export enum AppPermission {
@@ -489,15 +575,47 @@ export enum AppPermission {
   CFG_EDIT_MENU_PRICING = 'CFG_EDIT_MENU_PRICING',
   CFG_EDIT_FLOOR_PLAN = 'CFG_EDIT_FLOOR_PLAN',
   CFG_MANAGE_BRANCHES = 'CFG_MANAGE_BRANCHES',
-  CFG_OFFLINE_MODE = 'CFG_OFFLINE_MODE'
+  CFG_OFFLINE_MODE = 'CFG_OFFLINE_MODE',
+
+  // --- Extended Permissions (Phase 1) ---
+  NAV_TREASURY = 'NAV_TREASURY',
+  NAV_PAYROLL = 'NAV_PAYROLL',
+  NAV_QUALITY = 'NAV_QUALITY',
+  NAV_ATTENDANCE = 'NAV_ATTENDANCE',
+  NAV_WASTAGE = 'NAV_WASTAGE',
+  NAV_DISPATCH = 'NAV_DISPATCH',
+  NAV_FRANCHISE = 'NAV_FRANCHISE',
+  NAV_APPROVAL = 'NAV_APPROVAL',
+  OP_APPROVE_PO = 'OP_APPROVE_PO',
+  OP_PROCESS_PAYROLL = 'OP_PROCESS_PAYROLL',
+  OP_MANAGE_CASH_DRAWER = 'OP_MANAGE_CASH_DRAWER',
+  DATA_VIEW_SALARIES = 'DATA_VIEW_SALARIES',
+  NAV_USER_MANAGEMENT = 'NAV_USER_MANAGEMENT'
 }
 
 export enum UserRole {
   SUPER_ADMIN = 'SUPER_ADMIN',
+  OWNER = 'OWNER',
   BRANCH_MANAGER = 'BRANCH_MANAGER',
   CASHIER = 'CASHIER',
+  WAITER = 'WAITER',
+  CAPTAIN = 'CAPTAIN',
   KITCHEN_STAFF = 'KITCHEN_STAFF',
   CALL_CENTER = 'CALL_CENTER',
+  CALL_CENTER_MANAGER = 'CALL_CENTER_MANAGER',
+  CASHIER_MANAGER = 'CASHIER_MANAGER',
+  WAREHOUSE_STAFF = 'WAREHOUSE_STAFF',
+  WAREHOUSE_DIRECTOR = 'WAREHOUSE_DIRECTOR',
+  PRODUCTION_STAFF = 'PRODUCTION_STAFF',
+  PROCUREMENT_MANAGER = 'PROCUREMENT_MANAGER',
+  ACCOUNTANT = 'ACCOUNTANT',
+  COST_ACCOUNTANT = 'COST_ACCOUNTANT',
+  FINANCE_DIRECTOR = 'FINANCE_DIRECTOR',
+  HR_MANAGER = 'HR_MANAGER',
+  PAYROLL_OFFICER = 'PAYROLL_OFFICER',
+  TREASURY_OFFICER = 'TREASURY_OFFICER',
+  TECH_SUPPORT = 'TECH_SUPPORT',
+  QUALITY_OFFICER = 'QUALITY_OFFICER',
   CUSTOM = 'CUSTOM'
 }
 
@@ -505,16 +623,55 @@ export interface User {
   id: string;
   name: string;
   email: string;
-  role: UserRole;
-  password?: string; // For simulation
+  role: UserRole | string;
+  password?: string;
+  pin?: string;
   assignedBranchId?: string;
+  assignedBranchIds?: string[];
   isActive: boolean;
   mfaEnabled?: boolean;
-  permissions: AppPermission[]; // Final effective permissions
+  permissions: AppPermission[];
   customOverrides?: {
     added: AppPermission[];
     removed: AppPermission[];
   };
+  phone?: string;
+  nationalId?: string;
+  employmentDate?: string;
+  salary?: SalaryInfo;
+  avatar?: string;
+  defaultPage?: string;
+}
+
+export interface SalaryInfo {
+  baseSalary: number;
+  allowances: number;
+  deductions: number;
+  payFrequency: 'monthly' | 'bi-weekly' | 'weekly';
+  currency?: string;
+}
+
+export interface CustomRole {
+  id: string;
+  name: string;
+  nameAr?: string;
+  permissions: AppPermission[];
+}
+
+export type AttendanceStatus = 'present' | 'late' | 'absent' | 'leave' | 'day-off';
+export type AttendanceMethod = 'fingerprint' | 'pin' | 'manual' | 'face-id';
+
+export interface AttendanceRecord {
+  id: string;
+  userId: string;
+  userName?: string;
+  date: string;
+  checkIn?: string;
+  checkOut?: string;
+  status: AttendanceStatus;
+  method: AttendanceMethod;
+  branchId?: string;
+  notes?: string;
 }
 
 export interface UserRoleDefinition {
@@ -525,56 +682,179 @@ export interface UserRoleDefinition {
 
 export const INITIAL_ROLE_PERMISSIONS: Record<UserRole, AppPermission[]> = {
   [UserRole.SUPER_ADMIN]: Object.values(AppPermission),
+
+  [UserRole.OWNER]: [
+    AppPermission.NAV_DASHBOARD, AppPermission.NAV_ADMIN_DASHBOARD,
+    AppPermission.NAV_POS, AppPermission.NAV_KDS,
+    AppPermission.NAV_INVENTORY, AppPermission.NAV_FINANCE,
+    AppPermission.NAV_REPORTS, AppPermission.NAV_CRM,
+    AppPermission.NAV_MENU_MANAGER, AppPermission.NAV_RECIPES,
+    AppPermission.NAV_FRANCHISE, AppPermission.NAV_PEOPLE,
+    AppPermission.NAV_AI_ASSISTANT, AppPermission.NAV_FORENSICS,
+    AppPermission.NAV_SETTINGS, AppPermission.NAV_SECURITY,
+    AppPermission.NAV_APPROVAL, AppPermission.NAV_TREASURY,
+    AppPermission.DATA_VIEW_REVENUE, AppPermission.DATA_VIEW_COSTS,
+    AppPermission.DATA_VIEW_PROFITS, AppPermission.DATA_VIEW_AUDIT_LOGS,
+    AppPermission.DATA_VIEW_SALARIES,
+    AppPermission.CFG_MANAGE_BRANCHES, AppPermission.CFG_MANAGE_USERS,
+    AppPermission.NAV_USER_MANAGEMENT,
+    AppPermission.OP_CLOSE_DAY,
+  ],
+
   [UserRole.BRANCH_MANAGER]: [
-    AppPermission.NAV_DASHBOARD,
-    AppPermission.NAV_POS,
-    AppPermission.NAV_KDS,
-    AppPermission.NAV_INVENTORY,
-    AppPermission.NAV_REPORTS,
-    AppPermission.NAV_MENU_MANAGER,
-    AppPermission.DATA_VIEW_REVENUE,
-    AppPermission.DATA_VIEW_COSTS,
+    AppPermission.NAV_DASHBOARD, AppPermission.NAV_POS,
+    AppPermission.NAV_KDS, AppPermission.NAV_INVENTORY,
+    AppPermission.NAV_REPORTS, AppPermission.NAV_MENU_MANAGER,
+    AppPermission.NAV_CRM, AppPermission.NAV_FINANCE,
+    AppPermission.NAV_PEOPLE, AppPermission.NAV_PRODUCTION,
+    AppPermission.NAV_WASTAGE, AppPermission.NAV_FLOOR_PLAN,
+    AppPermission.NAV_AI_ASSISTANT,
+    AppPermission.DATA_VIEW_REVENUE, AppPermission.DATA_VIEW_COSTS,
     AppPermission.DATA_VIEW_STOCK_LEVELS,
-    AppPermission.OP_PLACE_ORDER,
-    AppPermission.OP_APPLY_DISCOUNT,
-    AppPermission.OP_TRANSFER_STOCK,
-    AppPermission.OP_ADJUST_STOCK,
-    AppPermission.NAV_AI_ASSISTANT
+    AppPermission.OP_PLACE_ORDER, AppPermission.OP_APPLY_DISCOUNT,
+    AppPermission.OP_TRANSFER_STOCK, AppPermission.OP_ADJUST_STOCK,
+    AppPermission.OP_VOID_ORDER, AppPermission.OP_CLOSE_DAY,
   ],
+
   [UserRole.CASHIER]: [
-    AppPermission.NAV_POS,
-    AppPermission.OP_PLACE_ORDER
+    AppPermission.NAV_POS, AppPermission.NAV_DASHBOARD,
+    AppPermission.OP_PLACE_ORDER, AppPermission.OP_MANAGE_CASH_DRAWER,
+    AppPermission.OP_CLOSE_DAY,
   ],
+
+  [UserRole.WAITER]: [
+    AppPermission.NAV_POS, AppPermission.NAV_KDS,
+    AppPermission.NAV_FLOOR_PLAN,
+    AppPermission.OP_PLACE_ORDER,
+  ],
+
+  [UserRole.CAPTAIN]: [
+    AppPermission.NAV_POS, AppPermission.NAV_KDS,
+    AppPermission.NAV_FLOOR_PLAN,
+    AppPermission.OP_PLACE_ORDER, AppPermission.OP_VOID_ORDER,
+  ],
+
   [UserRole.KITCHEN_STAFF]: [
-    AppPermission.NAV_KDS
+    AppPermission.NAV_KDS,
   ],
+
   [UserRole.CALL_CENTER]: [
-    AppPermission.NAV_CALL_CENTER,
-    AppPermission.NAV_CRM,
+    AppPermission.NAV_CALL_CENTER, AppPermission.NAV_CRM,
+    AppPermission.NAV_DISPATCH,
     AppPermission.OP_PLACE_ORDER,
     AppPermission.DATA_VIEW_CUSTOMER_SENSITIVE,
-    AppPermission.NAV_AI_ASSISTANT
+    AppPermission.NAV_AI_ASSISTANT,
   ],
-  [UserRole.CUSTOM]: []
+
+  [UserRole.CALL_CENTER_MANAGER]: [
+    AppPermission.NAV_CALL_CENTER, AppPermission.NAV_CRM,
+    AppPermission.NAV_DISPATCH, AppPermission.NAV_REPORTS,
+    AppPermission.OP_PLACE_ORDER, AppPermission.OP_VOID_ORDER,
+    AppPermission.DATA_VIEW_CUSTOMER_SENSITIVE,
+    AppPermission.NAV_AI_ASSISTANT, AppPermission.DATA_VIEW_REVENUE,
+  ],
+
+  [UserRole.CASHIER_MANAGER]: [
+    AppPermission.NAV_POS, AppPermission.NAV_DASHBOARD,
+    AppPermission.OP_PLACE_ORDER, AppPermission.OP_MANAGE_CASH_DRAWER,
+    AppPermission.OP_CLOSE_DAY, AppPermission.OP_PROCESS_REFUND,
+    AppPermission.OP_VOID_ORDER, AppPermission.NAV_REPORTS,
+    AppPermission.DATA_VIEW_REVENUE,
+  ],
+
+  [UserRole.WAREHOUSE_STAFF]: [
+    AppPermission.NAV_INVENTORY,
+    AppPermission.DATA_VIEW_STOCK_LEVELS,
+    AppPermission.OP_TRANSFER_STOCK, AppPermission.OP_ADJUST_STOCK,
+  ],
+
+  [UserRole.WAREHOUSE_DIRECTOR]: [
+    AppPermission.NAV_INVENTORY, AppPermission.NAV_PRODUCTION,
+    AppPermission.NAV_WASTAGE, AppPermission.NAV_REPORTS,
+    AppPermission.NAV_APPROVAL,
+    AppPermission.DATA_VIEW_STOCK_LEVELS, AppPermission.DATA_VIEW_COSTS,
+    AppPermission.OP_TRANSFER_STOCK, AppPermission.OP_ADJUST_STOCK,
+    AppPermission.OP_APPROVE_PO,
+  ],
+
+  [UserRole.PRODUCTION_STAFF]: [
+    AppPermission.NAV_PRODUCTION, AppPermission.NAV_RECIPES,
+    AppPermission.DATA_VIEW_STOCK_LEVELS,
+  ],
+
+  [UserRole.PROCUREMENT_MANAGER]: [
+    AppPermission.NAV_INVENTORY, AppPermission.NAV_REPORTS,
+    AppPermission.NAV_APPROVAL,
+    AppPermission.DATA_VIEW_COSTS, AppPermission.DATA_VIEW_STOCK_LEVELS,
+    AppPermission.OP_APPROVE_PO,
+  ],
+
+  [UserRole.ACCOUNTANT]: [
+    AppPermission.NAV_FINANCE, AppPermission.NAV_REPORTS,
+    AppPermission.DATA_VIEW_REVENUE, AppPermission.DATA_VIEW_COSTS,
+    AppPermission.DATA_VIEW_PROFITS,
+  ],
+
+  [UserRole.COST_ACCOUNTANT]: [
+    AppPermission.NAV_RECIPES, AppPermission.NAV_MENU_MANAGER,
+    AppPermission.NAV_INVENTORY, AppPermission.NAV_REPORTS,
+    AppPermission.NAV_WASTAGE,
+    AppPermission.DATA_VIEW_COSTS, AppPermission.DATA_VIEW_STOCK_LEVELS,
+  ],
+
+  [UserRole.FINANCE_DIRECTOR]: [
+    AppPermission.NAV_FINANCE, AppPermission.NAV_REPORTS,
+    AppPermission.NAV_FORENSICS, AppPermission.NAV_APPROVAL,
+    AppPermission.NAV_TREASURY, AppPermission.NAV_DASHBOARD,
+    AppPermission.DATA_VIEW_REVENUE, AppPermission.DATA_VIEW_COSTS,
+    AppPermission.DATA_VIEW_PROFITS, AppPermission.DATA_VIEW_AUDIT_LOGS,
+    AppPermission.OP_CLOSE_DAY,
+  ],
+
+  [UserRole.HR_MANAGER]: [
+    AppPermission.NAV_PEOPLE, AppPermission.NAV_REPORTS,
+    AppPermission.NAV_ATTENDANCE, AppPermission.NAV_PAYROLL,
+    AppPermission.CFG_MANAGE_USERS, AppPermission.NAV_USER_MANAGEMENT,
+    AppPermission.DATA_VIEW_SALARIES,
+  ],
+
+  [UserRole.PAYROLL_OFFICER]: [
+    AppPermission.NAV_PAYROLL, AppPermission.NAV_PEOPLE,
+    AppPermission.OP_PROCESS_PAYROLL,
+    AppPermission.DATA_VIEW_SALARIES,
+  ],
+
+  [UserRole.TREASURY_OFFICER]: [
+    AppPermission.NAV_TREASURY, AppPermission.NAV_FINANCE,
+    AppPermission.NAV_DASHBOARD,
+    AppPermission.OP_MANAGE_CASH_DRAWER, AppPermission.OP_CLOSE_DAY,
+    AppPermission.DATA_VIEW_REVENUE,
+  ],
+
+  [UserRole.TECH_SUPPORT]: [
+    AppPermission.NAV_SETTINGS, AppPermission.NAV_PRINTERS,
+    AppPermission.NAV_FORENSICS,
+    AppPermission.CFG_OFFLINE_MODE,
+  ],
+
+  [UserRole.QUALITY_OFFICER]: [
+    AppPermission.NAV_INVENTORY, AppPermission.NAV_PRODUCTION,
+    AppPermission.NAV_WASTAGE, AppPermission.NAV_QUALITY,
+    AppPermission.DATA_VIEW_STOCK_LEVELS,
+  ],
+
+  [UserRole.CUSTOM]: [],
 };
 
 export type AppTheme =
-  | 'xen'
-  | 'ember'
-  | 'graphite'
-  | 'ocean'
-  | 'carbon'
-  | 'classic'
-  | 'nebula'
-  | 'emerald'
-  | 'sunset'
-  | 'quartz'
-  | 'violet'
-  | 'touch'
-  | 'royal'
-  | 'emerald_luxe'
-  | 'noir'
-  | 'beige_luxe';
+  | 'modern'
+  | 'glassy'
+  | 'tiles'
+  | 'fluent'
+  | 'crystal'
+  | 'matte'
+  | 'touch_ui'
+  | 'acrylic';
 
 export interface AppSettings {
   restaurantName: string;
@@ -607,6 +887,10 @@ export interface AppSettings {
     level: 'MASTER' | 'REGIONAL' | 'BRANCH';
     parentId?: string;
   };
+  wallpaper?: string;           // CSS pattern key or 'none'
+  wallpaperOpacity?: number;    // 0.02–0.15 typical range
+  rolePermissionOverrides?: Record<string, AppPermission[]>;
+  customRoles?: CustomRole[];
 }
 
 export enum ProductionStatus {
@@ -643,6 +927,10 @@ export interface Employee {
   emergencyContact: string;
   activeShiftId?: string;
   bankAccount?: string;
+  name?: string;
+  phone?: string;
+  email?: string;
+  role?: string;
 }
 
 export interface Driver {

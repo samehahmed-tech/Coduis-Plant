@@ -1,6 +1,6 @@
 import { eventBus } from './eventBus';
 import { AuditEventType, AuditLog } from '../types';
-import { auditApi } from './api';
+import { auditApi } from './api/audit';
 import { useAuthStore } from '../stores/useAuthStore';
 import { syncService } from './syncService';
 

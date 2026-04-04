@@ -1,7 +1,7 @@
 // CRM Store - Connected to Database API (Production Ready)
 import { create } from 'zustand';
 import { Customer } from '../types';
-import { customersApi } from '../services/api';
+import { customersApi } from '../services/api/customers';
 import { localDb } from '../db/localDb';
 import { syncService } from '../services/syncService';
 

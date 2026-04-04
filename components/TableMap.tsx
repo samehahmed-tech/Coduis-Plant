@@ -1,4 +1,4 @@
-﻿import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
     Users,
     LayoutGrid,
@@ -44,7 +44,7 @@ const TableMap: React.FC<TableMapProps> = ({
     isDarkMode
 }) => {
     const formattedZones = useMemo(() => {
-        return [{ id: 'all', name: t.all_zones || (lang === 'ar' ? 'جميع المناطق' : 'All Zones'), color: '#64748b' }, ...zones];
+        return [{ id: 'all', name: t.all_zones || (lang === 'ar' ? '���� �������' : 'All Zones'), color: '#64748b' }, ...zones];
     }, [zones, lang, t]);
 
     const [activeZone, setActiveZone] = useState<string>(zones[0]?.id || 'all');
@@ -220,8 +220,8 @@ const TableMap: React.FC<TableMapProps> = ({
         switch (status) {
             case TableStatus.AVAILABLE: return t.free;
             case TableStatus.OCCUPIED: return t.busy;
-            case TableStatus.WAITING_FOOD: return t.waiting_food || (lang === 'ar' ? 'بانتظار الطعام' : 'Waiting Food');
-            case TableStatus.READY_TO_PAY: return t.ready_to_pay || (lang === 'ar' ? 'جاهز للحساب' : 'Ready To Pay');
+            case TableStatus.WAITING_FOOD: return t.waiting_food || (lang === 'ar' ? '������� ������' : 'Waiting Food');
+            case TableStatus.READY_TO_PAY: return t.ready_to_pay || (lang === 'ar' ? '���� ������' : 'Ready To Pay');
             case TableStatus.RESERVED: return t.reserved;
             case TableStatus.DIRTY: return t.dirty;
             default: return '';
@@ -323,14 +323,14 @@ const TableMap: React.FC<TableMapProps> = ({
                             <div>
                                 <p className="text-[8px] font-black text-indigo-500 uppercase">{t.bill}</p>
                                 <p className="text-sm font-black bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">
-                                    {t.currency || 'ج.م'} {tableTotals[table.id].toLocaleString()}
+                                    {t.currency || '�.�'} {tableTotals[table.id].toLocaleString()}
                                 </p>
                             </div>
                             <button
                                 onClick={(e) => { e.stopPropagation(); onResumeTable(table); }}
                                 className="px-2.5 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white text-[8px] font-black uppercase shadow-sm transition-all"
                             >
-                                {lang === 'ar' ? 'افتح' : 'Open'}
+                                {lang === 'ar' ? '����' : 'Open'}
                             </button>
                         </div>
                     ) : (
@@ -365,9 +365,9 @@ const TableMap: React.FC<TableMapProps> = ({
                                 ? 'linear-gradient(90deg, #0ea5e9, #38bdf8)'
                                 : table.status === TableStatus.READY_TO_PAY
                                     ? 'linear-gradient(90deg, #0d9488, #14b8a6)'
-                            : table.status === TableStatus.AVAILABLE
-                                ? 'linear-gradient(90deg, #10b981, #34d399)'
-                                : undefined
+                                    : table.status === TableStatus.AVAILABLE
+                                        ? 'linear-gradient(90deg, #10b981, #34d399)'
+                                        : undefined
                     }}
                 />
 
@@ -406,7 +406,7 @@ const TableMap: React.FC<TableMapProps> = ({
                     {summary && summary.items > 0 && (
                         <span className="inline-flex items-center gap-1 bg-indigo-100 dark:bg-indigo-900/30 px-2.5 py-1.5 rounded-xl text-indigo-600 dark:text-indigo-400">
                             <Layers size={12} />
-                            <span className="text-xs font-bold">{summary.items} {lang === 'ar' ? 'صنف' : 'items'}</span>
+                            <span className="text-xs font-bold">{summary.items} {lang === 'ar' ? '���' : 'items'}</span>
                         </span>
                     )}
                     {table.discount && table.discount > 0 && (
@@ -450,7 +450,7 @@ const TableMap: React.FC<TableMapProps> = ({
                                 <div>
                                     <div className="text-[9px] font-black uppercase text-indigo-500 tracking-widest">{t.bill}</div>
                                     <div className="text-xl font-black bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">
-                                        {t.currency || 'ج.م'} {tableTotals[table.id].toLocaleString('en-US', { minimumFractionDigits: 2 })}
+                                        {t.currency || '�.�'} {tableTotals[table.id].toLocaleString('en-US', { minimumFractionDigits: 2 })}
                                     </div>
                                 </div>
                             </div>
@@ -461,25 +461,25 @@ const TableMap: React.FC<TableMapProps> = ({
                                     onClick={(e) => { e.stopPropagation(); onResumeTable(table); }}
                                     className="col-span-1 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-[8px] font-black uppercase tracking-wider shadow-lg shadow-indigo-500/30 transition-all hover:scale-105"
                                 >
-                                    {t.resume || 'استئناف'}
+                                    {t.resume || '�������'}
                                 </button>
                                 <button
                                     onClick={(e) => { e.stopPropagation(); onTempBill(table); }}
                                     className="col-span-1 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-600 text-white text-[8px] font-black uppercase tracking-wider shadow-lg shadow-amber-500/30 transition-all hover:scale-105"
                                 >
-                                    {t.temp_short || 'مؤقت'}
+                                    {t.temp_short || '����'}
                                 </button>
                                 <button
                                     onClick={(e) => { e.stopPropagation(); onCloseTable(table); }}
                                     className="col-span-1 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-[8px] font-black uppercase tracking-wider shadow-lg shadow-emerald-500/30 transition-all hover:scale-105"
                                 >
-                                    {t.close_table || 'إغلاق'}
+                                    {t.close_table || '�����'}
                                 </button>
                                 <button
                                     onClick={(e) => { e.stopPropagation(); onMergeTable(table); }}
                                     className="col-span-1 py-2.5 rounded-xl bg-slate-600 hover:bg-slate-700 text-white text-[8px] font-black uppercase tracking-wider shadow-lg shadow-slate-500/30 transition-all hover:scale-105"
                                 >
-                                    {t.merge_tables || 'دمج'}
+                                    {t.merge_tables || '���'}
                                 </button>
                             </div>
                         </div>
@@ -534,7 +534,7 @@ const TableMap: React.FC<TableMapProps> = ({
                 <div className={`col-span-2 ${isRtl ? 'text-left' : 'text-right'}`}>
                     <div className="text-[9px] font-black uppercase text-muted">{t.bill}</div>
                     <div className="text-sm font-black text-main">
-                        {hasTotal ? `${t.currency || 'EGP'} ${tableTotals[table.id].toFixed(0)}` : '—'}
+                        {hasTotal ? `${t.currency || 'EGP'} ${tableTotals[table.id].toFixed(0)}` : '�'}
                     </div>
                     {lastUpdate ? (
                         <div className="text-[9px] font-black uppercase text-muted">
@@ -584,7 +584,8 @@ const TableMap: React.FC<TableMapProps> = ({
     return (
         <div className="flex flex-col h-full gap-4 animate-in fade-in duration-300">
             {/* Enhanced Header with Stats */}
-            <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4 p-4 bg-gradient-to-r from-white to-slate-50 dark:from-slate-900 dark:to-slate-800 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-800">
+            <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4 p-4 md:px-6 bg-card/80 backdrop-blur-3xl border-b border-border/50 rounded-[2rem] shadow-sm relative overflow-hidden z-20">
+                <div className="absolute inset-0 bg-gradient-to-br from-indigo-500/5 to-cyan-500/5 pointer-events-none" />
                 <div className="flex items-center gap-4 md:gap-6">
                     <div className="flex items-center gap-3">
                         <div className="w-12 h-12 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-2xl flex items-center justify-center shadow-lg shadow-indigo-500/30">
@@ -595,7 +596,7 @@ const TableMap: React.FC<TableMapProps> = ({
                                 {t.floor_map}
                             </h1>
                             <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
-                                {stats.total} {lang === 'ar' ? 'ترابيزة' : 'Tables'}
+                                {stats.total} {lang === 'ar' ? '�������' : 'Tables'}
                             </span>
                         </div>
                     </div>
@@ -624,7 +625,7 @@ const TableMap: React.FC<TableMapProps> = ({
                     <div className="flex items-center gap-2 bg-sky-50 dark:bg-sky-950/40 px-3 py-2 rounded-xl border border-sky-200 dark:border-sky-800">
                         <div className="w-3 h-3 rounded-full bg-sky-500" />
                         <div>
-                            <p className="text-[9px] font-black text-sky-600 uppercase">{t.waiting_food || (lang === 'ar' ? 'بانتظار الطعام' : 'Waiting Food')}</p>
+                            <p className="text-[9px] font-black text-sky-600 uppercase">{t.waiting_food || (lang === 'ar' ? '������� ������' : 'Waiting Food')}</p>
                             <p className="text-lg font-black text-sky-700 dark:text-sky-300">{stats.waitingFood}</p>
                         </div>
                     </div>
@@ -632,7 +633,7 @@ const TableMap: React.FC<TableMapProps> = ({
                     <div className="flex items-center gap-2 bg-teal-50 dark:bg-teal-950/40 px-3 py-2 rounded-xl border border-teal-200 dark:border-teal-800">
                         <div className="w-3 h-3 rounded-full bg-teal-600" />
                         <div>
-                            <p className="text-[9px] font-black text-teal-600 uppercase">{t.ready_to_pay || (lang === 'ar' ? 'جاهز للحساب' : 'Ready To Pay')}</p>
+                            <p className="text-[9px] font-black text-teal-600 uppercase">{t.ready_to_pay || (lang === 'ar' ? '���� ������' : 'Ready To Pay')}</p>
                             <p className="text-lg font-black text-teal-700 dark:text-teal-300">{stats.readyToPay}</p>
                         </div>
                     </div>
@@ -649,9 +650,9 @@ const TableMap: React.FC<TableMapProps> = ({
                     {/* Open Sales */}
                     <div className="flex items-center gap-2 bg-gradient-to-r from-indigo-100 to-purple-100 dark:from-indigo-950/50 dark:to-purple-950/50 px-4 py-2 rounded-xl border border-indigo-200 dark:border-indigo-800">
                         <div>
-                            <p className="text-[9px] font-black text-indigo-500 uppercase tracking-widest">{lang === 'ar' ? 'المبيعات المفتوحة' : 'Open Sales'}</p>
+                            <p className="text-[9px] font-black text-indigo-500 uppercase tracking-widest">{lang === 'ar' ? '�������� ��������' : 'Open Sales'}</p>
                             <p className="text-xl font-black bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">
-                                {t.currency || 'ج.م'} {stats.openSales.toLocaleString('en-US', { minimumFractionDigits: 2 })}
+                                {t.currency || '�.�'} {stats.openSales.toLocaleString('en-US', { minimumFractionDigits: 2 })}
                             </p>
                         </div>
                     </div>
@@ -659,49 +660,49 @@ const TableMap: React.FC<TableMapProps> = ({
                     {/* Closed Sales */}
                     <div className="flex items-center gap-2 bg-emerald-100 dark:bg-emerald-950/50 px-4 py-2 rounded-xl border border-emerald-200 dark:border-emerald-800">
                         <div>
-                            <p className="text-[9px] font-black text-emerald-500 uppercase tracking-widest">{lang === 'ar' ? 'المبيعات المغلقة' : 'Closed Sales'}</p>
+                            <p className="text-[9px] font-black text-emerald-500 uppercase tracking-widest">{lang === 'ar' ? '�������� �������' : 'Closed Sales'}</p>
                             <p className="text-xl font-black text-emerald-600 dark:text-emerald-400">
-                                {t.currency || 'ج.م'} {stats.closedSales.toLocaleString('en-US', { minimumFractionDigits: 2 })}
+                                {t.currency || '�.�'} {stats.closedSales.toLocaleString('en-US', { minimumFractionDigits: 2 })}
                             </p>
                         </div>
                     </div>
 
                     <div className="flex items-center gap-2 bg-violet-100 dark:bg-violet-950/50 px-4 py-2 rounded-xl border border-violet-200 dark:border-violet-800">
                         <div>
-                            <p className="text-[9px] font-black text-violet-500 uppercase tracking-widest">{lang === 'ar' ? 'متوسط تدوير الترابيزة' : 'Avg Table Turnover'}</p>
+                            <p className="text-[9px] font-black text-violet-500 uppercase tracking-widest">{lang === 'ar' ? '����� ����� ���������' : 'Avg Table Turnover'}</p>
                             <p className="text-xl font-black text-violet-600 dark:text-violet-400">
-                                {stats.avgTurnoverMinutes} {t.min_short || (lang === 'ar' ? 'د' : 'm')}
+                                {stats.avgTurnoverMinutes} {t.min_short || (lang === 'ar' ? '�' : 'm')}
                             </p>
                         </div>
                     </div>
                 </div>
 
                 {/* Search and View Mode */}
-                <div className="flex items-center gap-3 w-full lg:w-auto">
+                <div className="flex items-center gap-3 w-full lg:w-auto relative z-10">
                     <div className="relative flex-1 lg:flex-none">
-                        <Search className={`absolute top-1/2 -translate-y-1/2 text-slate-400 ${isRtl ? 'right-3' : 'left-3'}`} size={16} />
+                        <Search className={`absolute top-1/2 -translate-y-1/2 text-muted ${isRtl ? 'right-4' : 'left-4'}`} size={16} />
                         <input
                             type="text"
-                            placeholder={lang === 'ar' ? 'بحث عن ترابيزة...' : 'Search tables...'}
+                            placeholder={lang === 'ar' ? '��� �� �������...' : 'Search tables...'}
                             value={searchQuery}
                             onChange={(e) => setSearchQuery(e.target.value)}
-                            className={`w-full lg:w-48 ${isRtl ? 'pr-10 pl-4' : 'pl-10 pr-4'} py-2.5 card-primary rounded-xl text-sm font-bold shadow-sm focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all`}
+                            className={`w-full lg:w-48 ${isRtl ? 'pr-11 pl-4' : 'pl-11 pr-4'} py-3 bg-elevated rounded-[1.2rem] text-sm font-bold shadow-sm focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all border border-border/50 text-main placeholder-muted`}
                         />
                     </div>
 
-                    <div className="flex bg-slate-100 dark:bg-slate-800 p-1.5 rounded-xl gap-1">
+                    <div className="flex bg-elevated p-1.5 rounded-[1.5rem] gap-1 border border-border/50 shadow-sm">
                         {[
-                            { mode: 'GRID', icon: Grid3X3, label: lang === 'ar' ? 'شبكة' : 'Grid' },
-                            { mode: 'COMPACT', icon: Maximize2, label: lang === 'ar' ? 'مضغوط' : 'Compact' },
-                            { mode: 'LIST', icon: List, label: lang === 'ar' ? 'قائمة' : 'List' }
+                            { mode: 'GRID', icon: Grid3X3, label: lang === 'ar' ? '����' : 'Grid' },
+                            { mode: 'COMPACT', icon: Maximize2, label: lang === 'ar' ? '�����' : 'Compact' },
+                            { mode: 'LIST', icon: List, label: lang === 'ar' ? '�����' : 'List' }
                         ].map(({ mode, icon: Icon, label }) => (
                             <button
                                 key={mode}
                                 onClick={() => setViewMode(mode as any)}
                                 title={label}
-                                className={`p-2.5 rounded-lg transition-all ${viewMode === mode
-                                    ? 'card-primary shadow-md text-indigo-600 scale-105'
-                                    : 'text-slate-400 hover:text-slate-600 hover:bg-slate-200 dark:hover:bg-slate-700'}`}
+                                className={`p-2.5 rounded-xl transition-all ${viewMode === mode
+                                    ? 'bg-card shadow-sm text-indigo-500 scale-105'
+                                    : 'text-muted hover:text-main hover:bg-elevated/80'}`}
                             >
                                 <Icon size={18} />
                             </button>
@@ -711,18 +712,18 @@ const TableMap: React.FC<TableMapProps> = ({
             </div>
 
             {/* Zone Tabs */}
-            <div className="flex gap-2 p-1.5 bg-slate-100 dark:bg-slate-800/50 rounded-2xl overflow-x-auto no-scrollbar">
+            <div className="flex gap-2 p-2 bg-card/60 backdrop-blur-md border border-border/50 rounded-[1.5rem] overflow-x-auto no-scrollbar">
                 {formattedZones.map(zone => (
                     <button
                         key={zone.id}
                         onClick={() => setActiveZone(zone.id)}
-                        className={`px-5 py-2.5 rounded-xl text-[10px] font-black transition-all uppercase tracking-widest flex items-center gap-2 whitespace-nowrap ${activeZone === zone.id
-                            ? 'bg-gradient-to-r from-indigo-600 to-purple-600 text-white shadow-lg shadow-indigo-500/30 scale-[1.02]'
-                            : 'card-primary text-slate-500 hover:bg-slate-50 dark:hover:bg-slate-800 shadow-sm'
+                        className={`px-5 py-2.5 rounded-[1.2rem] text-[10px] font-black transition-all uppercase tracking-[0.2em] flex items-center gap-2 whitespace-nowrap ${activeZone === zone.id
+                            ? 'bg-gradient-to-r from-indigo-500 to-cyan-500 text-white shadow-xl shadow-indigo-500/25 scale-[1.02]'
+                            : 'bg-elevated text-muted hover:bg-card/80 hover:text-main border border-border/50 shadow-sm'
                             }`}
                     >
                         {zone.name}
-                        <span className={`px-2 py-0.5 rounded-lg text-[9px] font-bold ${activeZone === zone.id ? 'bg-white/20' : 'bg-slate-100 dark:bg-slate-800'}`}>
+                        <span className={`px-2 py-0.5 rounded-[0.8rem] text-[9px] font-bold ${activeZone === zone.id ? 'bg-black/20 text-white' : 'bg-card text-muted'}`}>
                             {zone.id === 'all' ? decoratedTables.length : decoratedTables.filter(t => t.zoneId === zone.id).length}
                         </span>
                     </button>
@@ -730,15 +731,15 @@ const TableMap: React.FC<TableMapProps> = ({
             </div>
 
             {/* Main Content Area */}
-            <div className="flex-1 overflow-auto rounded-2xl border border-slate-200 dark:border-slate-800 bg-gradient-to-br from-slate-50 to-white dark:from-slate-900 dark:to-slate-950 p-4 md:p-6 shadow-inner relative">
+            <div className="flex-1 overflow-auto rounded-[2.5rem] border border-border/50 bg-card/40 backdrop-blur-3xl p-4 md:p-6 shadow-inner relative z-10">
                 {viewMode === 'LIST' ? (
                     <div className="flex flex-col gap-3 h-full">
                         <div className={`grid grid-cols-12 gap-3 px-4 py-2 bg-slate-100 dark:bg-slate-800 rounded-xl ${isRtl ? 'text-right' : 'text-left'}`}>
                             <div className="col-span-3 text-[10px] font-black uppercase tracking-widest text-slate-500">{t.table}</div>
-                            <div className="col-span-2 text-[10px] font-black uppercase tracking-widest text-slate-500">{t.status || (lang === 'ar' ? 'الحالة' : 'Status')}</div>
-                            <div className="col-span-2 text-[10px] font-black uppercase tracking-widest text-slate-500">{lang === 'ar' ? 'السعة' : 'Capacity'}</div>
+                            <div className="col-span-2 text-[10px] font-black uppercase tracking-widest text-slate-500">{t.status || (lang === 'ar' ? '������' : 'Status')}</div>
+                            <div className="col-span-2 text-[10px] font-black uppercase tracking-widest text-slate-500">{lang === 'ar' ? '�����' : 'Capacity'}</div>
                             <div className="col-span-2 text-[10px] font-black uppercase tracking-widest text-slate-500">{t.bill}</div>
-                            <div className="col-span-3 text-[10px] font-black uppercase tracking-widest text-slate-500">{lang === 'ar' ? 'إجراءات' : 'Actions'}</div>
+                            <div className="col-span-3 text-[10px] font-black uppercase tracking-widest text-slate-500">{lang === 'ar' ? '�������' : 'Actions'}</div>
                         </div>
                         <div className="flex-1 min-h-0">
                             <VirtualList
@@ -777,7 +778,7 @@ const TableMap: React.FC<TableMapProps> = ({
                         <div className="bg-slate-100 dark:bg-slate-800 rounded-3xl p-8 text-center">
                             <LayoutGrid size={64} className="mx-auto mb-4 text-slate-300 dark:text-slate-600" />
                             <p className="font-black uppercase tracking-widest text-slate-400 text-sm">{t.no_tables || 'No Tables Found'}</p>
-                            <p className="text-xs text-slate-400 mt-1">{lang === 'ar' ? 'حاول تغيير معايير البحث' : 'Try adjusting your search'}</p>
+                            <p className="text-xs text-slate-400 mt-1">{lang === 'ar' ? '���� ����� ������ �����' : 'Try adjusting your search'}</p>
                         </div>
                     </div>
                 )}
@@ -788,8 +789,8 @@ const TableMap: React.FC<TableMapProps> = ({
                 {[
                     { status: TableStatus.AVAILABLE, label: t.free || 'Available', color: 'bg-emerald-500', gradient: 'from-emerald-500 to-emerald-400' },
                     { status: TableStatus.OCCUPIED, label: t.busy || 'Occupied', color: 'bg-indigo-600', gradient: 'from-indigo-600 to-purple-500' },
-                    { status: TableStatus.WAITING_FOOD, label: t.waiting_food || (lang === 'ar' ? 'بانتظار الطعام' : 'Waiting Food'), color: 'bg-sky-500', gradient: 'from-sky-500 to-sky-400' },
-                    { status: TableStatus.READY_TO_PAY, label: t.ready_to_pay || (lang === 'ar' ? 'جاهز للحساب' : 'Ready To Pay'), color: 'bg-teal-600', gradient: 'from-teal-600 to-teal-500' },
+                    { status: TableStatus.WAITING_FOOD, label: t.waiting_food || (lang === 'ar' ? '������� ������' : 'Waiting Food'), color: 'bg-sky-500', gradient: 'from-sky-500 to-sky-400' },
+                    { status: TableStatus.READY_TO_PAY, label: t.ready_to_pay || (lang === 'ar' ? '���� ������' : 'Ready To Pay'), color: 'bg-teal-600', gradient: 'from-teal-600 to-teal-500' },
                     { status: TableStatus.RESERVED, label: t.reserved || 'Reserved', color: 'bg-amber-500', gradient: 'from-amber-500 to-amber-400' },
                     { status: TableStatus.DIRTY, label: t.dirty || 'Dirty', color: 'bg-rose-500', gradient: 'from-rose-500 to-rose-400' }
                 ].map(item => (

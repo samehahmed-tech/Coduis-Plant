@@ -1,17 +1,30 @@
-﻿
 import React from 'react';
-import { Clock, CheckCircle, Flame, Filter, Timer, RefreshCw, MonitorPlay, Volume2, VolumeX, Layers, Settings2, Zap } from 'lucide-react';
+import { Clock, CheckCircle, Volume2, VolumeX, MonitorPlay, AlertTriangle, Play, Truck, Settings, Flame, ChefHat, Sparkles, X, Plus, UtensilsCrossed, Search, Zap, Layers } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { OrderStatus, AuditEventType } from '../types';
 import { useOrderStore } from '../stores/useOrderStore';
 import { eventBus } from '../services/eventBus';
-import { socketService } from '../services/socketService';
 import { useAuthStore } from '../stores/useAuthStore';
-import { translations } from '../services/translations';
-import { settingsApi } from '../services/api';
 
-type Station = 'ALL' | 'GRILL' | 'BAR' | 'DESSERT' | 'FRYER' | 'SALAD' | 'BAKERY';
+type Station = 'ALL' | string;
 
-// ── Web Audio Sound Generator (no external files needed) ──
+interface StationConfig {
+  name: string;
+  keywords: string[];
+}
+
+const DEFAULT_STATIONS: StationConfig[] = [
+  { name: 'GRILL', keywords: ['grill', 'bbq', 'kebab', 'steak', 'skewer', 'chicken', 'meat'] },
+  { name: 'BAR', keywords: ['coffee', 'espresso', 'latte', 'mocha', 'tea', 'juice', 'soda', 'drink', 'bar'] },
+  { name: 'DESSERT', keywords: ['dessert', 'cake', 'sweet', 'icecream', 'ice', 'chocolate', 'pudding'] },
+  { name: 'FRYER', keywords: ['fries', 'fry', 'fried', 'crispy', 'nugget'] },
+  { name: 'SALAD', keywords: ['salad', 'green', 'vegan', 'bowl'] },
+  { name: 'BAKERY', keywords: ['bread', 'bakery', 'pastry', 'croissant', 'bun'] },
+];
+
+/* ═══════════════════════════════════════════════════
+   🔊 Web Audio Sound Generator
+   ═══════════════════════════════════════════════════ */
 const audioCtxRef = { current: null as AudioContext | null };
 const getAudioCtx = () => {
   if (!audioCtxRef.current) audioCtxRef.current = new (window.AudioContext || (window as any).webkitAudioContext)();
@@ -35,915 +48,1200 @@ const playBeep = (frequency: number, duration: number, volume = 0.3) => {
 };
 
 const playNewOrderSound = () => {
-  // Pleasant double-beep
-  playBeep(880, 0.15, 0.25);
-  setTimeout(() => playBeep(1100, 0.2, 0.3), 180);
-};
-
-const playStatusChangeSound = () => {
-  // Soft single tone
-  playBeep(660, 0.12, 0.15);
+  playBeep(880, 0.15, 0.4);
+  setTimeout(() => playBeep(1100, 0.2, 0.5), 180);
 };
 
 const playUrgentAlertSound = () => {
-  // Urgent triple-beep
-  playBeep(1200, 0.12, 0.35);
-  setTimeout(() => playBeep(1200, 0.12, 0.35), 200);
-  setTimeout(() => playBeep(1500, 0.25, 0.4), 400);
+  playBeep(1200, 0.12, 0.5);
+  setTimeout(() => playBeep(1200, 0.12, 0.5), 200);
+  setTimeout(() => playBeep(1500, 0.25, 0.6), 400);
 };
 
+/* ═══════════════════════════════════════════════════
+   ⏰ Isolated Live Clock — only re-renders itself
+   ═══════════════════════════════════════════════════ */
+const LiveClock = React.memo(() => {
+  const [time, setTime] = React.useState(new Date());
+  React.useEffect(() => {
+    const t = setInterval(() => setTime(new Date()), 1000);
+    return () => clearInterval(t);
+  }, []);
+  return (
+    <div className="flex items-center gap-2">
+      <Clock size={14} style={{ color: 'rgb(var(--text-muted))' }} />
+      <span
+        className="tabular-nums tracking-tight"
+        style={{ fontSize: '1.1rem', fontWeight: 900, color: 'rgb(var(--text-main))' }}
+      >
+        {time.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+      </span>
+    </div>
+  );
+});
+
+/* ═══════════════════════════════════════════════════
+   🎨 Column Theme Configs — using CSS variable tokens
+   ═══════════════════════════════════════════════════ */
+const COLUMN_THEMES = {
+  PENDING: {
+    token: '--warning',
+    icon: <Flame size={18} />,
+    label: 'QUEUE',
+    subtitle: 'Waiting to fire',
+  },
+  PREPARING: {
+    token: '--primary',
+    icon: <ChefHat size={18} />,
+    label: 'FIRE',
+    subtitle: 'In the kitchen',
+  },
+  READY: {
+    token: '--success',
+    icon: <Sparkles size={18} />,
+    label: 'PASS',
+    subtitle: 'Ready to serve',
+  },
+};
+
+/* ═══════════════════════════════════════════════════
+   SLA Thresholds
+   ═══════════════════════════════════════════════════ */
+const SLA = { warning: 7, risk: 12, critical: 20 };
+
+/* ═══════════════════════════════════════════════════
+   Helper: normalize text for station matching
+   ═══════════════════════════════════════════════════ */
+const normalizeToken = (value: string) => value.toLowerCase().replace(/[^a-z0-9]+/g, '');
+
+/* ═══════════════════════════════════════════════════
+   🏪 KDS — Main Component (Performance Optimized)
+   ═══════════════════════════════════════════════════ */
 const KDS: React.FC = () => {
   const { orders, updateOrderStatus, fetchOrders } = useOrderStore();
-  const { settings, printers } = useAuthStore();
-  const t = translations[settings.language || 'en'];
+  const { settings } = useAuthStore();
   const isArabic = settings.language === 'ar';
   const activeBranchId = settings.activeBranchId;
-  const currentUser = settings.currentUser;
 
-  const [lastOrderTime, setLastOrderTime] = React.useState<number>(Date.now());
-  const [isFlashing, setIsFlashing] = React.useState(false);
   const [nowTick, setNowTick] = React.useState(Date.now());
   const [activeStatus, setActiveStatus] = React.useState<'ALL' | OrderStatus>('ALL');
-  const [sortMode, setSortMode] = React.useState<'OLDEST' | 'NEWEST' | 'PRIORITY'>('PRIORITY');
-  const [activeStation, setActiveStation] = React.useState<Station>('ALL');
-  const [soundMode, setSoundMode] = React.useState<'ALL' | 'URGENT' | 'OFF'>('ALL');
+  const [activeStations, setActiveStations] = React.useState<Set<Station>>(new Set(['ALL']));
+  const [soundMode, setSoundMode] = React.useState<'ALL' | 'OFF'>('ALL');
   const [isFullscreen, setIsFullscreen] = React.useState(false);
-  const overdueNotifiedRef = React.useRef<Set<string>>(new Set());
-  const [isStationSettingsOpen, setIsStationSettingsOpen] = React.useState(false);
-  const [stationAssignmentsByUser, setStationAssignmentsByUser] = React.useState<Record<string, Station[]>>({});
-  const [slaThresholds, setSlaThresholds] = React.useState<{ warning: number; risk: number; critical: number }>({
-    warning: 7,
-    risk: 12,
-    critical: 20,
+  const [showStationSettings, setShowStationSettings] = React.useState(false);
+  const [pendingBump, setPendingBump] = React.useState<string | null>(null);
+  const [highlightedIdx, setHighlightedIdx] = React.useState(-1);
+  const [kdsMode, setKdsMode] = React.useState<'simple' | 'advanced'>(() => {
+    try { return (localStorage.getItem('kds_mode') as any) || 'simple'; } catch { return 'simple'; }
   });
-  const [stationKeywords, setStationKeywords] = React.useState<Record<string, string>>({
-    GRILL: 'grill,bbq,kebab,steak,skewer,chicken,meat',
-    BAR: 'coffee,espresso,latte,mocha,tea,juice,soda,drink,bar',
-    DESSERT: 'dessert,cake,sweet,icecream,ice,chocolate,pudding',
-    FRYER: 'fries,fry,fried,crispy,nugget',
-    SALAD: 'salad,green,vegan,bowl',
-    BAKERY: 'bread,bakery,pastry,croissant,bun'
+  const [quickInput, setQuickInput] = React.useState('');
+  const quickInputRef = React.useRef<HTMLInputElement>(null);
+
+  const [stations, setStations] = React.useState<StationConfig[]>(() => {
+    try {
+      const saved = localStorage.getItem('kds_stations');
+      return saved ? JSON.parse(saved) : DEFAULT_STATIONS;
+    } catch { return DEFAULT_STATIONS; }
   });
-  const [stationLock, setStationLock] = React.useState<Station | null>(null);
-  const [isCompactLayout, setIsCompactLayout] = React.useState(false);
-  const [showCompactControls, setShowCompactControls] = React.useState(false);
-  const [printerStationMap, setPrinterStationMap] = React.useState<Record<string, Station>>({});
-  const branchPrinters = React.useMemo(
-    () => (printers || []).filter((p: any) => p.isActive && (!activeBranchId || !p.branchId || p.branchId === activeBranchId)),
-    [printers, activeBranchId],
-  );
 
-  const allStations = React.useMemo<Station[]>(() => ['ALL', 'GRILL', 'BAR', 'DESSERT', 'FRYER', 'SALAD', 'BAKERY'], []);
+  const saveStations = React.useCallback((updated: StationConfig[]) => {
+    setStations(updated);
+    localStorage.setItem('kds_stations', JSON.stringify(updated));
+  }, []);
 
-  const allowedStations = React.useMemo<Station[]>(() => {
-    if (!currentUser) return ['ALL'];
-    if (currentUser.role === 'SUPER_ADMIN' || currentUser.role === 'BRANCH_MANAGER') return allStations;
-    const assigned = stationAssignmentsByUser[currentUser.id];
-    if (assigned && assigned.length > 0) return ['ALL', ...assigned.filter(s => s !== 'ALL')];
-    if (currentUser.role === 'KITCHEN_STAFF') return ['ALL', 'GRILL'];
-    return allStations;
-  }, [currentUser, stationAssignmentsByUser, allStations]);
+  const stationKeywords: Record<string, string[]> = React.useMemo(() => {
+    const map: Record<string, string[]> = {};
+    stations.forEach(s => { map[s.name] = s.keywords; });
+    return map;
+  }, [stations]);
 
+  // Fetch orders on mount + listen for events
   React.useEffect(() => {
-    fetchOrders(activeBranchId ? { branch_id: activeBranchId, limit: 300 } : { limit: 300 }); // Initial fetch
-
-    // Listen for new orders via EventBus
-    const unsubscribe = eventBus.on(AuditEventType.POS_ORDER_PLACEMENT, () => {
-      fetchOrders(activeBranchId ? { branch_id: activeBranchId, limit: 300 } : { limit: 300 });
-      setLastOrderTime(Date.now());
-      setIsFlashing(true);
-      setTimeout(() => setIsFlashing(false), 3000);
-
-      // Play new order sound
-      if (soundMode === 'ALL') {
-        playNewOrderSound();
-      }
+    const params = activeBranchId ? { branch_id: activeBranchId, limit: 300 } : { limit: 300 };
+    fetchOrders(params);
+    const unsubOrder = eventBus.on(AuditEventType.POS_ORDER_PLACEMENT, () => {
+      fetchOrders(params);
+      if (soundMode === 'ALL') playNewOrderSound();
     });
-
-    const unsubscribeStatus = eventBus.on(AuditEventType.ORDER_STATUS_CHANGE, () => {
-      fetchOrders(activeBranchId ? { branch_id: activeBranchId, limit: 300 } : { limit: 300 });
-      if (soundMode === 'ALL') {
-        playStatusChangeSound();
-      }
+    const unsubStatus = eventBus.on(AuditEventType.ORDER_STATUS_CHANGE, () => {
+      fetchOrders(params);
     });
-
-    return () => {
-      unsubscribe();
-      unsubscribeStatus();
-    };
+    return () => { unsubOrder(); unsubStatus(); };
   }, [fetchOrders, soundMode, activeBranchId]);
 
+  // Timer tick — every 5s for elapsed time calculations
   React.useEffect(() => {
-    const timer = setInterval(() => setNowTick(Date.now()), 10000);
+    const timer = setInterval(() => setNowTick(Date.now()), 5000);
     return () => clearInterval(timer);
   }, []);
 
-  React.useEffect(() => {
-    const updateLayoutMode = () => {
-      const compact = window.innerWidth <= 1024;
-      setIsCompactLayout(compact);
-      if (!compact) setShowCompactControls(true);
-    };
-    updateLayoutMode();
-    window.addEventListener('resize', updateLayoutMode);
-    return () => window.removeEventListener('resize', updateLayoutMode);
-  }, []);
-
-  React.useEffect(() => {
-    if (!isCompactLayout) return;
-    setShowCompactControls(false);
-  }, [isCompactLayout]);
-
-  React.useEffect(() => {
-    const handleOrder = () => fetchOrders(activeBranchId ? { branch_id: activeBranchId, limit: 300 } : { limit: 300 });
-    socketService.on('order:created', handleOrder);
-    socketService.on('order:status', handleOrder);
-    return () => {
-      socketService.off('order:created', handleOrder);
-      socketService.off('order:status', handleOrder);
-    };
-  }, [fetchOrders, activeBranchId]);
-
+  // Fullscreen listener
   React.useEffect(() => {
     const handler = () => setIsFullscreen(Boolean(document.fullscreenElement));
     document.addEventListener('fullscreenchange', handler);
     return () => document.removeEventListener('fullscreenchange', handler);
   }, []);
 
-  const normalizeToken = (value: string) => value.toLowerCase().replace(/[^a-z0-9]+/g, '');
-  const getStationForItem = (item: any) => {
-    const itemPrinters: string[] = Array.isArray(item?.printerIds) ? item.printerIds : [];
-    for (const printerId of itemPrinters) {
-      const mapped = printerStationMap[printerId];
-      if (mapped && mapped !== 'ALL') return mapped;
-    }
+  const toggleFullscreen = React.useCallback(async () => {
+    try {
+      if (!document.fullscreenElement) await document.documentElement.requestFullscreen();
+      else await document.exitFullscreen();
+    } catch { }
+  }, []);
 
+  const getStationForItem = React.useCallback((item: any) => {
     const name = normalizeToken(item?.name || '');
     const category = normalizeToken(item?.category || item?.categoryId || '');
     const source = `${name} ${category}`;
-    const entries = Object.entries(stationKeywords) as [string, string][];
-    for (const [station, list] of entries) {
-      const tokens = list.split(',').map(s => s.trim()).filter(Boolean);
-      if (tokens.some(token => source.includes(normalizeToken(token)))) {
-        return station as any;
-      }
+    for (const [station, tokens] of Object.entries(stationKeywords)) {
+      if (tokens.some(token => source.includes(normalizeToken(token)))) return station as Station;
     }
-    return 'GRILL';
-  };
+    return stations[0]?.name || 'GENERAL';
+  }, [stationKeywords, stations]);
 
+  const toggleStation = React.useCallback((station: Station) => {
+    setActiveStations(prev => {
+      const next = new Set(prev);
+      if (station === 'ALL') return new Set(['ALL']);
+      next.delete('ALL');
+      if (next.has(station)) next.delete(station);
+      else next.add(station);
+      if (next.size === 0) return new Set(['ALL']);
+      return next;
+    });
+  }, []);
+
+  // Filter & sort orders — filter stale orders (>24h)
+  const MAX_AGE_MS = 24 * 60 * 60 * 1000; // 24 hours
   const activeOrders = React.useMemo(() => {
-    const base = orders.filter(o =>
+    let base = orders.filter(o =>
       o.status !== OrderStatus.DELIVERED &&
       o.status !== OrderStatus.CANCELLED &&
-      (!activeBranchId || o.branchId === activeBranchId)
+      (!activeBranchId || o.branchId === activeBranchId) &&
+      (Date.now() - new Date(o.createdAt).getTime()) < MAX_AGE_MS
     );
-    const filteredByStatus = activeStatus === 'ALL' ? base : base.filter(o => o.status === activeStatus);
-    const stationToUse = stationLock && stationLock !== 'ALL' ? stationLock : activeStation;
-    const filtered = stationToUse === 'ALL'
-      ? filteredByStatus
-      : filteredByStatus.filter(o => (o.items || []).some((item: any) => getStationForItem(item) === stationToUse));
+    if (activeStatus !== 'ALL') base = base.filter(o => o.status === activeStatus);
+    if (!activeStations.has('ALL')) base = base.filter(o => (o.items || []).some((item: any) => activeStations.has(getStationForItem(item))));
+    return base.sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
+  }, [orders, activeStatus, activeStations, activeBranchId, getStationForItem, nowTick]);
 
-    const priorityWeight = (status: OrderStatus) => {
-      if (status === OrderStatus.PENDING) return 3;
-      if (status === OrderStatus.PREPARING) return 2;
-      if (status === OrderStatus.READY) return 1;
-      return 0;
-    };
+  const getElapsedMins = React.useCallback((createdAt: any) =>
+    Math.floor((nowTick - new Date(createdAt).getTime()) / 60000), [nowTick]);
 
-    const sorted = [...filtered].sort((a, b) => {
-      const aTime = new Date(a.createdAt).getTime();
-      const bTime = new Date(b.createdAt).getTime();
-      if (sortMode === 'NEWEST') return bTime - aTime;
-      if (sortMode === 'OLDEST') return aTime - bTime;
-      const byPriority = priorityWeight(b.status as OrderStatus) - priorityWeight(a.status as OrderStatus);
-      if (byPriority !== 0) return byPriority;
-      return aTime - bTime;
-    });
+  // Urgent sound alert
+  React.useEffect(() => {
+    if (soundMode === 'OFF') return;
+    const hasCritical = activeOrders.some(o => getElapsedMins(o.createdAt) >= SLA.critical && o.status !== OrderStatus.READY);
+    if (hasCritical) playUrgentAlertSound();
+  }, [nowTick, soundMode, activeOrders, getElapsedMins]);
 
-    return sorted;
-  }, [orders, activeStatus, sortMode, activeStation, stationLock, stationKeywords, activeBranchId]);
-
-  const getElapsedMins = (createdAt: any) => Math.floor((nowTick - new Date(createdAt).getTime()) / 60000);
+  // Station workload
   const stationWorkload = React.useMemo(() => {
     const map: Record<string, number> = {};
     for (const order of activeOrders) {
       for (const item of order.items || []) {
         const station = getStationForItem(item);
-        const qty = Math.max(1, Number(item?.quantity || 1));
-        map[station] = (map[station] || 0) + qty;
+        map[station] = (map[station] || 0) + Math.max(1, Number(item?.quantity || 1));
       }
     }
     return map;
-  }, [activeOrders, stationKeywords, printerStationMap]);
+  }, [activeOrders, getStationForItem]);
 
-  const estimateItemPrepMinutes = (item: any) => {
-    const prep = Number(item?.preparationTime || item?.prepTime || item?.prepMinutes || 4);
-    const qty = Math.max(1, Number(item?.quantity || 1));
-    return Math.max(1, prep) * qty;
-  };
-
-  const estimateOrderPrepMinutes = (order: any) => {
-    const items = Array.isArray(order?.items) ? order.items : [];
-    if (items.length === 0) return 0;
-    const baseMinutes = items.reduce((sum: number, item: any) => sum + estimateItemPrepMinutes(item), 0);
-    const stations = new Set<string>(items.map((item: any) => String(getStationForItem(item))));
-    const avgLoad = stations.size > 0
-      ? Array.from(stations).reduce((sum: number, station: string) => sum + (stationWorkload[station] || 0), 0) / stations.size
-      : 0;
-    const loadFactor = 1 + Math.min(0.6, avgLoad / 30);
-    return Math.max(1, Math.round(baseMinutes * loadFactor));
-  };
-  const stationLoadList = React.useMemo(
-    () => (['GRILL', 'BAR', 'DESSERT', 'FRYER', 'SALAD', 'BAKERY'] as const).map((station) => ({
-      station,
-      load: stationWorkload[station] || 0,
-    })),
-    [stationWorkload],
-  );
-  const bottleneckStation = React.useMemo(() => {
-    const sorted = [...stationLoadList].sort((a, b) => b.load - a.load);
-    return sorted[0] && sorted[0].load > 0 ? sorted[0] : null;
-  }, [stationLoadList]);
-  const suggestedBatches = React.useMemo(() => {
-    const candidates = activeOrders.filter((o) => o.status === OrderStatus.PENDING || o.status === OrderStatus.PREPARING);
-    const byStation = new Map<string, any[]>();
-    for (const order of candidates) {
-      const stations = new Set<string>((order.items || []).map((item: any) => String(getStationForItem(item))));
-      for (const station of stations) {
-        const arr = byStation.get(station) || [];
-        arr.push(order);
-        byStation.set(station, arr);
-      }
+  const advanceOrder = React.useCallback(async (order: any) => {
+    if (pendingBump !== order.id) {
+      setPendingBump(order.id);
+      setTimeout(() => setPendingBump(prev => prev === order.id ? null : prev), 1500);
+      return;
     }
+    setPendingBump(null);
+    const next = order.status === OrderStatus.PENDING ? OrderStatus.PREPARING
+      : order.status === OrderStatus.PREPARING ? OrderStatus.READY
+        : OrderStatus.DELIVERED;
+    if (next !== order.status) await updateOrderStatus(order.id, next, undefined, undefined, { skipPrint: true });
+  }, [pendingBump, updateOrderStatus]);
 
-    const suggestions: Array<{ station: string; orderRefs: string[]; totalItems: number }> = [];
-    for (const [station, ordersForStation] of byStation.entries()) {
-      const sorted = [...ordersForStation].sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
-      const batch = sorted.slice(0, 2);
-      if (batch.length < 2) continue;
-      const totalItems = batch.reduce((sum, order) => sum + (order.items || []).reduce((s: number, item: any) => s + Number(item.quantity || 1), 0), 0);
-      suggestions.push({
-        station,
-        orderRefs: batch.map((order) => formatOrderRef(order)),
-        totalItems,
-      });
-    }
-    return suggestions.slice(0, 4);
-  }, [activeOrders, stationKeywords, printerStationMap]);
+  const completeReadyBatch = React.useCallback(async () => {
+    const readyOrders = activeOrders.filter(o => o.status === OrderStatus.READY);
+    for (const order of readyOrders) await updateOrderStatus(order.id, OrderStatus.DELIVERED, undefined, undefined, { skipPrint: true });
+  }, [activeOrders, updateOrderStatus]);
 
-  const getTimerStyle = (elapsedMins: number) => {
-    if (elapsedMins >= slaThresholds.critical) return 'bg-rose-600 text-white';
-    if (elapsedMins >= slaThresholds.risk) return 'bg-amber-500 text-white';
-    if (elapsedMins >= slaThresholds.warning) return 'bg-yellow-500 text-white';
-    return 'bg-slate-900 text-white';
-  };
+  // Live match preview — find order as user types
+  const matchedOrder = React.useMemo(() => {
+    const trimmed = quickInput.trim();
+    if (!trimmed) return null;
+    return activeOrders.find(o =>
+      String(o.orderNumber) === trimmed ||
+      String(o.orderNumber).includes(trimmed) ||
+      o.id.slice(0, 6).toLowerCase() === trimmed.toLowerCase()
+    ) || null;
+  }, [quickInput, activeOrders]);
 
-  function formatOrderRef(order: any) {
-    const numberValue = Number(order?.orderNumber);
-    if (Number.isFinite(numberValue) && numberValue > 0) {
-      return `#${String(numberValue).padStart(6, '0')}`;
-    }
-    return `#${order.id}`;
-  }
-
-  React.useEffect(() => {
-    if (soundMode === 'OFF') return;
-    const overdue = activeOrders.filter(o => getElapsedMins(o.createdAt) >= slaThresholds.critical);
-    overdue.forEach(o => {
-      if (overdueNotifiedRef.current.has(o.id)) return;
-      overdueNotifiedRef.current.add(o.id);
-      if (soundMode === 'ALL' || soundMode === 'URGENT') {
-        playUrgentAlertSound();
-      }
-    });
-  }, [activeOrders, soundMode, nowTick, slaThresholds.critical]);
-
-  const toggleFullscreen = async () => {
+  // Quick-complete confirmed match (Simple Mode) — chain through statuses
+  const confirmQuickComplete = React.useCallback(async () => {
+    if (!matchedOrder) return;
+    const o = matchedOrder;
     try {
-      if (!document.fullscreenElement) {
-        await document.documentElement.requestFullscreen();
-      } else {
-        await document.exitFullscreen();
-      }
-    } catch {
-      // ignore
-    }
-  };
+      if (o.status === OrderStatus.PENDING) await updateOrderStatus(o.id, OrderStatus.PREPARING, undefined, undefined, { skipPrint: true });
+      if (o.status === OrderStatus.PENDING || o.status === OrderStatus.PREPARING) await updateOrderStatus(o.id, OrderStatus.READY, undefined, undefined, { skipPrint: true });
+      await updateOrderStatus(o.id, OrderStatus.DELIVERED, undefined, undefined, { skipPrint: true });
+    } catch { /* ignore transition errors */ }
+    setQuickInput('');
+  }, [matchedOrder, updateOrderStatus]);
 
-  const groupByStatus = (status: OrderStatus) =>
-    activeOrders.filter(o => o.status === status);
+  const toggleKdsMode = React.useCallback(() => {
+    setKdsMode(prev => {
+      const next = prev === 'simple' ? 'advanced' : 'simple';
+      localStorage.setItem('kds_mode', next);
+      return next;
+    });
+  }, []);
 
-  const getNextStatus = (status: OrderStatus) => {
-    if (status === OrderStatus.PENDING) return OrderStatus.PREPARING;
-    if (status === OrderStatus.PREPARING) return OrderStatus.READY;
-    if (status === OrderStatus.READY) return OrderStatus.DELIVERED;
-    return status;
-  };
+  const getTimerUrgency = React.useCallback((mins: number, status: OrderStatus): 'ok' | 'warning' | 'risk' | 'critical' | 'ready' => {
+    if (status === OrderStatus.READY) return 'ready';
+    if (mins >= SLA.critical) return 'critical';
+    if (mins >= SLA.risk) return 'risk';
+    if (mins >= SLA.warning) return 'warning';
+    return 'ok';
+  }, []);
 
-  const advanceOrder = async (order: any) => {
-    const next = getNextStatus(order.status);
-    if (next !== order.status) {
-      await updateOrderStatus(order.id, next);
-    }
-  };
+  // Derived counts
+  const pendingOrders = React.useMemo(() => activeOrders.filter(o => o.status === OrderStatus.PENDING), [activeOrders]);
+  const preparingOrders = React.useMemo(() => activeOrders.filter(o => o.status === OrderStatus.PREPARING), [activeOrders]);
+  const readyOrders = React.useMemo(() => activeOrders.filter(o => o.status === OrderStatus.READY), [activeOrders]);
 
-  const nextPendingOrder = React.useMemo(() => {
-    const pending = groupByStatus(OrderStatus.PENDING);
-    return [...pending].sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime())[0];
-  }, [activeOrders]);
+  const showPending = activeStatus === 'ALL' || activeStatus === OrderStatus.PENDING;
+  const showPreparing = activeStatus === 'ALL' || activeStatus === OrderStatus.PREPARING;
+  const showReady = activeStatus === 'ALL' || activeStatus === OrderStatus.READY;
 
-  const nextPreparingOrder = React.useMemo(() => {
-    const preparing = groupByStatus(OrderStatus.PREPARING);
-    return [...preparing].sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime())[0];
-  }, [activeOrders]);
+  const totalStationLoad = Object.values(stationWorkload).reduce((a, b) => a + b, 0);
+  const maxStationLoad = Math.max(1, ...Object.values(stationWorkload));
 
-  const nextReadyOrder = React.useMemo(() => {
-    const ready = groupByStatus(OrderStatus.READY);
-    return [...ready].sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime())[0];
-  }, [activeOrders]);
+  const statusFilters = React.useMemo(() => [
+    { key: 'ALL' as const, label: 'ALL', count: activeOrders.length },
+    { key: OrderStatus.PENDING, label: 'QUEUE', count: pendingOrders.length },
+    { key: OrderStatus.PREPARING, label: 'FIRE', count: preparingOrders.length },
+    { key: OrderStatus.READY, label: 'PASS', count: readyOrders.length },
+  ], [activeOrders.length, pendingOrders.length, preparingOrders.length, readyOrders.length]);
 
-  const completeReadyBatch = async () => {
-    const readyOrders = groupByStatus(OrderStatus.READY);
-    for (const order of readyOrders) {
-      await updateOrderStatus(order.id, OrderStatus.DELIVERED);
-    }
-  };
-
+  // ⌨️ Keyboard shortcuts
   React.useEffect(() => {
-    const loadStationSettings = async () => {
-      let loadedFromDb = false;
-      try {
-        const allSettings = await settingsApi.getAll();
-        const fromDb = allSettings?.kdsStationKeywords;
-        const assignments = allSettings?.kdsStationAssignments;
-        const thresholds = allSettings?.kdsSlaThresholds;
-        const printerMap = allSettings?.kdsPrinterStationMap;
-        loadedFromDb = true;
-        if (fromDb && typeof fromDb === 'object') {
-          setStationKeywords(prev => ({ ...prev, ...fromDb }));
-        }
-        if (thresholds && typeof thresholds === 'object') {
-          const parsed = {
-            warning: Number(thresholds.warning ?? 7),
-            risk: Number(thresholds.risk ?? 12),
-            critical: Number(thresholds.critical ?? 20),
-          };
-          if (parsed.warning > 0 && parsed.risk > parsed.warning && parsed.critical > parsed.risk) {
-            setSlaThresholds(parsed);
+    const handler = (e: KeyboardEvent) => {
+      if (showStationSettings) return;
+      const target = e.target as HTMLElement;
+      if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA') return;
+
+      switch (e.key) {
+        case '1': setActiveStatus('ALL'); break;
+        case '2': setActiveStatus(OrderStatus.PENDING); break;
+        case '3': setActiveStatus(OrderStatus.PREPARING); break;
+        case '4': setActiveStatus(OrderStatus.READY); break;
+        case 'f': case 'F': toggleFullscreen(); break;
+        case 'm': case 'M': setSoundMode(p => p === 'OFF' ? 'ALL' : 'OFF'); break;
+        case 'ArrowDown':
+          e.preventDefault();
+          setHighlightedIdx(p => Math.min(p + 1, activeOrders.length - 1));
+          break;
+        case 'ArrowUp':
+          e.preventDefault();
+          setHighlightedIdx(p => Math.max(p - 1, 0));
+          break;
+        case 'Enter':
+        case ' ':
+          e.preventDefault();
+          if (highlightedIdx >= 0 && highlightedIdx < activeOrders.length) {
+            advanceOrder(activeOrders[highlightedIdx]);
           }
-        }
-        if (assignments && typeof assignments === 'object') {
-          const forBranch = activeBranchId ? assignments[activeBranchId] : assignments;
-          if (forBranch && typeof forBranch === 'object') {
-            setStationAssignmentsByUser(forBranch as Record<string, Station[]>);
-          }
-        }
-        if (printerMap && typeof printerMap === 'object') {
-          const branchMap = activeBranchId ? printerMap[activeBranchId] : printerMap;
-          if (branchMap && typeof branchMap === 'object') {
-            setPrinterStationMap(branchMap as Record<string, Station>);
-          }
-        }
-      } catch {
-        // keep defaults when backend settings are unavailable
+          break;
       }
     };
-
-    loadStationSettings();
-
-    const params = new URLSearchParams(window.location.search);
-    const stationParam = params.get('station');
-    if (stationParam) {
-      const normalized = stationParam.toUpperCase();
-      if (['GRILL', 'BAR', 'DESSERT', 'FRYER', 'SALAD', 'BAKERY', 'ALL'].includes(normalized)) {
-        setStationLock(normalized as any);
-        setActiveStation(normalized as any);
-      }
-    }
-  }, [activeBranchId]);
-
-  React.useEffect(() => {
-    if (allowedStations.includes(activeStation)) return;
-    setActiveStation(allowedStations[0] || 'ALL');
-  }, [allowedStations, activeStation]);
-
-  React.useEffect(() => {
-    if (!stationLock) return;
-    if (!allowedStations.includes(stationLock)) {
-      setStationLock(null);
-    }
-  }, [stationLock, allowedStations]);
-
-  const getStatusColor = (status: OrderStatus) => {
-    switch (status) {
-      case OrderStatus.PENDING: return 'bg-yellow-100 text-yellow-800 border-yellow-200 dark:bg-yellow-900/30 dark:text-yellow-300 dark:border-yellow-800';
-      case OrderStatus.PREPARING: return 'bg-blue-100 text-blue-800 border-blue-200 dark:bg-blue-900/30 dark:text-blue-300 dark:border-blue-800';
-      case OrderStatus.READY: return 'bg-green-100 text-green-800 border-green-200 dark:bg-green-900/30 dark:text-green-300 dark:border-green-800';
-      default: return 'bg-slate-100 text-slate-800 dark:bg-slate-800 dark:text-slate-200';
-    }
-  };
-
-  const getHeaderColor = (status: OrderStatus) => {
-    switch (status) {
-      case OrderStatus.PENDING: return 'bg-yellow-50/50 dark:bg-yellow-900/20';
-      case OrderStatus.PREPARING: return 'bg-blue-50/50 dark:bg-blue-900/20';
-      case OrderStatus.READY: return 'bg-green-50/50 dark:bg-green-900/20';
-      default: return 'bg-slate-50 dark:bg-slate-800';
-    }
-  }
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, [showStationSettings, toggleFullscreen, activeOrders, highlightedIdx, advanceOrder]);
 
   return (
-    <div className="p-3 md:p-5 xl:p-8 min-h-screen bg-app transition-colors pb-24">
-      <div className={`sticky top-2 z-20 backdrop-blur-md flex justify-between items-center mb-4 md:mb-6 p-4 md:p-6 rounded-[1.5rem] md:rounded-[2rem] transition-all duration-700 ${isFlashing ? 'bg-primary shadow-2xl shadow-primary/40' : 'bg-card/90 border border-border/40'}`}>
-        <div>
-          <h2 className={`text-xl md:text-3xl font-black uppercase tracking-tight transition-colors ${isFlashing ? 'text-white' : 'text-main'}`}>
-            {isFlashing ? (isArabic ? 'طلب جديد وصل' : 'New Order Received') : (isArabic ? 'شاشة المطبخ' : 'Kitchen Module')}
-          </h2>
-          <p className={`font-semibold text-xs md:text-sm transition-colors ${isFlashing ? 'text-indigo-100' : 'text-muted'}`}>
-            {isFlashing ? 'Immediate attention required for incoming ticket.' : 'Real-time order tracking and kitchen efficiency.'}
-          </p>
-        </div>
-        <div className="flex items-center gap-2 md:gap-3">
-          <button
-            onClick={toggleFullscreen}
-            className={`px-3 md:px-4 py-2.5 min-h-11 rounded-xl text-[10px] font-black uppercase tracking-widest border transition-all ${isFullscreen ? 'bg-indigo-600 text-white border-indigo-600' : 'bg-card border-border/50 text-muted hover:text-primary'}`}
-          >
-            <MonitorPlay size={14} className="inline mr-2" />
-            {isFullscreen ? 'Exit Fullscreen' : 'Fullscreen'}
-          </button>
-          <button
-            onClick={() => setIsStationSettingsOpen(true)}
-            className="hidden md:inline-flex px-4 py-2.5 min-h-11 rounded-xl text-[10px] font-black uppercase tracking-widest border transition-all bg-card border-border/50 text-muted hover:text-primary"
-          >
-            <Settings2 size={14} className="inline mr-2" />
-            Stations
-          </button>
-          <button
-            onClick={() => setSoundMode(soundMode === 'OFF' ? 'ALL' : 'OFF')}
-            className={`px-3 md:px-4 py-2.5 min-h-11 rounded-xl text-[10px] font-black uppercase tracking-widest border transition-all ${soundMode === 'OFF' ? 'bg-slate-200 text-slate-500 border-slate-200' : 'bg-card border-border/50 text-muted hover:text-primary'}`}
-          >
-            {soundMode === 'OFF' ? <VolumeX size={14} className="inline mr-2" /> : <Volume2 size={14} className="inline mr-2" />}
-            {soundMode === 'OFF' ? 'Muted' : 'Sound'}
-          </button>
-          <div className={`text-xs md:text-sm font-black px-3 md:px-6 py-2.5 rounded-2xl shadow-sm border uppercase tracking-widest transition-all ${isFlashing ? 'bg-white text-indigo-600 border-white scale-110' : 'bg-card dark:text-primary border-border/50'}`}>
-            {activeOrders.length} Active Tickets
-          </div>
-        </div>
-      </div>
+    <div
+      className="flex flex-col h-screen w-full overflow-hidden font-sans"
+      style={{ background: 'rgb(var(--bg-app))', color: 'rgb(var(--text-main))' }}
+    >
+      {/* ═══ TOP ACCENT LINE — themed gradient ═══ */}
+      <div
+        className="shrink-0"
+        style={{
+          height: 3,
+          background: `linear-gradient(90deg, rgb(var(--warning)), rgb(var(--primary)), rgb(var(--success)))`,
+          opacity: 0.7,
+        }}
+      />
 
-      <div className="mb-4 md:mb-5 grid grid-cols-1 md:grid-cols-3 gap-2.5">
-        <button
-          disabled={!nextPendingOrder}
-          onClick={() => nextPendingOrder && advanceOrder(nextPendingOrder)}
-          className="min-h-12 px-4 rounded-2xl bg-amber-500 text-white disabled:opacity-40 disabled:cursor-not-allowed text-[11px] font-black uppercase tracking-widest flex items-center justify-center gap-2"
-        >
-          <Zap size={14} />
-          {isArabic ? 'ابدأ أقدم طلب' : 'Start Oldest Pending'}
-        </button>
-        <button
-          disabled={!nextPreparingOrder}
-          onClick={() => nextPreparingOrder && advanceOrder(nextPreparingOrder)}
-          className="min-h-12 px-4 rounded-2xl bg-blue-600 text-white disabled:opacity-40 disabled:cursor-not-allowed text-[11px] font-black uppercase tracking-widest flex items-center justify-center gap-2"
-        >
-          <Zap size={14} />
-          {isArabic ? 'حوّل أقدم تجهيز إلى جاهز' : 'Ready Oldest Preparing'}
-        </button>
-        <button
-          disabled={!nextReadyOrder}
-          onClick={() => nextReadyOrder && advanceOrder(nextReadyOrder)}
-          className="min-h-12 px-4 rounded-2xl bg-emerald-600 text-white disabled:opacity-40 disabled:cursor-not-allowed text-[11px] font-black uppercase tracking-widest flex items-center justify-center gap-2"
-        >
-          <Zap size={14} />
-          {isArabic ? 'سلّم أقدم طلب جاهز' : 'Deliver Oldest Ready'}
-        </button>
-      </div>
-
-      <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
-        <div className="flex flex-wrap items-center gap-2">
-          {['ALL', OrderStatus.PENDING, OrderStatus.PREPARING, OrderStatus.READY].map(status => (
-            <button
-              key={status}
-              onClick={() => setActiveStatus(status as any)}
-              className={`px-4 py-2.5 min-h-11 rounded-xl text-[10px] font-black uppercase tracking-widest border transition-all ${activeStatus === status ? 'bg-primary text-white border-primary shadow-lg shadow-primary/20' : 'bg-card border-border/50 text-muted hover:text-primary'
-                }`}
+      {/* ═══ HEADER BAR ═══ */}
+      <div
+        className="shrink-0 flex items-center justify-between px-5 py-2"
+        style={{
+          background: 'rgba(var(--bg-card), 0.88)',
+          backdropFilter: 'blur(var(--theme-blur, 16px))',
+          borderBottom: '1px solid rgba(var(--border-color), 0.2)',
+        }}
+      >
+        {/* Left: Brand + Clock + Active count */}
+        <div className="flex items-center gap-4">
+          <div className="flex items-center gap-2.5">
+            <div
+              className="flex items-center justify-center"
+              style={{
+                width: 34, height: 34,
+                borderRadius: 'var(--theme-radius-sm, 8px)',
+                background: `linear-gradient(135deg, rgb(var(--primary)), rgba(var(--primary), 0.6))`,
+                boxShadow: '0 4px 12px rgba(var(--primary), 0.25)',
+              }}
             >
-              {status === 'ALL' ? 'All Tickets' : status}
-            </button>
-          ))}
-        </div>
-        {isCompactLayout && (
-          <button
-            onClick={() => setShowCompactControls(prev => !prev)}
-            className="px-3 py-2.5 min-h-11 rounded-xl text-[10px] font-black uppercase tracking-widest border transition-all bg-card border-border/50 text-muted hover:text-primary"
+              <ChefHat size={16} className="text-white" />
+            </div>
+            <div>
+              <h1 style={{ fontSize: 13, fontWeight: 900, letterSpacing: '0.18em', color: 'rgb(var(--text-main))' }} className="uppercase leading-none">KITCHEN</h1>
+              <p style={{ fontSize: 9, fontWeight: 700, color: 'rgb(var(--text-muted))', letterSpacing: '0.12em' }} className="uppercase">DISPLAY SYSTEM</p>
+            </div>
+          </div>
+
+          <div style={{ width: 1, height: 24, background: 'rgba(var(--border-color), 0.25)' }} />
+          <LiveClock />
+          <div style={{ width: 1, height: 24, background: 'rgba(var(--border-color), 0.25)' }} />
+
+          {/* Active ticket counter */}
+          <div
+            className="flex items-center gap-2 px-3 py-1.5"
+            style={{
+              borderRadius: 'var(--theme-radius-sm, 8px)',
+              background: 'rgba(var(--bg-elevated), 0.6)',
+              border: '1px solid rgba(var(--border-color), 0.2)',
+            }}
           >
-            {showCompactControls ? (isArabic ? 'إخفاء التحكم' : 'Hide Controls') : (isArabic ? 'إظهار التحكم' : 'Show Controls')}
-          </button>
-        )}
-        {(!isCompactLayout || showCompactControls) && (
-          <div className="flex items-center gap-2 flex-wrap">
-            <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-card border border-border/50 text-[10px] font-black uppercase tracking-widest text-muted">
-              <Layers size={14} />
-              <span>{stationLock ? 'Station Locked' : 'Station'}</span>
-            </div>
-            {[
-              { id: 'ALL', label: 'All' },
-              { id: 'GRILL', label: 'Grill' },
-              { id: 'BAR', label: 'Bar' },
-              { id: 'DESSERT', label: 'Dessert' },
-              { id: 'FRYER', label: 'Fryer' },
-              { id: 'SALAD', label: 'Salad' },
-              { id: 'BAKERY', label: 'Bakery' }
-            ].map(opt => (
-              <button
-                key={opt.id}
-                onClick={() => setActiveStation(opt.id as any)}
-                disabled={(Boolean(stationLock) && stationLock !== opt.id) || !allowedStations.includes(opt.id as Station)}
-                className={`px-3 py-2.5 min-h-11 rounded-xl text-[10px] font-black uppercase tracking-widest border transition-all ${activeStation === opt.id ? 'bg-emerald-600 text-white border-emerald-600' : 'bg-card border-border/50 text-muted hover:text-primary'
-                  } ${(stationLock && stationLock !== opt.id) || !allowedStations.includes(opt.id as Station) ? 'opacity-40 cursor-not-allowed' : ''}`}
-              >
-                {opt.label}
-              </button>
-            ))}
-          </div>
-        )}
-        {!isCompactLayout && (
-          <div className="flex items-center gap-2">
-            <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-card border border-border/50 text-[10px] font-black uppercase tracking-widest text-muted">
-              <Filter size={14} />
-              <span>Sort</span>
-            </div>
-            {[
-              { id: 'PRIORITY', label: 'Priority', icon: Flame },
-              { id: 'OLDEST', label: 'Oldest', icon: Timer },
-              { id: 'NEWEST', label: 'Newest', icon: RefreshCw }
-            ].map(opt => (
-              <button
-                key={opt.id}
-                onClick={() => setSortMode(opt.id as any)}
-                className={`px-3 py-2.5 min-h-11 rounded-xl text-[10px] font-black uppercase tracking-widest border transition-all flex items-center gap-2 ${sortMode === opt.id ? 'bg-slate-900 text-white border-slate-900' : 'bg-card border-border/50 text-muted hover:text-primary'
-                  }`}
-              >
-                <opt.icon size={12} />
-                {opt.label}
-              </button>
-            ))}
-          </div>
-        )}
-      </div>
-
-      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 md:gap-6">
-        <div className="col-span-full bg-white/50 dark:bg-slate-900/30 border border-border/50 rounded-2xl p-3 md:p-4">
-          <div className="flex flex-wrap items-center gap-2">
-            {stationLoadList.map((item) => {
-              const isBottleneck = bottleneckStation?.station === item.station && item.load >= 8;
-              return (
-                <div
-                  key={`load-${item.station}`}
-                  className={`px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-widest border ${isBottleneck
-                    ? 'bg-rose-50 text-rose-700 border-rose-200 dark:bg-rose-900/20 dark:text-rose-300 dark:border-rose-800/40'
-                    : 'bg-slate-100 text-slate-600 border-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-700'
-                    }`}
-                >
-                  {item.station}: {item.load}
-                </div>
-              );
-            })}
-            {bottleneckStation && bottleneckStation.load >= 8 && (
-              <div className="px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-widest bg-rose-600 text-white">
-                {isArabic
-                  ? `عنق زجاجة: ${bottleneckStation.station}`
-                  : `Bottleneck: ${bottleneckStation.station}`}
-              </div>
-            )}
-            {suggestedBatches.map((batch, idx) => (
-              <div
-                key={`batch-${batch.station}-${idx}`}
-                className="px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-widest bg-emerald-50 text-emerald-700 border border-emerald-200 dark:bg-emerald-900/20 dark:text-emerald-300 dark:border-emerald-800/40"
-              >
-                {isArabic
-                  ? `اقتراح دفعة ${batch.station}: ${batch.orderRefs.join(' + ')}`
-                  : `Batch ${batch.station}: ${batch.orderRefs.join(' + ')}`}
-              </div>
-            ))}
+            <span className="relative flex h-2 w-2">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full opacity-75" style={{ background: 'rgb(var(--success))' }} />
+              <span className="relative inline-flex rounded-full h-2 w-2" style={{ background: 'rgb(var(--success))' }} />
+            </span>
+            <span className="tabular-nums" style={{ fontSize: 12, fontWeight: 900 }}>{activeOrders.length}</span>
+            <span style={{ fontSize: 10, fontWeight: 700, color: 'rgb(var(--text-muted))' }} className="uppercase">active</span>
           </div>
         </div>
-        {[OrderStatus.PENDING, OrderStatus.PREPARING, OrderStatus.READY].map(status => {
-          const ordersForStatus = groupByStatus(status);
-          return (
-            <div key={status} className="bg-white/40 dark:bg-slate-950/30 border border-border/50 rounded-[2rem] p-4 md:p-5">
-              <div className="flex items-center justify-between mb-4">
-                <div className="flex items-center gap-2">
-                  <div className={`w-2.5 h-2.5 rounded-full ${status === OrderStatus.PENDING ? 'bg-yellow-400' : status === OrderStatus.PREPARING ? 'bg-blue-500' : 'bg-emerald-500'}`} />
-                  <h3 className="text-xs font-black uppercase tracking-widest text-slate-500">{status}</h3>
-                </div>
-                <div className="flex items-center gap-2">
-                  <span className="text-[10px] font-black text-slate-400">{ordersForStatus.length} Tickets</span>
-                  {status === OrderStatus.READY && ordersForStatus.length > 0 && (
-                    <button
-                      onClick={completeReadyBatch}
-                      className="px-3 py-1.5 rounded-xl text-[9px] font-black uppercase tracking-widest bg-emerald-600 text-white shadow-lg shadow-emerald-600/20"
-                    >
-                      Complete All
-                    </button>
-                  )}
-                </div>
-              </div>
-              <div className="h-[62vh] md:h-[66vh] xl:h-[72vh] overflow-hidden">
-                <div className="h-full no-scrollbar overflow-y-auto pr-1 space-y-4">
-                  {ordersForStatus.map((order) => (
-                    <div key={order.id} className="bg-card rounded-[2rem] shadow-sm border border-border/50 overflow-hidden flex flex-col animate-fade-in transition-colors">
-                      {/* Ticket Header */}
-                      <div className={`p-6 border-b dark:border-slate-800 flex justify-between items-center ${getHeaderColor(order.status)}`}>
-                        <div>
-                          <span className="text-[10px] font-black uppercase text-muted block mb-1 tracking-widest">Order</span>
-                          <span className="font-mono font-black text-main text-lg">{formatOrderRef(order)}</span>
-                          {order.id && (
-                            <p className="text-[10px] text-muted mt-1 font-bold">ID: {order.id}</p>
-                          )}
-                        </div>
-                        <div className="text-right">
-                          <span className="text-[10px] font-black uppercase text-muted block mb-1 tracking-widest">Table / Mode</span>
-                          <span className="font-mono font-black text-main">{order.tableId || order.type}</span>
-                          {order.customerName && (
-                            <p className="text-[10px] text-muted mt-1 font-bold">{order.customerName}</p>
-                          )}
-                          <p className="text-[10px] font-black mt-1 text-indigo-600 dark:text-indigo-300">
-                            {isArabic ? `تقدير التحضير ~ ${estimateOrderPrepMinutes(order)} د` : `Prep ETA ~ ${estimateOrderPrepMinutes(order)}m`}
-                          </p>
-                        </div>
-                      </div>
 
-                      {/* Timer Strip */}
-                      <div className={`${getTimerStyle(getElapsedMins(order.createdAt))} text-[10px] font-black py-2 px-6 flex items-center justify-between uppercase tracking-widest`}>
-                        <span className="flex items-center gap-1 opacity-80">
-                          <Clock size={12} />
-                          {new Date(order.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                        </span>
-                        <span className="font-bold">
-                          {getElapsedMins(order.createdAt)} MINS ELAPSED
-                        </span>
-                      </div>
+        {/* Right: Controls */}
+        <div className="flex items-center gap-2">
+          {/* Mode toggle */}
+          <button
+            onClick={toggleKdsMode}
+            className="flex items-center gap-1.5 px-3 py-2 uppercase transition-all duration-200"
+            style={{
+              borderRadius: 'var(--theme-radius-sm, 8px)',
+              fontSize: 10, fontWeight: 900,
+              background: kdsMode === 'simple' ? 'rgba(var(--success), 0.12)' : 'rgba(var(--primary), 0.12)',
+              color: kdsMode === 'simple' ? 'rgb(var(--success))' : 'rgb(var(--primary))',
+              border: `1px solid ${kdsMode === 'simple' ? 'rgba(var(--success), 0.25)' : 'rgba(var(--primary), 0.25)'}`,
+            }}
+          >
+            {kdsMode === 'simple' ? <Zap size={14} /> : <Layers size={14} />}
+            {kdsMode === 'simple' ? 'SIMPLE' : 'ADVANCED'}
+          </button>
 
-                      {/* Items List */}
-                      <div className="p-6 flex-1 space-y-4">
-                        {(order.kitchenNotes || order.notes || order.deliveryNotes) && (
-                          <div className="rounded-2xl border border-amber-200/60 dark:border-amber-800/40 bg-amber-50/70 dark:bg-amber-900/10 p-3">
-                            {order.kitchenNotes && (
-                              <p className="text-[11px] font-black text-amber-800 dark:text-amber-300">
-                                Kitchen Note: <span className="font-bold">{order.kitchenNotes}</span>
-                              </p>
-                            )}
-                            {order.notes && (
-                              <p className="text-[11px] font-black text-amber-800 dark:text-amber-300 mt-1">
-                                Order Note: <span className="font-bold">{order.notes}</span>
-                              </p>
-                            )}
-                            {order.deliveryNotes && (
-                              <p className="text-[11px] font-black text-amber-800 dark:text-amber-300 mt-1">
-                                Delivery Note: <span className="font-bold">{order.deliveryNotes}</span>
-                              </p>
-                            )}
-                          </div>
-                        )}
-
-                        <ul className="space-y-4">
-                          {order.items.map((item, idx) => (
-                            (() => {
-                              const rawModifiers = (item as any).modifiers as any[] | undefined;
-                              return (
-                                <li key={idx} className="flex gap-4 text-slate-700 dark:text-slate-300">
-                                  <span className="font-black w-8 h-8 flex items-center justify-center bg-slate-100 dark:bg-slate-800 rounded-xl text-xs shrink-0 border border-slate-200 dark:border-slate-700">
-                                    {item.quantity}
-                                  </span>
-                                  <div className="flex-1">
-                                    <span className="font-bold text-sm uppercase leading-snug">{item.name}</span>
-                                    <div className="mt-1 flex flex-wrap gap-2">
-                                      <span className="text-[8px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-500">
-                                        {getStationForItem(item)}
-                                      </span>
-                                    </div>
-                                    {Array.isArray(item.selectedModifiers) && item.selectedModifiers.length > 0 && (
-                                      <div className="mt-1 flex flex-wrap gap-1.5">
-                                        {item.selectedModifiers.map((m: any, modifierIndex: number) => (
-                                          <span
-                                            key={`${item.name}-mod-${modifierIndex}`}
-                                            className="text-[9px] px-2 py-0.5 rounded-full bg-indigo-50 dark:bg-indigo-900/20 border border-indigo-200/70 dark:border-indigo-800/60 text-indigo-700 dark:text-indigo-300 font-bold"
-                                          >
-                                            {m.optionName || m.name || m.groupName}
-                                          </span>
-                                        ))}
-                                      </div>
-                                    )}
-                                    {Array.isArray(rawModifiers) && rawModifiers.length > 0 && (!item.selectedModifiers || item.selectedModifiers.length === 0) && (
-                                      <div className="mt-1 flex flex-wrap gap-1.5">
-                                        {rawModifiers.map((m: any, modifierIndex: number) => (
-                                          <span
-                                            key={`${item.name}-raw-mod-${modifierIndex}`}
-                                            className="text-[9px] px-2 py-0.5 rounded-full bg-indigo-50 dark:bg-indigo-900/20 border border-indigo-200/70 dark:border-indigo-800/60 text-indigo-700 dark:text-indigo-300 font-bold"
-                                          >
-                                            {m.optionName || m.name || m.groupName}
-                                          </span>
-                                        ))}
-                                      </div>
-                                    )}
-                                    {item.notes && <p className="text-[10px] text-rose-500 font-bold mt-1 italic">Note: {item.notes}</p>}
-                                  </div>
-                                </li>
-                              );
-                            })()
-                          ))}
-                        </ul>
-                      </div>
-
-                      {/* Actions */}
-                      <div className="p-6 bg-elevated dark:bg-elevated/50 border-t border-border/50 grid gap-3">
-                        <div className={`text-center py-2 px-4 rounded-xl text-[10px] font-black uppercase tracking-widest border shadow-sm ${getStatusColor(order.status)}`}>
-                          {order.status}
-                        </div>
-
-                        {order.status === OrderStatus.PENDING && (
-                          <button
-                            onClick={() => advanceOrder(order)}
-                            className="w-full py-3.5 min-h-12 bg-primary text-white rounded-2xl font-black uppercase text-xs hover:bg-primary-hover transition-all shadow-lg shadow-primary/20"
-                          >
-                            {isArabic ? 'ابدأ التحضير' : 'Start Preparation'}
-                          </button>
-                        )}
-
-                        {order.status === OrderStatus.PREPARING && (
-                          <button
-                            onClick={() => advanceOrder(order)}
-                            className="w-full py-3.5 min-h-12 bg-emerald-600 text-white rounded-2xl font-black uppercase text-xs hover:bg-emerald-700 transition-all flex items-center justify-center gap-2 shadow-lg shadow-emerald-600/20"
-                          >
-                            <CheckCircle size={18} />
-                            {isArabic ? 'تم التجهيز - جاهز' : 'Mark as Ready'}
-                          </button>
-                        )}
-
-                        {order.status === OrderStatus.READY && (
-                          <button
-                            onClick={() => advanceOrder(order)}
-                            className="w-full py-3.5 min-h-12 bg-slate-800 text-white dark:bg-slate-700 dark:hover:bg-slate-600 rounded-2xl font-black uppercase text-xs hover:bg-slate-900 transition-all shadow-lg"
-                          >
-                            {isArabic ? 'تسليم الطلب' : 'Complete Order'}
-                          </button>
-                        )}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-                {ordersForStatus.length === 0 && (
-                  <div className="p-6 rounded-2xl border-2 border-dashed border-slate-200 dark:border-slate-800 text-center text-slate-400 text-xs font-black uppercase tracking-widest">
-                    No tickets
+          {/* Quick complete input (Simple mode) */}
+          {kdsMode === 'simple' && (
+            <div className="relative">
+              <div className="flex items-center" style={{
+                borderRadius: 'var(--theme-radius-sm, 8px)',
+                background: matchedOrder ? 'rgba(var(--success), 0.1)' : 'rgba(var(--bg-elevated), 0.6)',
+                border: `1px solid ${matchedOrder ? 'rgba(var(--success), 0.35)' : quickInput && !matchedOrder ? 'rgba(var(--danger), 0.3)' : 'rgba(var(--border-color), 0.25)'}`,
+                overflow: 'hidden',
+                transition: 'all 0.2s',
+              }}>
+                <Search size={14} style={{ margin: '0 8px', color: matchedOrder ? 'rgb(var(--success))' : 'rgb(var(--text-muted))' }} />
+                <input
+                  ref={quickInputRef}
+                  value={quickInput}
+                  onChange={e => setQuickInput(e.target.value)}
+                  onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); confirmQuickComplete(); } if (e.key === 'Escape') { setQuickInput(''); } }}
+                  placeholder="Order # → Enter"
+                  className="bg-transparent outline-none"
+                  style={{
+                    width: 110, padding: '6px 8px 6px 0',
+                    fontSize: 12, fontWeight: 700,
+                    color: 'rgb(var(--text-main))',
+                  }}
+                />
+                {matchedOrder && (
+                  <div className="flex items-center gap-1.5 pr-2 shrink-0" style={{ color: 'rgb(var(--success))', fontSize: 11, fontWeight: 900 }}>
+                    <span>#{matchedOrder.orderNumber || matchedOrder.id.slice(0, 5)}</span>
+                    <span style={{ fontSize: 9, opacity: 0.7 }}>↵</span>
                   </div>
+                )}
+                {quickInput && !matchedOrder && (
+                  <div className="pr-2 shrink-0" style={{ color: 'rgb(var(--danger))', fontSize: 10, fontWeight: 700 }}>✕</div>
                 )}
               </div>
             </div>
-          );
-        })}
+          )}
 
-        {activeOrders.length === 0 && (
-          <div className="col-span-full flex flex-col items-center justify-center h-96 text-slate-400 dark:text-slate-500 border-2 border-dashed border-slate-200 dark:border-slate-800 rounded-[3rem] card-primary/50">
-            <div className="w-20 h-20 rounded-full bg-slate-50 dark:bg-slate-800 flex items-center justify-center mb-6">
-              <Clock size={40} className="opacity-20" />
-            </div>
-            <p className="text-xl font-black uppercase tracking-tighter">Kitchen is Quiet</p>
-            <p className="text-sm font-bold opacity-60 mt-1">All orders have been dispatched.</p>
-          </div>
-        )}
+          <button
+            onClick={() => setSoundMode(soundMode === 'OFF' ? 'ALL' : 'OFF')}
+            className="flex items-center gap-1.5 px-3 py-2 uppercase transition-all duration-200"
+            style={{
+              borderRadius: 'var(--theme-radius-sm, 8px)',
+              fontSize: 10, fontWeight: 900,
+              background: soundMode === 'OFF' ? 'rgba(var(--danger), 0.12)' : 'rgba(var(--success), 0.12)',
+              color: soundMode === 'OFF' ? 'rgb(var(--danger))' : 'rgb(var(--success))',
+              border: `1px solid ${soundMode === 'OFF' ? 'rgba(var(--danger), 0.2)' : 'rgba(var(--success), 0.2)'}`,
+            }}
+          >
+            {soundMode === 'OFF' ? <VolumeX size={14} /> : <Volume2 size={14} />}
+            {soundMode === 'OFF' ? 'MUTED' : 'LIVE'}
+          </button>
+          <button
+            onClick={toggleFullscreen}
+            className="flex items-center gap-1.5 px-3 py-2 uppercase transition-all duration-200"
+            style={{
+              borderRadius: 'var(--theme-radius-sm, 8px)',
+              fontSize: 10, fontWeight: 900,
+              background: 'rgba(var(--bg-elevated), 0.5)',
+              color: 'rgb(var(--text-muted))',
+              border: '1px solid rgba(var(--border-color), 0.2)',
+            }}
+          >
+            <MonitorPlay size={14} /> {isFullscreen ? 'EXIT' : 'FULL'}
+          </button>
+          <button
+            onClick={() => setShowStationSettings(true)}
+            className="flex items-center justify-center transition-all duration-200"
+            style={{
+              width: 36, height: 36,
+              borderRadius: 'var(--theme-radius-sm, 8px)',
+              background: 'rgba(var(--bg-elevated), 0.5)',
+              color: 'rgb(var(--text-muted))',
+              border: '1px solid rgba(var(--border-color), 0.2)',
+            }}
+            title="Configure Stations"
+          >
+            <Settings size={14} />
+          </button>
+        </div>
       </div>
 
-      {isStationSettingsOpen && (
-        <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-md z-[300] flex items-center justify-center p-6 animate-in fade-in duration-300">
-          <div className="card-primary w-full max-w-2xl rounded-[2.5rem] p-8 shadow-2xl space-y-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <h3 className="text-xl font-black text-slate-800 dark:text-white uppercase tracking-tight">Stations Setup</h3>
-                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Comma-separated keywords per station</p>
-              </div>
-              <button onClick={() => setIsStationSettingsOpen(false)} className="p-3 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-2xl transition-all">
-                ✕
-              </button>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {Object.entries(stationKeywords).map(([station, value]) => (
-                <div key={station} className="space-y-2">
-                  <label className="text-[9px] font-black uppercase tracking-widest text-slate-400">{station}</label>
-                  <textarea
-                    rows={3}
-                    value={value}
-                    onChange={(e) => setStationKeywords(prev => ({ ...prev, [station]: e.target.value }))}
-                    className="w-full p-3 rounded-xl bg-slate-50 dark:bg-slate-800 text-xs font-black border border-slate-200 dark:border-slate-700"
-                  />
-                </div>
+      {/* ═══ MAIN CONTENT — Simple or Advanced ═══ */}
+      {kdsMode === 'simple' ? (
+        <SimpleGrid
+          orders={activeOrders.filter(o => o.status !== OrderStatus.READY && o.status !== OrderStatus.DELIVERED)}
+          readyOrders={readyOrders}
+          getElapsedMins={getElapsedMins}
+          getTimerUrgency={getTimerUrgency}
+          getStationForItem={getStationForItem}
+          updateOrderStatus={updateOrderStatus}
+          isArabic={isArabic}
+        />
+      ) : (
+        <>
+          {/* ═══ FILTER RIBBON (Advanced only) ═══ */}
+          <div
+            className="shrink-0 flex items-center gap-3 px-5 py-2 overflow-x-auto no-scrollbar"
+            style={{
+              background: 'rgba(var(--bg-card), 0.5)',
+              backdropFilter: 'blur(8px)',
+              borderBottom: '1px solid rgba(var(--border-color), 0.12)',
+            }}
+          >
+            <div className="flex items-center gap-1.5">
+              {statusFilters.map(f => (
+                <button
+                  key={f.key}
+                  onClick={() => setActiveStatus(f.key as any)}
+                  className="flex items-center gap-1.5 uppercase tracking-wider transition-all duration-200"
+                  style={{
+                    padding: '6px 12px',
+                    borderRadius: 'var(--theme-radius-sm, 8px)',
+                    fontSize: 10, fontWeight: 900,
+                    background: activeStatus === f.key ? 'rgb(var(--primary))' : 'rgba(var(--bg-elevated), 0.4)',
+                    color: activeStatus === f.key ? 'white' : 'rgb(var(--text-muted))',
+                    boxShadow: activeStatus === f.key ? '0 4px 12px rgba(var(--primary), 0.25)' : 'none',
+                  }}
+                >
+                  {f.label}
+                  <span className="tabular-nums" style={{ padding: '1px 6px', borderRadius: 'var(--theme-radius-sm, 6px)', fontSize: 9, fontWeight: 900, background: activeStatus === f.key ? 'rgba(255,255,255,0.2)' : 'rgba(var(--bg-app), 0.6)' }}>
+                    {f.count}
+                  </span>
+                </button>
               ))}
             </div>
-
-            <div className="grid grid-cols-3 gap-3">
-              <div className="space-y-2">
-                <label className="text-[9px] font-black uppercase tracking-widest text-slate-400">Warning (min)</label>
-                <input
-                  type="number"
-                  min={1}
-                  value={slaThresholds.warning}
-                  onChange={(e) => setSlaThresholds(prev => ({ ...prev, warning: Number(e.target.value || 1) }))}
-                  className="w-full p-3 rounded-xl bg-slate-50 dark:bg-slate-800 text-xs font-black border border-slate-200 dark:border-slate-700"
-                />
-              </div>
-              <div className="space-y-2">
-                <label className="text-[9px] font-black uppercase tracking-widest text-slate-400">Risk (min)</label>
-                <input
-                  type="number"
-                  min={1}
-                  value={slaThresholds.risk}
-                  onChange={(e) => setSlaThresholds(prev => ({ ...prev, risk: Number(e.target.value || 1) }))}
-                  className="w-full p-3 rounded-xl bg-slate-50 dark:bg-slate-800 text-xs font-black border border-slate-200 dark:border-slate-700"
-                />
-              </div>
-              <div className="space-y-2">
-                <label className="text-[9px] font-black uppercase tracking-widest text-slate-400">Critical (min)</label>
-                <input
-                  type="number"
-                  min={1}
-                  value={slaThresholds.critical}
-                  onChange={(e) => setSlaThresholds(prev => ({ ...prev, critical: Number(e.target.value || 1) }))}
-                  className="w-full p-3 rounded-xl bg-slate-50 dark:bg-slate-800 text-xs font-black border border-slate-200 dark:border-slate-700"
-                />
-              </div>
+            <div style={{ width: 1, height: 20, background: 'rgba(var(--border-color), 0.15)' }} />
+            <div className="flex items-center gap-1">
+              {['ALL', ...stations.map(s => s.name)].map(station => {
+                const isActive = activeStations.has(station as Station);
+                const load = station !== 'ALL' ? stationWorkload[station] || 0 : totalStationLoad;
+                return (
+                  <button key={station} onClick={() => toggleStation(station as Station)}
+                    className="flex items-center gap-1 uppercase tracking-wider transition-all duration-200"
+                    style={{ padding: '5px 10px', borderRadius: 'var(--theme-radius-sm, 8px)', fontSize: 9, fontWeight: 900, background: isActive ? 'rgba(var(--success), 0.12)' : 'transparent', color: isActive ? 'rgb(var(--success))' : 'rgb(var(--text-muted))', border: isActive ? '1px solid rgba(var(--success), 0.25)' : '1px solid transparent' }}
+                  >
+                    {station}
+                    {load > 0 && <span className="flex items-center justify-center tabular-nums" style={{ width: 18, height: 18, borderRadius: '50%', fontSize: 8, fontWeight: 900, background: load > 5 ? 'rgba(var(--danger), 0.2)' : 'rgba(var(--bg-elevated), 0.8)', color: load > 5 ? 'rgb(var(--danger))' : 'inherit' }}>{load}</span>}
+                  </button>
+                );
+              })}
             </div>
+            {totalStationLoad > 0 && (
+              <>
+                <div style={{ width: 1, height: 20, background: 'rgba(var(--border-color), 0.15)' }} />
+                <div className="flex items-center gap-2 ml-auto">
+                  <span className="flex items-center gap-1 uppercase tracking-widest" style={{ fontSize: 9, fontWeight: 700, color: 'rgb(var(--text-muted))' }}><AlertTriangle size={10} /> LOAD</span>
+                  <div className="flex items-end gap-px" style={{ height: 16 }}>
+                    {stations.map(st => {
+                      const load = stationWorkload[st.name] || 0;
+                      if (load === 0) return null;
+                      const pct = Math.min(100, (load / maxStationLoad) * 100);
+                      return (<div key={st.name} title={`${st.name}: ${load}`}><div className="rounded-full transition-all" style={{ width: 5, height: `${Math.max(4, pct * 0.16)}px`, background: load > 5 ? 'rgb(var(--danger))' : load > 3 ? 'rgb(var(--warning))' : 'rgb(var(--success))' }} /></div>);
+                    })}
+                  </div>
+                </div>
+              </>
+            )}
+          </div>
 
-            <div className="flex items-center justify-between pt-4 border-t border-slate-200 dark:border-slate-800">
-              <div className="text-[10px] font-black uppercase tracking-widest text-slate-400">
-                Tip: add category names to route items correctly.
-              </div>
-              <div className="flex gap-3">
+          {/* ═══ KANBAN COLUMNS ═══ */}
+          <div className={`flex-1 min-h-0 flex ${isArabic ? 'flex-row-reverse' : 'flex-row'} gap-2.5 p-2.5`}>
+            {showPending && <KanbanColumn theme={COLUMN_THEMES.PENDING} orders={pendingOrders} actionLabel="START OLDEST" actionIcon={<Play size={12} />} onAction={pendingOrders.length > 0 ? () => advanceOrder(pendingOrders[0]) : undefined} getElapsedMins={getElapsedMins} getTimerUrgency={getTimerUrgency} advanceOrder={advanceOrder} getStationForItem={getStationForItem} isArabic={isArabic} pendingBump={pendingBump} highlightedId={highlightedIdx >= 0 ? activeOrders[highlightedIdx]?.id : null} />}
+            {showPreparing && <KanbanColumn theme={COLUMN_THEMES.PREPARING} orders={preparingOrders} actionLabel="READY OLDEST" actionIcon={<CheckCircle size={12} />} onAction={preparingOrders.length > 0 ? () => advanceOrder(preparingOrders[0]) : undefined} getElapsedMins={getElapsedMins} getTimerUrgency={getTimerUrgency} advanceOrder={advanceOrder} getStationForItem={getStationForItem} isArabic={isArabic} pendingBump={pendingBump} highlightedId={highlightedIdx >= 0 ? activeOrders[highlightedIdx]?.id : null} />}
+            {showReady && <KanbanColumn theme={COLUMN_THEMES.READY} orders={readyOrders} actionLabel="DELIVER ALL" actionIcon={<Truck size={12} />} onAction={readyOrders.length > 0 ? completeReadyBatch : undefined} getElapsedMins={getElapsedMins} getTimerUrgency={getTimerUrgency} advanceOrder={advanceOrder} getStationForItem={getStationForItem} isArabic={isArabic} pendingBump={pendingBump} highlightedId={highlightedIdx >= 0 ? activeOrders[highlightedIdx]?.id : null} />}
+          </div>
+        </>
+      )}
+
+      {/* ═══ Station Settings Modal ═══ */}
+      <AnimatePresence>
+        {showStationSettings && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-center justify-center p-4"
+            style={{ background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(12px)' }}
+            onClick={() => setShowStationSettings(false)}
+          >
+            <motion.div
+              initial={{ opacity: 0, scale: 0.92, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 10 }}
+              transition={{ type: 'spring', damping: 25, stiffness: 300 }}
+              className="w-full max-w-lg space-y-4"
+              style={{
+                background: 'rgb(var(--bg-card))',
+                borderRadius: 'var(--theme-radius-lg, 16px)',
+                border: '1px solid rgba(var(--border-color), 0.25)',
+                padding: 24,
+                boxShadow: 'var(--theme-shadow-elevated)',
+              }}
+              onClick={e => e.stopPropagation()}
+            >
+              <div className="flex justify-between items-center pb-4" style={{ borderBottom: '1px solid rgba(var(--border-color), 0.15)' }}>
+                <h3 className="flex items-center gap-2 uppercase tracking-wider" style={{ fontSize: 14, fontWeight: 900, color: 'rgb(var(--text-main))' }}>
+                  <Settings size={16} style={{ color: 'rgb(var(--primary))' }} /> Station Config
+                </h3>
                 <button
-                  onClick={() => setIsStationSettingsOpen(false)}
-                  className="px-4 py-3 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-600 font-black text-[10px] uppercase tracking-widest"
-                >
-                  Cancel
-                </button>
-                <button
-                  onClick={async () => {
-                    const warning = Math.max(1, Number(slaThresholds.warning || 1));
-                    const risk = Math.max(warning + 1, Number(slaThresholds.risk || warning + 1));
-                    const critical = Math.max(risk + 1, Number(slaThresholds.critical || risk + 1));
-                    const safeThresholds = { warning, risk, critical };
-                    setSlaThresholds(safeThresholds);
-                    try {
-                      const allSettings = await settingsApi.getAll();
-                      const existingPrinterMap = allSettings?.kdsPrinterStationMap && typeof allSettings.kdsPrinterStationMap === 'object'
-                        ? allSettings.kdsPrinterStationMap
-                        : {};
-                      const nextPrinterMap = activeBranchId
-                        ? { ...existingPrinterMap, [activeBranchId]: printerStationMap }
-                        : printerStationMap;
-                      await settingsApi.update('kdsStationKeywords', stationKeywords, 'kds');
-                      await settingsApi.update('kdsSlaThresholds', safeThresholds, 'kds');
-                      await settingsApi.update('kdsPrinterStationMap', nextPrinterMap, 'kds');
-                    } catch {
-                      // keep current in-memory settings and let user retry saving when backend is available
-                    }
-                    setIsStationSettingsOpen(false);
+                  onClick={() => setShowStationSettings(false)}
+                  className="flex items-center justify-center transition-colors"
+                  style={{
+                    width: 32, height: 32,
+                    borderRadius: 'var(--theme-radius-sm, 8px)',
+                    background: 'rgba(var(--bg-elevated), 0.5)',
+                    color: 'rgb(var(--text-muted))',
                   }}
-                  className="px-4 py-3 rounded-xl bg-indigo-600 text-white font-black text-[10px] uppercase tracking-widest shadow-lg shadow-indigo-600/20"
                 >
-                  Save Stations
+                  <X size={14} />
                 </button>
               </div>
-            </div>
-
-            <div className="pt-4 border-t border-slate-200 dark:border-slate-800 space-y-3">
-              <h4 className="text-[11px] font-black uppercase tracking-widest text-slate-500">Printer Station Mapping</h4>
-              {branchPrinters.length === 0 && (
-                <p className="text-[11px] font-bold text-slate-400">No active printers found for this branch.</p>
-              )}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                {branchPrinters.map((printer: any) => (
-                  <div key={printer.id} className="rounded-xl border border-slate-200 dark:border-slate-700 p-3 bg-slate-50 dark:bg-slate-800/40">
-                    <div className="text-[10px] font-black uppercase tracking-widest text-slate-400">{printer.type || 'PRINTER'}</div>
-                    <div className="text-xs font-black text-slate-800 dark:text-white mt-1">{printer.name || printer.id}</div>
-                    <div className="mt-2">
-                      <select
-                        value={printerStationMap[printer.id] || 'GRILL'}
-                        onChange={(e) => setPrinterStationMap(prev => ({ ...prev, [printer.id]: e.target.value as Station }))}
-                        className="w-full p-2 rounded-lg card-primary text-[11px] font-black"
+              <div className="space-y-2.5 overflow-y-auto pr-1" style={{ maxHeight: '60vh' }}>
+                {stations.map((s, i) => (
+                  <div
+                    key={i}
+                    className="space-y-2"
+                    style={{
+                      background: 'rgba(var(--bg-elevated), 0.5)',
+                      borderRadius: 'var(--theme-radius, 12px)',
+                      padding: 14,
+                      border: '1px solid rgba(var(--border-color), 0.15)',
+                    }}
+                  >
+                    <div className="flex items-center justify-between">
+                      <input
+                        value={s.name}
+                        onChange={e => {
+                          const updated = [...stations];
+                          updated[i] = { ...s, name: e.target.value.toUpperCase() };
+                          saveStations(updated);
+                        }}
+                        className="bg-transparent outline-none uppercase transition-colors"
+                        style={{
+                          color: 'rgb(var(--text-main))',
+                          fontWeight: 900, fontSize: 13,
+                          borderBottom: '1px solid transparent',
+                          width: 128,
+                        }}
+                        onFocus={e => e.target.style.borderBottomColor = 'rgb(var(--primary))'}
+                        onBlur={e => e.target.style.borderBottomColor = 'transparent'}
+                      />
+                      <button
+                        onClick={() => saveStations(stations.filter((_, j) => j !== i))}
+                        className="uppercase transition-colors"
+                        style={{
+                          fontSize: 10, fontWeight: 900,
+                          color: 'rgb(var(--danger))',
+                          padding: '4px 8px',
+                          borderRadius: 'var(--theme-radius-sm, 6px)',
+                        }}
                       >
-                        {['GRILL', 'BAR', 'DESSERT', 'FRYER', 'SALAD', 'BAKERY'].map((station) => (
-                          <option key={station} value={station}>{station}</option>
-                        ))}
-                      </select>
+                        Remove
+                      </button>
                     </div>
+                    <input
+                      value={s.keywords.join(', ')}
+                      onChange={e => {
+                        const updated = [...stations];
+                        updated[i] = { ...s, keywords: e.target.value.split(',').map(k => k.trim().toLowerCase()).filter(Boolean) };
+                        saveStations(updated);
+                      }}
+                      className="w-full outline-none transition-colors"
+                      style={{
+                        background: 'rgb(var(--bg-app))',
+                        border: '1px solid rgba(var(--border-color), 0.2)',
+                        borderRadius: 'var(--theme-radius-sm, 8px)',
+                        padding: '8px 12px',
+                        fontSize: 12, fontWeight: 700,
+                        color: 'rgb(var(--text-muted))',
+                      }}
+                      placeholder="Keywords (comma separated)"
+                    />
                   </div>
                 ))}
               </div>
-            </div>
+              <button
+                onClick={() => saveStations([...stations, { name: `STATION${stations.length + 1}`, keywords: [] }])}
+                className="w-full flex items-center justify-center gap-1.5 uppercase tracking-widest transition-all"
+                style={{
+                  padding: '10px 0',
+                  borderRadius: 'var(--theme-radius, 12px)',
+                  background: 'rgb(var(--primary))',
+                  color: 'white',
+                  fontSize: 10, fontWeight: 900,
+                  boxShadow: '0 4px 12px rgba(var(--primary), 0.25)',
+                }}
+              >
+                <Plus size={12} /> Add Station
+              </button>
+              <button
+                onClick={() => saveStations(DEFAULT_STATIONS)}
+                className="w-full uppercase tracking-widest transition-colors"
+                style={{
+                  padding: '8px 0',
+                  fontSize: 10, fontWeight: 900,
+                  color: 'rgb(var(--text-muted))',
+                }}
+              >
+                Reset to Defaults
+              </button>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+};
+
+/* ═══════════════════════════════════════════════════
+   📋 Kanban Column — Themed, memoized
+   ═══════════════════════════════════════════════════ */
+const KanbanColumn = React.memo(({
+  theme, orders, actionLabel, actionIcon, onAction,
+  getElapsedMins, getTimerUrgency, advanceOrder, getStationForItem, isArabic, pendingBump, highlightedId,
+}: any) => (
+  <div
+    className="flex-1 flex flex-col overflow-hidden"
+    style={{
+      borderRadius: 'var(--theme-radius-lg, 16px)',
+      border: '1px solid rgba(var(--border-color), 0.12)',
+      background: 'rgba(var(--bg-card), 0.45)',
+      backdropFilter: 'blur(var(--theme-blur, 12px))',
+      boxShadow: 'var(--theme-shadow-card)',
+    }}
+  >
+    {/* Column Header */}
+    <div
+      className="shrink-0 flex items-center justify-between px-4 py-3"
+      style={{
+        background: `linear-gradient(135deg, rgba(var(${theme.token}), 0.12), rgba(var(${theme.token}), 0.04))`,
+        borderBottom: '1px solid rgba(var(--border-color), 0.1)',
+      }}
+    >
+      <div className="flex items-center gap-2.5">
+        <span style={{ color: `rgb(var(${theme.token}))` }}>{theme.icon}</span>
+        <div>
+          <div className="flex items-center gap-2">
+            <h2 className="uppercase tracking-wider" style={{ fontSize: 13, fontWeight: 900, color: `rgb(var(${theme.token}))` }}>
+              {theme.label}
+            </h2>
+            <span
+              className="tabular-nums"
+              style={{
+                padding: '2px 8px',
+                borderRadius: 'var(--theme-radius-sm, 6px)',
+                fontSize: 10, fontWeight: 900,
+                background: `rgba(var(${theme.token}), 0.12)`,
+                color: `rgb(var(${theme.token}))`,
+                border: `1px solid rgba(var(${theme.token}), 0.2)`,
+              }}
+            >
+              {orders.length}
+            </span>
           </div>
+          <p className="uppercase tracking-widest" style={{ fontSize: 9, fontWeight: 700, color: 'rgb(var(--text-muted))' }}>
+            {theme.subtitle}
+          </p>
+        </div>
+      </div>
+      {onAction && (
+        <button
+          onClick={onAction}
+          className="flex items-center gap-1 uppercase tracking-wider active:scale-95 transition-all"
+          style={{
+            padding: '6px 12px',
+            borderRadius: 'var(--theme-radius, 10px)',
+            fontSize: 9, fontWeight: 900,
+            background: `linear-gradient(135deg, rgb(var(${theme.token})), rgba(var(${theme.token}), 0.8))`,
+            color: 'white',
+            boxShadow: `0 4px 12px rgba(var(${theme.token}), 0.3)`,
+          }}
+        >
+          {actionIcon} {actionLabel}
+        </button>
+      )}
+    </div>
+
+    {/* Scrollable ticket area */}
+    <div className="flex-1 overflow-y-auto p-2.5 space-y-2 no-scrollbar relative">
+      <AnimatePresence mode="sync">
+        {orders.map((order: any) => (
+          <TicketCard
+            key={order.id}
+            order={order}
+            getElapsedMins={getElapsedMins}
+            getTimerUrgency={getTimerUrgency}
+            advanceOrder={advanceOrder}
+            getStationForItem={getStationForItem}
+            isArabic={isArabic}
+            isPendingBump={pendingBump === order.id}
+            isHighlighted={highlightedId === order.id}
+          />
+        ))}
+      </AnimatePresence>
+      {orders.length === 0 && (
+        <div className="flex-1 flex flex-col items-center justify-center py-16 opacity-25">
+          <UtensilsCrossed size={32} style={{ color: 'rgb(var(--text-muted))' }} />
+          <p className="uppercase tracking-widest mt-3" style={{ fontSize: 10, fontWeight: 900, color: 'rgb(var(--text-muted))' }}>
+            No tickets
+          </p>
+          <p className="mt-1" style={{ fontSize: 9, fontWeight: 600, color: 'rgb(var(--text-muted))', opacity: 0.6 }}>
+            Orders will appear here
+          </p>
+        </div>
+      )}
+    </div>
+  </div>
+));
+
+/* ═══════════════════════════════════════════════════
+   🎫 Ticket Card — Themed, with progress bar
+   ═══════════════════════════════════════════════════ */
+const TicketCard = React.memo(({ order, getElapsedMins, getTimerUrgency, advanceOrder, getStationForItem, isArabic, isPendingBump, isHighlighted }: any) => {
+  const elapsed = getElapsedMins(order.createdAt);
+  const urgency = getTimerUrgency(elapsed, order.status);
+  const isReady = order.status === OrderStatus.READY;
+
+  // Progress bar: 0-100% based on SLA critical threshold
+  const progressPct = Math.min(100, (elapsed / SLA.critical) * 100);
+
+  // Urgency-based token for colors
+  const urgencyToken = urgency === 'critical' ? '--danger'
+    : urgency === 'risk' ? '--danger'
+      : urgency === 'warning' ? '--warning'
+        : urgency === 'ready' ? '--success'
+          : '--success';
+
+  const cardBg = isReady
+    ? 'rgba(var(--success), 0.06)'
+    : urgency === 'critical'
+      ? 'rgba(var(--danger), 0.06)'
+      : 'rgba(var(--bg-elevated), 0.5)';
+
+  const cardBorder = isReady
+    ? 'rgba(var(--success), 0.2)'
+    : urgency === 'critical'
+      ? 'rgba(var(--danger), 0.25)'
+      : 'rgba(var(--border-color), 0.15)';
+
+  return (
+    <motion.button
+      layout
+      initial={{ opacity: 0, y: 12, scale: 0.98 }}
+      animate={{ opacity: 1, y: 0, scale: 1 }}
+      exit={{ opacity: 0, x: 50, scale: 0.96, transition: { duration: 0.2 } }}
+      transition={{ type: 'spring', damping: 25, stiffness: 350 }}
+      onClick={() => advanceOrder(order)}
+      className="w-full text-left block overflow-hidden transition-all active:scale-[0.98] group"
+      style={{
+        borderRadius: 'var(--theme-radius, 12px)',
+        background: cardBg,
+        border: `1px solid ${cardBorder}`,
+        outline: isPendingBump ? `2px solid rgb(var(--primary))` : isHighlighted ? `2px solid rgb(var(--accent))` : 'none',
+        outlineOffset: isPendingBump || isHighlighted ? 1 : 0,
+        boxShadow: urgency === 'critical' ? '0 0 20px rgba(var(--danger), 0.1)' : 'none',
+      }}
+    >
+      {/* ── Progress bar at top ── */}
+      <div style={{ height: 3, background: 'rgba(var(--border-color), 0.1)', position: 'relative', overflow: 'hidden' }}>
+        <div
+          className="transition-all duration-1000"
+          style={{
+            position: 'absolute', top: 0, left: 0, height: '100%',
+            width: `${isReady ? 100 : progressPct}%`,
+            background: isReady
+              ? `rgb(var(--success))`
+              : `linear-gradient(90deg, rgb(var(--success)), rgb(var(${urgencyToken})))`,
+            borderRadius: '0 2px 2px 0',
+          }}
+        />
+      </div>
+
+      {/* ── Timer + Type strip ── */}
+      <div
+        className="flex justify-between items-center px-3 py-1.5"
+        style={{
+          background: `rgba(var(${urgencyToken}), ${urgency === 'critical' ? 0.15 : 0.08})`,
+        }}
+      >
+        <div className="flex items-center gap-1 tabular-nums uppercase" style={{ fontSize: 12, fontWeight: 900, color: `rgb(var(${urgencyToken}))` }}>
+          <Clock size={12} /> {elapsed}m
+          {urgency === 'critical' && <span className="animate-pulse">🔥</span>}
+        </div>
+        <div className="uppercase tracking-widest" style={{ fontSize: 9, fontWeight: 900, color: `rgb(var(${urgencyToken}))`, opacity: 0.8 }}>
+          {order.type || 'ORDER'}
+        </div>
+      </div>
+
+      {/* ── Order identifiers ── */}
+      <div
+        className="flex justify-between items-center px-3 py-2"
+        style={{ borderBottom: '1px solid rgba(var(--border-color), 0.08)' }}
+      >
+        <div>
+          <span className="block uppercase tracking-widest" style={{ fontSize: 9, fontWeight: 700, color: 'rgb(var(--text-muted))' }}>
+            {order.orderNumber ? `ORDER #${order.orderNumber}` : 'ORDER'}
+          </span>
+          <span
+            className="uppercase tracking-tight leading-none tabular-nums"
+            style={{
+              fontSize: '1.75rem', fontWeight: 900,
+              color: isReady ? 'rgb(var(--success))' : 'rgb(var(--text-main))',
+            }}
+          >
+            #{order.orderNumber || order.id.slice(0, 5)}
+          </span>
+        </div>
+        <div className="text-right">
+          <span className="block uppercase tracking-widest" style={{ fontSize: 9, fontWeight: 700, color: 'rgb(var(--text-muted))' }}>
+            {order.tableId ? 'TABLE' : 'MODE'}
+          </span>
+          <span className="uppercase leading-none" style={{ fontSize: 15, fontWeight: 900, color: 'rgb(var(--primary))' }}>
+            {order.tableId || order.type}
+          </span>
+        </div>
+      </div>
+
+      {/* ── Notes ── */}
+      {(order.kitchenNotes || order.notes) && (
+        <div
+          className="flex items-start gap-1 px-3 py-1.5 uppercase leading-snug"
+          style={{
+            background: 'rgba(var(--warning), 0.06)',
+            borderBottom: '1px solid rgba(var(--warning), 0.1)',
+            color: 'rgb(var(--warning))',
+            fontSize: 10, fontWeight: 700,
+          }}
+        >
+          <span className="shrink-0 mt-px">📝</span>
+          <span className="line-clamp-2">{order.kitchenNotes || order.notes}</span>
+        </div>
+      )}
+
+      {/* ── Items ── */}
+      <div style={{ padding: 10 }}>
+        <ul className="space-y-1.5">
+          {order.items.map((item: any, idx: number) => {
+            const mods = Array.isArray(item.selectedModifiers) && item.selectedModifiers.length > 0
+              ? item.selectedModifiers
+              : (Array.isArray(item.modifiers) ? item.modifiers : []);
+            const isDone = item._done;
+
+            return (
+              <li key={idx} className={`flex gap-2 transition-colors ${isDone ? 'opacity-30' : ''}`}>
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    const updated = { ...order };
+                    updated.items = [...order.items];
+                    updated.items[idx] = { ...item, _done: !isDone };
+                  }}
+                  className="shrink-0 flex items-center justify-center transition-all"
+                  style={{
+                    width: 28, height: 28,
+                    borderRadius: 'var(--theme-radius-sm, 6px)',
+                    fontSize: 13, fontWeight: 900,
+                    background: isDone ? 'rgb(var(--success))' : item.quantity > 1 ? 'rgba(var(--primary), 0.1)' : 'rgba(var(--bg-elevated), 0.6)',
+                    border: `1px solid ${isDone ? 'rgb(var(--success))' : item.quantity > 1 ? 'rgba(var(--primary), 0.3)' : 'rgba(var(--border-color), 0.25)'}`,
+                    color: isDone ? 'white' : item.quantity > 1 ? 'rgb(var(--primary))' : 'rgb(var(--text-main))',
+                  }}
+                  title="Mark item done"
+                >
+                  {isDone ? '✓' : item.quantity}
+                </button>
+                <div className={`flex-1 min-w-0 flex flex-col ${isDone ? 'line-through' : ''}`}>
+                  <div className="flex items-start justify-between gap-1.5">
+                    <span className="uppercase line-clamp-2 leading-snug" style={{ fontSize: 13, fontWeight: 900, color: 'rgb(var(--text-main))' }}>
+                      {item.name}
+                    </span>
+                    <span
+                      className="shrink-0 mt-0.5 uppercase tracking-widest"
+                      style={{
+                        padding: '1px 4px',
+                        borderRadius: 'var(--theme-radius-sm, 4px)',
+                        fontSize: 7, fontWeight: 900,
+                        background: 'rgba(var(--bg-app), 0.8)',
+                        color: 'rgb(var(--text-muted))',
+                        border: '1px solid rgba(var(--border-color), 0.15)',
+                      }}
+                    >
+                      {getStationForItem(item)}
+                    </span>
+                  </div>
+
+                  {mods.length > 0 && (
+                    <div className="mt-0.5 pl-1.5 flex flex-col" style={{ borderLeft: '1px solid rgba(var(--border-color), 0.25)' }}>
+                      {mods.map((m: any, mIdx: number) => (
+                        <span key={mIdx} className="uppercase leading-snug" style={{ fontSize: 10, fontWeight: 700, color: 'rgb(var(--text-muted))' }}>
+                          + {m.optionName || m.name || m.groupName}
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                  {item.notes && (
+                    <span
+                      className="mt-0.5 pl-1.5 block italic uppercase"
+                      style={{
+                        borderLeft: '1px solid rgba(var(--danger), 0.5)',
+                        color: 'rgb(var(--danger))',
+                        fontSize: 10, fontWeight: 700,
+                      }}
+                    >
+                      {item.notes}
+                    </span>
+                  )}
+                </div>
+              </li>
+            );
+          })}
+        </ul>
+      </div>
+
+      {/* ── Footer — Bump hint ── */}
+      <div
+        className="py-1.5 text-center uppercase transition-all"
+        style={{
+          fontSize: 8, fontWeight: 900, letterSpacing: '0.2em',
+          background: isPendingBump
+            ? 'rgb(var(--primary))'
+            : isReady
+              ? 'rgba(var(--success), 0.08)'
+              : 'rgba(var(--bg-elevated), 0.3)',
+          color: isPendingBump
+            ? 'white'
+            : isReady
+              ? 'rgb(var(--success))'
+              : 'rgb(var(--text-muted))',
+        }}
+      >
+        {isPendingBump ? '⚡ TAP AGAIN TO CONFIRM' : isReady ? '✓ TAP TO DELIVER' : 'TAP TWICE TO ADVANCE'}
+      </div>
+    </motion.button>
+  );
+});
+
+/* ═══════════════════════════════════════════════════
+   ⚡ Simple Grid — Flat view, one-tap-to-complete
+   ═══════════════════════════════════════════════════ */
+const SimpleGrid = React.memo(({ orders, readyOrders, getElapsedMins, getTimerUrgency, getStationForItem, updateOrderStatus, isArabic }: any) => {
+  const allOrders = React.useMemo(() => [...orders, ...readyOrders], [orders, readyOrders]);
+
+  // Chain through proper status transitions: PENDING → PREPARING → READY → DELIVERED
+  const completeOrder = React.useCallback(async (order: any) => {
+    try {
+      if (order.status === OrderStatus.PENDING) await updateOrderStatus(order.id, OrderStatus.PREPARING, undefined, undefined, { skipPrint: true });
+      if (order.status === OrderStatus.PENDING || order.status === OrderStatus.PREPARING) await updateOrderStatus(order.id, OrderStatus.READY, undefined, undefined, { skipPrint: true });
+      await updateOrderStatus(order.id, OrderStatus.DELIVERED, undefined, undefined, { skipPrint: true });
+    } catch { /* ignore if already transitioned */ }
+  }, [updateOrderStatus]);
+
+  return (
+    <div className="flex-1 min-h-0 overflow-y-auto p-3 no-scrollbar">
+      {allOrders.length === 0 ? (
+        <div className="flex flex-col items-center justify-center h-full opacity-25">
+          <UtensilsCrossed size={48} style={{ color: 'rgb(var(--text-muted))' }} />
+          <p className="uppercase tracking-widest mt-4" style={{ fontSize: 14, fontWeight: 900, color: 'rgb(var(--text-muted))' }}>No active orders</p>
+          <p className="mt-1" style={{ fontSize: 11, color: 'rgb(var(--text-muted))', opacity: 0.6 }}>New orders will appear here automatically</p>
+        </div>
+      ) : (
+        <div className="grid gap-3" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))' }}>
+          <AnimatePresence mode="sync">
+            {allOrders.map((order: any) => {
+              const elapsed = getElapsedMins(order.createdAt);
+              const urgency = getTimerUrgency(elapsed, order.status);
+              const isReady = order.status === OrderStatus.READY;
+              const urgencyToken = urgency === 'critical' ? '--danger' : urgency === 'risk' ? '--danger' : urgency === 'warning' ? '--warning' : urgency === 'ready' ? '--success' : '--success';
+
+              return (
+                <motion.div
+                  key={order.id}
+                  layout
+                  initial={{ opacity: 0, scale: 0.95 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  exit={{ opacity: 0, scale: 0.9, transition: { duration: 0.2 } }}
+                  onDoubleClick={() => completeOrder(order)}
+                  onClick={() => completeOrder(order)}
+                  className="cursor-pointer overflow-hidden transition-all hover:scale-[1.01] active:scale-[0.98]"
+                  style={{
+                    borderRadius: 'var(--theme-radius-lg, 16px)',
+                    background: isReady ? 'rgba(var(--success), 0.08)' : urgency === 'critical' ? 'rgba(var(--danger), 0.06)' : 'rgba(var(--bg-card), 0.65)',
+                    border: `2px solid ${isReady ? 'rgba(var(--success), 0.3)' : urgency === 'critical' ? 'rgba(var(--danger), 0.3)' : 'rgba(var(--border-color), 0.15)'}`,
+                    backdropFilter: 'blur(var(--theme-blur, 8px))',
+                    boxShadow: urgency === 'critical' ? '0 0 24px rgba(var(--danger), 0.12)' : 'var(--theme-shadow-card)',
+                  }}
+                >
+                  {/* Progress bar */}
+                  <div style={{ height: 4, background: 'rgba(var(--border-color), 0.08)' }}>
+                    <div className="transition-all duration-1000" style={{
+                      height: '100%',
+                      width: `${isReady ? 100 : Math.min(100, (elapsed / SLA.critical) * 100)}%`,
+                      background: isReady ? 'rgb(var(--success))' : `linear-gradient(90deg, rgb(var(--success)), rgb(var(${urgencyToken})))`,
+                    }} />
+                  </div>
+
+                  {/* ── BIG ORDER NUMBER ── */}
+                  <div className="px-4 pt-3 pb-2 flex items-start justify-between">
+                    <div>
+                      <span className="block uppercase tracking-widest" style={{ fontSize: 10, fontWeight: 700, color: 'rgb(var(--text-muted))' }}>
+                        {order.type || 'ORDER'}
+                      </span>
+                      <span className="block tabular-nums" style={{
+                        fontSize: '2.5rem', fontWeight: 900, lineHeight: 1,
+                        color: isReady ? 'rgb(var(--success))' : 'rgb(var(--text-main))',
+                        letterSpacing: '-0.02em',
+                      }}>
+                        #{order.orderNumber || order.id.slice(0, 4)}
+                      </span>
+                    </div>
+                    <div className="text-right">
+                      {/* Timer */}
+                      <div className="flex items-center gap-1 justify-end tabular-nums" style={{
+                        fontSize: 13, fontWeight: 900,
+                        color: `rgb(var(${urgencyToken}))`,
+                      }}>
+                        <Clock size={14} />
+                        {elapsed}m
+                        {urgency === 'critical' && <span className="animate-pulse">🔥</span>}
+                      </div>
+                      {/* Table/Mode */}
+                      {order.tableId && (
+                        <span className="block mt-1 uppercase" style={{ fontSize: 11, fontWeight: 900, color: 'rgb(var(--primary))' }}>
+                          TABLE {order.tableId}
+                        </span>
+                      )}
+                      {/* Status badge */}
+                      <span className="inline-block mt-1 uppercase tracking-wider" style={{
+                        padding: '2px 8px',
+                        borderRadius: 'var(--theme-radius-sm, 6px)',
+                        fontSize: 9, fontWeight: 900,
+                        background: isReady ? 'rgba(var(--success), 0.15)' : `rgba(var(${urgencyToken}), 0.12)`,
+                        color: isReady ? 'rgb(var(--success))' : `rgb(var(${urgencyToken}))`,
+                      }}>
+                        {isReady ? 'READY' : order.status === OrderStatus.PREPARING ? 'COOKING' : 'QUEUED'}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* ── Notes ── */}
+                  {(order.kitchenNotes || order.notes) && (
+                    <div className="mx-4 mb-2 flex items-start gap-1.5 uppercase" style={{
+                      padding: '6px 10px',
+                      borderRadius: 'var(--theme-radius-sm, 8px)',
+                      background: 'rgba(var(--warning), 0.08)',
+                      border: '1px solid rgba(var(--warning), 0.15)',
+                      color: 'rgb(var(--warning))',
+                      fontSize: 11, fontWeight: 700, lineHeight: 1.4,
+                    }}>
+                      <span className="shrink-0">📝</span>
+                      <span className="line-clamp-3">{order.kitchenNotes || order.notes}</span>
+                    </div>
+                  )}
+
+                  {/* ── Items list ── */}
+                  <div className="px-4 pb-2" style={{ borderTop: '1px solid rgba(var(--border-color), 0.08)', paddingTop: 8 }}>
+                    {order.items.map((item: any, idx: number) => {
+                      const mods = Array.isArray(item.selectedModifiers) && item.selectedModifiers.length > 0 ? item.selectedModifiers : (Array.isArray(item.modifiers) ? item.modifiers : []);
+                      return (
+                        <div key={idx} className="flex items-start gap-2 py-1">
+                          <span className="shrink-0 flex items-center justify-center tabular-nums" style={{
+                            width: 24, height: 24,
+                            borderRadius: 'var(--theme-radius-sm, 6px)',
+                            fontSize: 13, fontWeight: 900,
+                            background: item.quantity > 1 ? 'rgba(var(--primary), 0.12)' : 'rgba(var(--bg-elevated), 0.6)',
+                            color: item.quantity > 1 ? 'rgb(var(--primary))' : 'rgb(var(--text-main))',
+                            border: `1px solid ${item.quantity > 1 ? 'rgba(var(--primary), 0.2)' : 'rgba(var(--border-color), 0.2)'}`,
+                          }}>
+                            {item.quantity}
+                          </span>
+                          <div className="flex-1 min-w-0">
+                            <span className="block uppercase font-black leading-snug" style={{ fontSize: 13, color: 'rgb(var(--text-main))' }}>{item.name}</span>
+                            {mods.map((m: any, mIdx: number) => (
+                              <span key={mIdx} className="block uppercase" style={{ fontSize: 10, fontWeight: 700, color: 'rgb(var(--text-muted))' }}>
+                                + {m.optionName || m.name || m.groupName}
+                              </span>
+                            ))}
+                            {item.notes && (
+                              <span className="block italic uppercase mt-0.5" style={{ fontSize: 10, fontWeight: 700, color: 'rgb(var(--danger))' }}>⚠ {item.notes}</span>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+
+                  {/* ── Footer ── */}
+                  <div className="py-2 text-center uppercase" style={{
+                    fontSize: 9, fontWeight: 900, letterSpacing: '0.15em',
+                    background: isReady ? 'rgba(var(--success), 0.1)' : 'rgba(var(--bg-elevated), 0.3)',
+                    color: isReady ? 'rgb(var(--success))' : 'rgb(var(--text-muted))',
+                  }}>
+                    {isReady ? '✓ TAP TO COMPLETE' : 'TAP TO MARK DONE'}
+                  </div>
+                </motion.div>
+              );
+            })}
+          </AnimatePresence>
         </div>
       )}
     </div>
   );
-};
+});
 
 export default KDS;

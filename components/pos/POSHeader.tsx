@@ -1,5 +1,5 @@
 import React from 'react';
-import { ShoppingBag, Building2, X, RotateCcw, Tag, Cloud, CloudOff } from 'lucide-react';
+import { ShoppingBag, Building2, X, RotateCcw, Tag, Cloud, CloudOff, Compass, UtensilsCrossed, MapPin, Truck, Zap, Search } from 'lucide-react';
 import { OrderType, Customer } from '../../types';
 
 interface POSHeaderProps {
@@ -15,118 +15,97 @@ interface POSHeaderProps {
     activePriceListId: string | null;
     onSetPriceList: (id: string | null) => void;
     isOnline: boolean;
+    onHomeClick?: () => void;
 }
 
 const POSHeader: React.FC<POSHeaderProps> = React.memo(({
-    activeMode,
-    lang,
-    t,
-    selectedTableId,
-    onClearTable,
-    deliveryCustomer,
-    onClearCustomer,
-    isTouchMode,
-    onRecall,
-    activePriceListId,
-    onSetPriceList,
-    isOnline,
+    activeMode, lang, t, selectedTableId, onClearTable,
+    deliveryCustomer, onClearCustomer, isTouchMode, onRecall,
+    activePriceListId, onSetPriceList, isOnline, onHomeClick
 }) => {
     const isRTL = lang === 'ar';
 
+    const modeLabel = {
+        [OrderType.DINE_IN]: { text: t.dine_in, color: 'primary', icon: UtensilsCrossed },
+        [OrderType.TAKEAWAY]: { text: t.takeaway, color: 'success', icon: ShoppingBag },
+        [OrderType.PICKUP]: { text: t.pickup || 'Pickup', color: 'accent', icon: MapPin },
+        [OrderType.DELIVERY]: { text: t.delivery, color: 'warning', icon: Truck },
+    }[activeMode] || { text: '', color: 'primary', icon: UtensilsCrossed };
+
+    const ModeIcon = modeLabel.icon;
+
     return (
-        <div className="h-12 md:h-14 bg-card/60 backdrop-blur-3xl border-b border-white/10 dark:border-white/5 flex justify-between items-center px-4 py-1.5 z-20 shrink-0 shadow-sm relative overflow-hidden">
-            <div className="absolute inset-0 bg-gradient-to-r from-primary/5 via-transparent to-accent/5 pointer-events-none mix-blend-overlay" />
-            <div className="absolute bottom-0 left-0 h-[1px] w-full bg-gradient-to-r from-transparent via-primary/20 to-transparent" />
-            {/* Left: Order type context */}
-            <div className="flex items-center gap-3 min-w-0 overflow-hidden relative z-10 transition-all">
-                {activeMode === OrderType.DINE_IN && (
-                    <div className="flex items-center gap-2">
-                        <span className="text-[11px] md:text-xs font-black text-transparent bg-clip-text bg-gradient-to-r from-indigo-500 to-cyan-500 uppercase tracking-widest drop-shadow-sm">{t.dine_in}</span>
-                        {selectedTableId ? (
-                            <div className="px-2.5 py-1 bg-indigo-500/10 text-indigo-500 border border-indigo-500/20 rounded-[0.8rem] text-[9px] md:text-[10px] font-black uppercase tracking-widest flex items-center gap-1.5 shadow-sm">
-                                {t.table} {selectedTableId}
-                                <button onClick={onClearTable} className="hover:text-rose-500 hover:bg-rose-500/10 p-0.5 rounded-md transition-all active:scale-95"><X size={12} /></button>
-                            </div>
-                        ) : (
-                            <span className="text-[8px] md:text-[9px] text-muted font-black uppercase tracking-[0.2em] animate-pulse bg-elevated/50 px-2 py-1 rounded-lg border border-border/50">{t.select_table}</span>
-                        )}
-                    </div>
+        <header className="pos-header-slim h-11 shrink-0 bg-white/90 backdrop-blur-xl border-b border-border/10 flex items-center justify-between px-2.5 sm:px-3 z-20 sticky top-0 will-change-transform" style={{ transform: 'translate3d(0,0,0)' }}>
+            {/* Left: Home + Mode + Context */}
+            <div className="flex items-center gap-1.5 min-w-0 overflow-hidden">
+                {onHomeClick && (
+                    <button onClick={onHomeClick} className="w-7 h-7 shrink-0 flex items-center justify-center rounded-lg bg-elevated/40 border border-border/8 text-muted hover:text-main hover:bg-elevated/70 transition-colors active:scale-95">
+                        <Compass className="w-3.5 h-3.5" />
+                    </button>
                 )}
-                {activeMode === OrderType.TAKEAWAY && (
-                    <span className="text-[11px] md:text-xs font-black text-transparent bg-clip-text bg-gradient-to-r from-teal-500 to-emerald-500 uppercase tracking-widest flex items-center gap-1.5 drop-shadow-sm">
-                        <ShoppingBag size={14} className="text-emerald-500" />{t.takeaway}
-                    </span>
-                )}
-                {activeMode === OrderType.PICKUP && (
-                    <span className="text-[11px] md:text-xs font-black text-transparent bg-clip-text bg-gradient-to-r from-cyan-500 to-blue-500 uppercase tracking-widest flex items-center gap-1.5 drop-shadow-sm">
-                        <ShoppingBag size={14} className="text-cyan-500" />{t.pickup || 'Pickup'}
-                    </span>
-                )}
-                {activeMode === OrderType.DELIVERY && (
-                    <div className="flex items-center gap-2">
-                        <span className="text-[11px] md:text-xs font-black text-transparent bg-clip-text bg-gradient-to-r from-orange-500 to-amber-500 uppercase tracking-widest flex items-center gap-1.5 drop-shadow-sm">
-                            <Building2 size={14} className="text-orange-500" />{t.delivery}
+
+                {/* Active mode badge */}
+                <div className={`flex items-center gap-1.5 px-2 py-1 rounded-lg bg-${modeLabel.color}/8 border border-${modeLabel.color}/10 shrink-0`}>
+                    <ModeIcon size={12} className={`text-${modeLabel.color}`} />
+                    <span className={`text-[9px] font-bold uppercase tracking-wider text-${modeLabel.color}`}>{modeLabel.text}</span>
+                </div>
+
+                {/* Context badge */}
+                <div className="flex items-center gap-1.5 min-w-0 overflow-x-auto no-scrollbar">
+                    {activeMode === OrderType.DINE_IN && selectedTableId && (
+                        <span className="px-2 py-0.5 bg-primary/6 text-primary border border-primary/10 rounded-lg text-[9px] font-bold flex items-center gap-1 shrink-0">
+                            {t.table} {selectedTableId}
+                            <button onClick={onClearTable} className="w-3.5 h-3.5 rounded-full bg-primary/15 hover:bg-rose-500 flex items-center justify-center hover:text-white transition-colors"><X size={7} /></button>
                         </span>
-                        {deliveryCustomer ? (
-                            <div className="px-2.5 py-1 bg-orange-500/10 text-orange-500 border border-orange-500/20 rounded-[0.8rem] text-[9px] md:text-[10px] font-black flex items-center gap-1.5 max-w-[140px] shadow-sm uppercase tracking-widest">
-                                <span className="truncate">{deliveryCustomer.name}</span>
-                                <button onClick={onClearCustomer} className="shrink-0 hover:text-rose-500 hover:bg-rose-500/10 p-0.5 rounded-md transition-all active:scale-95"><X size={12} /></button>
-                            </div>
-                        ) : (
-                            <span className="text-[8px] md:text-[9px] text-muted font-black uppercase tracking-[0.2em] animate-pulse bg-elevated/50 px-2 py-1 rounded-lg border border-border/50">{t.select_customer}</span>
-                        )}
-                    </div>
-                )}
+                    )}
+                    {activeMode === OrderType.DINE_IN && !selectedTableId && (
+                        <span className="text-[9px] text-muted/60 font-bold uppercase tracking-wider animate-pulse shrink-0">{t.select_table}</span>
+                    )}
+                    {activeMode === OrderType.DELIVERY && deliveryCustomer && (
+                        <span className="px-2 py-0.5 bg-warning/6 text-warning border border-warning/10 rounded-lg text-[9px] font-bold flex items-center gap-1 max-w-[120px] shrink-0">
+                            <span className="truncate">{deliveryCustomer.name}</span>
+                            <button onClick={onClearCustomer} className="w-3.5 h-3.5 rounded-full bg-warning/15 hover:bg-rose-500 flex items-center justify-center hover:text-white transition-colors shrink-0"><X size={7} /></button>
+                        </span>
+                    )}
+                    {activeMode === OrderType.DELIVERY && !deliveryCustomer && (
+                        <span className="text-[9px] text-muted/60 font-bold uppercase tracking-wider animate-pulse shrink-0">{t.select_customer}</span>
+                    )}
+                </div>
+            </div>
 
-                <div className="h-5 w-[1px] bg-border/50 mx-1 hidden sm:block rounded-full" />
-
-                {/* Price list selector */}
-                <div className="hidden sm:flex items-center gap-1.5 bg-card/60 rounded-[0.8rem] px-2.5 py-1 border border-border/50 shadow-inner transition-all hover:border-indigo-500/30">
-                    <Tag size={12} className="text-indigo-500 shrink-0" />
+            {/* Right: Tools */}
+            <div className="flex items-center gap-1.5 shrink-0">
+                {/* Price List */}
+                <div className="hidden sm:flex items-center gap-1 bg-elevated/30 hover:bg-elevated/60 border border-border/8 rounded-lg px-2 py-1 transition-colors focus-within:ring-1 ring-primary/10">
+                    <Tag size={9} className="text-primary/70 shrink-0" />
                     <select
                         value={activePriceListId || 'standard'}
                         onChange={(e) => onSetPriceList(e.target.value === 'standard' ? null : e.target.value)}
-                        className="bg-transparent text-[9px] font-black uppercase tracking-widest outline-none cursor-pointer text-main appearance-none pr-1"
+                        className="bg-transparent text-[9px] font-bold uppercase tracking-wider text-main outline-none cursor-pointer appearance-none"
                     >
-                        <option value="standard">{isRTL ? 'تسعير قياسي' : 'Standard'}</option>
+                        <option value="standard">{isRTL ? 'قياسي' : 'Standard'}</option>
                         <option value="delivery">{isRTL ? 'توصيل' : 'Delivery'}</option>
                         <option value="vip">VIP</option>
                     </select>
                 </div>
-            </div>
 
-            {/* Right: Actions */}
-            <div className="flex items-center gap-2.5 shrink-0 relative z-10">
+                {/* Recall */}
                 {onRecall && (
-                    <button
-                        onClick={onRecall}
-                        className="flex items-center gap-1.5 px-2.5 py-1 bg-card/60 text-muted rounded-[0.8rem] transition-all text-[9px] font-black uppercase tracking-widest border border-border/50 hover:text-indigo-500 hover:border-indigo-500/30 hover:bg-indigo-500/5 shadow-inner active:scale-95"
-                        title="Recall Last Order"
-                    >
-                        <RotateCcw size={12} />
-                        <span className="hidden lg:inline">{t.recall || 'Recall'}</span>
+                    <button onClick={onRecall} className="hidden sm:flex items-center gap-1 px-2 py-1 bg-elevated/30 hover:bg-elevated/60 text-muted hover:text-main rounded-lg border border-border/8 transition-colors font-bold text-[9px] uppercase tracking-wider active:scale-95">
+                        <RotateCcw size={10} className={isRTL ? '-scale-x-100' : ''} />
+                        <span>{t.recall || 'Recall'}</span>
                     </button>
                 )}
 
-                <div className="flex items-center gap-1.5 px-2.5 py-1 bg-card/60 border border-border/50 rounded-[0.8rem] shadow-inner">
-                    {isOnline ? (
-                        <div className="flex items-center gap-1 text-emerald-500">
-                            <Cloud size={12} />
-                            <span className="text-[8px] font-black tracking-widest uppercase">Live</span>
-                        </div>
-                    ) : (
-                        <div className="flex items-center gap-1 text-rose-500 animate-pulse">
-                            <CloudOff size={12} />
-                            <span className="text-[8px] font-black tracking-widest uppercase">Local</span>
-                        </div>
-                    )}
+                {/* Connection */}
+                <div className={`flex items-center justify-center w-6 h-6 rounded-lg border ${isOnline ? 'bg-success/5 border-success/10' : 'bg-rose-500/5 border-rose-500/10'}`}>
+                    {isOnline ? <Cloud size={11} className="text-success" /> : <CloudOff size={11} className="text-rose-500 animate-pulse" />}
                 </div>
 
-                <div className="w-10 h-10 rounded-[1.2rem] bg-gradient-to-br from-indigo-500 to-cyan-500 flex items-center justify-center text-white font-black text-xs shadow-lg shadow-indigo-500/25 border border-white/20">
-                    A
-                </div>
+                {/* Avatar */}
+                <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-primary to-primary/80 flex items-center justify-center text-white font-bold text-[10px] shadow-sm shadow-primary/10 shrink-0">A</div>
             </div>
-        </div>
+        </header>
     );
 });
 

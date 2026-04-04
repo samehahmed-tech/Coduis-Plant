@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
     FileText,
     ShieldCheck,
@@ -14,7 +14,8 @@ import {
     Landmark,
     Calculator
 } from 'lucide-react';
-import { reportsApi, fiscalApi } from '../services/api';
+import { fiscalApi } from '../services/api/fiscal';
+import { reportsApi } from '../services/api/reports';
 import { useAuthStore } from '../stores/useAuthStore';
 import { translations } from '../services/translations';
 
@@ -118,11 +119,11 @@ const FiscalHub: React.FC = () => {
                             <Landmark size={32} />
                         </div>
                         <h2 className="text-4xl font-black text-main uppercase tracking-tighter">
-                            {lang === 'ar' ? 'الامتثال الضريبي' : 'Fiscal Hub'}
+                            {lang === 'ar' ? '�������� �������' : 'Fiscal Hub'}
                         </h2>
                     </div>
                     <p className="text-muted font-bold text-sm uppercase tracking-widest opacity-60 flex items-center gap-2">
-                        {lang === 'ar' ? 'الامتثال الضريبي والتقارير القانونية' : 'Tax Compliance & Statutory Reporting'}
+                        {lang === 'ar' ? '�������� ������� ��������� ���������' : 'Tax Compliance & Statutory Reporting'}
                         <CheckCircle2 size={14} className="text-success" />
                     </p>
                 </div>
@@ -174,14 +175,14 @@ const FiscalHub: React.FC = () => {
                         <div>
                             <p className="text-[10px] font-black text-muted uppercase tracking-widest mb-1">Taxable Base (Net)</p>
                             <h4 className="text-3xl font-black text-main">
-                                {fiscalData?.data?.netSales?.toLocaleString() || '0'} <span className="text-sm">ج.م</span>
+                                {fiscalData?.data?.netSales?.toLocaleString() || '0'} <span className="text-sm">�.�</span>
                             </h4>
                             <p className="text-[10px] font-bold text-muted mt-2">Exclude non-taxable items</p>
                         </div>
                         <div>
                             <p className="text-[10px] font-black text-rose-500 uppercase tracking-widest mb-1">VAT Amount (Payable)</p>
                             <h4 className="text-3xl font-black text-rose-500">
-                                {fiscalData?.data?.vatAmount?.toLocaleString() || '0'} <span className="text-sm">ج.م</span>
+                                {fiscalData?.data?.vatAmount?.toLocaleString() || '0'} <span className="text-sm">�.�</span>
                             </h4>
                             <div className="flex items-center gap-1.5 mt-2">
                                 <TrendingUp size={10} className="text-rose-500" />
@@ -191,7 +192,7 @@ const FiscalHub: React.FC = () => {
                         <div>
                             <p className="text-[10px] font-black text-muted uppercase tracking-widest mb-1">Total Fiscal Sales</p>
                             <h4 className="text-3xl font-black text-main">
-                                {fiscalData?.data?.totalSales?.toLocaleString() || '0'} <span className="text-sm">ج.م</span>
+                                {fiscalData?.data?.totalSales?.toLocaleString() || '0'} <span className="text-sm">�.�</span>
                             </h4>
                             <p className="text-[10px] font-bold text-muted mt-2">From {fiscalData?.data?.orderCount || 0} valid orders</p>
                         </div>
@@ -209,10 +210,10 @@ const FiscalHub: React.FC = () => {
                 <div className="bg-indigo-700 rounded-[2.5rem] p-8 text-white shadow-2xl shadow-indigo-700/30 flex flex-col justify-between">
                     <div>
                         <div className="flex justify-between items-start mb-6">
-                            <div className="p-4 bg-white/10 rounded-2xl">
+                            <div className="p-4 bg-elevated/60 rounded-2xl">
                                 <ShieldCheck size={28} />
                             </div>
-                            <span className="text-[10px] font-black bg-white/20 px-3 py-1 rounded-full">
+                            <span className="text-[10px] font-black bg-elevated/70 px-3 py-1 rounded-full">
                                 {etaReadiness?.ok ? 'READY' : (etaConfig?.ok ? 'MONITOR' : 'SETUP')}
                             </span>
                         </div>
@@ -239,12 +240,12 @@ const FiscalHub: React.FC = () => {
                                 )}
                             </div>
                             {etaConfig && !etaConfig.ok && (
-                                <div className="text-[9px] font-black uppercase tracking-widest bg-white/10 p-3 rounded-xl">
+                                <div className="text-[9px] font-black uppercase tracking-widest bg-elevated/60 p-3 rounded-xl">
                                     Missing: {etaConfig.missing.join(', ')}
                                 </div>
                             )}
                             {etaReadiness && (
-                                <div className="bg-white/10 rounded-xl p-3 space-y-2">
+                                <div className="bg-elevated/60 rounded-xl p-3 space-y-2">
                                     {etaLastRefresh && (
                                         <p className="text-[9px] font-bold opacity-80">
                                             Last refresh: {etaLastRefresh.toLocaleTimeString()}
@@ -269,13 +270,13 @@ const FiscalHub: React.FC = () => {
                         </div>
                     </div>
 
-                    <div className="mt-6 bg-white/10 p-3 rounded-2xl">
+                    <div className="mt-6 bg-elevated/60 p-3 rounded-2xl">
                         <p className="text-[9px] font-black uppercase tracking-widest mb-2 opacity-80">Submit Specific Order ID</p>
                         <input
                             value={manualOrderId}
                             onChange={(e) => setManualOrderId(e.target.value)}
                             placeholder="ORD-XXXX"
-                            className="w-full bg-white/10 rounded-xl px-3 py-2 text-xs font-black uppercase tracking-widest outline-none placeholder:text-white/50"
+                            className="w-full bg-elevated/60 rounded-xl px-3 py-2 text-xs font-black uppercase tracking-widest outline-none placeholder:text-white/50"
                         />
                     </div>
 
@@ -291,14 +292,14 @@ const FiscalHub: React.FC = () => {
                         <button
                             onClick={() => handleSubmitETA(true)}
                             disabled={isSubmitting}
-                            className="flex items-center justify-center gap-3 bg-white/10 text-white px-6 py-4 rounded-2xl font-black uppercase text-xs tracking-widest border border-white/20 hover:bg-white/20 transition-all disabled:opacity-60"
+                            className="flex items-center justify-center gap-3 bg-elevated/60 text-white px-6 py-4 rounded-2xl font-black uppercase text-xs tracking-widest border border-border/40 hover:bg-elevated/70 transition-all disabled:opacity-60"
                         >
                             Force Resend
                             <ExternalLink size={16} />
                         </button>
                     </div>
                     {submitResult && (
-                        <div className="mt-4 text-[10px] font-black uppercase tracking-widest bg-white/10 p-3 rounded-xl">
+                        <div className="mt-4 text-[10px] font-black uppercase tracking-widest bg-elevated/60 p-3 rounded-xl">
                             {submitResult}
                         </div>
                     )}
@@ -333,8 +334,8 @@ const FiscalHub: React.FC = () => {
                                             <p className="text-sm font-black text-main">{report.date}</p>
                                             <p className="text-[10px] font-bold text-muted uppercase">Batch ID: #ZNT-{report.date.replace(/-/g, '')}</p>
                                         </td>
-                                        <td className="px-6 py-6 font-mono text-xs font-black">{report.total} ج.م</td>
-                                        <td className="px-6 py-6 font-mono text-xs font-black text-rose-500">{report.vat} ج.م</td>
+                                        <td className="px-6 py-6 font-mono text-xs font-black">{report.total} �.�</td>
+                                        <td className="px-6 py-6 font-mono text-xs font-black text-rose-500">{report.vat} �.�</td>
                                         <td className="px-8 py-6 text-right">
                                             <button className="bg-emerald-500/10 text-emerald-500 px-3 py-1 rounded-lg text-[9px] font-black uppercase tracking-widest border border-emerald-500/20">
                                                 {report.status}
@@ -365,7 +366,7 @@ const FiscalHub: React.FC = () => {
                                     <div className="w-2 h-8 rounded-full bg-border/20" />
                                     <div>
                                         <p className="text-xs font-black text-main uppercase">{log.action}</p>
-                                        <p className="text-[10px] font-bold text-muted">Initiated by {log.user} • {log.time}</p>
+                                        <p className="text-[10px] font-bold text-muted">Initiated by {log.user} � {log.time}</p>
                                     </div>
                                 </div>
                                 <span className={`text-[9px] font-black uppercase tracking-widest ${log.color || 'text-emerald-500'}`}>{log.status}</span>

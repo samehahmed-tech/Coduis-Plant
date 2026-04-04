@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { setupApi } from '../services/api';
+import { setupApi } from '../services/api/setup';
 import { useAuthStore } from '../stores/useAuthStore';
 import { CheckCircle2, ArrowRight, ArrowLeft, Globe, Loader2, Printer, Users, Layout, SkipForward } from 'lucide-react';
 import { nanoid } from 'nanoid';
@@ -178,8 +178,8 @@ const SetupWizard: React.FC = () => {
     };
 
     return (
-        <div className="min-h-screen bg-slate-950 text-white flex items-center justify-center p-6 font-outfit">
-            <div className={`w-full max-w-3xl bg-slate-900/60 border border-white/10 rounded-[2rem] shadow-2xl p-10 ${language === 'ar' ? 'rtl' : 'ltr'}`}>
+        <div className="min-h-screen bg-slate-950 text-white flex items-center justify-center p-6 font-neo">
+            <div className={`w-full max-w-3xl bg-slate-900/60 border border-border/30 rounded-[2rem] shadow-2xl p-10 ${language === 'ar' ? 'rtl' : 'ltr'}`}>
                 <div className="flex items-center justify-between mb-8">
                     <div>
                         <h1 className="text-3xl font-black">{t.title}</h1>
@@ -187,7 +187,7 @@ const SetupWizard: React.FC = () => {
                     </div>
                     <button
                         onClick={() => setLanguage((l) => l === 'ar' ? 'en' : 'ar')}
-                        className="px-4 py-2 rounded-xl border border-white/10 text-slate-300 hover:text-white hover:border-white/20 flex items-center gap-2"
+                        className="px-4 py-2 rounded-xl border border-border/30 text-slate-300 hover:text-white hover:border-border/40 flex items-center gap-2"
                     >
                         <Globe size={16} />
                         {language === 'ar' ? 'English' : 'العربية'}
@@ -199,8 +199,8 @@ const SetupWizard: React.FC = () => {
                         const isActive = index === step;
                         const isDone = index < step;
                         return (
-                            <div key={label} className={`flex-1 flex items-center gap-2 px-3 py-2 rounded-xl border ${isActive ? 'border-indigo-400 text-white' : isDone ? 'border-emerald-400 text-emerald-300' : 'border-white/10 text-slate-400'}`}>
-                                <div className={`w-7 h-7 rounded-lg flex items-center justify-center text-xs font-black ${isDone ? 'bg-emerald-500/20 text-emerald-300' : isActive ? 'bg-indigo-500/20 text-indigo-200' : 'bg-white/5 text-slate-400'}`}>
+                            <div key={label} className={`flex-1 flex items-center gap-2 px-3 py-2 rounded-xl border ${isActive ? 'border-indigo-400 text-white' : isDone ? 'border-emerald-400 text-emerald-300' : 'border-border/30 text-slate-400'}`}>
+                                <div className={`w-7 h-7 rounded-lg flex items-center justify-center text-xs font-black ${isDone ? 'bg-emerald-500/20 text-emerald-300' : isActive ? 'bg-indigo-500/20 text-indigo-200' : 'bg-elevated/40 text-slate-400'}`}>
                                     {isDone ? <CheckCircle2 size={16} /> : index + 1}
                                 </div>
                                 <span className="text-xs font-bold">{label}</span>
@@ -222,7 +222,7 @@ const SetupWizard: React.FC = () => {
                             <input
                                 value={restaurantName}
                                 onChange={(e) => setRestaurantName(e.target.value)}
-                                className="mt-2 w-full rounded-xl bg-slate-800/60 border border-white/10 px-4 py-3 text-white"
+                                className="mt-2 w-full rounded-xl bg-slate-800/60 border border-border/30 px-4 py-3 text-white"
                                 placeholder={language === 'ar' ? 'مثال: مطعم الراوي' : 'e.g. RestoFlow'}
                             />
                         </div>
@@ -231,7 +231,7 @@ const SetupWizard: React.FC = () => {
                             <input
                                 value={currency}
                                 onChange={(e) => setCurrency(e.target.value)}
-                                className="mt-2 w-full rounded-xl bg-slate-800/60 border border-white/10 px-4 py-3 text-white"
+                                className="mt-2 w-full rounded-xl bg-slate-800/60 border border-border/30 px-4 py-3 text-white"
                             />
                         </div>
                         <div>
@@ -239,7 +239,7 @@ const SetupWizard: React.FC = () => {
                             <input
                                 value={currencySymbol}
                                 onChange={(e) => setCurrencySymbol(e.target.value)}
-                                className="mt-2 w-full rounded-xl bg-slate-800/60 border border-white/10 px-4 py-3 text-white"
+                                className="mt-2 w-full rounded-xl bg-slate-800/60 border border-border/30 px-4 py-3 text-white"
                             />
                         </div>
                         <div>
@@ -248,7 +248,7 @@ const SetupWizard: React.FC = () => {
                                 type="number"
                                 value={taxRate}
                                 onChange={(e) => setTaxRate(Number(e.target.value))}
-                                className="mt-2 w-full rounded-xl bg-slate-800/60 border border-white/10 px-4 py-3 text-white"
+                                className="mt-2 w-full rounded-xl bg-slate-800/60 border border-border/30 px-4 py-3 text-white"
                             />
                         </div>
                         <div>
@@ -257,7 +257,7 @@ const SetupWizard: React.FC = () => {
                                 type="number"
                                 value={serviceCharge}
                                 onChange={(e) => setServiceCharge(Number(e.target.value))}
-                                className="mt-2 w-full rounded-xl bg-slate-800/60 border border-white/10 px-4 py-3 text-white"
+                                className="mt-2 w-full rounded-xl bg-slate-800/60 border border-border/30 px-4 py-3 text-white"
                             />
                         </div>
                     </div>
@@ -270,7 +270,7 @@ const SetupWizard: React.FC = () => {
                             <input
                                 value={branchName}
                                 onChange={(e) => setBranchName(e.target.value)}
-                                className="mt-2 w-full rounded-xl bg-slate-800/60 border border-white/10 px-4 py-3 text-white"
+                                className="mt-2 w-full rounded-xl bg-slate-800/60 border border-border/30 px-4 py-3 text-white"
                             />
                         </div>
                         <div className="md:col-span-2">
@@ -278,7 +278,7 @@ const SetupWizard: React.FC = () => {
                             <input
                                 value={branchAddress}
                                 onChange={(e) => setBranchAddress(e.target.value)}
-                                className="mt-2 w-full rounded-xl bg-slate-800/60 border border-white/10 px-4 py-3 text-white"
+                                className="mt-2 w-full rounded-xl bg-slate-800/60 border border-border/30 px-4 py-3 text-white"
                             />
                         </div>
                         <div>
@@ -286,7 +286,7 @@ const SetupWizard: React.FC = () => {
                             <input
                                 value={branchPhone}
                                 onChange={(e) => setBranchPhone(e.target.value)}
-                                className="mt-2 w-full rounded-xl bg-slate-800/60 border border-white/10 px-4 py-3 text-white"
+                                className="mt-2 w-full rounded-xl bg-slate-800/60 border border-border/30 px-4 py-3 text-white"
                             />
                         </div>
                     </div>
@@ -299,7 +299,7 @@ const SetupWizard: React.FC = () => {
                             <input
                                 value={adminName}
                                 onChange={(e) => setAdminName(e.target.value)}
-                                className="mt-2 w-full rounded-xl bg-slate-800/60 border border-white/10 px-4 py-3 text-white"
+                                className="mt-2 w-full rounded-xl bg-slate-800/60 border border-border/30 px-4 py-3 text-white"
                             />
                         </div>
                         <div className="md:col-span-2">
@@ -308,7 +308,7 @@ const SetupWizard: React.FC = () => {
                                 type="email"
                                 value={adminEmail}
                                 onChange={(e) => setAdminEmail(e.target.value)}
-                                className="mt-2 w-full rounded-xl bg-slate-800/60 border border-white/10 px-4 py-3 text-white"
+                                className="mt-2 w-full rounded-xl bg-slate-800/60 border border-border/30 px-4 py-3 text-white"
                             />
                         </div>
                         <div>
@@ -317,7 +317,7 @@ const SetupWizard: React.FC = () => {
                                 type="password"
                                 value={adminPassword}
                                 onChange={(e) => setAdminPassword(e.target.value)}
-                                className="mt-2 w-full rounded-xl bg-slate-800/60 border border-white/10 px-4 py-3 text-white"
+                                className="mt-2 w-full rounded-xl bg-slate-800/60 border border-border/30 px-4 py-3 text-white"
                             />
                         </div>
                         <div>
@@ -326,7 +326,7 @@ const SetupWizard: React.FC = () => {
                                 type="password"
                                 value={adminPasswordConfirm}
                                 onChange={(e) => setAdminPasswordConfirm(e.target.value)}
-                                className="mt-2 w-full rounded-xl bg-slate-800/60 border border-white/10 px-4 py-3 text-white"
+                                className="mt-2 w-full rounded-xl bg-slate-800/60 border border-border/30 px-4 py-3 text-white"
                             />
                         </div>
                     </div>
@@ -342,13 +342,13 @@ const SetupWizard: React.FC = () => {
                             <input
                                 value={printerName}
                                 onChange={(e) => setPrinterName(e.target.value)}
-                                className="flex-1 rounded-xl bg-slate-800/60 border border-white/10 px-4 py-3 text-white"
+                                className="flex-1 rounded-xl bg-slate-800/60 border border-border/30 px-4 py-3 text-white"
                                 placeholder={language === 'ar' ? 'اسم الطابعة' : 'Printer name'}
                             />
                             <select
                                 value={printerType}
                                 onChange={(e) => setPrinterType(e.target.value)}
-                                className="rounded-xl bg-slate-800/60 border border-white/10 px-4 py-3 text-white"
+                                className="rounded-xl bg-slate-800/60 border border-border/30 px-4 py-3 text-white"
                             >
                                 <option value="RECEIPT">{language === 'ar' ? 'فواتير' : 'Receipt'}</option>
                                 <option value="KDS">{language === 'ar' ? 'مطبخ' : 'Kitchen'}</option>
@@ -380,7 +380,7 @@ const SetupWizard: React.FC = () => {
                             <input
                                 value={roleName}
                                 onChange={(e) => setRoleName(e.target.value)}
-                                className="flex-1 rounded-xl bg-slate-800/60 border border-white/10 px-4 py-3 text-white"
+                                className="flex-1 rounded-xl bg-slate-800/60 border border-border/30 px-4 py-3 text-white"
                                 placeholder={language === 'ar' ? 'اسم الدور' : 'Role name (e.g. Cashier)'}
                             />
                             <button onClick={addRole} className="px-4 py-3 rounded-xl bg-indigo-600 text-white font-bold">
@@ -409,14 +409,14 @@ const SetupWizard: React.FC = () => {
                             <input
                                 value={tableName}
                                 onChange={(e) => setTableName(e.target.value)}
-                                className="flex-1 rounded-xl bg-slate-800/60 border border-white/10 px-4 py-3 text-white"
+                                className="flex-1 rounded-xl bg-slate-800/60 border border-border/30 px-4 py-3 text-white"
                                 placeholder={language === 'ar' ? 'رقم/اسم الطاولة' : 'Table name (e.g. T1)'}
                             />
                             <input
                                 type="number"
                                 value={tableCapacity}
                                 onChange={(e) => setTableCapacity(Number(e.target.value))}
-                                className="w-24 rounded-xl bg-slate-800/60 border border-white/10 px-4 py-3 text-white"
+                                className="w-24 rounded-xl bg-slate-800/60 border border-border/30 px-4 py-3 text-white"
                                 placeholder={language === 'ar' ? 'السعة' : 'Capacity'}
                                 min={1}
                             />
@@ -457,7 +457,7 @@ const SetupWizard: React.FC = () => {
                         <button
                             onClick={handleBack}
                             disabled={step === 0}
-                            className="px-5 py-3 rounded-2xl border border-white/10 text-slate-300 hover:text-white disabled:opacity-40 flex items-center gap-2"
+                            className="px-5 py-3 rounded-2xl border border-border/30 text-slate-300 hover:text-white disabled:opacity-40 flex items-center gap-2"
                         >
                             <ArrowLeft size={16} />
                             {t.back}
@@ -466,7 +466,7 @@ const SetupWizard: React.FC = () => {
                             {step >= 3 && step <= 5 && (
                                 <button
                                     onClick={handleSkip}
-                                    className="px-5 py-3 rounded-2xl border border-white/10 text-slate-400 hover:text-white flex items-center gap-2"
+                                    className="px-5 py-3 rounded-2xl border border-border/30 text-slate-400 hover:text-white flex items-center gap-2"
                                 >
                                     <SkipForward size={16} />
                                     {t.skip}

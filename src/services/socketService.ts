@@ -88,6 +88,10 @@ class SocketService {
         this.socket?.off(event, handler);
     }
 
+    isConnected(): boolean {
+        return this.socket?.connected ?? false;
+    }
+
     disconnect() {
         this.socket?.disconnect();
         this.socket = null;

@@ -43,7 +43,7 @@ export const getPoolStats = () => ({
     waitingCount: pool.waitingCount,
 });
 
-setInterval(() => {
+const poolHealthInterval = setInterval(() => {
     const stats = getPoolStats();
     if (Date.now() - lastHealthLog > HEALTH_INTERVAL) {
         dbLogger.info(stats, 'Database pool health');
@@ -54,6 +54,15 @@ setInterval(() => {
         dbLogger.warn(stats, 'Database pool under pressure — queries are waiting');
     }
 }, 15000);
+
+if (typeof poolHealthInterval.unref === 'function') {
+    poolHealthInterval.unref();
+}
+
+export const closeDatabase = async () => {
+    clearInterval(poolHealthInterval);
+    await pool.end();
+};
 
 export const db = drizzle(pool, { schema });
 export { pool };

@@ -118,7 +118,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ lang, rows, isLoading, 
                 </div>
             )}
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+            <div className="grid-auto-fit mb-8">
                 {stats.map((stat, index) => (
                     <div
                         key={stat.title}
@@ -142,13 +142,13 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ lang, rows, isLoading, 
                 ))}
             </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-8">
-                <div className="lg:col-span-2 card-primary rounded-3xl p-6">
+            <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)] gap-8 mb-8">
+                <div className="card-primary rounded-3xl p-6">
                     <h3 className="text-sm font-black text-main uppercase tracking-widest mb-6 border-b border-border/50 pb-4">
                         {lang === 'ar' ? 'مقارنة الإيراد حسب الفرع' : 'Revenue by Branch'}
                     </h3>
                     <div className="min-h-[260px] md:h-[320px] lg:h-80 w-full">
-                        <ResponsiveContainer width="100%" height="100%" minHeight={300}>
+                        <ResponsiveContainer width="100%" height="100%" minHeight={300} minWidth={0}>
                             <BarChart data={chartData}>
                                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="rgba(var(--border-color), 0.2)" />
                                 <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 10, fontWeight: 900, fill: 'rgba(var(--text-muted))' }} dy={10} />
@@ -190,7 +190,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ lang, rows, isLoading, 
                         {lang === 'ar' ? 'تفاصيل الأداء لكل فرع' : 'Branch Performance Details'}
                     </h3>
                 </div>
-                <div className="overflow-x-auto">
+                <div className="responsive-table">
                     <table className="w-full text-left">
                         <thead>
                             <tr className="bg-elevated/50 text-muted text-[10px] uppercase font-black tracking-widest">
