@@ -591,40 +591,43 @@ export const useAuthStore = create<AuthState>()(
             setSidebarCollapsed: (collapsed: boolean) => set({ isSidebarCollapsed: collapsed }),
 
             hasPermission: (permission) => {
-                const user = get().settings.currentUser;
-                const { customRoles = [], rolePermissionOverrides = {} } = get().settings;
+                const s = get().settings;
+                const user = s?.currentUser;
+                const { customRoles = [], rolePermissionOverrides = {} } = s || {};
 
                 if (!user) return false;
                 if (user.role === UserRole.SUPER_ADMIN) return true;
-                if (user.role === UserRole.BRANCH_MANAGER && permission.startsWith('NAV_')) return true;
+                
+                // If no specific permission requested, or it's a basic nav check for managers
+                if (!permission) return true;
+                
+                const permStr = String(permission || '');
+                if (!permStr) return true;
+
+                if (user.role === UserRole.BRANCH_MANAGER && permStr.startsWith('NAV_')) return true;
 
                 // Explicit custom overrides per user
                 if (user.customOverrides?.added?.includes(permission)) return true;
                 if (user.customOverrides?.removed?.includes(permission)) return false;
 
-                // For existing users with baked permissions that match the default (to ensure updates propagate if default changes),
-                // we'll primarily rely on the dynamic overrides and customRoles first.
-                // If it's a built-in or custom role, we get its *current* permissions.
-
                 let curPerms: AppPermission[] = [];
-                // 1. Check custom overrides first
-                if (rolePermissionOverrides[user.role]) {
+                if (rolePermissionOverrides && rolePermissionOverrides[user.role]) {
                     curPerms = rolePermissionOverrides[user.role];
                 }
-                // 2. Check if it's a custom role
-                else if (customRoles.find(r => r.id === user.role)) {
-                    curPerms = customRoles.find(r => r.id === user.role)?.permissions || [];
+                else if (customRoles && Array.isArray(customRoles)) {
+                    const customRole = customRoles.find(r => r.id === user.role);
+                    if (customRole) curPerms = customRole.permissions || [];
                 }
-                // 3. Fallback to hardcoded initial if built-in
-                else if (user.role in INITIAL_ROLE_PERMISSIONS) {
+
+                if (curPerms.length === 0 && user.role in INITIAL_ROLE_PERMISSIONS) {
                     curPerms = INITIAL_ROLE_PERMISSIONS[user.role as UserRole] || [];
                 }
-                // 4. Ultimate fallback to the user document's own permissions array
-                else {
+
+                if (curPerms.length === 0 && Array.isArray(user.permissions)) {
                     curPerms = user.permissions;
                 }
 
-                return curPerms.includes(permission);
+                return Array.isArray(curPerms) && curPerms.includes(permission);
             },
 
             clearError: () => set({ error: null }),

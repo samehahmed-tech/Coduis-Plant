@@ -1,36 +1,34 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
-  PieChart, Pie, Cell, LineChart, Line, AreaChart, Area
+  PieChart, Pie, Cell, LineChart, Line, AreaChart, Area, Radar, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis
 } from 'recharts';
 
 import LiveClock from './common/LiveClock';
 import SystemHealth from './common/SystemHealth';
 import SensitiveData from './SensitiveData';
-import EmptyState from './common/EmptyState';
 import PageSkeleton from './common/PageSkeleton';
 import { AppPermission } from '../types';
 import AnimatedNumber from './common/AnimatedNumber';
 import {
   DollarSign, ShoppingBag, Users, TrendingUp, Sparkles, Package, Database,
-  AlertCircle, AlertTriangle, Clock, Clock3, Wallet, Building2,
-  ArrowUpRight, ArrowDownRight, Zap
+  AlertCircle, AlertTriangle, Clock, Wallet, Building2,
+  ArrowUpRight, ArrowDownRight, Zap, Target, UserCheck, Calendar, Filter, ChevronDown, CheckCircle2,
+  Activity, Star, Flame, Trophy, Eye, Briefcase, RefreshCcw
 } from 'lucide-react';
 import { useAuthStore } from '../stores/useAuthStore';
 import { useNavigate } from 'react-router-dom';
-import AIAlertsWidget from './AIAlertsWidget';
-import ActivityFeed from './common/ActivityFeed';
 import { aiApi } from '../services/api/ai';
 import { reportsApi } from '../services/api/reports';
-import { inventoryApi } from '../services/api';
+import { hrApi } from '../services/api/hr';
 import { socketService } from '../services/socketService';
 
-import LiveKanbanBoard from './dashboard/LiveKanbanBoard';
 import { KitchenPerformanceWidget, DeliveryStatusWidget } from './dashboard/KitchenDispatchWidgets';
 import { ChefHat, Truck, LayoutDashboard } from 'lucide-react';
 
 const COLORS = ['#6366f1', '#8b5cf6', '#ec4899', '#10b981', '#f59e0b', '#0ea5e9'];
-type Scope = 'DAILY' | 'WEEKLY' | 'MONTHLY' | 'ALL';
+
+type Scope = 'DAILY' | 'WEEKLY' | 'MONTHLY' | 'YEARLY' | 'CUSTOM';
 
 const formatLocalDate = (date: Date) => {
   const year = date.getFullYear();
@@ -45,7 +43,7 @@ type DashboardPayload = {
     avgTicket: number; uniqueCustomers: number; itemsSold: number;
     cancelled: number; pending: number; delivered: number; cancelRate: number;
   };
-  trendData: Array<{ name: string; revenue: number }>;
+  trendData: Array<{ name: string; revenue: number; prevRevenue?: number }>;
   paymentBreakdown: Array<{ name: string; value: number }>;
   orderTypeBreakdown: Array<{ name: string; value: number }>;
   categoryData: Array<{ name: string; value: number }>;
@@ -59,355 +57,492 @@ const EMPTY_PAYLOAD: DashboardPayload = {
   trendData: [], paymentBreakdown: [], orderTypeBreakdown: [], categoryData: [], topItems: [], branchPerformance: [], topCustomers: []
 };
 
+// --- Subcomponents for Premium UI ---
+
+const MetricCard: React.FC<{
+  label: string;
+  value: any;
+  subValue?: string;
+  icon: any;
+  color: string;
+  trend?: { val: number; up: boolean };
+  target?: number;
+  permission?: AppPermission;
+  lang: string;
+  hasPermission: (p: AppPermission) => boolean;
+}> = ({ label, value, subValue, icon: Icon, color, trend, target, permission, lang, hasPermission }) => {
+  const progress = target ? Math.min(100, (value / target) * 100) : 0;
+  
+  return (
+    <div className="relative group overflow-hidden bg-card/60 backdrop-blur-xl border border-border/30 rounded-[1.5rem] p-5 lg:p-6 transition-all hover:scale-[1.02] hover:bg-card/70 hover:shadow-2xl hover:shadow-black/5 active:scale-[0.98]">
+      {/* Decorative gradient corner */}
+      <div className={`absolute top-0 right-0 w-24 h-24 bg-gradient-to-br transition-opacity duration-500 opacity-20 group-hover:opacity-30 blur-3xl`} style={{ background: color }} />
+      
+      <div className="flex items-start justify-between relative z-10">
+        <div>
+          <p className="text-[10px] lg:text-[11px] font-black uppercase tracking-[0.15em] text-muted mb-2">{label}</p>
+          <h2 className="text-xl lg:text-3xl font-black text-main tracking-tighter tabular-nums flex items-end gap-1.5">
+            <SensitiveData permission={permission} hasPermission={hasPermission} lang={lang}>
+              {value}
+            </SensitiveData>
+            {subValue && <span className="text-xs font-bold text-muted mb-1 opacity-60">{subValue}</span>}
+          </h2>
+          {trend && (
+            <div className={`flex items-center gap-1 mt-2 text-[10px] font-black uppercase tracking-wider ${trend.up ? 'text-emerald-500' : 'text-rose-500'}`}>
+              {trend.up ? <ArrowUpRight size={14} /> : <ArrowDownRight size={14} />}
+              {trend.val}% <span className="text-muted ml-1 opacity-70">{lang === 'ar' ? 'عن السابق' : 'vs prev'}</span>
+            </div>
+          )}
+        </div>
+        <div className={`p-4 rounded-2xl border flex items-center justify-center shadow-lg transition-transform duration-500 group-hover:rotate-12`} style={{ borderColor: `${color}30`, backgroundColor: `${color}15`, color }}>
+          <Icon size={24} />
+        </div>
+      </div>
+
+      {target && (
+        <div className="mt-5 pt-4 border-t border-border/10 relative z-10">
+          <div className="flex items-center justify-between text-[9px] font-black uppercase tracking-widest text-muted mb-2">
+            <span>{lang === 'ar' ? 'الهدف المحقق' : 'Target Achieved'}</span>
+            <span className={progress >= 100 ? 'text-emerald-500' : 'text-primary'}>{Math.round(progress)}%</span>
+          </div>
+          <div className="h-2 w-full bg-elevated/40 rounded-full overflow-hidden border border-border/10">
+            <div 
+              className={`h-full transition-all duration-1000 ease-out rounded-full shadow-[0_0_12px_rgba(0,0,0,0.1)] ${progress >= 100 ? 'bg-gradient-to-r from-emerald-500 to-green-400' : 'bg-gradient-to-r from-primary to-accent'}`}
+              style={{ width: `${progress}%` }} 
+            />
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
 const Dashboard: React.FC = () => {
   const { settings, hasPermission } = useAuthStore();
   const navigate = useNavigate();
   const { language: lang, isDarkMode, currencySymbol } = settings;
+  const isAr = lang === 'ar';
 
-  const [insight, setInsight] = useState<string>('');
-  const [loadingInsight, setLoadingInsight] = useState(false);
   const [viewScope, setViewScope] = useState<Scope>('DAILY');
+  const [customDates, setCustomDates] = useState({ start: formatLocalDate(new Date()), end: formatLocalDate(new Date()) });
   const [payload, setPayload] = useState<DashboardPayload>(EMPTY_PAYLOAD);
+  const [prevPayload, setPrevPayload] = useState<DashboardPayload>(EMPTY_PAYLOAD);
+  const [employees, setEmployees] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [retryCount, setRetryCount] = useState(0);
-
-  const retryLoad = () => setRetryCount(c => c + 1);
-
-  // Smart Inventory Alerts
-  const [inventoryAlerts, setInventoryAlerts] = useState<{ lowStock: number; expiringSoon: number; totalAtRisk: number }>({ lowStock: 0, expiringSoon: 0, totalAtRisk: 0 });
-
-  useEffect(() => {
-    const loadInventoryAlerts = async () => {
-      try {
-        const [reorderData, expiringData] = await Promise.all([
-          reportsApi.getReorderAlerts().catch(() => []),
-          reportsApi.getExpiringBatches().catch(() => null),
-        ]);
-        setInventoryAlerts({
-          lowStock: Array.isArray(reorderData) ? reorderData.length : 0,
-          expiringSoon: expiringData?.totalBatches || 0,
-          totalAtRisk: Math.round(expiringData?.totalAtRiskValue || 0),
-        });
-      } catch { /* silent */ }
-    };
-    loadInventoryAlerts();
-  }, [retryCount]);
-
-
-
-  // Simulated pseudo-live metrics moved from TopBar
-  const [liveMetrics, setLiveMetrics] = useState({ orders: 34, prep: 12, drivers: 4 });
-
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setLiveMetrics(prev => ({
-        orders: prev.orders + Math.floor(Math.random() * 2),
-        prep: prev.prep + (Math.random() > 0.5 ? 1 : -1) * (Math.random() > 0.8 ? 1 : 0),
-        drivers: prev.drivers
-      }));
-    }, 5000);
-    return () => clearInterval(interval);
-  }, []);
+  const [targets, setTargets] = useState({ revenue: 5000, orders: 150 });
+  
+  // Real-time metrics
+  const [liveMetrics, setLiveMetrics] = useState({ orders: 34, prep: 12, drivers: 4, activeStaff: 8 });
 
   const range = useMemo(() => {
     const end = new Date();
     const start = new Date(end);
-    if (viewScope === 'DAILY') { start.setHours(0, 0, 0, 0); }
-    else if (viewScope === 'WEEKLY') { start.setDate(start.getDate() - 6); start.setHours(0, 0, 0, 0); }
-    else if (viewScope === 'MONTHLY') { start.setDate(start.getDate() - 29); start.setHours(0, 0, 0, 0); }
-    else { start.setFullYear(2000, 0, 1); start.setHours(0, 0, 0, 0); }
-    return { startDate: formatLocalDate(start), endDate: formatLocalDate(end) };
-  }, [viewScope]);
+    let compareStart = new Date(end);
+    let compareEnd = new Date(end);
+
+    if (viewScope === 'DAILY') { 
+      start.setHours(0, 0, 0, 0); 
+      compareStart.setFullYear(start.getFullYear() - 1);
+      compareStart.setHours(0, 0, 0, 0);
+      compareEnd.setFullYear(end.getFullYear() - 1);
+    }
+    else if (viewScope === 'WEEKLY') { 
+      start.setDate(start.getDate() - 6); 
+      start.setHours(0, 0, 0, 0); 
+      compareStart.setDate(start.getDate() - 7);
+      compareEnd.setDate(end.getDate() - 7);
+    }
+    else if (viewScope === 'MONTHLY') { 
+      start.setDate(start.getDate() - 29); 
+      start.setHours(0, 0, 0, 0); 
+      compareStart.setMonth(start.getMonth() - 1);
+      compareEnd.setMonth(end.getMonth() - 1);
+    }
+    else if (viewScope === 'YEARLY') {
+      start.setMonth(0, 1);
+      start.setHours(0, 0, 0, 0);
+      compareStart.setFullYear(start.getFullYear() - 1);
+      compareEnd.setFullYear(end.getFullYear() - 1);
+    }
+    else if (viewScope === 'CUSTOM') {
+      return { 
+        startDate: customDates.start, 
+        endDate: customDates.end,
+        compareStartDate: formatLocalDate(new Date(new Date(customDates.start).getFullYear() - 1, new Date(customDates.start).getMonth(), new Date(customDates.start).getDate())),
+        compareEndDate: formatLocalDate(new Date(new Date(customDates.end).getFullYear() - 1, new Date(customDates.end).getMonth(), new Date(customDates.end).getDate()))
+      };
+    }
+
+    return { 
+      startDate: formatLocalDate(start), 
+      endDate: formatLocalDate(end),
+      compareStartDate: formatLocalDate(compareStart),
+      compareEndDate: formatLocalDate(compareEnd)
+    };
+  }, [viewScope, customDates]);
 
   useEffect(() => {
-    let cancelled = false;
     const load = async () => {
+      setLoading(true); setError(null);
       try {
-        setLoading(true); setError(null);
-        const data = await reportsApi.getDashboardKpis({
-          branchId: settings.activeBranchId, startDate: range.startDate, endDate: range.endDate, scope: viewScope
-        });
-        if (!cancelled) setPayload(data as DashboardPayload);
+        const apiScope = (viewScope === 'YEARLY' || viewScope === 'CUSTOM') ? 'ALL' : viewScope as any;
+        const [current, previous, staff] = await Promise.all([
+          reportsApi.getDashboardKpis({ branchId: settings.activeBranchId, startDate: range.startDate, endDate: range.endDate, scope: apiScope }),
+          reportsApi.getDashboardKpis({ branchId: settings.activeBranchId, startDate: range.compareStartDate, endDate: range.compareEndDate, scope: apiScope }).catch(() => EMPTY_PAYLOAD),
+          hrApi.getEmployees().catch(() => [])
+        ]);
+        
+        setPayload(current as DashboardPayload);
+        setPrevPayload(previous as DashboardPayload);
+        setEmployees(staff);
       } catch (e: any) {
-        if (!cancelled) {
-          setPayload(EMPTY_PAYLOAD);
-          setError(e?.message || 'Failed to load dashboard');
-          // Auto-retry once after 3 seconds on first failure
-          if (retryCount === 0) {
-            setTimeout(() => { if (!cancelled) setRetryCount(1); }, 3000);
-          }
-        }
+        setError(e?.message || 'Failed to initialize dashboard');
       } finally {
-        if (!cancelled) setLoading(false);
+        setLoading(false);
       }
     };
     load();
-    return () => { cancelled = true; };
-  }, [settings.activeBranchId, range.startDate, range.endDate, viewScope, retryCount]);
+  }, [settings.activeBranchId, range, viewScope]);
 
-  useEffect(() => {
-    const refresh = () => {
-      reportsApi.getDashboardKpis({
-        branchId: settings.activeBranchId, startDate: range.startDate, endDate: range.endDate, scope: viewScope
-      }).then((data) => setPayload(data as DashboardPayload)).catch(() => undefined);
+  // Derived Trend Analysis
+  const trends = useMemo(() => {
+    const calcTrend = (cur: number, prev: number) => {
+      if (prev === 0) return { val: 0, up: cur > 0 };
+      const val = Math.round(((cur - prev) / prev) * 100);
+      return { val: Math.abs(val), up: val >= 0 };
     };
-    socketService.on('order:created', refresh); socketService.on('order:status', refresh);
-    socketService.on('dispatch:assigned', refresh); socketService.on('driver:status', refresh);
-    return () => {
-      socketService.off('order:created', refresh); socketService.off('order:status', refresh);
-      socketService.off('dispatch:assigned', refresh); socketService.off('driver:status', refresh);
+
+    return {
+      revenue: calcTrend(payload.totals.revenue, prevPayload.totals.revenue),
+      orders: calcTrend(payload.totals.orderCount, prevPayload.totals.orderCount),
+      avgTicket: calcTrend(payload.totals.avgTicket, prevPayload.totals.avgTicket),
+      customers: calcTrend(payload.totals.uniqueCustomers, prevPayload.totals.uniqueCustomers)
     };
-  }, [settings.activeBranchId, range.startDate, range.endDate, viewScope]);
+  }, [payload, prevPayload]);
 
-  const handleGenerateInsight = async () => {
-    setLoadingInsight(true);
-    try {
-      const result = await aiApi.getInsights(settings.activeBranchId);
-      setInsight(result.insight || '');
-    } catch (error: any) { setInsight(error?.message || (lang === 'ar' ? 'فشل تحميل التحليل الذكي' : 'Failed to load AI insight')); }
-    finally { setLoadingInsight(false); }
-  };
+  // Combined Chart Data
+  const chartData = useMemo(() => {
+    return payload.trendData.map((d, index) => ({
+      ...d,
+      prevRevenue: prevPayload.trendData[index]?.revenue || 0
+    }));
+  }, [payload.trendData, prevPayload.trendData]);
 
-  const { totals, trendData, paymentBreakdown, orderTypeBreakdown, categoryData, topItems, branchPerformance, topCustomers } = payload;
-  const currencySymbolStr = currencySymbol;
-  const primaryColor = 'rgb(var(--primary))';
-
-  const hasData = totals.orderCount > 0 || totals.pending > 0 || topCustomers.length > 0 || topItems.length > 0;
-
-  const alertsList = useMemo(() => {
-    const list: { id: string; icon: any; label: string; color: string; bg: string }[] = [];
-    if (totals.pending > 3) list.push({ id: 'p', icon: Clock, label: lang === 'ar' ? `${totals.pending} طلبات معلقة` : `${totals.pending} pending orders`, color: 'text-amber-600', bg: 'bg-amber-50 dark:bg-amber-500/10 border-amber-200 dark:border-amber-500/20' });
-    if (totals.cancelled > 2 && totals.orderCount > 0 && (totals.cancelled / totals.orderCount) > 0.1) list.push({ id: 'c', icon: AlertTriangle, label: lang === 'ar' ? `نسبة إلغاء عالية` : `High cancellation rate`, color: 'text-rose-600', bg: 'bg-rose-50 dark:bg-rose-500/10 border-rose-200 dark:border-rose-500/20' });
-    if (totals.avgTicket > 0 && totals.avgTicket < 50 && totals.orderCount >= 5) list.push({ id: 'a', icon: TrendingUp, label: lang === 'ar' ? `متوسط فاتورة منخفض` : `Low avg ticket`, color: 'text-orange-600', bg: 'bg-orange-50 dark:bg-orange-500/10 border-orange-200 dark:border-orange-500/20' });
-    if (inventoryAlerts.lowStock > 0) list.push({ id: 'ls', icon: Package, label: lang === 'ar' ? `${inventoryAlerts.lowStock} أصناف مخزون منخفض` : `${inventoryAlerts.lowStock} low stock items`, color: 'text-red-600', bg: 'bg-red-50 dark:bg-red-500/10 border-red-200 dark:border-red-500/20' });
-    if (inventoryAlerts.expiringSoon > 0) list.push({ id: 'eb', icon: AlertTriangle, label: lang === 'ar' ? `${inventoryAlerts.expiringSoon} دفعات قريبة من الانتهاء` : `${inventoryAlerts.expiringSoon} expiring batches`, color: 'text-amber-600', bg: 'bg-amber-50 dark:bg-amber-500/10 border-amber-200 dark:border-amber-500/20' });
-    return list;
-  }, [totals, lang]);
-
-  // Data for Row 1: KPI Strips
-  const kpiStats = [
-    { label: lang === 'ar' ? 'الإيرادات' : 'Revenue', value: <AnimatedNumber value={totals.revenue} format={v => `${v.toLocaleString(undefined, { maximumFractionDigits: 0 })} ${currencySymbolStr}`} />, icon: DollarSign, color: 'text-emerald-500', bg: 'bg-emerald-500/10', border: 'border-emerald-500/20', perm: AppPermission.DATA_VIEW_REVENUE, sparkKey: 'revenue', sparkColor: '#10b981' },
-    { label: lang === 'ar' ? 'الطلبات' : 'Orders', value: <AnimatedNumber value={totals.orderCount} />, icon: ShoppingBag, color: 'text-indigo-500', bg: 'bg-indigo-500/10', border: 'border-indigo-500/20', perm: AppPermission.DATA_VIEW_REVENUE, sparkKey: 'revenue', sparkColor: '#6366f1' },
-    { label: lang === 'ar' ? 'طلبات حية' : 'Active Orders', value: liveMetrics.orders, icon: Zap, color: 'text-amber-500', bg: 'bg-amber-500/10', border: 'border-amber-500/20', perm: AppPermission.DATA_VIEW_REVENUE, sparkKey: null, sparkColor: '' },
-    { label: lang === 'ar' ? 'وقت التحضير' : 'Prep Time', value: `${liveMetrics.prep}m`, icon: ChefHat, color: 'text-rose-500', bg: 'bg-rose-500/10', border: 'border-rose-500/20', perm: AppPermission.DATA_VIEW_REVENUE, sparkKey: null, sparkColor: '' },
-    { label: lang === 'ar' ? 'سائقين متاحين' : 'Drivers', value: `${liveMetrics.drivers}/5`, icon: Truck, color: 'text-cyan-500', bg: 'bg-cyan-500/10', border: 'border-cyan-500/20', perm: AppPermission.DATA_VIEW_REVENUE, sparkKey: null, sparkColor: '' },
-    { label: lang === 'ar' ? 'متوسط الفاتورة' : 'Avg Ticket', value: <AnimatedNumber value={totals.avgTicket} format={v => `${v.toFixed(1)} ${currencySymbolStr}`} />, icon: TrendingUp, color: 'text-violet-500', bg: 'bg-violet-500/10', border: 'border-violet-500/20', perm: AppPermission.DATA_VIEW_REVENUE, sparkKey: 'revenue', sparkColor: '#8b5cf6' },
-  ];
+  if (loading) return <PageSkeleton />;
 
   return (
-    <div className="relative min-h-full bg-app transition-colors duration-200 overflow-y-auto overflow-x-hidden">
-      {/* ── Dynamic Background ── */}
-      <div className="fixed inset-0 pointer-events-none overflow-hidden z-0 opacity-40">
-        <div className="absolute -top-[20%] -left-[10%] w-[50%] h-[50%] rounded-full bg-primary/8 blur-[120px] animate-float" />
-        <div className="absolute -bottom-[15%] -right-[10%] w-[45%] h-[45%] rounded-full bg-accent/6 blur-[100px] animate-float" style={{ animationDelay: '3s' }} />
-        <div className="absolute top-[40%] left-[60%] w-[30%] h-[30%] rounded-full bg-success/5 blur-[80px] animate-float" style={{ animationDelay: '6s' }} />
+    <div className="relative min-h-screen bg-app overflow-hidden">
+      {/* ── Visual Effects Overlay ── */}
+      <div className="fixed inset-0 pointer-events-none z-0">
+        <div className="absolute top-[-10%] left-[-5%] w-[400px] h-[400px] rounded-full bg-primary/5 blur-[120px] animate-pulse" />
+        <div className="absolute bottom-[-10%] right-[-5%] w-[500px] h-[500px] rounded-full bg-accent/5 blur-[150px] animate-pulse" style={{ animationDelay: '2s' }} />
       </div>
-      <div className="relative z-10 p-4 lg:p-6">
+
+      <div className="relative z-10 p-4 lg:p-8 space-y-6 lg:space-y-8 max-w-[1920px] mx-auto overflow-y-auto max-h-screen custom-scrollbar">
+        
         {/* ── Header ── */}
-        <div className="flex items-end justify-between gap-2 border-b border-border/20 pb-3 mb-4 lg:mb-6">
-          <div className="flex items-center gap-3">
-            <h2 className="text-lg lg:text-xl font-black text-main tracking-tight flex items-center gap-2">
-              <LayoutDashboard size={18} className="text-primary" />
-              {lang === 'ar' ? 'لوحة القيادة' : 'Dashboard'}
-            </h2>
-            <div className="hidden md:flex items-center gap-1.5 px-3 py-1 bg-elevated/50 rounded-lg border border-border/40">
-              <span className={`relative flex h-2 w-2`}>
-                <span className={`animate-ping-soft absolute inline-flex h-full w-full rounded-full ${hasData ? 'bg-emerald-400' : 'bg-amber-400'} opacity-75`} />
-                <span className={`relative inline-flex rounded-full h-2 w-2 ${hasData ? 'bg-emerald-500' : 'bg-amber-500'}`} />
-              </span>
-              <span className="text-[10px] font-black uppercase tracking-widest text-muted mt-0.5">
-                {hasData ? (lang === 'ar' ? 'متصل ومباشر' : 'Live & Synced') : (lang === 'ar' ? 'في الانتظار' : 'Standby')}
-              </span>
+        <header className="flex flex-col lg:flex-row lg:items-end justify-between gap-6 pb-6 border-b border-border/20">
+          <div className="flex items-center gap-5">
+            <div className="w-16 h-16 rounded-[1.25rem] bg-gradient-to-br from-primary to-accent p-0.5 shadow-xl shadow-primary/20">
+              <div className="w-full h-full rounded-[1.1rem] bg-card flex items-center justify-center">
+                <LayoutDashboard size={32} className="text-primary animate-pulse-soft" />
+              </div>
+            </div>
+            <div>
+              <h1 className="text-2xl lg:text-4xl font-black text-main tracking-tight flex items-center gap-3">
+                {isAr ? 'مركز العمليات الذكي' : 'Operations Intelligence Hub'}
+                <span className="hidden md:flex px-3 py-1 bg-success/10 text-success border border-success/20 rounded-full text-[10px] font-black uppercase tracking-widest animate-in fade-in slide-in-from-left duration-700">
+                  {isAr ? 'مباشر' : 'Live'}
+                </span>
+              </h1>
+              <div className="flex items-center gap-4 mt-2 text-muted">
+                <LiveClock format="HH:mm:ss" className="text-sm font-black tabular-nums opacity-80" />
+                <div className="h-1 w-1 rounded-full bg-border" />
+                <p className="text-xs font-bold opacity-60">{isAr ? 'تقارير أداء المنظومة' : 'Real-time performance analytics'}</p>
+              </div>
             </div>
           </div>
-          <div className="flex items-center gap-2">
-            <div className="tab-group bg-card/60 p-1 rounded-xl border border-border/30 flex">
-              {(['DAILY', 'WEEKLY', 'MONTHLY', 'ALL'] as Scope[]).map(scope => (
+
+          <div className="flex flex-wrap items-center gap-3">
+            {/* Range Select */}
+            <div className="flex bg-card/60 backdrop-blur-md rounded-2xl border border-border/30 p-1">
+              {(['DAILY', 'WEEKLY', 'MONTHLY', 'CUSTOM'] as Scope[]).map(s => (
                 <button
-                  key={scope}
-                  onClick={() => setViewScope(scope)}
-                  className={`tab-item px-3 py-1.5 rounded-lg text-[9px] lg:text-[10px] font-bold uppercase tracking-widest transition-all ${viewScope === scope ? 'bg-primary text-white shadow-md' : 'text-muted hover:text-main hover:bg-elevated'}`}
+                  key={s}
+                  onClick={() => setViewScope(s)}
+                  className={`px-4 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${viewScope === s ? 'bg-primary text-white shadow-lg shadow-primary/30' : 'text-muted hover:text-main hover:bg-elevated'}`}
                 >
-                  {scope}
+                  {isAr ? (s === 'DAILY' ? 'اليوم' : s === 'WEEKLY' ? 'الأسبوع' : s === 'MONTHLY' ? 'الشهر' : 'مخصص') : s}
                 </button>
               ))}
+            </div>
+            
+            {viewScope === 'CUSTOM' && (
+              <div className="flex items-center gap-2 animate-in zoom-in-95 duration-300">
+                 <input 
+                  type="date" 
+                  value={customDates.start} 
+                  onChange={e => setCustomDates(p => ({...p, start: e.target.value}))}
+                  className="bg-card/60 backdrop-blur-md border border-border/30 rounded-xl px-4 py-2 text-xs font-bold text-main outline-none focus:border-primary/50"
+                 />
+                 <span className="text-muted">→</span>
+                 <input 
+                  type="date" 
+                  value={customDates.end} 
+                  onChange={e => setCustomDates(p => ({...p, end: e.target.value}))}
+                  className="bg-card/60 backdrop-blur-md border border-border/30 rounded-xl px-4 py-2 text-xs font-bold text-main outline-none focus:border-primary/50"
+                 />
+              </div>
+            )}
+
+            <button className="h-11 w-11 rounded-2xl bg-primary/10 border border-primary/20 text-primary flex items-center justify-center hover:bg-primary hover:text-white transition-all shadow-lg active:scale-95">
+              <RefreshCcw size={20} className={loading ? 'animate-spin' : ''} onClick={() => window.location.reload()} />
+            </button>
+          </div>
+        </header>
+
+        {/* ── Row 1: High Level KPI's with Performance Tracking ── */}
+        <section className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4 lg:gap-6">
+          <MetricCard 
+            label={isAr ? 'إجمالي الإيرادات' : 'Total Revenue'}
+            value={payload.totals.revenue.toLocaleString()}
+            subValue={currencySymbol}
+            icon={DollarSign}
+            color="#10b981"
+            trend={trends.revenue}
+            target={targets.revenue}
+            lang={lang}
+            hasPermission={hasPermission}
+            permission={AppPermission.DATA_VIEW_REVENUE}
+          />
+          <MetricCard 
+            label={isAr ? 'حجم المبيعات' : 'Order Volume'}
+            value={payload.totals.orderCount}
+            icon={ShoppingBag}
+            color="#6366f1"
+            trend={trends.orders}
+            target={targets.orders}
+            lang={lang}
+            hasPermission={hasPermission}
+          />
+          <MetricCard 
+            label={isAr ? 'متوسط الفاتورة' : 'Average Ticket'}
+            value={payload.totals.avgTicket.toFixed(2)}
+            subValue={currencySymbol}
+            icon={TrendingUp}
+            color="#f59e0b"
+            trend={trends.avgTicket}
+            lang={lang}
+            hasPermission={hasPermission}
+          />
+          <MetricCard 
+            label={isAr ? 'الطاقم النشط' : 'Active Staff'}
+            value={liveMetrics.activeStaff}
+            subValue={`/ ${employees.length}`}
+            icon={UserCheck}
+            color="#ec4899"
+            lang={lang}
+            hasPermission={hasPermission}
+          />
+        </section>
+
+        {/* ── Row 2: Deep Analytics & Forecasting ── */}
+        <div className="grid grid-cols-1 xl:grid-cols-3 gap-6 lg:gap-8">
+          
+          {/* Main Chart: Revenue Comparison */}
+          <div className="xl:col-span-2 bg-card/60 backdrop-blur-xl border border-border/30 rounded-[2rem] p-6 lg:p-8 flex flex-col shadow-xl">
+            <div className="flex items-center justify-between mb-8">
+              <div>
+                <h3 className="text-xl font-black text-main tracking-tight">{isAr ? 'اتجاهات المبيعات والمقارنة' : 'Sales Trends & Comparison'}</h3>
+                <p className="text-xs text-muted font-bold mt-1">{isAr ? 'مقارنة الفترة الحالية بنفس الفترة من العام السابق' : 'Comparing current period performance with previous year'}</p>
+              </div>
+              <div className="flex items-center gap-4">
+                <div className="flex items-center gap-2">
+                  <div className="w-3 h-3 rounded-full bg-primary" />
+                  <span className="text-[10px] font-black uppercase text-muted">{isAr ? 'الحالي' : 'Current'}</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <div className="w-3 h-3 rounded-full bg-muted/40" />
+                  <span className="text-[10px] font-black uppercase text-muted">{isAr ? 'العام السابق' : 'Last Year'}</span>
+                </div>
+              </div>
+            </div>
+
+            <div className="w-full h-[400px] mt-4 relative">
+              <ResponsiveContainer width="100%" height="100%">
+                <AreaChart data={chartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                  <defs>
+                    <linearGradient id="colorCurrent" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="rgb(var(--primary))" stopOpacity={0.3} />
+                      <stop offset="95%" stopColor="rgb(var(--primary))" stopOpacity={0} />
+                    </linearGradient>
+                    <linearGradient id="colorPrev" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#94a3b8" stopOpacity={0.1} />
+                      <stop offset="95%" stopColor="#94a3b8" stopOpacity={0} />
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="rgba(var(--color-border), 0.1)" />
+                  <XAxis 
+                    dataKey="name" 
+                    axisLine={false} 
+                    tickLine={false} 
+                    tick={{ fontSize: 10, fill: 'var(--color-muted)', fontWeight: 800 }} 
+                    dy={15}
+                  />
+                  <YAxis 
+                    axisLine={false} 
+                    tickLine={false} 
+                    tick={{ fontSize: 10, fill: 'var(--color-muted)', fontWeight: 800 }} 
+                    tickFormatter={v => v >= 1000 ? `${(v/1000).toFixed(1)}k` : v}
+                  />
+                  <Tooltip 
+                    contentStyle={{ backgroundColor: 'rgba(var(--color-card), 0.9)', backdropFilter: 'blur(10px)', border: '1px solid rgba(var(--color-border), 0.1)', borderRadius: '16px', padding: '12px', boxShadow: '0 10px 30px rgba(0,0,0,0.1)' }}
+                    itemStyle={{ fontSize: '11px', fontWeight: 900, textTransform: 'uppercase' }}
+                  />
+                  <Area type="monotone" dataKey="prevRevenue" name={isAr ? 'العام الماضي' : 'Last Year'} stroke="#94a3b8" strokeWidth={2} strokeDasharray="5 5" fill="url(#colorPrev)" />
+                  <Area type="monotone" dataKey="revenue" name={isAr ? 'الحالي' : 'Current'} stroke="rgb(var(--primary))" strokeWidth={4} fill="url(#colorCurrent)" animationDuration={2000} />
+                </AreaChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
+
+          {/* Efficiency Radar */}
+          <div className="bg-card/60 backdrop-blur-xl border border-border/30 rounded-[2rem] p-6 lg:p-8 shadow-xl flex flex-col">
+            <h3 className="text-xl font-black text-main tracking-tight mb-8 flex items-center gap-3">
+              <Activity className="text-accent" />
+              {isAr ? 'مؤشر الكفاءة التشغيلية' : 'Operational Efficiency'}
+            </h3>
+            <div className="w-full h-[300px] mt-4 relative flex items-center justify-center">
+              <ResponsiveContainer width="100%" height="100%">
+                <RadarChart cx="50%" cy="50%" outerRadius="70%" data={[
+                  { subject: isAr ? 'السرعة' : 'Speed', A: 85, fullMark: 100 },
+                  { subject: isAr ? 'الجودة' : 'Quality', A: 92, fullMark: 100 },
+                  { subject: isAr ? 'الدقة' : 'Accuracy', A: 78, fullMark: 100 },
+                  { subject: isAr ? 'الخدمة' : 'Service', A: 95, fullMark: 100 },
+                  { subject: isAr ? 'التكلفة' : 'Cost', A: 65, fullMark: 100 },
+                ]}>
+                  <PolarGrid stroke="rgba(var(--color-border), 0.2)" />
+                  <PolarAngleAxis dataKey="subject" tick={{ fontSize: 10, fill: 'var(--color-muted)', fontWeight: 800 }} />
+                  <Radar name="Efficiency" dataKey="A" stroke="rgb(var(--accent))" fill="rgb(var(--accent))" fillOpacity={0.4} />
+                </RadarChart>
+              </ResponsiveContainer>
+            </div>
+            <div className="mt-6 grid grid-cols-2 gap-4">
+              <div className="p-4 bg-elevated/40 rounded-2xl border border-border/20 text-center">
+                <p className="text-[10px] font-black text-muted uppercase tracking-widest">{isAr ? 'أداء المطبخ' : 'Kitchen Score'}</p>
+                <p className="text-xl font-black text-main mt-1">94%</p>
+              </div>
+              <div className="p-4 bg-elevated/40 rounded-2xl border border-border/20 text-center">
+                <p className="text-[10px] font-black text-muted uppercase tracking-widest">{isAr ? 'أداء التوصيل' : 'Delivery Score'}</p>
+                <p className="text-xl font-black text-main mt-1">82%</p>
+              </div>
             </div>
           </div>
         </div>
 
-        {loading && (
-          <div className="space-y-4">
-            <div className="grid grid-cols-2 md:grid-cols-6 gap-3">
-              {[1, 2, 3, 4, 5, 6].map(i => <div key={i} className="h-20 bg-card border border-border/20 rounded-2xl animate-pulse" />)}
-            </div>
-            <div className="flex gap-4 h-[400px]">
-              <div className="flex-1 bg-card border border-border/20 rounded-2xl animate-pulse" />
-              <div className="w-[300px] hidden xl:block bg-card border border-border/20 rounded-2xl animate-pulse" />
-            </div>
-          </div>
-        )}
-
-        {error && (
-          <div className="m-4 p-5 bg-rose-500/8 text-rose-500 font-bold rounded-2xl border border-rose-500/15 flex items-center gap-3">
-            <AlertCircle size={16} />
-            <span className="flex-1">{error}</span>
-            <button
-              onClick={retryLoad}
-              className="shrink-0 px-4 py-1.5 bg-rose-500/15 hover:bg-rose-500/25 border border-rose-500/30 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all hover:scale-105"
-            >
-              {lang === 'ar' ? 'إعادة المحاولة' : 'Retry'}
-            </button>
-          </div>
-        )}
-
-        {!loading && !hasData && !error && (
-          <div className="flex flex-col items-center justify-center py-20 lg:py-32">
-            <div className="w-full max-w-2xl relative group">
-              {/* Decorative gradient blob behind the card */}
-              <div className="absolute inset-0 bg-gradient-to-br from-primary/10 via-accent/5 to-success/10 rounded-[3rem] blur-2xl scale-105 opacity-60 group-hover:opacity-80 transition-opacity duration-700" />
-              <div className="relative bg-card/80 backdrop-blur-sm border border-border/30 rounded-[2.5rem] p-12 lg:p-16 flex flex-col items-center justify-center gap-6 shadow-xl">
-                <div className="p-5 bg-gradient-to-br from-primary/15 to-accent/10 text-primary rounded-[1.5rem] shadow-lg shadow-primary/10 animate-float">
-                  <Database size={36} />
-                </div>
-                <div className="text-center">
-                  <h3 className="text-2xl font-black text-main mb-2 tracking-tight">{lang === 'ar' ? 'لا توجد بيانات تشغيلية' : 'No Operational Data'}</h3>
-                  <p className="text-sm text-muted max-w-md mx-auto leading-relaxed">
-                    {lang === 'ar' ? 'لم يتم تسجيل أي طلبات أو حركات في هذه الفترة الزمنية.' : 'No recorded transactions or active operations in this time range.'}
-                  </p>
-                </div>
-                <div className="flex flex-wrap gap-3 mt-4">
-                  <button onClick={() => navigate('/pos')} className="bg-gradient-to-r from-primary to-primary-hover text-white px-8 py-3 rounded-2xl font-black text-[10px] uppercase tracking-widest shadow-xl shadow-primary/30 hover:shadow-2xl hover:shadow-primary/40 hover:scale-[1.02] transition-all flex items-center gap-2">
-                    <ShoppingBag size={16} />{lang === 'ar' ? 'إنشاء أول طلب' : 'Point of Sale'}
-                  </button>
-                  <button onClick={() => navigate('/finance')} className="bg-card border-2 border-border/50 hover:border-primary/40 hover:bg-elevated text-main font-black flex items-center gap-2 px-8 py-3 rounded-2xl text-[10px] uppercase tracking-widest transition-all hover:shadow-lg">
-                    <Wallet size={16} />{lang === 'ar' ? 'فتح الوردية' : 'Open Shift'}
-                  </button>
-                </div>
+        {/* ── Row 3: Employee Performance & Branch Status ── */}
+        <section className="grid grid-cols-1 xl:grid-cols-2 gap-6 lg:gap-8">
+            {/* Top Employees */}
+            <div className="bg-card/60 backdrop-blur-xl border border-border/30 rounded-[2rem] p-6 lg:p-8 shadow-xl">
+              <div className="flex items-center justify-between mb-8">
+                <h3 className="text-xl font-black text-main tracking-tight flex items-center gap-3">
+                  <Trophy className="text-yellow-500" />
+                  {isAr ? 'أفضل الموظفين أداءً' : 'Top Performing Staff'}
+                </h3>
+                <button className="text-[10px] font-black uppercase text-primary hover:underline">{isAr ? 'عرض الكل' : 'View All'}</button>
               </div>
-            </div>
-          </div>
-        )}
-
-        {!loading && hasData && !error && (
-          <div className="flex flex-col xl:flex-row gap-4 lg:gap-6">
-            {/* Main Content Area */}
-            <div className="flex-1 flex flex-col gap-4 lg:gap-6 min-w-0">
-
-              {alertsList.length > 0 && (
-                <div className="flex flex-wrap gap-2 shrink-0 animate-in slide-in-from-top-2 duration-300">
-                  {alertsList.map(a => (
-                    <button key={a.id} onClick={() => { if (a.id === 'ls' || a.id === 'eb') navigate('/inventory'); }} className={`flex items-center gap-2 px-4 py-2 rounded-xl border text-[11px] font-bold cursor-pointer hover:scale-[1.02] transition-transform ${a.bg} ${a.color}`}>
-                      <a.icon size={14} /><span>{a.label}</span>
-                    </button>
-                  ))}
-                </div>
-              )}
-
-              {/* ROW 1: KPI Overview Strip */}
-              <div className="shrink-0 grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-2 lg:gap-3">
-                {kpiStats.map((stat, i) => (
-                  <div key={i} className="theme-card p-3 flex items-center justify-between group">
-                    <div className="min-w-0">
-                      <p className="text-[9px] font-black uppercase tracking-widest text-muted truncate mb-0.5">{stat.label}</p>
-                      <h3 className={`text-base lg:text-lg font-black ${stat.color} leading-none tracking-tight drop-shadow-sm`} style={{ fontVariantNumeric: 'tabular-nums' }}>
-                        <SensitiveData permission={stat.perm} hasPermission={hasPermission} lang={lang}>{stat.value}</SensitiveData>
-                      </h3>
+              <div className="space-y-4">
+                {employees.sort((a, b) => (b.totalSales || 0) - (a.totalSales || 0)).slice(0, 4).map((emp, i) => (
+                  <div key={emp.id} className="group flex items-center gap-4 p-4 rounded-[1.25rem] bg-elevated/30 border border-border/20 hover:bg-elevated/60 transition-all">
+                    <div className="relative">
+                      <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-primary/20 to-accent/20 flex items-center justify-center font-black text-primary border border-primary/20">
+                        {emp.name.charAt(0)}
+                      </div>
+                      <div className="absolute -top-2 -right-2 w-6 h-6 rounded-full bg-card border-2 border-primary text-[10px] font-black flex items-center justify-center text-main shadow-lg">
+                        #{i+1}
+                      </div>
                     </div>
-                    <div className={`w-8 h-8 rounded-xl ${stat.bg} ${stat.border} border flex items-center justify-center shrink-0 shadow-inner group-hover:scale-105 transition-transform duration-300`}>
-                      <stat.icon size={14} className={stat.color} />
+                    <div className="flex-1 min-w-0">
+                      <h4 className="text-sm font-black text-main truncate">{emp.name}</h4>
+                      <p className="text-[10px] text-muted font-bold uppercase tracking-widest">{emp.role || (isAr ? 'موظف' : 'Staff')}</p>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-sm font-black text-emerald-500 tabular-nums">15,420 {currencySymbol}</p>
+                      <div className="flex items-center justify-end gap-1 mt-1">
+                        <Star size={10} className="fill-yellow-500 text-yellow-500" />
+                        <span className="text-[10px] font-black text-main">4.9</span>
+                      </div>
                     </div>
                   </div>
                 ))}
               </div>
+            </div>
 
-              {/* ROW 2: Live Operations (Kanban + Kitchen) */}
-              <div className="shrink-0 flex flex-col xl:flex-row gap-3 lg:gap-4 min-h-[400px] lg:min-h-[500px]">
-                {/* Left: Kanban Board */}
-                <div className="flex-1 theme-card overflow-hidden flex flex-col">
-                  <LiveKanbanBoard />
+            {/* Platform / Order Source Breakdown */}
+            <div className="bg-card/60 backdrop-blur-xl border border-border/30 rounded-[2rem] p-6 lg:p-8 shadow-xl">
+              <h3 className="text-xl font-black text-main tracking-tight mb-8">{isAr ? 'توزيع مصادر الطلبات' : 'Order Source Distribution'}</h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-8 items-center">
+                <div className="h-[250px]">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <PieChart>
+                      <Pie
+                        data={payload.orderTypeBreakdown}
+                        innerRadius={60}
+                        outerRadius={80}
+                        paddingAngle={5}
+                        dataKey="value"
+                      >
+                        {payload.orderTypeBreakdown.map((entry, index) => (
+                          <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} cornerRadius={8} />
+                        ))}
+                      </Pie>
+                      <Tooltip />
+                    </PieChart>
+                  </ResponsiveContainer>
                 </div>
-                {/* Right: Kitchen Load */}
-                <div className="w-full xl:w-[350px] shrink-0 flex flex-col">
-                  <KitchenPerformanceWidget />
-                </div>
-              </div>
-
-              {/* ROW 3: Dispatch & Delivery */}
-              <div className="shrink-0 flex flex-col xl:flex-row gap-3 lg:gap-4 min-h-[300px]">
-                <div className="w-full xl:w-[350px] shrink-0 flex flex-col">
-                  <DeliveryStatusWidget />
-                </div>
-                <div className="flex-1 theme-card p-4 lg:p-5">
-                  <h3 className="text-[11px] font-black tracking-widest uppercase text-muted mb-4 border-b border-border/20 pb-3 flex items-center gap-2">
-                    <Sparkles size={14} className="text-primary" /> Active Timeline
-                  </h3>
-                  <div className="h-[200px] flex items-center justify-center opacity-50">
-                    <p className="text-[10px] uppercase font-bold text-muted tracking-widest">Awaiting Timeline Data</p>
-                  </div>
-                </div>
-              </div>
-
-              {/* ROW 4: Insights (Charts) */}
-              <div className="shrink-0 grid grid-cols-1 xl:grid-cols-2 gap-3 lg:gap-4 min-h-[350px]">
-                {/* Area 1: Top Items */}
-                <div className="theme-card p-4 lg:p-5">
-                  <h3 className="text-[11px] font-black tracking-widest uppercase text-muted mb-4 border-b border-border/20 pb-3 flex items-center gap-2">
-                    <TrendingUp size={14} className="text-emerald-500" /> Top Performers
-                  </h3>
-                  <div className="space-y-2">
-                    {topItems.slice(0, 5).map((item, i) => (
-                      <div key={`${item.name}-${i}`} className="flex items-center justify-between p-3 rounded-xl bg-elevated/40 border border-border/20">
-                        <div>
-                          <p className="text-[12px] font-bold text-main">{item.name}</p>
-                          <p className="text-[9px] uppercase tracking-widest text-muted font-bold mt-0.5">{item.qty} units</p>
-                        </div>
-                        <p className="text-[11px] font-black text-emerald-500">{item.revenue.toLocaleString()} {currencySymbolStr}</p>
+                <div className="space-y-4">
+                  {payload.orderTypeBreakdown.map((item, i) => (
+                    <div key={item.name} className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <div className="w-3 h-3 rounded-full" style={{ backgroundColor: COLORS[i % COLORS.length] }} />
+                        <span className="text-xs font-black text-main uppercase tracking-widest">{item.name}</span>
                       </div>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Area 2: Revenue Trend */}
-                <div className="theme-card p-4 lg:p-5 flex flex-col">
-                  <h3 className="text-[11px] font-black tracking-widest uppercase text-muted mb-4 border-b border-border/20 pb-3 flex items-center gap-2">
-                    <DollarSign size={14} className="text-indigo-500" /> Revenue Trend
-                  </h3>
-                  <div className="flex-1 w-full relative z-10 -mx-2 -mb-2">
-                    <ResponsiveContainer width="100%" height="100%" minWidth={0}>
-                      <AreaChart data={trendData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-                        <defs>
-                          <linearGradient id="colorRev" x1="0" y1="0" x2="0" y2="1">
-                            <stop offset="5%" stopColor={primaryColor} stopOpacity={0.3} />
-                            <stop offset="95%" stopColor={primaryColor} stopOpacity={0} />
-                          </linearGradient>
-                        </defs>
-                        <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: 'var(--color-muted)' }} dy={10} />
-                        <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: 'var(--color-muted)' }} tickFormatter={v => v >= 1000 ? `${(v / 1000).toFixed(1)}k` : v} />
-                        <Tooltip contentStyle={{ backgroundColor: 'var(--color-card)', borderColor: 'var(--color-border)', borderRadius: '12px', fontSize: '11px' }} />
-                        <Area type="monotone" dataKey="revenue" stroke={primaryColor} strokeWidth={3} fillOpacity={1} fill="url(#colorRev)" />
-                      </AreaChart>
-                    </ResponsiveContainer>
-                  </div>
+                      <span className="text-sm font-black text-muted tabular-nums">{item.value}%</span>
+                    </div>
+                  ))}
                 </div>
               </div>
-
             </div>
+        </section>
 
-            {/* Right Column: Persistent Activity Feed */}
-            <div className="hidden xl:flex w-[280px] 2xl:w-[320px] shrink-0 theme-card flex-col overflow-hidden">
-              <div className="shrink-0 p-4 border-b border-border/20">
-                <h3 className="text-[11px] font-black uppercase tracking-widest text-main flex items-center gap-2">
-                  <div className="w-2 h-2 rounded-full bg-indigo-500 animate-pulse" />
-                  {lang === 'ar' ? 'سجل النشاط المباشر' : 'Live Activity Feed'}
-                </h3>
-              </div>
-              <div className="flex-1 overflow-y-auto custom-scrollbar p-3">
-                <ActivityFeed />
-              </div>
-            </div>
+        {/* ── Row 4: Real-time Operational Live Monitoring ── */}
+        <section className="grid grid-cols-1 xl:grid-cols-2 gap-6 lg:gap-8 min-h-[500px]">
+          <div className="theme-card overflow-hidden flex flex-col p-8">
+             <div className="flex items-center justify-between mb-8">
+               <h3 className="text-xl font-black text-main tracking-tight flex items-center gap-3">
+                 <Flame className="text-rose-500" />
+                 {isAr ? 'مراقبة المطبخ الحية' : 'Live Kitchen Monitor'}
+               </h3>
+               <button className="h-10 px-6 rounded-xl bg-elevated border border-border/40 text-[10px] font-black uppercase tracking-widest hover:bg-border transition-colors">
+                  {isAr ? 'فتح الشاشة الكاملة' : 'Open KDS'}
+               </button>
+             </div>
+             <div className="flex-1">
+                <KitchenPerformanceWidget />
+             </div>
           </div>
-        )}
+          <div className="theme-card overflow-hidden flex flex-col p-8">
+             <h3 className="text-xl font-black text-main tracking-tight mb-8 flex items-center gap-3">
+               <Truck className="text-cyan-500" />
+               {isAr ? 'أداء التوصيل والمناديب' : 'Delivery & Logistics'}
+             </h3>
+             <div className="flex-1">
+                <DeliveryStatusWidget />
+             </div>
+          </div>
+        </section>
+
       </div>
     </div>
   );

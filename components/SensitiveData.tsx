@@ -5,8 +5,8 @@ import { AppPermission } from '../types';
 
 interface SensitiveDataProps {
     children: React.ReactNode;
-    permission: AppPermission;
-    hasPermission: (perm: AppPermission) => boolean;
+    permission?: AppPermission;
+    hasPermission: (perm?: AppPermission) => boolean;
     maskType?: 'blur' | 'hide' | 'replace';
     replacement?: string;
     lang?: 'en' | 'ar';
@@ -20,7 +20,7 @@ const SensitiveData: React.FC<SensitiveDataProps> = ({
     replacement = '***',
     lang = 'en'
 }) => {
-    const allowed = hasPermission(permission);
+    const allowed = !permission || hasPermission(permission);
 
     if (allowed) return <>{children}</>;
 
