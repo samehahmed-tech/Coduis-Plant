@@ -184,14 +184,14 @@ const SplitBillModal: React.FC<SplitBillModalProps> = ({
                     </div>
 
                     {/* Footer Confirmation */}
-                    <div className="p-6 border-t border-border/20 bg-elevated/40 space-y-4 relative z-10 shrink-0">
-                        <div className="flex justify-between items-center text-[10px] font-black uppercase tracking-widest bg-card px-4 py-3 rounded-2xl border border-border/20 shadow-inner">
+                    <div className="p-8 border-t border-border/20 bg-elevated/40 space-y-5 relative z-10 shrink-0">
+                        <div className="flex justify-between items-center text-[10px] font-black uppercase tracking-[0.2em] bg-card px-6 py-4 rounded-[1.5rem] border border-border/20 shadow-inner">
                             <span className="text-muted">{t.remaining}</span>
-                            <span className={`text-base flex items-center gap-1 ${Math.abs(remaining) > 0.01 ? (remaining > 0 ? 'text-rose-500' : 'text-amber-500') : 'text-emerald-500'} `}>
-                                {remaining > 0.01 && <span>{isRTL ? 'متبقي' : 'Due'}</span>}
-                                {remaining < -0.01 && <span>{isRTL ? 'تجاوز' : 'Over'}</span>}
-                                {Math.abs(remaining) < 0.01 && <span>{isRTL ? 'مكتمل' : 'Settled'}</span>}
-                                <span className="tabular-nums">{Math.abs(remaining).toFixed(2)}</span>
+                            <span className={`text-xl flex items-center gap-1 ${Math.abs(remaining) > 0.01 ? (remaining > 0 ? 'text-rose-500' : 'text-amber-500') : 'text-emerald-500'} `}>
+                                {remaining > 0.01 && <span className="text-[10px] opacity-60 mr-1">{isRTL ? 'متبقي' : 'Due'}</span>}
+                                {remaining < -0.01 && <span className="text-[10px] opacity-60 mr-1">{isRTL ? 'تجاوز' : 'Over'}</span>}
+                                {Math.abs(remaining) < 0.01 && <span className="text-[10px] opacity-60 mr-1">{isRTL ? 'مكتمل' : 'Settled'}</span>}
+                                <span className="tabular-nums font-black">{Math.abs(remaining).toFixed(2)}</span>
                             </span>
                         </div>
                         <button
@@ -199,16 +199,16 @@ const SplitBillModal: React.FC<SplitBillModalProps> = ({
                                 if (Math.abs(remaining) < 0.01) onClose();
                                 else showToast(lang === 'ar' ? 'المبلغ غير مكتمل' : "Payment doesn't match total", 'error');
                             }}
-                            className={`w-full h-14 rounded-[1.2rem] font-black text-sm uppercase tracking-widest transition-all active:scale-95 flex items-center justify-center ${Math.abs(remaining) < 0.01 ? 'bg-emerald-500 hover:bg-emerald-600 text-white shadow-lg shadow-emerald-500/20 border border-emerald-400' : 'bg-elevated text-muted border border-border/20 cursor-not-allowed hidden'}`}
+                            className={`w-full h-16 rounded-[2rem] font-black text-xs uppercase tracking-[0.2em] transition-all active:scale-95 flex items-center justify-center ${Math.abs(remaining) < 0.01 ? 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-xl shadow-emerald-600/20 border-b-4 border-emerald-800/40 animate-pulse' : 'bg-elevated text-muted border border-border/20 cursor-not-allowed hidden'}`}
                         >
-                            {lang === 'ar' ? 'تأكيد ودفع' : 'Confirm & Accept'}
+                            {lang === 'ar' ? 'تأكيد وقبول الدفع' : 'Confirm & Collect Payment'}
                         </button>
 
                         <button
                             onClick={onClose}
-                            className={`w-full h-14 rounded-[1.2rem] font-black text-sm uppercase tracking-widest transition-all active:scale-95 flex items-center justify-center bg-main text-app shadow-lg shadow-main/20 border border-main ${Math.abs(remaining) < 0.01 ? 'hidden' : 'block'}`}
+                            className={`w-full h-16 rounded-[2rem] font-black text-xs uppercase tracking-[0.2em] transition-all active:scale-95 flex items-center justify-center bg-slate-900 dark:bg-white text-white dark:text-slate-900 shadow-xl shadow-black/20 border-b-4 border-black/40 dark:border-slate-300 ${Math.abs(remaining) < 0.01 ? 'hidden' : 'block'}`}
                         >
-                            {isRTL ? 'الرجوع' : 'Back'}
+                            {isRTL ? 'الرجوع للخلف' : 'RETURN TO ORDER'}
                         </button>
                     </div>
                 </motion.div>

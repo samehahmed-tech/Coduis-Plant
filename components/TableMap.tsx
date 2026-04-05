@@ -8,11 +8,21 @@ import {
     Crown,
     Percent,
     Layers,
-    List
+    List,
+    Clock,
+    CheckCircle2,
+    Utensils,
+    Wallet,
+    Trash2,
+    Merge,
+    ChevronRight,
+    Sparkles,
+    Timer,
+    Plus
 } from 'lucide-react';
 import { Table, TableStatus, FloorZone, Order, OrderStatus } from '../types';
 import VirtualGrid from './common/VirtualGrid';
-import VirtualList from './common/VirtualList';
+import { useAuthStore } from '../stores/useAuthStore';
 
 interface TableMapProps {
     tables: Table[];
@@ -43,16 +53,17 @@ const TableMap: React.FC<TableMapProps> = ({
     t,
     isDarkMode
 }) => {
+    const isAr = lang === 'ar';
+    const settings = useAuthStore(state => state.settings);
+    const currencySymbol = settings.currencySymbol || (isAr ? 'ج.م' : 'EGP');
+
     const formattedZones = useMemo(() => {
-        return [{ id: 'all', name: t.all_zones || (lang === 'ar' ? '���� �������' : 'All Zones'), color: '#64748b' }, ...zones];
-    }, [zones, lang, t]);
+        return [{ id: 'all', name: isAr ? 'جميع المناطق' : 'All Zones', color: '#6366f1' }, ...zones];
+    }, [zones, isAr]);
 
     const [activeZone, setActiveZone] = useState<string>(zones[0]?.id || 'all');
     const [searchQuery, setSearchQuery] = useState('');
-    const [statusFilter] = useState<TableStatus | 'ALL'>('ALL');
     const [viewMode, setViewMode] = useState<'GRID' | 'COMPACT' | 'LIST'>('GRID');
-    void isDarkMode;
-    const isRtl = lang === 'ar';
 
     const tableTotals = useMemo(() => {
         const map: Record<string, number> = {};
@@ -75,13 +86,6 @@ const TableMap: React.FC<TableMapProps> = ({
         });
         return map;
     }, [orders]);
-
-    const deriveServiceTableStatus = (order?: Order): TableStatus | null => {
-        if (!order) return null;
-        if (order.status === OrderStatus.READY) return TableStatus.READY_TO_PAY;
-        if (order.status === OrderStatus.PENDING || order.status === OrderStatus.PREPARING) return TableStatus.WAITING_FOOD;
-        return TableStatus.OCCUPIED;
-    };
 
     const tableSummaries = useMemo(() => {
         const map: Record<string, { items: number; total: number; status: OrderStatus; openedAt?: Date; lastActivity?: Date }> = {};
@@ -115,690 +119,355 @@ const TableMap: React.FC<TableMapProps> = ({
     const decoratedTables = useMemo(() => {
         return tables.map(table => {
             const activeOrder = activeOrderByTable[table.id];
-            if (tableTotals[table.id]) {
+            if (activeOrder) {
+                let status = TableStatus.OCCUPIED;
+                if (activeOrder.status === OrderStatus.READY) status = TableStatus.READY_TO_PAY;
+                else if ([OrderStatus.PENDING, OrderStatus.PREPARING].includes(activeOrder.status)) status = TableStatus.WAITING_FOOD;
+                
                 return {
                     ...table,
-                    status: deriveServiceTableStatus(activeOrder) || TableStatus.OCCUPIED,
-                    currentOrderTotal: tableTotals[table.id],
+                    status,
+                    currentOrderTotal: tableTotals[table.id] || 0,
                 };
             }
             return table;
         });
     }, [tables, tableTotals, activeOrderByTable]);
 
-    const sortedDecoratedTables = useMemo(() => {
-        const normalize = (value?: string) => {
-            if (!value) return { num: Number.MAX_SAFE_INTEGER, text: '' };
-            const match = value.match(/\d+/);
-            const num = match ? parseInt(match[0], 10) : Number.MAX_SAFE_INTEGER;
-            return { num, text: value.toLowerCase() };
-        };
-        return [...decoratedTables].sort((a, b) => {
-            const aKey = normalize(a.name || a.id);
-            const bKey = normalize(b.name || b.id);
-            if (aKey.num !== bKey.num) return aKey.num - bKey.num;
-            return aKey.text.localeCompare(bKey.text);
-        });
-    }, [decoratedTables]);
-
     const filteredTables = useMemo(() => {
-        return sortedDecoratedTables.filter((table) => {
+        return decoratedTables.filter((table) => {
             if (activeZone !== 'all' && table.zoneId !== activeZone) return false;
             if (searchQuery && !table.name.toLowerCase().includes(searchQuery.toLowerCase())) return false;
-            if (statusFilter !== 'ALL' && table.status !== statusFilter) return false;
             return true;
+        }).sort((a, b) => {
+            const aNum = parseInt(a.name.replace(/\D/g, '')) || 0;
+            const bNum = parseInt(b.name.replace(/\D/g, '')) || 0;
+            return aNum - bNum || a.name.localeCompare(b.name);
         });
-    }, [sortedDecoratedTables, activeZone, searchQuery, statusFilter]);
-
-    React.useEffect(() => {
-        // Keep view modes within the supported set (GRID / COMPACT / LIST)
-        if (activeZone === 'all') setViewMode('GRID');
-        else setViewMode('COMPACT');
-    }, [activeZone]);
+    }, [decoratedTables, activeZone, searchQuery]);
 
     const stats = useMemo(() => {
-        const openOrders = orders.filter(o => o.status !== OrderStatus.DELIVERED);
-        const closedOrders = orders.filter(o => o.status === OrderStatus.DELIVERED);
-        const dineInClosed = closedOrders.filter((o) => o.tableId && o.type === 'DINE_IN');
-        const turnoverMinutes = dineInClosed
-            .map((o) => {
-                const start = o.createdAt ? new Date(o.createdAt).getTime() : NaN;
-                const end = o.updatedAt ? new Date(o.updatedAt).getTime() : Date.now();
-                if (!Number.isFinite(start) || end <= start) return null;
-                return Math.max(1, Math.round((end - start) / 60000));
-            })
-            .filter((v): v is number => typeof v === 'number');
-        const avgTurnoverMinutes = turnoverMinutes.length > 0
-            ? Math.round(turnoverMinutes.reduce((sum, v) => sum + v, 0) / turnoverMinutes.length)
-            : 0;
-
         return {
             available: decoratedTables.filter(t => t.status === TableStatus.AVAILABLE).length,
-            occupied: decoratedTables.filter(t => t.status === TableStatus.OCCUPIED).length,
-            waitingFood: decoratedTables.filter(t => t.status === TableStatus.WAITING_FOOD).length,
-            readyToPay: decoratedTables.filter(t => t.status === TableStatus.READY_TO_PAY).length,
-            reserved: decoratedTables.filter(t => t.status === TableStatus.RESERVED).length,
-            dirty: decoratedTables.filter(t => t.status === TableStatus.DIRTY).length,
+            occupied: decoratedTables.filter(t => [TableStatus.OCCUPIED, TableStatus.WAITING_FOOD, TableStatus.READY_TO_PAY].includes(t.status)).length,
+            ready: decoratedTables.filter(t => t.status === TableStatus.READY_TO_PAY).length,
             total: decoratedTables.length,
-            openSales: openOrders.reduce((sum, o) => sum + (o.total || 0), 0),
-            closedSales: closedOrders.reduce((sum, o) => sum + (o.total || 0), 0),
-            avgTurnoverMinutes,
+            activeTotal: Object.values(tableTotals).reduce((a, b) => a + b, 0)
         };
-    }, [decoratedTables, orders]);
+    }, [decoratedTables, tableTotals]);
 
     const getElapsedMinutes = (date?: Date) => {
         if (!date) return null;
         return Math.max(1, Math.floor((Date.now() - date.getTime()) / 60000));
     };
 
-    const getStatusColor = (status: TableStatus) => {
-        switch (status) {
-            case TableStatus.AVAILABLE: return 'bg-emerald-500';
-            case TableStatus.OCCUPIED: return 'bg-indigo-600';
-            case TableStatus.WAITING_FOOD: return 'bg-sky-500';
-            case TableStatus.READY_TO_PAY: return 'bg-teal-600';
-            case TableStatus.RESERVED: return 'bg-amber-500';
-            case TableStatus.DIRTY: return 'bg-rose-500';
-            default: return 'bg-slate-400';
+    const StatusTheme = {
+        [TableStatus.AVAILABLE]: {
+            bg: 'bg-emerald-500/5',
+            border: 'border-emerald-500/20',
+            text: 'text-emerald-600 dark:text-emerald-400',
+            icon: 'bg-emerald-500 text-white',
+            badge: 'bg-emerald-500/10 text-emerald-600 border-emerald-500/20',
+            glow: 'shadow-emerald-500/10',
+            label: isAr ? 'متاحة' : 'Available'
+        },
+        [TableStatus.OCCUPIED]: {
+            bg: 'bg-indigo-500/5',
+            border: 'border-indigo-500/20',
+            text: 'text-indigo-600 dark:text-indigo-400',
+            icon: 'bg-indigo-500 text-white',
+            badge: 'bg-indigo-500/10 text-indigo-600 border-indigo-500/20',
+            glow: 'shadow-indigo-500/10',
+            label: isAr ? 'مشغولة' : 'Occupied'
+        },
+        [TableStatus.WAITING_FOOD]: {
+            bg: 'bg-sky-500/5',
+            border: 'border-sky-500/20',
+            text: 'text-sky-600 dark:text-sky-400',
+            icon: 'bg-sky-500 text-white',
+            badge: 'bg-sky-500/10 text-sky-600 border-sky-500/20',
+            glow: 'shadow-sky-500/10',
+            label: isAr ? 'انتظار الطعام' : 'Waiting Food'
+        },
+        [TableStatus.READY_TO_PAY]: {
+            bg: 'bg-teal-500/5',
+            border: 'border-teal-500/20',
+            text: 'text-teal-600 dark:text-teal-400',
+            icon: 'bg-teal-500 text-white',
+            badge: 'bg-teal-500/10 text-teal-600 border-teal-500/20',
+            glow: 'shadow-teal-500/10',
+            label: isAr ? 'جاهزة للحساب' : 'Ready to Pay'
+        },
+        [TableStatus.RESERVED]: {
+            bg: 'bg-amber-500/5',
+            border: 'border-amber-500/20',
+            text: 'text-amber-600 dark:text-amber-400',
+            icon: 'bg-amber-500 text-white',
+            badge: 'bg-amber-500/10 text-amber-600 border-amber-500/20',
+            glow: 'shadow-amber-500/10',
+            label: isAr ? 'محجوزة' : 'Reserved'
+        },
+        [TableStatus.DIRTY]: {
+            bg: 'bg-rose-500/5',
+            border: 'border-rose-500/20',
+            text: 'text-rose-600 dark:text-rose-400',
+            icon: 'bg-rose-500 text-white',
+            badge: 'bg-rose-500/10 text-rose-600 border-rose-500/20',
+            glow: 'shadow-rose-500/10',
+            label: isAr ? 'تحتاج تنظيف' : 'Needs Cleaning'
         }
     };
 
-    const getStatusBG = (status: TableStatus) => {
-        const base = 'bg-card border border-border shadow-sm';
-        switch (status) {
-            case TableStatus.AVAILABLE: return `${base} ring-1 ring-emerald-400/40 dark:ring-emerald-400/30 hover:shadow-md`;
-            case TableStatus.OCCUPIED: return `${base} ring-1 ring-indigo-400/40 dark:ring-indigo-400/30 hover:shadow-md`;
-            case TableStatus.WAITING_FOOD: return `${base} ring-1 ring-sky-400/40 dark:ring-sky-400/30 hover:shadow-md`;
-            case TableStatus.READY_TO_PAY: return `${base} ring-1 ring-teal-400/40 dark:ring-teal-400/30 hover:shadow-md`;
-            case TableStatus.RESERVED: return `${base} ring-1 ring-amber-400/40 dark:ring-amber-400/30 hover:shadow-md`;
-            case TableStatus.DIRTY: return `${base} ring-1 ring-rose-400/40 dark:ring-rose-400/30 hover:shadow-md`;
-            default: return `${base} ring-1 ring-slate-200/60 dark:ring-slate-700/60`;
-        }
-    };
-
-    const getStatusLabel = (status: TableStatus) => {
-        switch (status) {
-            case TableStatus.AVAILABLE: return t.free;
-            case TableStatus.OCCUPIED: return t.busy;
-            case TableStatus.WAITING_FOOD: return t.waiting_food || (lang === 'ar' ? '������� ������' : 'Waiting Food');
-            case TableStatus.READY_TO_PAY: return t.ready_to_pay || (lang === 'ar' ? '���� ������' : 'Ready To Pay');
-            case TableStatus.RESERVED: return t.reserved;
-            case TableStatus.DIRTY: return t.dirty;
-            default: return '';
-        }
-    };
-
-    const getStatusBadge = (status: TableStatus) => {
-        switch (status) {
-            case TableStatus.AVAILABLE: return 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border border-emerald-500/30';
-            case TableStatus.OCCUPIED: return 'bg-indigo-500/15 text-indigo-700 dark:text-indigo-300 border border-indigo-500/30';
-            case TableStatus.WAITING_FOOD: return 'bg-sky-500/15 text-sky-700 dark:text-sky-300 border border-sky-500/30';
-            case TableStatus.READY_TO_PAY: return 'bg-teal-500/15 text-teal-700 dark:text-teal-300 border border-teal-500/30';
-            case TableStatus.RESERVED: return 'bg-amber-500/15 text-amber-700 dark:text-amber-300 border border-amber-500/30';
-            case TableStatus.DIRTY: return 'bg-rose-500/15 text-rose-700 dark:text-rose-300 border border-rose-500/30';
-            default: return 'bg-slate-500/15 text-slate-600 dark:text-slate-300 border border-slate-500/30';
-        }
-    };
-
-    const renderStatusButtons = (table: Table) => {
-        const order = activeOrderByTable[table.id];
-        if (!order) return null;
-        const buttons = [
-            { status: OrderStatus.PENDING, label: t.status_pending || 'Pending', color: 'bg-amber-500' },
-            { status: OrderStatus.PREPARING, label: t.status_preparing || 'Preparing', color: 'bg-blue-500' },
-            { status: OrderStatus.READY, label: t.status_ready || 'Ready', color: 'bg-emerald-600' }
-        ];
-        return (
-            <div className="flex items-center gap-1">
-                {buttons.map(btn => {
-                    const isActive = order.status === btn.status;
-                    return (
-                        <button
-                            key={btn.status}
-                            onClick={(e) => { e.stopPropagation(); onUpdateOrderStatus(order.id, btn.status); }}
-                            className={`px-2.5 py-1 rounded-full text-[9px] font-black uppercase tracking-widest shadow-sm ${btn.color} ${isActive ? 'text-white' : 'text-white/70 opacity-60'}`}
-                        >
-                            {btn.label}
-                        </button>
-                    );
-                })}
-            </div>
-        );
-    };
-
-    const CompactTableCard = ({ table }: { table: Table }) => {
+    const TableCard = ({ table }: { table: Table }) => {
+        const theme = StatusTheme[table.status] || StatusTheme[TableStatus.AVAILABLE];
         const summary = tableSummaries[table.id];
-        const hasTotal = Boolean(tableTotals[table.id]);
-        const elapsedTime = summary?.openedAt ? getElapsedMinutes(summary.openedAt) : null;
-        const isUrgent = elapsedTime && elapsedTime > 20;
+        const total = tableTotals[table.id] || 0;
+        const elapsed = summary?.openedAt ? getElapsedMinutes(summary.openedAt) : null;
+        const isUrgent = elapsed && elapsed > 25;
+        const order = activeOrderByTable[table.id];
+        const isReadyToPay = table.status === TableStatus.READY_TO_PAY;
 
         return (
-            <div
+            <div 
                 onClick={() => onSelectTable(table)}
-                className={`group rounded-xl cursor-pointer transition-all duration-200 hover:shadow-lg hover:-translate-y-0.5 overflow-hidden ${getStatusBG(table.status)} ${isUrgent ? 'ring-2 ring-rose-500' : ''} ${isRtl ? 'text-right' : 'text-left'}`}
+                className={`group flex flex-col h-full rounded-[2.5rem] border transition-all duration-500 relative overflow-hidden cursor-pointer ${theme.bg} ${theme.border} ${theme.glow} ${isUrgent ? 'ring-4 ring-rose-500/20 animate-pulse' : 'hover:scale-[1.02] hover:shadow-2xl hover:border-primary/40'}`}
             >
-                {/* Status Bar */}
-                <div className={`h-1.5 ${getStatusColor(table.status)}`} />
-
-                <div className="p-3">
-                    {/* Header */}
-                    <div className={`flex items-center justify-between gap-2 ${isRtl ? 'flex-row-reverse' : ''}`}>
-                        <div className="flex items-center gap-2">
-                            <div className="w-9 h-9 rounded-lg bg-slate-100 dark:bg-slate-800 flex items-center justify-center">
-                                <span className="text-lg font-black text-main">{table.name}</span>
+                {/* Status Indicator Bar */}
+                <div className={`absolute top-0 left-0 right-0 h-2 opacity-90 ${theme.icon} shadow-[0_2px_10px_rgba(0,0,0,0.1)]`} />
+                
+                <div className="p-5 flex-1 flex flex-col">
+                    {/* Header: Table Name & Stats */}
+                    <div className="flex items-start justify-between mb-4">
+                        <div className="flex items-center gap-4">
+                            <div className={`w-16 h-16 rounded-3xl flex items-center justify-center font-black text-2xl shadow-xl border-2 border-white/20 transition-transform group-hover:rotate-3 ${theme.icon}`}>
+                                {table.name}
                             </div>
                             <div>
-                                <span className={`inline-block px-1.5 py-0.5 rounded text-[7px] font-black uppercase ${getStatusBadge(table.status)}`}>
-                                    {getStatusLabel(table.status)}
-                                </span>
-                            </div>
-                        </div>
-
-                        {/* Timer */}
-                        {hasTotal && elapsedTime && (
-                            <div className={`px-2 py-1 rounded-lg text-center ${isUrgent ? 'bg-rose-500/20 text-rose-600' : 'bg-slate-100 dark:bg-slate-800 text-slate-500'}`}>
-                                <span className="text-xs font-black">{elapsedTime}</span>
-                                <span className="text-[7px] font-bold">{t.min_short || 'm'}</span>
-                            </div>
-                        )}
-                    </div>
-
-                    {/* Info Row */}
-                    <div className={`mt-2 flex items-center gap-1.5 flex-wrap ${isRtl ? 'flex-row-reverse' : ''}`}>
-                        <span className="inline-flex items-center gap-1 bg-slate-100 dark:bg-slate-800 px-1.5 py-0.5 rounded text-[10px]">
-                            <Users size={10} className="text-slate-400" />
-                            <span className="font-bold text-main">{table.seats}</span>
-                        </span>
-                        {summary && summary.items > 0 && (
-                            <span className="inline-flex items-center gap-1 bg-indigo-100 dark:bg-indigo-900/40 px-1.5 py-0.5 rounded text-[10px] text-indigo-600">
-                                <Layers size={10} />
-                                <span className="font-bold">{summary.items}</span>
-                            </span>
-                        )}
-                    </div>
-
-                    {/* Bill & Action */}
-                    {hasTotal ? (
-                        <div className={`mt-2 flex items-center justify-between gap-2 bg-gradient-to-r from-indigo-50 to-purple-50 dark:from-indigo-950/40 dark:to-purple-950/40 rounded-lg p-2 ${isRtl ? 'flex-row-reverse' : ''}`}>
-                            <div>
-                                <p className="text-[8px] font-black text-indigo-500 uppercase">{t.bill}</p>
-                                <p className="text-sm font-black bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">
-                                    {t.currency || '�.�'} {tableTotals[table.id].toLocaleString()}
-                                </p>
-                            </div>
-                            <button
-                                onClick={(e) => { e.stopPropagation(); onResumeTable(table); }}
-                                className="px-2.5 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white text-[8px] font-black uppercase shadow-sm transition-all"
-                            >
-                                {lang === 'ar' ? '����' : 'Open'}
-                            </button>
-                        </div>
-                    ) : (
-                        <button className="mt-2 w-full py-2 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white rounded-lg text-[9px] font-black uppercase shadow-sm transition-all">
-                            {t.open_table}
-                        </button>
-                    )}
-                </div>
-            </div>
-        );
-    };
-
-    const GridTableCard = ({ table }: { table: Table }) => {
-        const summary = tableSummaries[table.id];
-        const hasTotal = Boolean(tableTotals[table.id]);
-        const elapsedTime = summary?.openedAt ? getElapsedMinutes(summary.openedAt) : null;
-        const isUrgent = elapsedTime && elapsedTime > 20;
-        const order = activeOrderByTable[table.id];
-
-        return (
-            <div
-                onClick={() => onSelectTable(table)}
-                className={`group rounded-2xl border cursor-pointer transition-all duration-300 hover:shadow-2xl hover:-translate-y-1 relative flex flex-col overflow-hidden ${getStatusBG(table.status)} ${isUrgent ? 'ring-2 ring-rose-500 animate-pulse' : ''} ${isRtl ? 'text-right' : 'text-left'}`}
-                style={{ minHeight: hasTotal ? '280px' : '200px' }}
-            >
-                {/* Status Bar with Gradient */}
-                <div className={`h-2 ${getStatusColor(table.status)}`}
-                    style={{
-                        background: table.status === TableStatus.OCCUPIED
-                            ? 'linear-gradient(90deg, #6366f1, #8b5cf6)'
-                            : table.status === TableStatus.WAITING_FOOD
-                                ? 'linear-gradient(90deg, #0ea5e9, #38bdf8)'
-                                : table.status === TableStatus.READY_TO_PAY
-                                    ? 'linear-gradient(90deg, #0d9488, #14b8a6)'
-                                    : table.status === TableStatus.AVAILABLE
-                                        ? 'linear-gradient(90deg, #10b981, #34d399)'
-                                        : undefined
-                    }}
-                />
-
-                {/* Header Section */}
-                <div className={`flex justify-between items-start p-4 pb-2 ${isRtl ? 'flex-row-reverse' : ''}`}>
-                    <div className="flex items-center gap-3">
-                        <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-slate-100 to-slate-200 dark:from-slate-800 dark:to-slate-700 flex items-center justify-center shadow-inner">
-                            <span className="text-2xl font-black text-main">{table.name}</span>
-                        </div>
-                        <div>
-                            <div className="text-[9px] font-black uppercase tracking-widest text-muted">{t.table}</div>
-                            <div className={`flex items-center gap-2 ${isRtl ? 'flex-row-reverse' : ''}`}>
-                                <span className={`px-2 py-0.5 rounded-lg text-[8px] font-black uppercase tracking-wider ${getStatusBadge(table.status)}`}>
-                                    {getStatusLabel(table.status)}
-                                </span>
-                                {table.isVIP && <Crown size={14} className="text-amber-500" />}
-                            </div>
-                        </div>
-                    </div>
-
-                    {/* Timer Badge for Occupied Tables */}
-                    {hasTotal && elapsedTime && (
-                        <div className={`flex flex-col items-center px-3 py-1.5 rounded-xl ${isUrgent ? 'bg-rose-500/20 text-rose-600 dark:text-rose-400' : 'bg-blue-500/10 text-blue-600 dark:text-blue-400'}`}>
-                            <span className="text-lg font-black">{elapsedTime}</span>
-                            <span className="text-[8px] font-bold uppercase">{t.min_short || 'min'}</span>
-                        </div>
-                    )}
-                </div>
-
-                {/* Info Row */}
-                <div className={`px-4 py-2 flex items-center gap-2 flex-wrap ${isRtl ? 'flex-row-reverse' : ''}`}>
-                    <span className="inline-flex items-center gap-1 bg-slate-100 dark:bg-slate-800 px-2.5 py-1.5 rounded-xl">
-                        <Users size={12} className="text-slate-500" />
-                        <span className="text-xs font-bold text-main">{table.seats}</span>
-                    </span>
-                    {summary && summary.items > 0 && (
-                        <span className="inline-flex items-center gap-1 bg-indigo-100 dark:bg-indigo-900/30 px-2.5 py-1.5 rounded-xl text-indigo-600 dark:text-indigo-400">
-                            <Layers size={12} />
-                            <span className="text-xs font-bold">{summary.items} {lang === 'ar' ? '���' : 'items'}</span>
-                        </span>
-                    )}
-                    {table.discount && table.discount > 0 && (
-                        <span className="inline-flex items-center gap-1 bg-emerald-100 dark:bg-emerald-900/30 px-2.5 py-1.5 rounded-xl text-emerald-600 dark:text-emerald-400">
-                            <Percent size={12} />
-                            <span className="text-xs font-bold">{table.discount}%</span>
-                        </span>
-                    )}
-                </div>
-
-                {/* Order Status Buttons */}
-                {order && (
-                    <div className={`px-4 py-2 flex items-center gap-1.5 ${isRtl ? 'flex-row-reverse' : ''}`}>
-                        {[
-                            { status: OrderStatus.PENDING, label: t.status_pending || 'Pending', color: 'bg-amber-500', activeColor: 'bg-amber-500' },
-                            { status: OrderStatus.PREPARING, label: t.status_preparing || 'Prep', color: 'bg-blue-500', activeColor: 'bg-blue-500' },
-                            { status: OrderStatus.READY, label: t.status_ready || 'Ready', color: 'bg-emerald-500', activeColor: 'bg-emerald-500' }
-                        ].map(btn => {
-                            const isActive = order.status === btn.status;
-                            return (
-                                <button
-                                    key={btn.status}
-                                    onClick={(e) => { e.stopPropagation(); onUpdateOrderStatus(order.id, btn.status); }}
-                                    className={`flex-1 px-2 py-1.5 rounded-lg text-[8px] font-black uppercase tracking-wider transition-all ${isActive
-                                        ? `${btn.activeColor} text-white shadow-lg scale-105`
-                                        : 'bg-slate-100 dark:bg-slate-800 text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700'}`}
-                                >
-                                    {btn.label}
-                                </button>
-                            );
-                        })}
-                    </div>
-                )}
-
-                {/* Bill Section - Always Visible for Occupied */}
-                <div className="mt-auto p-4 pt-2">
-                    {hasTotal ? (
-                        <div className="space-y-3">
-                            {/* Bill Amount */}
-                            <div className={`flex items-center justify-between bg-gradient-to-r from-indigo-50 to-purple-50 dark:from-indigo-950/50 dark:to-purple-950/50 border border-indigo-200 dark:border-indigo-800 rounded-2xl p-3 ${isRtl ? 'flex-row-reverse' : ''}`}>
-                                <div>
-                                    <div className="text-[9px] font-black uppercase text-indigo-500 tracking-widest">{t.bill}</div>
-                                    <div className="text-xl font-black bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">
-                                        {t.currency || '�.�'} {tableTotals[table.id].toLocaleString('en-US', { minimumFractionDigits: 2 })}
+                                <div className="flex items-center gap-2 mb-1">
+                                    <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest border shadow-sm ${theme.badge}`}>
+                                        {theme.label}
+                                    </span>
+                                    {table.isVIP && (
+                                        <div className="w-6 h-6 rounded-full bg-amber-500/20 flex items-center justify-center border border-amber-500/30">
+                                            <Crown size={12} className="text-amber-500 fill-amber-500" />
+                                        </div>
+                                    )}
+                                </div>
+                                <div className="flex items-center gap-3 text-muted">
+                                    <div className="flex items-center gap-1.5 px-2 py-0.5 bg-elevated rounded-lg border border-border/30">
+                                        <Users size={12} className="text-primary" />
+                                        <span className="text-[11px] font-black tabular-nums">{table.seats}</span>
                                     </div>
+                                    {elapsed !== null && (
+                                        <div className={`flex items-center gap-1.5 px-2 py-0.5 rounded-lg border tabular-nums ${isUrgent ? 'bg-rose-500/10 border-rose-500/20 text-rose-600' : 'bg-indigo-500/10 border-indigo-500/20 text-indigo-600'}`}>
+                                            <Timer size={12} className={isUrgent ? 'animate-spin-slow' : ''} />
+                                            <span className="text-[11px] font-black">{elapsed}m</span>
+                                        </div>
+                                    )}
                                 </div>
                             </div>
+                        </div>
 
-                            {/* Action Buttons - Always Visible */}
-                            <div className={`grid grid-cols-4 gap-1.5 ${isRtl ? 'direction-rtl' : ''}`}>
-                                <button
-                                    onClick={(e) => { e.stopPropagation(); onResumeTable(table); }}
-                                    className="col-span-1 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-[8px] font-black uppercase tracking-wider shadow-lg shadow-indigo-500/30 transition-all hover:scale-105"
-                                >
-                                    {t.resume || '�������'}
-                                </button>
-                                <button
-                                    onClick={(e) => { e.stopPropagation(); onTempBill(table); }}
-                                    className="col-span-1 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-600 text-white text-[8px] font-black uppercase tracking-wider shadow-lg shadow-amber-500/30 transition-all hover:scale-105"
-                                >
-                                    {t.temp_short || '����'}
-                                </button>
-                                <button
-                                    onClick={(e) => { e.stopPropagation(); onCloseTable(table); }}
-                                    className="col-span-1 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-[8px] font-black uppercase tracking-wider shadow-lg shadow-emerald-500/30 transition-all hover:scale-105"
-                                >
-                                    {t.close_table || '�����'}
-                                </button>
-                                <button
-                                    onClick={(e) => { e.stopPropagation(); onMergeTable(table); }}
-                                    className="col-span-1 py-2.5 rounded-xl bg-slate-600 hover:bg-slate-700 text-white text-[8px] font-black uppercase tracking-wider shadow-lg shadow-slate-500/30 transition-all hover:scale-105"
-                                >
-                                    {t.merge_tables || '���'}
-                                </button>
+                        {total > 0 && (
+                            <div className="flex flex-col items-end">
+                                <span className="text-[9px] font-black text-muted uppercase tracking-tighter opacity-60">{isAr ? 'القيمة' : 'TOTAL'}</span>
+                                <span className={`text-lg font-black tabular-nums ${isReadyToPay ? 'text-teal-600 dark:text-teal-400' : 'text-indigo-600 dark:text-indigo-400'}`}>
+                                    {currencySymbol}{total.toFixed(0)}
+                                </span>
                             </div>
+                        )}
+                    </div>
+
+                    {/* Quick Item View / Tags */}
+                    {summary?.items > 0 && (
+                        <div className="flex flex-wrap gap-2 mb-5">
+                            <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-card/60 border border-border/40 text-[11px] font-black shadow-sm group-hover:bg-primary/5 transition-colors">
+                                <Layers size={14} className="text-primary" />
+                                <span>{summary.items} {isAr ? 'أصناف' : 'ITEMS'}</span>
+                            </div>
+                            
+                            {order && (
+                                <div className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl border text-[11px] font-black shadow-sm transition-all ${order.status === OrderStatus.READY ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-600' : 'bg-amber-500/10 border-amber-500/20 text-amber-600'}`}>
+                                    <Utensils size={14} />
+                                    <span className="uppercase tracking-wider">{isAr ? (order.status === OrderStatus.READY ? 'جاهز' : 'تحضير') : order.status}</span>
+                                </div>
+                            )}
                         </div>
-                    ) : (
-                        <button className="w-full py-3 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white rounded-xl text-[10px] font-black uppercase tracking-widest shadow-lg shadow-indigo-500/30 transition-all hover:scale-[1.02]">
-                            {t.open_table}
-                        </button>
                     )}
-                </div>
-            </div>
-        );
-    };
 
-    const ListTableRow = ({ table }: { table: Table }) => {
-        const summary = tableSummaries[table.id];
-        const hasTotal = Boolean(tableTotals[table.id]);
-        const lastUpdate = summary?.lastActivity ? getElapsedMinutes(summary.lastActivity) : null;
-        return (
-            <div
-                onClick={() => onSelectTable(table)}
-                className={`group grid grid-cols-12 items-center gap-3 rounded-2xl border-2 px-4 py-3 cursor-pointer transition-all hover:shadow-md ${getStatusBG(table.status)} ${isRtl ? 'text-right' : 'text-left'}`}
-            >
-                <div className={`col-span-4 flex items-center gap-3 ${isRtl ? 'flex-row-reverse' : ''}`}>
-                    <div className="h-11 w-11 rounded-xl bg-elevated border border-border flex items-center justify-center text-lg font-black text-main">
-                        {table.name}
+                    {/* Interactive Action Belt */}
+                    <div className="mt-auto pt-4 border-t border-border/10 flex items-center justify-between gap-3">
+                        {total > 0 ? (
+                            <>
+                                <div className="flex gap-2">
+                                    <button 
+                                        onClick={(e) => { e.stopPropagation(); onTempBill(table); }}
+                                        className="w-10 h-10 rounded-2xl bg-white dark:bg-slate-800 text-muted border border-border shadow-sm hover:border-primary/40 hover:text-primary hover:bg-primary/5 transition-all flex items-center justify-center active:scale-95 group/btn"
+                                        title={isAr ? 'طباعة فاتورة' : 'Print Pro-forma'}
+                                    >
+                                        <Wallet size={18} className="group-hover/btn:scale-110 transition-transform" />
+                                    </button>
+                                    <button 
+                                        onClick={(e) => { e.stopPropagation(); onMergeTable(table); }}
+                                        className="w-10 h-10 rounded-2xl bg-white dark:bg-slate-800 text-muted border border-border shadow-sm hover:border-indigo-500/40 hover:text-indigo-500 hover:bg-indigo-500/5 transition-all flex items-center justify-center active:scale-95 group/btn"
+                                        title={isAr ? 'دمج' : 'Merge'}
+                                    >
+                                        <Merge size={18} className="group-hover/btn:scale-110 transition-transform" />
+                                    </button>
+                                </div>
+                                <button 
+                                    onClick={(e) => { e.stopPropagation(); onResumeTable(table); }} 
+                                    className="flex-1 h-12 rounded-2xl bg-primary text-white text-[11px] font-black uppercase tracking-[0.15em] shadow-xl shadow-primary/30 hover:shadow-primary/40 hover:scale-[1.02] active:scale-95 transition-all flex items-center justify-center gap-2 overflow-hidden relative group/order"
+                                >
+                                    <div className="absolute inset-0 bg-gradient-to-r from-white/20 to-transparent translate-x-[-100%] group-hover/order:translate-x-[100%] transition-transform duration-700" />
+                                    <span>{isAr ? 'تعديل' : 'MODIFY'}</span>
+                                    <ChevronRight size={16} className={`transition-transform group-hover/order:translate-x-1 ${isAr ? 'rotate-180 group-hover/order:-translate-x-1' : ''}`} />
+                                </button>
+                            </>
+                        ) : (
+                            <button className="w-full h-12 rounded-2xl bg-card border-2 border-dashed border-border/60 text-muted group-hover:border-primary/40 group-hover:bg-primary/5 group-hover:text-primary transition-all flex items-center justify-center gap-2.5 text-xs font-black uppercase tracking-[0.2em] shadow-sm">
+                                <div className="p-1.5 rounded-lg bg-elevated group-hover:bg-primary group-hover:text-white transition-colors">
+                                    <Plus size={16} />
+                                </div>
+                                {isAr ? 'فتح الطلب' : 'NEW ORDER'}
+                            </button>
+                        )}
                     </div>
-                    <div>
-                        <div className="text-[9px] font-black uppercase tracking-widest text-muted">{t.table}</div>
-                        <div className="text-base font-black text-main">{table.name}</div>
-                    </div>
-                </div>
-
-                <div className={`col-span-2 flex items-center gap-2 ${isRtl ? 'flex-row-reverse' : ''}`}>
-                    <span className={`px-2.5 py-1 rounded-full text-[9px] font-black uppercase tracking-widest max-w-[84px] truncate ${getStatusBadge(table.status)}`}>
-                        {getStatusLabel(table.status)}
-                    </span>
-                </div>
-
-                <div className={`col-span-2 flex items-center gap-2 text-[11px] text-muted ${isRtl ? 'flex-row-reverse' : ''}`}>
-                    <span className="inline-flex items-center gap-1 bg-elevated px-2 py-1 rounded-lg">
-                        <Users size={12} />
-                        <span className="font-bold text-main">{table.seats}</span>
-                    </span>
-                    {summary ? (
-                        <span className="inline-flex items-center gap-1 bg-elevated px-2 py-1 rounded-lg">
-                            <Layers size={12} />
-                            <span className="font-bold text-main">{summary.items}</span>
-                        </span>
-                    ) : null}
-                </div>
-
-                <div className={`col-span-2 ${isRtl ? 'text-left' : 'text-right'}`}>
-                    <div className="text-[9px] font-black uppercase text-muted">{t.bill}</div>
-                    <div className="text-sm font-black text-main">
-                        {hasTotal ? `${t.currency || 'EGP'} ${tableTotals[table.id].toFixed(0)}` : '�'}
-                    </div>
-                    {lastUpdate ? (
-                        <div className="text-[9px] font-black uppercase text-muted">
-                            {t.last_update || 'Last'} {lastUpdate} {t.min_short || 'm'}
-                        </div>
-                    ) : null}
-                </div>
-
-                <div className={`col-span-2 flex items-center justify-end gap-1.5 ${isRtl ? 'flex-row-reverse' : ''}`}>
-                    {hasTotal ? (
-                        <>
-                            <button
-                                onClick={(e) => { e.stopPropagation(); onResumeTable(table); }}
-                                className="px-2.5 py-1 rounded-lg bg-primary text-white text-[9px] font-black uppercase tracking-widest shadow-sm"
-                            >
-                                {t.resume || 'Resume'}
-                            </button>
-                            <button
-                                onClick={(e) => { e.stopPropagation(); onTempBill(table); }}
-                                className="px-2.5 py-1 rounded-lg bg-elevated text-main text-[9px] font-black uppercase tracking-widest border border-border"
-                            >
-                                {t.temp_short || 'Temp'}
-                            </button>
-                            <button
-                                onClick={(e) => { e.stopPropagation(); onCloseTable(table); }}
-                                className="px-2.5 py-1 rounded-lg bg-emerald-600 text-white text-[9px] font-black uppercase tracking-widest shadow-sm"
-                            >
-                                {t.close_table || 'Close'}
-                            </button>
-                            <button
-                                onClick={(e) => { e.stopPropagation(); onMergeTable(table); }}
-                                className="px-2.5 py-1 rounded-lg bg-amber-500 text-white text-[9px] font-black uppercase tracking-widest shadow-sm"
-                            >
-                                {t.merge_tables || 'Merge'}
-                            </button>
-                        </>
-                    ) : (
-                        <button className="px-3 py-1.5 rounded-lg bg-elevated text-main text-[9px] font-black uppercase tracking-widest border border-border">
-                            {t.open_table}
-                        </button>
-                    )}
                 </div>
             </div>
         );
     };
 
     return (
-        <div className="flex flex-col h-full gap-4 animate-in fade-in duration-300">
-            {/* Enhanced Header with Stats */}
-            <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4 p-4 md:px-6 bg-card/80 backdrop-blur-3xl border-b border-border/50 rounded-[2rem] shadow-sm relative overflow-hidden z-20">
-                <div className="absolute inset-0 bg-gradient-to-br from-indigo-500/5 to-cyan-500/5 pointer-events-none" />
-                <div className="flex items-center gap-4 md:gap-6">
-                    <div className="flex items-center gap-3">
-                        <div className="w-12 h-12 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-2xl flex items-center justify-center shadow-lg shadow-indigo-500/30">
-                            <LayoutGrid className="text-white w-6 h-6" />
+        <div className="flex flex-col h-full min-h-0">
+            {/* Header / Stats */}
+            <div className={`flex flex-col gap-4 mb-6 ${isAr ? 'md:flex-row-reverse' : 'md:flex-row'} items-center justify-between`}>
+                <div className={`flex flex-wrap gap-3 ${isAr ? 'justify-end' : 'justify-start'}`}>
+                    {/* Status Stats */}
+                    <div className="flex items-center gap-4 bg-card/40 backdrop-blur-xl border border-border/40 p-1.5 rounded-[1.5rem] shadow-sm">
+                        <div className="flex items-center gap-2 px-3 py-1.5 rounded-2xl bg-emerald-500/10 border border-emerald-500/20">
+                            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                            <span className="text-xs font-black text-emerald-700 dark:text-emerald-400 tabular-nums">{stats.available}</span>
                         </div>
-                        <div>
-                            <h1 className="text-lg md:text-xl font-black text-slate-900 dark:text-white uppercase tracking-tight">
-                                {t.floor_map}
-                            </h1>
-                            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
-                                {stats.total} {lang === 'ar' ? '�������' : 'Tables'}
-                            </span>
+                        <div className="flex items-center gap-2 px-3 py-1.5 rounded-2xl bg-indigo-500/10 border border-indigo-500/20">
+                            <span className="w-2 h-2 rounded-full bg-indigo-500" />
+                            <span className="text-xs font-black text-indigo-700 dark:text-indigo-400 tabular-nums">{stats.occupied}</span>
+                        </div>
+                        <div className="flex items-center gap-2 px-3 py-1.5 rounded-2xl bg-teal-500/10 border border-teal-500/20">
+                            <CheckCircle2 size={12} className="text-teal-600" />
+                            <span className="text-xs font-black text-teal-700 dark:text-teal-400 tabular-nums">{stats.ready}</span>
+                        </div>
+                        <div className="h-6 w-px bg-border/40 mx-1" />
+                        <div className="flex items-center gap-2 px-3 py-1.5">
+                            <Users size={14} className="text-muted" />
+                            <span className="text-xs font-black text-main tabular-nums">{stats.total}</span>
+                        </div>
+                    </div>
+
+                    {/* Sales Mini Card */}
+                    <div className="bg-primary/5 border border-primary/10 px-4 py-2 rounded-[1.5rem] flex flex-col justify-center">
+                        <div className="text-[8px] font-black text-primary uppercase tracking-widest leading-none mb-1">{isAr ? 'إجمالي المبيعات النشطة' : 'ACTIVE FLOOR SALES'}</div>
+                        <div className="text-base font-black text-primary tabular-nums leading-none">
+                            {currencySymbol}{stats.activeTotal.toLocaleString(undefined, { minimumFractionDigits: 1 })}
                         </div>
                     </div>
                 </div>
 
-                {/* Stats Cards */}
-                <div className="flex flex-wrap items-center gap-3">
-                    {/* Available count */}
-                    <div className="flex items-center gap-2 bg-emerald-50 dark:bg-emerald-950/50 px-3 py-2 rounded-xl border border-emerald-200 dark:border-emerald-800">
-                        <div className="w-3 h-3 rounded-full bg-emerald-500 animate-pulse" />
-                        <div>
-                            <p className="text-[9px] font-black text-emerald-600 uppercase">{t.free || 'Available'}</p>
-                            <p className="text-lg font-black text-emerald-700 dark:text-emerald-400">{stats.available}</p>
-                        </div>
-                    </div>
-
-                    {/* Occupied count */}
-                    <div className="flex items-center gap-2 bg-indigo-50 dark:bg-indigo-950/50 px-3 py-2 rounded-xl border border-indigo-200 dark:border-indigo-800">
-                        <div className="w-3 h-3 rounded-full bg-indigo-600" />
-                        <div>
-                            <p className="text-[9px] font-black text-indigo-600 uppercase">{t.busy || 'Occupied'}</p>
-                            <p className="text-lg font-black text-indigo-700 dark:text-indigo-400">{stats.occupied}</p>
-                        </div>
-                    </div>
-
-                    <div className="flex items-center gap-2 bg-sky-50 dark:bg-sky-950/40 px-3 py-2 rounded-xl border border-sky-200 dark:border-sky-800">
-                        <div className="w-3 h-3 rounded-full bg-sky-500" />
-                        <div>
-                            <p className="text-[9px] font-black text-sky-600 uppercase">{t.waiting_food || (lang === 'ar' ? '������� ������' : 'Waiting Food')}</p>
-                            <p className="text-lg font-black text-sky-700 dark:text-sky-300">{stats.waitingFood}</p>
-                        </div>
-                    </div>
-
-                    <div className="flex items-center gap-2 bg-teal-50 dark:bg-teal-950/40 px-3 py-2 rounded-xl border border-teal-200 dark:border-teal-800">
-                        <div className="w-3 h-3 rounded-full bg-teal-600" />
-                        <div>
-                            <p className="text-[9px] font-black text-teal-600 uppercase">{t.ready_to_pay || (lang === 'ar' ? '���� ������' : 'Ready To Pay')}</p>
-                            <p className="text-lg font-black text-teal-700 dark:text-teal-300">{stats.readyToPay}</p>
-                        </div>
-                    </div>
-
-                    {/* Reserved count */}
-                    <div className="flex items-center gap-2 bg-amber-50 dark:bg-amber-950/50 px-3 py-2 rounded-xl border border-amber-200 dark:border-amber-800">
-                        <div className="w-3 h-3 rounded-full bg-amber-500" />
-                        <div>
-                            <p className="text-[9px] font-black text-amber-600 uppercase">{t.reserved || 'Reserved'}</p>
-                            <p className="text-lg font-black text-amber-700 dark:text-amber-400">{stats.reserved}</p>
-                        </div>
-                    </div>
-
-                    {/* Open Sales */}
-                    <div className="flex items-center gap-2 bg-gradient-to-r from-indigo-100 to-purple-100 dark:from-indigo-950/50 dark:to-purple-950/50 px-4 py-2 rounded-xl border border-indigo-200 dark:border-indigo-800">
-                        <div>
-                            <p className="text-[9px] font-black text-indigo-500 uppercase tracking-widest">{lang === 'ar' ? '�������� ��������' : 'Open Sales'}</p>
-                            <p className="text-xl font-black bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">
-                                {t.currency || '�.�'} {stats.openSales.toLocaleString('en-US', { minimumFractionDigits: 2 })}
-                            </p>
-                        </div>
-                    </div>
-
-                    {/* Closed Sales */}
-                    <div className="flex items-center gap-2 bg-emerald-100 dark:bg-emerald-950/50 px-4 py-2 rounded-xl border border-emerald-200 dark:border-emerald-800">
-                        <div>
-                            <p className="text-[9px] font-black text-emerald-500 uppercase tracking-widest">{lang === 'ar' ? '�������� �������' : 'Closed Sales'}</p>
-                            <p className="text-xl font-black text-emerald-600 dark:text-emerald-400">
-                                {t.currency || '�.�'} {stats.closedSales.toLocaleString('en-US', { minimumFractionDigits: 2 })}
-                            </p>
-                        </div>
-                    </div>
-
-                    <div className="flex items-center gap-2 bg-violet-100 dark:bg-violet-950/50 px-4 py-2 rounded-xl border border-violet-200 dark:border-violet-800">
-                        <div>
-                            <p className="text-[9px] font-black text-violet-500 uppercase tracking-widest">{lang === 'ar' ? '����� ����� ���������' : 'Avg Table Turnover'}</p>
-                            <p className="text-xl font-black text-violet-600 dark:text-violet-400">
-                                {stats.avgTurnoverMinutes} {t.min_short || (lang === 'ar' ? '�' : 'm')}
-                            </p>
-                        </div>
-                    </div>
-                </div>
-
-                {/* Search and View Mode */}
-                <div className="flex items-center gap-3 w-full lg:w-auto relative z-10">
-                    <div className="relative flex-1 lg:flex-none">
-                        <Search className={`absolute top-1/2 -translate-y-1/2 text-muted ${isRtl ? 'right-4' : 'left-4'}`} size={16} />
+                {/* Search / Filter Controls */}
+                <div className={`flex items-center gap-3 w-full md:w-auto ${isAr ? 'flex-row-reverse' : ''}`}>
+                    <div className="relative flex-1 md:w-64 group">
+                        <Search className={`absolute top-1/2 -translate-y-1/2 text-muted transition-colors group-focus-within:text-primary ${isAr ? 'right-4' : 'left-4'}`} size={16} />
                         <input
                             type="text"
-                            placeholder={lang === 'ar' ? '��� �� �������...' : 'Search tables...'}
+                            placeholder={isAr ? 'بحث عن طاولة...' : 'Search table...'}
                             value={searchQuery}
                             onChange={(e) => setSearchQuery(e.target.value)}
-                            className={`w-full lg:w-48 ${isRtl ? 'pr-11 pl-4' : 'pl-11 pr-4'} py-3 bg-elevated rounded-[1.2rem] text-sm font-bold shadow-sm focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all border border-border/50 text-main placeholder-muted`}
+                            className={`w-full ${isAr ? 'pr-11 pl-4' : 'pl-11 pr-4'} py-3 bg-card/60 backdrop-blur-md border border-border/40 rounded-2xl text-sm font-bold focus:ring-2 focus:ring-primary/20 focus:border-primary/50 transition-all outline-none`}
                         />
                     </div>
-
-                    <div className="flex bg-elevated p-1.5 rounded-[1.5rem] gap-1 border border-border/50 shadow-sm">
-                        {[
-                            { mode: 'GRID', icon: Grid3X3, label: lang === 'ar' ? '����' : 'Grid' },
-                            { mode: 'COMPACT', icon: Maximize2, label: lang === 'ar' ? '�����' : 'Compact' },
-                            { mode: 'LIST', icon: List, label: lang === 'ar' ? '�����' : 'List' }
-                        ].map(({ mode, icon: Icon, label }) => (
-                            <button
-                                key={mode}
-                                onClick={() => setViewMode(mode as any)}
-                                title={label}
-                                className={`p-2.5 rounded-xl transition-all ${viewMode === mode
-                                    ? 'bg-card shadow-sm text-indigo-500 scale-105'
-                                    : 'text-muted hover:text-main hover:bg-elevated/80'}`}
-                            >
-                                <Icon size={18} />
-                            </button>
-                        ))}
+                    
+                    <div className="flex bg-card/60 backdrop-blur-md p-1.5 rounded-2xl gap-1 border border-border/40">
+                        <button 
+                            onClick={() => setViewMode('GRID')}
+                            className={`p-2 rounded-xl transition-all ${viewMode === 'GRID' ? 'bg-primary text-white shadow-lg shadow-primary/25' : 'text-muted hover:bg-elevated'}`}
+                        >
+                            <LayoutGrid size={18} />
+                        </button>
+                        <button 
+                            onClick={() => setViewMode('LIST')}
+                            className={`p-2 rounded-xl transition-all ${viewMode === 'LIST' ? 'bg-primary text-white shadow-lg shadow-primary/25' : 'text-muted hover:bg-elevated'}`}
+                        >
+                            <List size={18} />
+                        </button>
                     </div>
                 </div>
             </div>
 
-            {/* Zone Tabs */}
-            <div className="flex gap-2 p-2 bg-card/60 backdrop-blur-md border border-border/50 rounded-[1.5rem] overflow-x-auto no-scrollbar">
-                {formattedZones.map(zone => (
-                    <button
-                        key={zone.id}
-                        onClick={() => setActiveZone(zone.id)}
-                        className={`px-5 py-2.5 rounded-[1.2rem] text-[10px] font-black transition-all uppercase tracking-[0.2em] flex items-center gap-2 whitespace-nowrap ${activeZone === zone.id
-                            ? 'bg-gradient-to-r from-indigo-500 to-cyan-500 text-white shadow-xl shadow-indigo-500/25 scale-[1.02]'
-                            : 'bg-elevated text-muted hover:bg-card/80 hover:text-main border border-border/50 shadow-sm'
-                            }`}
-                    >
-                        {zone.name}
-                        <span className={`px-2 py-0.5 rounded-[0.8rem] text-[9px] font-bold ${activeZone === zone.id ? 'bg-black/20 text-white' : 'bg-card text-muted'}`}>
-                            {zone.id === 'all' ? decoratedTables.length : decoratedTables.filter(t => t.zoneId === zone.id).length}
-                        </span>
-                    </button>
-                ))}
+            {/* Zone Grid Navigation */}
+            <div className="flex gap-2 mb-6 overflow-x-auto no-scrollbar pb-1">
+                {formattedZones.map(zone => {
+                    const isActive = activeZone === zone.id;
+                    const count = zone.id === 'all' ? decoratedTables.length : decoratedTables.filter(t => t.zoneId === zone.id).length;
+                    return (
+                        <button
+                            key={zone.id}
+                            onClick={() => setActiveZone(zone.id)}
+                            className={`flex flex-col items-start px-5 py-3 rounded-2xl min-w-[120px] transition-all border relative overflow-hidden group ${isActive 
+                                ? 'bg-primary text-white border-primary shadow-xl shadow-primary/20 scale-[1.02]' 
+                                : 'bg-card/40 backdrop-blur-md border-border/40 text-muted hover:border-primary/40'}`}
+                        >
+                            <div className="flex justify-between w-full items-center mb-1 relative z-10">
+                                <span className={`w-2 h-2 rounded-full ${isActive ? 'bg-white' : 'bg-primary'}`} />
+                                <span className={`text-[10px] font-black tabular-nums transition-colors ${isActive ? 'text-white/60' : 'text-muted'}`}>
+                                    {count}
+                                </span>
+                            </div>
+                            <span className="text-xs font-black uppercase tracking-wider relative z-10">{zone.name}</span>
+                            {!isActive && <div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />}
+                        </button>
+                    );
+                })}
             </div>
 
-            {/* Main Content Area */}
-            <div className="flex-1 overflow-auto rounded-[2.5rem] border border-border/50 bg-card/40 backdrop-blur-3xl p-4 md:p-6 shadow-inner relative z-10">
-                {viewMode === 'LIST' ? (
-                    <div className="flex flex-col gap-3 h-full">
-                        <div className={`grid grid-cols-12 gap-3 px-4 py-2 bg-slate-100 dark:bg-slate-800 rounded-xl ${isRtl ? 'text-right' : 'text-left'}`}>
-                            <div className="col-span-3 text-[10px] font-black uppercase tracking-widest text-slate-500">{t.table}</div>
-                            <div className="col-span-2 text-[10px] font-black uppercase tracking-widest text-slate-500">{t.status || (lang === 'ar' ? '������' : 'Status')}</div>
-                            <div className="col-span-2 text-[10px] font-black uppercase tracking-widest text-slate-500">{lang === 'ar' ? '�����' : 'Capacity'}</div>
-                            <div className="col-span-2 text-[10px] font-black uppercase tracking-widest text-slate-500">{t.bill}</div>
-                            <div className="col-span-3 text-[10px] font-black uppercase tracking-widest text-slate-500">{lang === 'ar' ? '�������' : 'Actions'}</div>
-                        </div>
-                        <div className="flex-1 min-h-0">
-                            <VirtualList
-                                itemCount={filteredTables.length}
-                                itemHeight={92}
-                                className="h-full no-scrollbar"
-                                renderItem={(index) => <ListTableRow table={filteredTables[index]} />}
-                                getKey={(index) => filteredTables[index]?.id || index}
-                            />
-                        </div>
-                    </div>
-                ) : (
+            {/* Tables Grid */}
+            <div className="flex-1 min-h-0">
+                {filteredTables.length > 0 ? (
                     <VirtualGrid
                         itemCount={filteredTables.length}
-                        columnWidth={viewMode === 'GRID' ? 280 : 200}
-                        rowHeight={viewMode === 'GRID' ? 320 : 220}
-                        gap={viewMode === 'GRID' ? 20 : 12}
-                        className="h-full"
-                        renderItem={(index) => {
-                            const table = filteredTables[index];
-                            return (
-                                <div className="h-full">
-                                    {viewMode === 'GRID'
-                                        ? <GridTableCard table={table} />
-                                        : <CompactTableCard table={table} />
-                                    }
-                                </div>
-                            );
-                        }}
-                        getKey={(index) => filteredTables[index]?.id || index}
+                        columnWidth={viewMode === 'GRID' ? 280 : 360}
+                        rowHeight={240}
+                        gap={20}
+                        className="h-full no-scrollbar"
+                        renderItem={(index) => (
+                            <TableCard table={filteredTables[index]} />
+                        )}
+                        getKey={(index) => filteredTables[index].id}
                     />
-                )}
-
-                {filteredTables.length === 0 && (
-                    <div className="absolute inset-0 flex flex-col items-center justify-center">
-                        <div className="bg-slate-100 dark:bg-slate-800 rounded-3xl p-8 text-center">
-                            <LayoutGrid size={64} className="mx-auto mb-4 text-slate-300 dark:text-slate-600" />
-                            <p className="font-black uppercase tracking-widest text-slate-400 text-sm">{t.no_tables || 'No Tables Found'}</p>
-                            <p className="text-xs text-slate-400 mt-1">{lang === 'ar' ? '���� ����� ������ �����' : 'Try adjusting your search'}</p>
-                        </div>
+                ) : (
+                    <div className="h-full flex flex-col items-center justify-center opacity-40">
+                        <Utensils size={64} className="mb-4 text-muted" strokeWidth={1} />
+                        <p className="text-sm font-black uppercase tracking-widest">{isAr ? 'لا توجد طاولات' : 'No Tables Found'}</p>
                     </div>
                 )}
             </div>
 
-            {/* Legend Footer */}
-            <div className="flex flex-wrap justify-center items-center gap-4 py-3 px-4 bg-slate-50 dark:bg-slate-900/50 rounded-xl">
-                {[
-                    { status: TableStatus.AVAILABLE, label: t.free || 'Available', color: 'bg-emerald-500', gradient: 'from-emerald-500 to-emerald-400' },
-                    { status: TableStatus.OCCUPIED, label: t.busy || 'Occupied', color: 'bg-indigo-600', gradient: 'from-indigo-600 to-purple-500' },
-                    { status: TableStatus.WAITING_FOOD, label: t.waiting_food || (lang === 'ar' ? '������� ������' : 'Waiting Food'), color: 'bg-sky-500', gradient: 'from-sky-500 to-sky-400' },
-                    { status: TableStatus.READY_TO_PAY, label: t.ready_to_pay || (lang === 'ar' ? '���� ������' : 'Ready To Pay'), color: 'bg-teal-600', gradient: 'from-teal-600 to-teal-500' },
-                    { status: TableStatus.RESERVED, label: t.reserved || 'Reserved', color: 'bg-amber-500', gradient: 'from-amber-500 to-amber-400' },
-                    { status: TableStatus.DIRTY, label: t.dirty || 'Dirty', color: 'bg-rose-500', gradient: 'from-rose-500 to-rose-400' }
-                ].map(item => (
-                    <div key={item.status} className="flex items-center gap-2 card-primary px-3 py-1.5 rounded-lg shadow-sm">
-                        <div className={`w-3 h-3 rounded-full bg-gradient-to-r ${item.gradient}`} />
-                        <span className="text-[10px] font-bold uppercase text-slate-600 dark:text-slate-300 tracking-wider">{item.label}</span>
+            {/* Quick Actions / Legend */}
+            <div className="mt-6 flex flex-wrap items-center justify-center gap-6 py-4 px-6 bg-card/20 rounded-3xl border border-border/30">
+                {Object.entries(StatusTheme).map(([status, theme]) => (
+                    <div key={status} className="flex items-center gap-2">
+                        <div className={`w-3 h-3 rounded-full ${theme.icon}`} />
+                        <span className="text-[10px] font-black uppercase tracking-widest text-muted">{theme.label}</span>
                     </div>
                 ))}
+                <div className="h-4 w-px bg-border/40 mx-2" />
+                <div className="flex items-center gap-2">
+                    <Sparkles size={12} className="text-amber-500 animate-pulse" />
+                    <span className="text-[10px] font-black uppercase tracking-widest text-amber-500">{isAr ? 'تميز VIP' : 'VIP TABLE'}</span>
+                </div>
+                <div className="flex items-center gap-2 ml-4">
+                    <div className="w-4 h-4 rounded bg-rose-500/20 border border-rose-500/40" />
+                    <span className="text-[10px] font-black uppercase tracking-widest text-rose-500 animate-pulse">{isAr ? 'متأخرة (>25د)' : 'URGENT (>25m)'}</span>
+                </div>
             </div>
         </div>
     );

@@ -280,40 +280,40 @@ const ItemOptionsModal: React.FC<ItemOptionsModalProps> = ({
                     </div>
 
                     {/* Footer Controls */}
-                    <div className="p-5 border-t border-border/20 bg-elevated/50 shrink-0 space-y-4 relative z-20">
+                    <div className="p-8 border-t border-border/20 bg-elevated/50 shrink-0 space-y-5 relative z-20">
                         <AnimatePresence>
                             {!isValid && (
                                 <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} className="overflow-hidden">
-                                    <div className="flex items-center gap-2 text-rose-500 bg-rose-500/10 border border-rose-500/20 px-4 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest shadow-sm">
+                                    <div className="flex items-center gap-3 text-rose-500 bg-rose-500/10 border border-rose-500/20 px-5 py-3 rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] shadow-sm">
                                         <AlertCircle size={16} className="shrink-0" />
-                                        <span>{isRTL ? 'يرجى استكمال الخيارات المطلوبة' : 'Missing required options'}</span>
+                                        <span>{isRTL ? 'يرجى استكمال الخيارات المطلوبة' : 'MISSING REQUIRED OPTIONS'}</span>
                                     </div>
                                 </motion.div>
                             )}
                         </AnimatePresence>
 
-                        <div className="flex gap-3">
+                        <div className="flex gap-4">
                             {/* Quantity Stepper */}
-                            <div className="flex items-center bg-card border border-border/20 rounded-2xl shadow-inner h-14 shrink-0 px-1">
-                                <button onClick={() => setQuantity(q => Math.max(1, q - 1))} className="w-12 h-12 flex items-center justify-center text-muted hover:text-main hover:bg-elevated rounded-xl transition-all">
-                                    <Minus size={20} />
+                            <div className="flex items-center bg-card border border-border/20 rounded-[1.5rem] shadow-inner h-16 shrink-0 px-1">
+                                <button onClick={() => setQuantity(q => Math.max(1, q - 1))} className="w-14 h-14 flex items-center justify-center text-muted hover:text-main hover:bg-elevated rounded-xl transition-all">
+                                    <Minus size={22} />
                                 </button>
-                                <div className="w-10 text-center font-black text-xl text-main tabular-nums leading-none">
+                                <div className="w-12 text-center font-black text-2xl text-main tabular-nums leading-none">
                                     {quantity}
                                 </div>
-                                <button onClick={() => setQuantity(q => q + 1)} className="w-12 h-12 flex items-center justify-center text-muted hover:text-indigo-500 hover:bg-indigo-500/10 rounded-xl transition-all">
-                                    <Plus size={20} />
+                                <button onClick={() => setQuantity(q => q + 1)} className="w-14 h-14 flex items-center justify-center text-muted hover:text-indigo-500 hover:bg-indigo-500/10 rounded-xl transition-all">
+                                    <Plus size={22} />
                                 </button>
                             </div>
 
                             {/* Add Button */}
                             <button
                                 onClick={handleConfirm} disabled={!isValid || (!selectedSize && item.sizes && item.sizes.length > 0) || (isOpenPrice && parsedCustomPrice <= 0)}
-                                className="flex-1 h-14 bg-main text-app hover:bg-main/90 disabled:opacity-50 disabled:cursor-not-allowed rounded-2xl font-black transition-all flex items-center justify-between px-6 shadow-xl shadow-main/10 border border-main active:scale-[0.98] group relative overflow-hidden"
+                                className="flex-1 h-16 bg-slate-900 dark:bg-white text-white dark:text-slate-900 hover:bg-black dark:hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed rounded-[1.5rem] font-black transition-all flex items-center justify-between px-8 shadow-2xl shadow-black/30 dark:shadow-white/10 border-b-4 border-black/40 dark:border-slate-300 active:scale-[0.98] group relative overflow-hidden"
                             >
-                                <div className="absolute inset-0 bg-gradient-to-r from-transparent via-app/20 to-transparent translate-x-[-100%] group-hover:animate-[shimmer_1.5s_infinite]" />
-                                <span className="uppercase tracking-widest text-sm relative z-10">{isRTL ? 'إضافة للطلب' : 'Add Item'}</span>
-                                <span className="text-xl tabular-nums relative z-10 flex items-center gap-1">
+                                <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 dark:via-black/5 to-transparent translate-x-[-100%] group-hover:animate-[shimmer_1.5s_infinite]" />
+                                <span className="uppercase tracking-[0.15em] text-[11px] relative z-10">{isRTL ? 'تأكيد الإضافة' : 'CONFIRM ADD'}</span>
+                                <span className="text-2xl font-black tabular-nums relative z-10 flex items-center gap-1">
                                     <span className="text-xs uppercase opacity-70 mt-1">{currencySymbol}</span>
                                     {totalPrice.toFixed(2)}
                                 </span>

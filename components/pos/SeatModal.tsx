@@ -49,17 +49,18 @@ const SeatModal: React.FC<SeatModalProps> = ({ isOpen, onClose, seatNumber, onSe
                     </div>
 
                     {/* Body */}
-                    <div className="p-6 bg-card">
-                        <div className="bg-elevated/40 border border-border/20 rounded-2xl shadow-inner p-2 flex items-center h-20">
+                    <div className="p-8 bg-card flex flex-col items-center">
+                        <div className="w-full bg-elevated/40 border border-border/20 rounded-[1.5rem] shadow-inner p-4 flex items-center h-24 group-focus-within:border-indigo-500/50 transition-all">
                             <input
                                 ref={inputRef}
                                 type="number"
-                                className="w-full h-full bg-transparent text-main px-4 text-center font-black text-4xl outline-none transition-all placeholder:text-muted/30"
+                                className="w-full h-full bg-transparent text-main px-4 text-center font-black text-5xl outline-none placeholder:text-muted/20 tabular-nums"
                                 placeholder="1"
                                 value={seatNumber || ''}
                                 onChange={(e) => {
-                                    const val = e.target.value ? parseInt(e.target.value) : undefined;
-                                    onSeatChange(val);
+                                    const val = parseInt(e.target.value);
+                                    if (isNaN(val)) onSeatChange(undefined);
+                                    else if (val >= 0) onSeatChange(val);
                                 }}
                                 onKeyDown={(e) => {
                                     if (e.key === 'Enter') onSave();
@@ -68,21 +69,24 @@ const SeatModal: React.FC<SeatModalProps> = ({ isOpen, onClose, seatNumber, onSe
                                 min="1"
                             />
                         </div>
+                        <p className="mt-4 text-[10px] font-black text-muted/60 uppercase tracking-[0.2em]">
+                            {isRTL ? 'أدخل رقم المقعد' : 'ENTER SEAT NUMBER'}
+                        </p>
                     </div>
 
                     {/* Footer */}
-                    <div className="shrink-0 p-5 border-t border-border/10 bg-elevated/40 flex items-center gap-3">
+                    <div className="shrink-0 p-6 border-t border-border/10 bg-elevated/40 flex items-center gap-4">
                         <button
                             onClick={onClose}
-                            className="flex-1 h-14 rounded-2xl border border-border/20 text-main font-black uppercase tracking-widest text-xs hover:bg-elevated bg-card shadow-sm active:scale-95 transition-all"
+                            className="flex-1 h-16 rounded-2xl border border-border/20 text-muted font-black uppercase tracking-[0.2em] text-[10px] hover:bg-elevated hover:text-main bg-card shadow-sm active:scale-95 transition-all"
                         >
-                            {isRTL ? 'إلغاء' : 'Cancel'}
+                            {isRTL ? 'إلغاء' : 'CANCEL'}
                         </button>
                         <button
                             onClick={onSave}
-                            className="flex-1 h-14 rounded-2xl bg-indigo-500 text-white font-black uppercase tracking-widest text-xs hover:bg-indigo-600 active:scale-[0.98] transition-all shadow-lg shadow-indigo-500/20 border border-indigo-400"
+                            className="flex-1 h-16 rounded-2xl bg-indigo-600 text-white font-black uppercase tracking-[0.2em] text-[10px] hover:bg-indigo-700 active:scale-[0.98] transition-all shadow-xl shadow-indigo-600/20 border-b-4 border-indigo-800/40"
                         >
-                            {isRTL ? 'حفظ' : 'Save'}
+                            {isRTL ? 'تأكيد' : 'CONFIRM'}
                         </button>
                     </div>
                 </motion.div>

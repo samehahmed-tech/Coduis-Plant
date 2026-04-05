@@ -57,8 +57,8 @@ const NoteModal: React.FC<NoteModalProps> = ({
                     <div className="p-6 bg-card">
                         <textarea
                             ref={inputRef}
-                            className="w-full p-4 bg-elevated/40 border border-border/20 rounded-2xl text-sm font-bold min-h-[120px] outline-none focus:ring-2 focus:ring-indigo-500/30 focus:border-indigo-500/50 text-main transition-all placeholder:text-muted/50 resize-none shadow-inner"
-                            placeholder={isRTL ? 'نموذج: بدون بصل، صوص إضافي...' : "e.g. No Onions, Extra Sauce..."}
+                            className="w-full p-6 bg-slate-50 dark:bg-slate-800/50 border border-border/20 rounded-[1.5rem] text-sm font-bold min-h-[160px] outline-none focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500/50 text-main transition-all placeholder:text-muted/50 resize-none shadow-inner"
+                            placeholder={isRTL ? 'مثال: بدون بصل، صوص إضافي...' : "e.g. No Onions, Extra Sauce..."}
                             value={note}
                             onChange={e => onNoteChange(e.target.value)}
                             onKeyDown={e => {
@@ -67,11 +67,11 @@ const NoteModal: React.FC<NoteModalProps> = ({
                         />
                     </div>
 
-                    <div className="p-5 border-t border-border/10 bg-elevated/40 flex gap-3">
-                        <button onClick={onClose} className="flex-1 h-14 rounded-2xl bg-card border border-border/20 font-black text-xs uppercase tracking-widest text-main hover:bg-elevated transition-colors active:scale-95 shadow-sm">
+                    <div className="p-6 border-t border-border/10 bg-elevated/40 flex gap-4">
+                        <button onClick={onClose} className="flex-1 h-14 rounded-2xl bg-card border border-border/20 font-black text-[10px] uppercase tracking-[0.2em] text-muted hover:text-main hover:bg-elevated transition-all active:scale-95 shadow-sm">
                             {t.cancel}
                         </button>
-                        <button onClick={onSave} className="flex-1 h-14 rounded-2xl bg-indigo-500 text-white font-black text-xs uppercase tracking-widest hover:bg-indigo-600 transition-colors shadow-lg shadow-indigo-500/20 active:scale-[0.98] border border-indigo-400">
+                        <button onClick={onSave} className="flex-1 h-14 rounded-2xl bg-indigo-600 text-white font-black text-[10px] uppercase tracking-[0.2em] hover:bg-indigo-700 transition-all shadow-xl shadow-indigo-500/20 active:scale-[0.98] border-b-4 border-indigo-800/40">
                             {t.save_note}
                         </button>
                     </div>

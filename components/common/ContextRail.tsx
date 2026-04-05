@@ -281,28 +281,6 @@ const ContextRail: React.FC<ContextRailProps> = ({ onOpenCommand }) => {
                     ╚══════════════════════╝ */}
                 <div className="sidebar-footer shrink-0">
 
-                    {/* ── Theme Quick-Switch Dots ── */}
-                    <div className="sidebar-theme-strip" aria-label={lang === 'ar' ? 'اختيار الثيم' : 'Theme picker'}>
-                        {([
-                            { id: 'modern' as AppTheme, c1: '#0f766e', c2: '#d97706' },
-                            { id: 'glassy' as AppTheme, c1: '#0f766e', c2: '#f59e0b' },
-                            { id: 'tiles' as AppTheme, c1: '#0284c7', c2: '#67e8f9' },
-                            { id: 'fluent' as AppTheme, c1: '#166534', c2: '#14b8a6' },
-                            { id: 'crystal' as AppTheme, c1: '#b45309', c2: '#f97316' },
-                            { id: 'matte' as AppTheme, c1: '#57534e', c2: '#0f766e' },
-                            { id: 'touch_ui' as AppTheme, c1: '#c2410c', c2: '#fb923c' },
-                            { id: 'acrylic' as AppTheme, c1: '#0891b2', c2: '#f59e0b' },
-                        ]).map(t => (
-                            <button
-                                key={t.id}
-                                onClick={() => updateSettings({ theme: t.id })}
-                                className={`sidebar-theme-dot ${settings.theme === t.id ? 'sidebar-theme-dot-active' : ''}`}
-                                style={{ background: `linear-gradient(135deg, ${t.c1}, ${t.c2})` }}
-                                title={t.id}
-                            />
-                        ))}
-                    </div>
-
                     {/* ── Sync Status Bar ── */}
                     <div className="sidebar-sync-bar">
                         <div className="flex items-center gap-1.5">
