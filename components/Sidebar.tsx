@@ -1,4 +1,4 @@
-﻿import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import {
   LayoutDashboard, UtensilsCrossed, ChefHat, Package, Bot, LogOut, Moon, Sun,
   Users, BarChart3, BookOpen, Landmark, Languages, Sparkles, Settings, Menu, X,
@@ -91,7 +91,7 @@ const Sidebar: React.FC = () => {
           { path: '/', label: lang === 'ar' ? 'الرئيسية' : 'Dashboard', icon: LayoutDashboard, permission: 'VIEW_REPORTS' as AppPermission, loaderKey: 'dashboard' },
           { path: '/pos', label: lang === 'ar' ? 'نقطة البيع' : 'POS', icon: ShoppingBag, permission: 'MANAGE_ORDERS' as AppPermission, loaderKey: 'pos' },
           { path: '/kitchen', label: lang === 'ar' ? 'المطبخ' : 'Kitchen', icon: ChefHat, permission: 'VIEW_KDS' as AppPermission, loaderKey: 'kitchen' },
-          { path: '/orders', label: lang === 'ar' ? 'الطلبات' : 'Orders', icon: ClipboardCheck, permission: 'VIEW_ORDERS' as AppPermission, loaderKey: 'orders' },
+          { path: '/orders', label: lang === 'ar' ? 'الطلبات' : 'Orders', icon: ClipboardCheck, permission: AppPermission.NAV_ORDERS, loaderKey: 'orders' },
           { path: '/tables', label: lang === 'ar' ? 'الطاولات' : 'Tables', icon: MapIcon, permission: 'MANAGE_TABLES' as AppPermission, loaderKey: 'tables' },
           { path: '/production', label: lang === 'ar' ? 'الإنتاج' : 'Production', icon: Factory, permission: 'MANAGE_ORDERS' as AppPermission, loaderKey: 'production' },
         ],

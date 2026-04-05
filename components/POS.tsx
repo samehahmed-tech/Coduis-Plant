@@ -153,8 +153,6 @@ const POS: React.FC = () => {
    const [editingDiscountItemId, setEditingDiscountItemId] = useState<string | null>(null);
    const [itemDiscountType, setItemDiscountType] = useState<'percent' | 'flat'>('percent');
    const [itemDiscountValue, setItemDiscountValue] = useState('');
-   const [voidReasonItemId, setVoidReasonItemId] = useState<string | null>(null);
-   const [voidReason, setVoidReason] = useState('');
 
    // --- Audio Feedback Refs ---
    const scanSuccessAudioRef = useRef<HTMLAudioElement | null>(null);
@@ -1162,21 +1160,14 @@ const POS: React.FC = () => {
          updateCartItemQuantity(cartId, -1);
          return;
       }
-      // For last item, require void reason
-      setVoidReasonItemId(cartId);
-      setVoidReason('');
-   }, [safeActiveCart, updateCartItemQuantity]);
-
-   const confirmVoidItem = useCallback(() => {
-      if (!voidReasonItemId || !voidReason) return;
-      removeFromCart(voidReasonItemId);
+      // Immediate removal without confirmation
+      removeFromCart(cartId);
       showToast(
          lang === 'ar' ? 'تم حذف الصنف' : 'Item removed',
          'success'
       );
-      setVoidReasonItemId(null);
-      setVoidReason('');
-   }, [voidReasonItemId, voidReason, removeFromCart, showToast, lang]);
+   }, [safeActiveCart, updateCartItemQuantity, removeFromCart, showToast, lang]);
+
 
    const handleSetActiveCategory = useCallback((catId: string) => {
       setActiveCategory(catId);
@@ -1440,6 +1431,24 @@ const POS: React.FC = () => {
       }
    };
 
+   const handleClearCart = () => {
+      if (safeActiveCart.length === 0) return;
+      
+      // If it's a draft (not linked to a table), clear immediately
+      if (!selectedTableId) {
+         clearCart();
+         setDeliveryCustomer(null);
+         setSplitPayments([]);
+         setPaymentMethod(PaymentMethod.CASH);
+         setCouponCode('');
+         clearCoupon();
+         showToast(lang === 'ar' ? 'تم تفريغ السلة' : 'Cart cleared', 'success');
+      } else {
+         // If it's a table order, use handleVoidOrder which has confirmation/approval
+         handleVoidOrder();
+      }
+   };
+
    const handleVoidOrder = () => {
       if (safeActiveCart.length === 0) return;
 
@@ -1689,142 +1698,139 @@ const POS: React.FC = () => {
                      t={t}
                   />
                ) : (
-                  <>
-                     <div className={`pos-workspace-grid flex-1 min-h-0 h-full overflow-hidden ${desktopWorkspaceClass}`}>
-                        <div className="flex h-full overflow-hidden min-h-0 min-w-0">
-                           
-
-                           {/* ═══ Items Panel (Left) ═══ */}
-                           <POSItemsPanel
-                              categories={currentCategories}
-                              activeCategory={activeCategory}
-                              onSetCategory={handleSetActiveCategory}
-                              categoryResultCounts={categoryResultCounts}
-                              totalMatchedCount={totalMatchedAcrossCategories}
-                              hasActiveFiltering={Boolean(normalizedSearchQuery || itemFilter !== 'all')}
-                              pricedItems={pricedItems}
-                              cartItems={safeActiveCart}
-                              onAddItem={handleAddItem}
-                              onRemoveItem={handleRemoveOneFromCart}
-                              highlightedItemId={lastAddedItemId}
-                              searchQuery={searchQuery}
-                              onSearchChange={setSearchQuery}
-                              searchInputRef={searchInputRef}
-                              itemFilter={itemFilter}
-                              onSetFilter={setItemFilter}
-                              itemSort={itemSort}
-                              onSetSort={setItemSort}
-                              itemDensity={itemDensity as any}
-                              onSetDensity={setItemDensity as any}
-                              showMobileFilters={showMobileFilters}
-                              onToggleFilters={() => setShowMobileFilters(prev => !prev)}
-                              onResetFilters={() => { setSearchQuery(''); setItemFilter('all'); setItemSort('smart'); }}
-                              quickPickItems={quickPickItems}
-                              upsellSuggestions={upsellSuggestions}
-                              showCategoryStrip={showCategoryStrip}
-                              onToggleCategoryStrip={() => setShowCategoryStrip(prev => !prev)}
-                              isTabletViewport={isTabletViewport}
-                              quickCategoryNav={quickCategoryNav}
-                              isTouchMode={isTouchMode}
-                              lang={lang}
-                              t={t}
-                              currencySymbol={currencySymbol}
-                              isCartVisible={shouldRenderCartPanel}
-                              cartStats={cartStats}
-                              currentOrderPreview={currentOrderPreview}
-                              isCartOpenMobile={isCartOpenMobile}
-                              onOpenCart={() => setIsCartOpenMobile(true)}
-                              selectedTableId={selectedTableId}
-                              hasCartItems={hasCartItems}
-                              cartTotal={cartTotal}
-                           />
-                        </div>
-
-                        {/* ═══ Mobile FAB (fixed bottom cart button) ═══ */}
-                        {shouldRenderCartPanel && !isCartOpenMobile && !showMap && !showCustomerSelect && hasCartItems && (
-                           <div className={`pos-mobile-fab fixed bottom-[max(1rem,var(--safe-bottom))] ${lang === 'ar' ? 'right-4 left-4' : 'left-4 right-4'} z-40`}>
-                              <button
-                                 onClick={() => setIsCartOpenMobile(true)}
-                                 className="w-full h-12 px-4 rounded-2xl bg-card/90 backdrop-blur-xl border border-border/40 shadow-[0_6px_24px_rgb(0,0,0,0.1)] flex items-center justify-between active:scale-[0.98] transition-all overflow-hidden relative group"
-                              >
-                                 <div className="absolute inset-0 bg-gradient-to-r from-primary/8 to-primary/3 pointer-events-none" />
-                                 <div className="min-w-0 flex items-center gap-2.5 relative z-10">
-                                    <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center shadow-sm">
-                                       <ShoppingBag size={14} className="text-white" />
-                                    </div>
-                                    <div className="text-left min-w-0">
-                                       <p className="text-[10px] font-bold text-primary leading-none">
-                                          {safeActiveCart.length} {lang === 'ar' ? 'بنود' : 'items'}
-                                       </p>
-                                       <p className="text-xs font-extrabold text-main tabular-nums">
-                                          {currencySymbol}{(cartTotal || 0).toFixed(2)}
-                                       </p>
-                                    </div>
-                                 </div>
-                                 <span className="text-[10px] font-bold uppercase tracking-wider text-primary bg-primary/8 px-3 py-1.5 rounded-lg relative z-10">
-                                    {lang === 'ar' ? 'فتح السلة' : 'Open Cart'}
-                                 </span>
-                              </button>
-                           </div>
-                        )}
-
-                        {/* ═══ Cart Sidebar (Right) ═══ */}
-                        {shouldRenderCartPanel && (
-                           <POSCartSidebar
-                              activeCart={safeActiveCart}
-                              filteredCartItems={filteredCartItems}
-                              cartSubtotal={cartSubtotal}
-                              cartTotal={cartTotal}
-                              cartTax={cartTax}
-                              cartStats={cartStats}
-                              discount={discount}
-                              orderDiscountAmount={orderDiscountAmount}
-                              itemDiscountTotal={itemDiscountTotal}
-                              orderTypeLabel={orderTypeLabel}
-                              orderTypeSubLabel={orderTypeSubLabel}
-                              activeOrderType={activeOrderType}
-                              selectedTableId={selectedTableId}
-                              cartSearchQuery={cartSearchQuery}
-                              onCartSearchChange={setCartSearchQuery}
-                              cartPanelWidth={cartPanelWidth}
-                              onSetCartWidth={setCartPanelWidth}
-                              paymentMethod={paymentMethod}
-                              onSetPaymentMethod={handleSetPaymentMethod}
-                              isPaymentPanelCollapsed={isPaymentPanelCollapsed}
-                              onTogglePaymentCollapsed={() => setIsPaymentPanelCollapsed(prev => !prev)}
-                              tipAmount={tipAmount}
-                              onSetTipAmount={setTipAmount}
-                              couponCode={couponCode}
-                              activeCoupon={activeCoupon}
-                              isApplyingCoupon={isApplyingCoupon}
-                              onCouponCodeChange={setCouponCode}
-                              onApplyCoupon={handleApplyCoupon}
-                              onClearCoupon={() => { setCouponCode(''); clearCoupon(); }}
-                              onEditNote={(cartId, note) => { setEditingItemId(cartId); setNoteInput(note); }}
-                              onEditSeat={(cartId, curSeat) => { setEditingSeatItemId(cartId); setSeatInput(curSeat); }}
-                              onEditCourse={(cartId, curCourse) => { setEditingCourseItemId(cartId); setCourseInput(curCourse); }}
-                              onUpdateQuantity={handleUpdateQuantity}
-                              onRemoveItem={handleRemoveWithReason}
-                              onEditItemDiscount={handleEditItemDiscount}
-                              onVoid={handleVoidOrder}
-                              onSendKitchen={handleSendKitchen}
-                              onSubmit={handleSubmitOrder}
-                              onQuickPay={handleQuickPay}
-                              onShowSplitModal={() => setShowSplitModal(true)}
-                              onLeaveTable={leaveTable}
-                              onCloseCart={() => { if (activeOrderType === OrderType.DINE_IN) leaveTable(); setIsCartOpenMobile(false); }}
-                              onFocusSearch={() => searchInputRef.current?.focus()}
-                              currencySymbol={currencySymbol}
-                              isTouchMode={isTouchMode}
-                              lang={lang}
-                              t={t}
-                              isCartOpenMobile={isCartOpenMobile}
-                              shouldShowCart={shouldShowCart}
-                              cartPanelWidthClass={cartPanelWidthClass}
-                           />
-                        )}
+                  <div className={`pos-workspace-grid flex-1 min-h-0 h-full overflow-hidden ${desktopWorkspaceClass}`}>
+                     <div className="flex h-full overflow-hidden min-h-0 min-w-0">
+                        {/* ═══ Items Panel (Left) ═══ */}
+                        <POSItemsPanel
+                           categories={currentCategories}
+                           activeCategory={activeCategory}
+                           onSetCategory={handleSetActiveCategory}
+                           categoryResultCounts={categoryResultCounts}
+                           totalMatchedCount={totalMatchedAcrossCategories}
+                           hasActiveFiltering={Boolean(normalizedSearchQuery || itemFilter !== 'all')}
+                           pricedItems={pricedItems}
+                           cartItems={safeActiveCart}
+                           onAddItem={handleAddItem}
+                           onRemoveItem={handleRemoveOneFromCart}
+                           highlightedItemId={lastAddedItemId}
+                           searchQuery={searchQuery}
+                           onSearchChange={setSearchQuery}
+                           searchInputRef={searchInputRef}
+                           itemFilter={itemFilter}
+                           onSetFilter={setItemFilter}
+                           itemSort={itemSort}
+                           onSetSort={setItemSort}
+                           itemDensity={itemDensity as any}
+                           onSetDensity={setItemDensity as any}
+                           showMobileFilters={showMobileFilters}
+                           onToggleFilters={() => setShowMobileFilters(prev => !prev)}
+                           onResetFilters={() => { setSearchQuery(''); setItemFilter('all'); setItemSort('smart'); }}
+                           quickPickItems={quickPickItems}
+                           upsellSuggestions={upsellSuggestions}
+                           showCategoryStrip={showCategoryStrip}
+                           onToggleCategoryStrip={() => setShowCategoryStrip(prev => !prev)}
+                           isTabletViewport={isTabletViewport}
+                           quickCategoryNav={quickCategoryNav}
+                           isTouchMode={isTouchMode}
+                           lang={lang}
+                           t={t}
+                           currencySymbol={currencySymbol}
+                           isCartVisible={shouldRenderCartPanel}
+                           cartStats={cartStats}
+                           currentOrderPreview={currentOrderPreview}
+                           isCartOpenMobile={isCartOpenMobile}
+                           onOpenCart={() => setIsCartOpenMobile(true)}
+                           selectedTableId={selectedTableId}
+                           hasCartItems={hasCartItems}
+                           cartTotal={cartTotal}
+                        />
                      </div>
-                  </>
+
+                     {/* ═══ Mobile FAB (fixed bottom cart button) ═══ */}
+                     {shouldRenderCartPanel && !isCartOpenMobile && !showMap && !showCustomerSelect && hasCartItems && (
+                        <div className={`pos-mobile-fab fixed bottom-[max(1rem,var(--safe-bottom))] ${lang === 'ar' ? 'right-4 left-4' : 'left-4 right-4'} z-40`}>
+                           <button
+                              onClick={() => setIsCartOpenMobile(true)}
+                              className="w-full h-12 px-4 rounded-2xl bg-card/90 backdrop-blur-xl border border-border/40 shadow-[0_6px_24px_rgb(0,0,0,0.1)] flex items-center justify-between active:scale-[0.98] transition-all overflow-hidden relative group"
+                           >
+                              <div className="absolute inset-0 bg-gradient-to-r from-primary/8 to-primary/3 pointer-events-none" />
+                              <div className="min-w-0 flex items-center gap-2.5 relative z-10">
+                                 <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center shadow-sm">
+                                    <ShoppingBag size={14} className="text-white" />
+                                 </div>
+                                 <div className="text-left min-w-0">
+                                    <p className="text-[10px] font-bold text-primary leading-none">
+                                       {safeActiveCart.length} {lang === 'ar' ? 'بنود' : 'items'}
+                                    </p>
+                                    <p className="text-xs font-extrabold text-main tabular-nums">
+                                       {currencySymbol}{(cartTotal || 0).toFixed(2)}
+                                    </p>
+                                 </div>
+                              </div>
+                              <span className="text-[10px] font-bold uppercase tracking-wider text-primary bg-primary/8 px-3 py-1.5 rounded-lg relative z-10">
+                                 {lang === 'ar' ? 'فتح السلة' : 'Open Cart'}
+                              </span>
+                           </button>
+                        </div>
+                     )}
+
+                     {/* ═══ Cart Sidebar (Right) ═══ */}
+                     {shouldRenderCartPanel && (
+                        <POSCartSidebar
+                           activeCart={safeActiveCart}
+                           filteredCartItems={filteredCartItems}
+                           cartSubtotal={cartSubtotal}
+                           cartTotal={cartTotal}
+                           cartTax={cartTax}
+                           cartStats={cartStats}
+                           discount={discount}
+                           orderDiscountAmount={orderDiscountAmount}
+                           itemDiscountTotal={itemDiscountTotal}
+                           orderTypeLabel={orderTypeLabel}
+                           orderTypeSubLabel={orderTypeSubLabel}
+                           activeOrderType={activeOrderType}
+                           selectedTableId={selectedTableId}
+                           cartSearchQuery={cartSearchQuery}
+                           onCartSearchChange={setCartSearchQuery}
+                           cartPanelWidth={cartPanelWidth}
+                           onSetCartWidth={setCartPanelWidth}
+                           paymentMethod={paymentMethod}
+                           onSetPaymentMethod={handleSetPaymentMethod}
+                           isPaymentPanelCollapsed={isPaymentPanelCollapsed}
+                           onTogglePaymentCollapsed={() => setIsPaymentPanelCollapsed(prev => !prev)}
+                           tipAmount={tipAmount}
+                           onSetTipAmount={setTipAmount}
+                           couponCode={couponCode}
+                           activeCoupon={activeCoupon}
+                           isApplyingCoupon={isApplyingCoupon}
+                           onCouponCodeChange={setCouponCode}
+                           onApplyCoupon={handleApplyCoupon}
+                           onClearCoupon={() => { setCouponCode(''); clearCoupon(); }}
+                           onEditNote={(cartId, note) => { setEditingItemId(cartId); setNoteInput(note); }}
+                           onEditSeat={(cartId, curSeat) => { setEditingSeatItemId(cartId); setSeatInput(curSeat); }}
+                           onEditCourse={(cartId, curCourse) => { setEditingCourseItemId(cartId); setCourseInput(curCourse); }}
+                           onUpdateQuantity={handleUpdateQuantity}
+                           onRemoveItem={handleRemoveWithReason}
+                           onEditItemDiscount={handleEditItemDiscount}
+                           onVoid={handleVoidOrder}
+                           onClear={handleClearCart}
+                           onSendKitchen={handleSendKitchen}
+                           onSubmit={handleSubmitOrder}
+                           onQuickPay={handleQuickPay}
+                           onShowSplitModal={() => setShowSplitModal(true)}
+                           onLeaveTable={leaveTable}
+                           onCloseCart={() => { if (activeOrderType === OrderType.DINE_IN) leaveTable(); setIsCartOpenMobile(false); }}
+                           onFocusSearch={() => searchInputRef.current?.focus()}
+                           currencySymbol={currencySymbol}
+                           isTouchMode={isTouchMode}
+                           lang={lang}
+                           t={t}
+                           isCartOpenMobile={isCartOpenMobile}
+                           shouldShowCart={shouldShowCart}
+                           cartPanelWidthClass={cartPanelWidthClass}
+                        />
+                     )}
+                  </div>
                )}
             </div>
 
@@ -1935,53 +1941,6 @@ const POS: React.FC = () => {
             </div>
          )}
 
-         {/* ═══ Void Reason Modal ═══ */}
-         {voidReasonItemId && (() => {
-            const voidItem = safeActiveCart.find(i => i.cartId === voidReasonItemId);
-            const voidReasons = lang === 'ar'
-               ? ['طلب العميل', 'خطأ في المطبخ', 'صنف خاطئ', 'تجاوز المدير', 'أخرى']
-               : ['Customer Request', 'Kitchen Error', 'Wrong Item', 'Manager Override', 'Other'];
-            return (
-               <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 animate-in fade-in duration-200" onClick={() => setVoidReasonItemId(null)}>
-                  <div className="bg-card rounded-2xl shadow-2xl w-[380px] max-w-[90vw] p-6 animate-in zoom-in-95 duration-200 border border-border/30" onClick={e => e.stopPropagation()}>
-                     <h3 className="text-lg font-black text-rose-600 mb-1 text-center">
-                        {lang === 'ar' ? '🗑️ حذف صنف' : '🗑️ Remove Item'}
-                     </h3>
-                     {voidItem && (
-                        <p className="text-sm font-bold text-muted text-center mb-4">
-                           {lang === 'ar' ? (voidItem.nameAr || voidItem.name) : voidItem.name} × {voidItem.quantity}
-                        </p>
-                     )}
-                     <p className="text-xs font-black uppercase tracking-widest text-muted mb-3 text-center">
-                        {lang === 'ar' ? 'اختر سبب الحذف' : 'Select Void Reason'}
-                     </p>
-                     <div className="flex flex-col gap-2 mb-4">
-                        {voidReasons.map(reason => (
-                           <button key={reason} onClick={() => setVoidReason(reason)}
-                              className={`w-full py-3 px-4 rounded-xl text-sm font-bold transition-all text-left ${voidReason === reason ? 'bg-rose-500 text-white shadow-lg shadow-rose-500/30' : 'bg-elevated text-muted hover:bg-rose-50 dark:hover:bg-rose-500/10'}`}
-                           >{reason}</button>
-                        ))}
-                     </div>
-                     {voidReason === (lang === 'ar' ? 'أخرى' : 'Other') && (
-                        <input type="text" placeholder={lang === 'ar' ? 'اكتب السبب...' : 'Type reason...'}
-                           className="w-full px-4 py-3 bg-elevated border border-border rounded-xl text-sm font-bold text-main outline-none focus:ring-2 focus:ring-rose-500/50 mb-4"
-                           onChange={e => setVoidReason(e.target.value)} autoFocus
-                        />
-                     )}
-                     <div className="flex gap-3 mt-2">
-                        <button onClick={() => setVoidReasonItemId(null)} className="flex-1 py-3 bg-elevated rounded-xl text-xs font-black uppercase tracking-widest text-muted hover:bg-border transition-colors">
-                           {lang === 'ar' ? 'إلغاء' : 'Cancel'}
-                        </button>
-                        <button onClick={confirmVoidItem} disabled={!voidReason}
-                           className={`flex-1 py-3 rounded-xl text-xs font-black uppercase tracking-widest transition-all ${voidReason ? 'bg-rose-500 text-white shadow-lg shadow-rose-500/30 hover:bg-rose-600 active:scale-95' : 'bg-elevated text-muted cursor-not-allowed'}`}
-                        >
-                           {lang === 'ar' ? 'حذف الصنف' : 'Remove Item'}
-                        </button>
-                     </div>
-                  </div>
-               </div>
-            );
-         })()}
 
       </div>
    );

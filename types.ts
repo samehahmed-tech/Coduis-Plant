@@ -542,6 +542,7 @@ export enum AppPermission {
   NAV_REPORTS = 'NAV_REPORTS',
   NAV_CRM = 'NAV_CRM',
   NAV_MENU_MANAGER = 'NAV_MENU_MANAGER',
+  NAV_ORDERS = 'NAV_ORDERS',
   NAV_RECIPES = 'NAV_RECIPES',
   NAV_FORENSICS = 'NAV_FORENSICS',
   NAV_AI_ASSISTANT = 'NAV_AI_ASSISTANT',
@@ -686,6 +687,7 @@ export const INITIAL_ROLE_PERMISSIONS: Record<UserRole, AppPermission[]> = {
   [UserRole.OWNER]: [
     AppPermission.NAV_DASHBOARD, AppPermission.NAV_ADMIN_DASHBOARD,
     AppPermission.NAV_POS, AppPermission.NAV_KDS,
+    AppPermission.NAV_ORDERS,
     AppPermission.NAV_INVENTORY, AppPermission.NAV_FINANCE,
     AppPermission.NAV_REPORTS, AppPermission.NAV_CRM,
     AppPermission.NAV_MENU_MANAGER, AppPermission.NAV_RECIPES,
@@ -704,6 +706,7 @@ export const INITIAL_ROLE_PERMISSIONS: Record<UserRole, AppPermission[]> = {
   [UserRole.BRANCH_MANAGER]: [
     AppPermission.NAV_DASHBOARD, AppPermission.NAV_POS,
     AppPermission.NAV_KDS, AppPermission.NAV_INVENTORY,
+    AppPermission.NAV_ORDERS,
     AppPermission.NAV_REPORTS, AppPermission.NAV_MENU_MANAGER,
     AppPermission.NAV_CRM, AppPermission.NAV_FINANCE,
     AppPermission.NAV_PEOPLE, AppPermission.NAV_PRODUCTION,

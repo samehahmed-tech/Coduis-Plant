@@ -75,34 +75,44 @@ const PaymentSummary: React.FC<PaymentSummaryProps> = ({
             <div className="flex gap-1.5">
                 <button
                     onClick={() => toggleSection('methods')}
-                    className={`flex-1 h-9 flex items-center justify-between px-2.5 rounded-xl border text-[9px] font-bold uppercase tracking-wider transition-colors active:scale-[0.97] ${openSection === 'methods' ? 'bg-primary text-white border-primary' : 'bg-elevated/40 border-border/15 text-muted hover:text-main'}`}
+                    className={`flex-[2] h-9 flex items-center justify-between px-2.5 rounded-xl border text-[9px] font-bold uppercase tracking-wider transition-colors active:scale-[0.97] ${openSection === 'methods' ? 'bg-primary text-white border-primary' : 'bg-elevated/40 border-border/15 text-muted hover:text-main'}`}
                 >
                     <div className="flex items-center gap-1.5">
                         <Banknote size={12} />
-                        <span className="truncate max-w-[70px]">{isAr ? `دفع: ${activeMethodLabel}` : `Pay ${activeMethodLabel}`}</span>
+                        <span className="truncate max-w-[100px]">{isAr ? `دفع: ${activeMethodLabel}` : `Pay ${activeMethodLabel}`}</span>
                     </div>
                     <ChevronDown size={12} className={`transition-transform duration-200 ${openSection === 'methods' ? 'rotate-180' : ''}`} />
                 </button>
 
                 <button
-                    onClick={() => toggleSection('tips')}
-                    className={`flex-1 h-9 flex items-center justify-between px-2.5 rounded-xl border text-[9px] font-bold uppercase tracking-wider transition-colors active:scale-[0.97] ${openSection === 'tips' ? 'bg-primary text-white border-primary' : 'bg-elevated/40 border-border/15 text-muted hover:text-main'}`}
+                    onClick={() => setOpenSection(openSection === 'tips' || openSection === 'coupon' ? null : 'tips')}
+                    className={`flex-1 h-9 flex items-center justify-between px-2.5 rounded-xl border text-[9px] font-bold uppercase tracking-wider transition-colors active:scale-[0.97] ${(openSection === 'tips' || openSection === 'coupon' || activeCoupon || tipAmount > 0) ? 'bg-primary text-white border-primary' : 'bg-elevated/40 border-border/15 text-muted hover:text-main'}`}
                 >
                     <div className="flex items-center gap-1.5">
-                        <HandCoins size={12} />
-                        <span className="truncate">{isAr ? 'إكرامية:' : 'Tip:'} <b className={openSection === 'tips' ? 'text-white' : 'text-primary'}>{tipAmount}</b></span>
+                        <Tag size={12} />
+                        <span className="truncate">{isAr ? 'إضافات' : 'Extras'}</span>
                     </div>
-                    <ChevronDown size={12} className={`transition-transform duration-200 ${openSection === 'tips' ? 'rotate-180' : ''}`} />
-                </button>
-
-                <button
-                    onClick={() => toggleSection('coupon')}
-                    className={`shrink-0 w-9 h-9 flex items-center justify-center rounded-xl border transition-colors active:scale-[0.97] ${openSection === 'coupon' || activeCoupon ? 'bg-primary text-white border-primary' : 'bg-elevated/40 border-border/15 text-muted hover:text-main'}`}
-                    title={isAr ? 'كوبون' : 'Coupon'}
-                >
-                    <Tag size={14} />
+                    <ChevronDown size={12} className={`transition-transform duration-200 ${openSection === 'tips' || openSection === 'coupon' ? 'rotate-180' : ''}`} />
                 </button>
             </div>
+
+            {/* Sub-tabs for Extras */}
+            {(openSection === 'tips' || openSection === 'coupon') && (
+                <div className="flex bg-elevated/40 p-1 rounded-xl border border-border/15 gap-1">
+                    <button 
+                        onClick={() => setOpenSection('tips')}
+                        className={`flex-1 py-1 rounded-lg text-[8px] font-black uppercase tracking-widest transition-all ${openSection === 'tips' ? 'bg-card text-main shadow-sm' : 'text-muted'}`}
+                    >
+                        {isAr ? 'إكرامية' : 'Tips'} {tipAmount > 0 ? `(${tipAmount})` : ''}
+                    </button>
+                    <button 
+                        onClick={() => setOpenSection('coupon')}
+                        className={`flex-1 py-1 rounded-lg text-[8px] font-black uppercase tracking-widest transition-all ${openSection === 'coupon' ? 'bg-card text-main shadow-sm' : 'text-muted'}`}
+                    >
+                        {isAr ? 'خصم' : 'Discount'} {activeCoupon ? '✓' : ''}
+                    </button>
+                </div>
+            )}
 
             {/* Expanded Panels */}
             {openSection === 'methods' && (
@@ -200,17 +210,10 @@ const PaymentSummary: React.FC<PaymentSummaryProps> = ({
                 <div className="flex flex-col gap-1.5 shrink-0">
                     <button
                         onClick={onSendKitchen} disabled={!canSubmit}
-                        className="w-11 flex-1 bg-elevated/40 border border-border/15 text-muted hover:text-primary hover:bg-primary/8 rounded-xl flex items-center justify-center disabled:opacity-30 transition-colors"
+                        className="w-11 h-full bg-elevated/40 border border-border/15 text-muted hover:text-primary hover:bg-primary/8 rounded-xl flex items-center justify-center disabled:opacity-30 transition-colors"
                         title={t.send_kitchen}
                     >
-                        <ChefHat size={16} />
-                    </button>
-                    <button
-                        onClick={onVoid} disabled={!canSubmit}
-                        className="w-11 flex-1 bg-elevated/40 border border-border/15 text-muted hover:text-rose-500 hover:bg-rose-500/8 rounded-xl flex items-center justify-center disabled:opacity-30 transition-colors"
-                        title={isAr ? 'إلغاء' : 'Void'}
-                    >
-                        <Trash size={16} />
+                        <ChefHat size={20} />
                     </button>
                 </div>
 

@@ -46,6 +46,7 @@ export const loaders = {
     WhatsAppHub: () => import('./components/WhatsAppHub'),
     PlatformAggregator: () => import('./components/PlatformAggregator'),
     UserManagement: () => import('./components/UserManagement'),
+    OrdersCenter: () => import('./components/OrdersCenter'),
 };
 
 // Lazy load components using exported loaders
@@ -85,6 +86,7 @@ const ApprovalCenter = React.lazy(loaders.ApprovalCenter);
 const WhatsAppHub = React.lazy(loaders.WhatsAppHub);
 const PlatformAggregator = React.lazy(loaders.PlatformAggregator);
 const UserManagement = React.lazy(loaders.UserManagement);
+const OrdersCenter = React.lazy(loaders.OrdersCenter);
 
 import PageSkeleton from './components/common/PageSkeleton';
 
@@ -161,6 +163,7 @@ export const router = createBrowserRouter([
             { path: 'whatsapp', element: withPermission(AppPermission.NAV_REPORTS, withSafe(WhatsAppHub)) },
             { path: 'platforms', element: withPermission(AppPermission.NAV_SETTINGS, withSafe(PlatformAggregator)) },
             { path: 'user-management', element: withPermission(AppPermission.NAV_USER_MANAGEMENT, withSafe(UserManagement)) },
+            { path: 'orders', element: withPermission(AppPermission.NAV_ORDERS, withSafe(OrdersCenter)) },
         ],
     },
     {

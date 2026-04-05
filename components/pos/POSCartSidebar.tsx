@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ShoppingBag, ChevronDown, X } from 'lucide-react';
+import { ShoppingBag, ChevronDown, X, Trash2 } from 'lucide-react';
 import CartItem from './CartItem';
 import PaymentSummary from './PaymentSummary';
 import type { OrderItem, OrderType, PaymentMethod } from '../../types';
@@ -42,6 +42,7 @@ interface POSCartSidebarProps {
     onRemoveItem: (cartId: string) => void;
     onEditItemDiscount?: (cartId: string) => void;
     onVoid: () => void;
+    onClear: () => void;
     onSendKitchen: () => void;
     onSubmit: () => void;
     onQuickPay: () => void;
@@ -64,7 +65,7 @@ const POSCartSidebar: React.FC<POSCartSidebarProps> = ({
     paymentMethod, onSetPaymentMethod,
     couponCode, activeCoupon, isApplyingCoupon, onCouponCodeChange, onApplyCoupon, onClearCoupon,
     onEditNote, onEditSeat, onEditCourse, onUpdateQuantity, onRemoveItem, onEditItemDiscount,
-    onVoid, onSendKitchen, onSubmit, onQuickPay, onShowSplitModal,
+    onVoid, onClear, onSendKitchen, onSubmit, onQuickPay, onShowSplitModal,
     onLeaveTable, onCloseCart, onFocusSearch,
     tipAmount, onSetTipAmount,
     currencySymbol, isTouchMode, lang, t,
