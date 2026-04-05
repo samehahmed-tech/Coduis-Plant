@@ -52,7 +52,7 @@ const ItemGrid: React.FC<ItemGridProps> = React.memo(({
 
     return (
         <div
-            className="flex-1 min-h-0 overflow-y-auto pos-scroll overscroll-contain will-change-scroll"
+            className="h-full overflow-y-auto pos-scroll overscroll-contain will-change-scroll"
             style={{ transform: 'translate3d(0,0,0)' }}
         >
             <div
