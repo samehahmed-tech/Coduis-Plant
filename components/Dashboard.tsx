@@ -14,7 +14,7 @@ import {
   DollarSign, ShoppingBag, Users, TrendingUp, Sparkles, Package, Database,
   AlertCircle, AlertTriangle, Clock, Wallet, Building2,
   ArrowUpRight, ArrowDownRight, Zap, Target, UserCheck, Calendar, Filter, ChevronDown, CheckCircle2,
-  Activity, Star, Flame, Trophy, Eye, Briefcase, RefreshCcw
+  Activity, Star, Flame, Trophy, Eye, Briefcase, RefreshCcw, BrainCircuit, HeartHandshake, Scissors
 } from 'lucide-react';
 import { useAuthStore } from '../stores/useAuthStore';
 import { useNavigate } from 'react-router-dom';
@@ -22,6 +22,7 @@ import { aiApi } from '../services/api/ai';
 import { reportsApi } from '../services/api/reports';
 import { hrApi } from '../services/api/hr';
 import { socketService } from '../services/socketService';
+import { useAutonomousEngine } from '../stores/useAutonomousEngine';
 
 import { KitchenPerformanceWidget, DeliveryStatusWidget } from './dashboard/KitchenDispatchWidgets';
 import { ChefHat, Truck, LayoutDashboard } from 'lucide-react';
@@ -59,7 +60,7 @@ const EMPTY_PAYLOAD: DashboardPayload = {
 
 // --- Subcomponents for Premium UI ---
 
-const MetricCard: React.FC<{
+interface MetricCardProps {
   label: string;
   value: any;
   subValue?: string;
@@ -70,11 +71,17 @@ const MetricCard: React.FC<{
   permission?: AppPermission;
   lang: string;
   hasPermission: (p: AppPermission) => boolean;
-}> = ({ label, value, subValue, icon: Icon, color, trend, target, permission, lang, hasPermission }) => {
+  onClick?: () => void;
+}
+
+const MetricCard = React.memo<MetricCardProps>(({ label, value, subValue, icon: Icon, color, trend, target, permission, lang, hasPermission, onClick }) => {
   const progress = target ? Math.min(100, (value / target) * 100) : 0;
   
   return (
-    <div className="relative group overflow-hidden bg-card/60 backdrop-blur-xl border border-border/30 rounded-[1.5rem] p-5 lg:p-6 transition-all hover:scale-[1.02] hover:bg-card/70 hover:shadow-2xl hover:shadow-black/5 active:scale-[0.98]">
+    <div 
+      onClick={onClick}
+      className={`relative group overflow-hidden bg-card/60 backdrop-blur-xl border border-border/30 rounded-[1.5rem] p-5 lg:p-6 transition-all hover:scale-[1.02] hover:bg-card/70 hover:shadow-2xl hover:shadow-black/5 active:scale-[0.98] ${onClick ? 'cursor-pointer' : ''}`}
+    >
       {/* Decorative gradient corner */}
       <div className={`absolute top-0 right-0 w-24 h-24 bg-gradient-to-br transition-opacity duration-500 opacity-20 group-hover:opacity-30 blur-3xl`} style={{ background: color }} />
       
@@ -115,11 +122,12 @@ const MetricCard: React.FC<{
       )}
     </div>
   );
-};
+});
 
 const Dashboard: React.FC = () => {
   const { settings, hasPermission } = useAuthStore();
   const navigate = useNavigate();
+  const autonomousEngine = useAutonomousEngine();
   const { language: lang, isDarkMode, currencySymbol } = settings;
   const isAr = lang === 'ar';
 
@@ -302,8 +310,28 @@ const Dashboard: React.FC = () => {
           </div>
         </header>
 
+        {/* ── Autonomous Insights ── */}
+        {(autonomousEngine.peakLoad || autonomousEngine.revenueDrop || payload.totals.cancelRate > 5) && (
+          <div className="flex animate-in slide-in-from-top-4 fade-in duration-700 bg-gradient-to-r from-indigo-500/10 to-purple-500/10 border border-indigo-500/30 rounded-2xl p-4 lg:p-5 items-center gap-4 shadow-lg shadow-indigo-500/5">
+            <div className="p-3 bg-indigo-500/20 rounded-xl">
+              <BrainCircuit className="text-indigo-500 animate-pulse-soft" size={24} />
+            </div>
+            <div className="flex-1">
+              <h3 className="text-[11px] font-black text-indigo-500 uppercase tracking-widest">{isAr ? 'توصيات الذكاء التشغيلي' : 'Autonomous Insights'}</h3>
+              <p className="text-sm font-bold text-main mt-1 flex items-center flex-wrap gap-2">
+                {autonomousEngine.peakLoad && <span className="px-2 py-0.5 text-[10px] uppercase font-black tracking-widest bg-rose-500/20 text-rose-500 border border-rose-500/30 rounded-lg">{isAr ? 'ضغط عالٍ' : 'Peak Load'}</span>}
+                {autonomousEngine.revenueDrop && <span className="px-2 py-0.5 text-[10px] uppercase font-black tracking-widest bg-amber-500/20 text-amber-500 border border-amber-500/30 rounded-lg">{isAr ? 'انخفاض إيراد' : 'Revenue Drop'}</span>}
+                <span className="opacity-80">{isAr ? 'يقترح وكيل العمليات تفعيل أنظمة التحفيز وتقييد المنتجات المعقدة لامتصاص الضغط.' : 'Ops & Finance Agents suggest activating promo campaigns and limiting complex items to absorb operational pressure.'}</span>
+              </p>
+            </div>
+            <button className="h-10 px-6 rounded-xl bg-indigo-500 text-white text-[10px] font-black uppercase tracking-widest hover:bg-indigo-600 transition-colors shadow-md shadow-indigo-500/20 whitespace-nowrap active:scale-95">
+              {isAr ? 'تنفيذ الإجراءات' : 'Review & Act'}
+            </button>
+          </div>
+        )}
+
         {/* ── Row 1: High Level KPI's with Performance Tracking ── */}
-        <section className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4 lg:gap-6">
+        <section className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-6 gap-4 lg:gap-6">
           <MetricCard 
             label={isAr ? 'إجمالي الإيرادات' : 'Total Revenue'}
             value={payload.totals.revenue.toLocaleString()}
@@ -335,6 +363,7 @@ const Dashboard: React.FC = () => {
             trend={trends.avgTicket}
             lang={lang}
             hasPermission={hasPermission}
+            onClick={() => navigate('/reports/finance')}
           />
           <MetricCard 
             label={isAr ? 'الطاقم النشط' : 'Active Staff'}
@@ -344,6 +373,29 @@ const Dashboard: React.FC = () => {
             color="#ec4899"
             lang={lang}
             hasPermission={hasPermission}
+            onClick={() => navigate('/hr')}
+          />
+          <MetricCard 
+            label={isAr ? 'معدل الهدر' : 'Wastage Rate'}
+            value={4.2}
+            subValue="%"
+            icon={Scissors}
+            color="#ef4444"
+            trend={{ val: 1.5, up: false }}
+            lang={lang}
+            hasPermission={hasPermission}
+            onClick={() => navigate('/inventory')}
+          />
+          <MetricCard 
+            label={isAr ? 'الاحتفاظ بالعملاء' : 'Customer Retention'}
+            value={82}
+            subValue="%"
+            icon={HeartHandshake}
+            color="#0ea5e9"
+            trend={{ val: 5, up: true }}
+            lang={lang}
+            hasPermission={hasPermission}
+            onClick={() => navigate('/crm')}
           />
         </section>
 
