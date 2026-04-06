@@ -2,7 +2,8 @@
 import React from 'react';
 import {
     Search, Plus, LayoutGrid, List, BarChart3,
-    ArrowUpDown, CheckSquare, Filter, Square
+    ArrowUpDown, CheckSquare, Filter, Square,
+    Download, Upload, Palette
 } from 'lucide-react';
 import { ViewMode, DensityMode, SortField, FilterTag } from './MenuProfitCenter';
 import BranchSelector from './BranchSelector';
@@ -33,6 +34,9 @@ interface Props {
     onSelectBranch: (id: string | 'all') => void;
     comparisonMode: boolean;
     onToggleComparison: () => void;
+    onExport?: () => void;
+    onImport?: () => void;
+    onDesignMenu?: () => void;
 }
 
 const MenuToolbar: React.FC<Props> = ({
@@ -42,7 +46,8 @@ const MenuToolbar: React.FC<Props> = ({
     filterTag, onFilterChange, onNewItem,
     multiSelectMode, onToggleMultiSelect,
     itemCount, selectedCount, lang,
-    branches, selectedBranchId, onSelectBranch, comparisonMode, onToggleComparison
+    branches, selectedBranchId, onSelectBranch, comparisonMode, onToggleComparison,
+    onExport, onImport, onDesignMenu
 }) => {
     const [showFilters, setShowFilters] = React.useState(false);
     const [showSort, setShowSort] = React.useState(false);
@@ -231,6 +236,30 @@ const MenuToolbar: React.FC<Props> = ({
                             onToggleComparison={onToggleComparison}
                             lang={lang}
                         />
+                    )}
+
+                    {/* Export */}
+                    {onExport && (
+                        <button onClick={onExport} className="h-8 flex items-center gap-1.5 px-3 rounded-lg border border-gray-200 dark:border-border/30 bg-white dark:bg-elevated text-[12px] font-medium text-gray-500 dark:text-muted hover:text-emerald-600 dark:hover:text-emerald-400 hover:border-emerald-300 dark:hover:border-emerald-500/30 transition-colors" title={lang === 'ar' ? 'تصدير Excel' : 'Export Excel'}>
+                            <Download size={13} />
+                            {lang === 'ar' ? 'تصدير' : 'Export'}
+                        </button>
+                    )}
+
+                    {/* Import */}
+                    {onImport && (
+                        <button onClick={onImport} className="h-8 flex items-center gap-1.5 px-3 rounded-lg border border-gray-200 dark:border-border/30 bg-white dark:bg-elevated text-[12px] font-medium text-gray-500 dark:text-muted hover:text-blue-600 dark:hover:text-blue-400 hover:border-blue-300 dark:hover:border-blue-500/30 transition-colors" title={lang === 'ar' ? 'استيراد Excel' : 'Import Excel'}>
+                            <Upload size={13} />
+                            {lang === 'ar' ? 'استيراد' : 'Import'}
+                        </button>
+                    )}
+
+                    {/* Menu Design */}
+                    {onDesignMenu && (
+                        <button onClick={onDesignMenu} className="h-8 flex items-center gap-1.5 px-3 rounded-lg border border-gray-200 dark:border-border/30 bg-white dark:bg-elevated text-[12px] font-medium text-gray-500 dark:text-muted hover:text-purple-600 dark:hover:text-purple-400 hover:border-purple-300 dark:hover:border-purple-500/30 transition-colors" title={lang === 'ar' ? 'تصميم المنيو' : 'Design Menu'}>
+                            <Palette size={13} />
+                            {lang === 'ar' ? 'تصميم' : 'Design'}
+                        </button>
                     )}
 
                     {/* Add Item */}

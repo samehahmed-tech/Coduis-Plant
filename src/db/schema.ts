@@ -836,6 +836,44 @@ export const drivers = pgTable('drivers', {
 });
 
 // ============================================================================
+// 📍 DRIVER TELEMETRY (Scalable Location Tracking)
+// ============================================================================
+
+export const driverTelemetry = pgTable('driver_telemetry', {
+    id: serial('id').primaryKey(),
+    driverId: text('driver_id').references(() => drivers.id).notNull(),
+    branchId: text('branch_id').references(() => branches.id),
+    lat: real('lat').notNull(),
+    lng: real('lng').notNull(),
+    speedKmh: real('speed_kmh'),
+    accuracy: real('accuracy'),
+    heading: real('heading'),        // compass direction in degrees
+    altitude: real('altitude'),
+    batteryLevel: integer('battery_level'), // driver device battery %
+    isCharging: boolean('is_charging'),
+    orderId: text('order_id'),       // current delivery order if any
+    createdAt: timestamp('created_at').defaultNow(),
+}, (table) => ({
+    driverIdx: index('idx_telemetry_driver').on(table.driverId),
+    branchIdx: index('idx_telemetry_branch').on(table.branchId),
+    createdIdx: index('idx_telemetry_created').on(table.createdAt),
+}));
+
+// Latest telemetry per driver (materialized view-like, updated on each ping)
+export const driverTelemetryLatest = pgTable('driver_telemetry_latest', {
+    driverId: text('driver_id').references(() => drivers.id).primaryKey(),
+    branchId: text('branch_id').references(() => branches.id),
+    lat: real('lat').notNull(),
+    lng: real('lng').notNull(),
+    speedKmh: real('speed_kmh'),
+    accuracy: real('accuracy'),
+    heading: real('heading'),
+    batteryLevel: integer('battery_level'),
+    orderId: text('order_id'),
+    updatedAt: timestamp('updated_at').defaultNow(),
+});
+
+// ============================================================================
 // ⚙️ SETTINGS
 // ============================================================================
 
@@ -856,6 +894,44 @@ export const settings = pgTable('settings', {
     updatedBy: text('updated_by'),
     updatedAt: timestamp('updated_at').defaultNow(),
 });
+
+// ============================================================================
+// 🔌 WEBHOOKS & PLUGIN SYSTEM
+// ============================================================================
+
+export const webhookEndpoints = pgTable('webhook_endpoints', {
+    id: text('id').primaryKey(),
+    name: text('name').notNull(),
+    url: text('url').notNull(),
+    secret: text('secret'),                // HMAC-SHA256 signing secret
+    events: json('events').$type<string[]>().default([]), // e.g. ['order.created', 'order.completed']
+    isActive: boolean('is_active').default(true),
+    branchId: text('branch_id'),           // null = all branches
+    headers: json('headers').$type<Record<string, string>>().default({}),
+    retryCount: integer('retry_count').default(3),
+    timeoutMs: integer('timeout_ms').default(10000),
+    createdBy: text('created_by'),
+    createdAt: timestamp('created_at').defaultNow(),
+    updatedAt: timestamp('updated_at').defaultNow(),
+});
+
+export const webhookDeliveries = pgTable('webhook_deliveries', {
+    id: serial('id').primaryKey(),
+    endpointId: text('endpoint_id').references(() => webhookEndpoints.id).notNull(),
+    event: text('event').notNull(),        // e.g. 'order.created'
+    payload: json('payload'),
+    status: text('status').default('PENDING'), // PENDING, SUCCESS, FAILED
+    httpStatus: integer('http_status'),
+    responseBody: text('response_body'),
+    attempt: integer('attempt').default(1),
+    lastError: text('last_error'),
+    deliveredAt: timestamp('delivered_at'),
+    createdAt: timestamp('created_at').defaultNow(),
+}, (table) => ({
+    endpointIdx: index('idx_webhook_delivery_endpoint').on(table.endpointId),
+    eventIdx: index('idx_webhook_delivery_event').on(table.event),
+    statusIdx: index('idx_webhook_delivery_status').on(table.status),
+}));
 
 // ============================================================================
 // 📊 TYPE EXPORTS
@@ -968,16 +1044,20 @@ export const employees = pgTable('employees', {
 });
 
 export const attendance = pgTable('attendance', {
-    id: text('id').primaryKey(),
-    employeeId: text('employee_id').references(() => employees.id).notNull(),
+    id: serial('id').primaryKey(),
+    userId: text('user_id').references(() => users.id).notNull(), // Switched from employeeId for consistency
     branchId: text('branch_id').references(() => branches.id).notNull(),
-    date: timestamp('date').defaultNow().notNull(),
-    clockIn: timestamp('clock_in').notNull(),
+    clockIn: timestamp('clock_in').defaultNow().notNull(),
     clockOut: timestamp('clock_out'),
-    deviceId: text('device_id'), // Track which POS/Tablet they used
-    status: text('status').default('PRESENT'), // PRESENT, LATE, ABSENT, SICK_LEAVE
+    clockInLat: real('clock_in_lat'),
+    clockInLng: real('clock_in_lng'),
+    clockOutLat: real('clock_out_lat'),
+    clockOutLng: real('clock_out_lng'),
+    status: text('status').default('PRESENT'), // PRESENT, LATE, ABSENT, ON_LEAVE
     totalHours: real('total_hours').default(0),
+    notes: text('notes'),
     createdAt: timestamp('created_at').defaultNow(),
+    updatedAt: timestamp('updated_at').defaultNow(),
 });
 
 export const payrollCycles = pgTable('payroll_cycles', {
@@ -1263,6 +1343,89 @@ export const campaignLogs = pgTable('campaign_logs', {
 // inside a pgTable's third argument.
 
 // ============================================================================
+// 👥 HR & WORKFORCE (CORE)
+// ============================================================================
+
+export const payroll = pgTable('payroll', {
+    id: serial('id').primaryKey(),
+    userId: text('user_id').references(() => users.id).notNull(),
+    month: text('month').notNull(), // YYYY-MM
+    baseSalary: real('base_salary').notNull(),
+    overtimePay: real('overtime_pay').default(0),
+    bonuses: real('bonuses').default(0),
+    deductions: real('deductions').default(0),
+    netSalary: real('net_salary').notNull(),
+    status: text('status').default('DRAFT'), // DRAFT, APPROVED, PAID
+    paidAt: timestamp('paid_at'),
+    processedBy: text('processed_by'),
+    createdAt: timestamp('created_at').defaultNow(),
+    updatedAt: timestamp('updated_at').defaultNow(),
+}, (table) => ({
+    userMonthIdx: uniqueIndex('idx_payroll_user_month').on(table.userId, table.month),
+}));
+
+// ============================================================================
+// 📊 BI & ANALYTICS (Centralized Intelligence Layer)
+// ============================================================================
+
+
+// Daily aggregated performance per branch
+export const dailyBranchSummaries = pgTable('daily_branch_summaries', {
+    id: serial('id').primaryKey(),
+    branchId: text('branch_id').references(() => branches.id).notNull(),
+    date: date('date').notNull(),
+    totalRevenue: real('total_revenue').default(0),
+    netRevenue: real('net_revenue').default(0), // after tax/discounts
+    totalOrders: integer('total_orders').default(0),
+    avgOrderValue: real('avg_order_value').default(0),
+    totalTax: real('total_tax').default(0),
+    totalDiscounts: real('total_discounts').default(0),
+    dineInRevenue: real('dine_in_revenue').default(0),
+    takeawayRevenue: real('takeaway_revenue').default(0),
+    deliveryRevenue: real('delivery_revenue').default(0),
+    grossProfit: real('gross_profit').default(0),
+    uniqueCustomers: integer('unique_customers').default(0),
+    createdAt: timestamp('created_at').defaultNow(),
+    updatedAt: timestamp('updated_at').defaultNow(),
+}, (table) => ({
+    branchDateIdx: uniqueIndex('idx_branch_summary_date').on(table.branchId, table.date),
+}));
+
+// Performance tracking per menu item (Sales Analytics)
+export const itemDailySnapshots = pgTable('item_daily_snapshots', {
+    id: serial('id').primaryKey(),
+    menuItemId: text('menu_item_id').references(() => menuItems.id).notNull(),
+    branchId: text('branch_id').references(() => branches.id),
+    date: date('date').notNull(),
+    quantitySold: real('quantity_sold').default(0),
+    totalSales: real('total_sales').default(0),
+    totalCost: real('total_cost').default(0),
+    grossProfit: real('gross_profit').default(0),
+    avgPrice: real('avg_price').default(0),
+    updatedAt: timestamp('updated_at').defaultNow(),
+}, (table) => ({
+    itemBranchDateIdx: uniqueIndex('idx_item_snapshot_date').on(table.menuItemId, table.branchId, table.date),
+}));
+
+// Customer Intelligence (RFM Analysis)
+export const customerRfmMetrics = pgTable('customer_rfm_metrics', {
+    id: serial('id').primaryKey(),
+    customerId: text('customer_id').references(() => customers.id).notNull(),
+    branchId: text('branch_id'), // optional, for branch-specific loyalty
+    recency: integer('recency'), // Days since last order
+    frequency: integer('frequency'), // Total orders
+    monetary: real('monetary'), // Total lifetime spent
+    recencyScore: integer('recency_score'), // 1-5 rank
+    frequencyScore: integer('frequency_score'), // 1-5 rank
+    monetaryScore: integer('monetary_score'), // 1-5 rank
+    rfmSegment: text('rfm_segment'), // CHAMPIONS, LOYAL, AT_RISK, ABOUT_TO_SLEEP, etc.
+    lastOrderDate: timestamp('last_order_date'),
+    updatedAt: timestamp('updated_at').defaultNow(),
+}, (table) => ({
+    customerBranchIdx: uniqueIndex('idx_customer_rfm_unique').on(table.customerId, table.branchId),
+}));
+
+// ============================================================================
 // 📊 NEW TYPE EXPORTS
 // ============================================================================
 
@@ -1286,3 +1449,18 @@ export type NewDriver = typeof drivers.$inferInsert;
 export type DeliveryZone = typeof deliveryZones.$inferSelect;
 export type PurchaseOrder = typeof purchaseOrders.$inferSelect;
 export type PurchaseOrderItem = typeof purchaseOrderItems.$inferSelect;
+
+// Guide.md Phase 1 additions
+export type DriverTelemetryRecord = typeof driverTelemetry.$inferSelect;
+export type DriverTelemetryLatestRecord = typeof driverTelemetryLatest.$inferSelect;
+export type WebhookEndpoint = typeof webhookEndpoints.$inferSelect;
+export type NewWebhookEndpoint = typeof webhookEndpoints.$inferInsert;
+export type WebhookDelivery = typeof webhookDeliveries.$inferSelect;
+
+// Guide.md Phase 2 additions (Analytics)
+export type DailyBranchSummary = typeof dailyBranchSummaries.$inferSelect;
+export type ItemDailySnapshot = typeof itemDailySnapshots.$inferSelect;
+export type CustomerRfmMetric = typeof customerRfmMetrics.$inferSelect;
+
+
+

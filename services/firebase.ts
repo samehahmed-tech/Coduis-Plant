@@ -1,17 +1,13 @@
-import { initializeApp } from 'firebase/app';
-import { getFirestore } from 'firebase/firestore';
-import { getAuth } from 'firebase/auth';
+/**
+ * Firebase has been removed from RestoFlow ERP.
+ * The system uses PostgreSQL (Drizzle ORM) as the primary database
+ * and IndexedDB (Dexie.js) for offline caching.
+ *
+ * This file is kept as a stub to prevent import errors during migration.
+ * It will be deleted once all references are confirmed removed.
+ */
 
-const firebaseConfig = {
-  apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
-  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
-  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
-  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
-  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
-  appId: import.meta.env.VITE_FIREBASE_APP_ID
-};
-
-const app = initializeApp(firebaseConfig);
-export const db = getFirestore(app);
-export const auth = getAuth(app);
-export default app;
+// No-op exports to prevent import errors
+export const db = null;
+export const auth = null;
+export default null;

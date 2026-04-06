@@ -4,7 +4,7 @@
  * UI is delegated to: POSToolbar, POSItemsPanel, POSCartSidebar
  */
 import React, { useState, useEffect, useRef, useMemo, useCallback, useDeferredValue } from 'react';
-import { Search, ShoppingBag, X, LogOut, SlidersHorizontal, ArrowUpDown, LayoutGrid, Grid2x2, Plus, UtensilsCrossed, Truck, MapPin, Keyboard } from 'lucide-react';
+import { Search, ShoppingBag, X, LogOut, SlidersHorizontal, ArrowUpDown, LayoutGrid, Grid2x2, Plus, UtensilsCrossed, Truck, MapPin, Keyboard, UserPlus, Phone, Smartphone } from 'lucide-react';
 import {
    Order, OrderItem, OrderStatus, Table, PaymentMethod,
    OrderType, Customer, PaymentRecord, RestaurantMenu,
@@ -147,6 +147,10 @@ const POS: React.FC = () => {
    const [couponCode, setCouponCode] = useState('');
    const [isApplyingCoupon, setIsApplyingCoupon] = useState(false);
    const [approvalCallback, setApprovalCallback] = useState<{ fn: () => void; action: string } | null>(null);
+   const [showCustomerModal, setShowCustomerModal] = useState(false);
+   const [newCustomer, setNewCustomer] = useState({ name: '', phone: '', address: '' });
+   const addCustomer = useCRMStore(state => state.addCustomer);
+
 
    // --- Item Options / Discount / Void Reason State ---
    const [selectedItemForOptions, setSelectedItemForOptions] = useState<MenuItem | null>(null);
@@ -1505,6 +1509,25 @@ const POS: React.FC = () => {
       { mode: OrderType.DELIVERY, icon: Truck, label: t.delivery, keyHint: 'Alt+4', activeClass: 'bg-orange-600 text-white border-orange-600' },
    ]), [t, lang]);
 
+   const handleSaveCustomer = async () => {
+      if (!newCustomer.name || !newCustomer.phone) {
+         showToast(lang === 'ar' ? 'يرجى إدخال الاسم ورقم الهاتف' : 'Name and Phone required', 'error');
+         return;
+      }
+      try {
+         const created = await addCustomer({
+             ...newCustomer,
+             id: `c_${Date.now()}`,
+         });
+         setDeliveryCustomer(created);
+         setShowCustomerModal(false);
+         setNewCustomer({ name: '', phone: '', address: '' });
+         showToast(lang === 'ar' ? 'تم إضافة العميل بنجاح' : 'Customer created successfully', 'success');
+      } catch (error: any) {
+         showToast(error.message, 'error');
+      }
+   };
+
    const orderTypeLabel =
       activeOrderType === OrderType.DINE_IN
          ? t.dine_in
@@ -1595,7 +1618,11 @@ const POS: React.FC = () => {
                cartCount={safeActiveCart.length}
                onToggleCart={() => setIsCartOpenMobile(prev => !prev)}
                onShowTables={() => setSelectedTableId(null)}
-               onShowCustomers={() => setDeliveryCustomer(null)}
+               onShowCustomers={() => {
+                  setDeliveryCustomer(null);
+                  setSearchQuery('');
+               }}
+               onNewCustomer={() => setShowCustomerModal(true)}
                onQuickPay={handleQuickPay}
                onFocusSearch={() => searchInputRef.current?.focus()}
                hasCartItems={safeActiveCart.length > 0}
@@ -1694,6 +1721,7 @@ const POS: React.FC = () => {
                   <CustomerSelectView
                      customers={customers}
                      onSelectCustomer={(c) => { setDeliveryCustomer(c); setIsCartOpenMobile(true); }}
+                     onCreateCustomer={() => setShowCustomerModal(true)}
                      lang={lang}
                      t={t}
                   />
@@ -1942,6 +1970,97 @@ const POS: React.FC = () => {
          )}
 
 
+         {/* ═══ Customer Registration Modal ═══ */}
+         {showCustomerModal && (
+            <div className="fixed inset-0 z-[110] flex items-center justify-center bg-black/60 backdrop-blur-md animate-in fade-in duration-300 p-6">
+                <div 
+                    className="w-full max-w-xl bg-card border border-border/30 rounded-[3rem] shadow-2xl overflow-hidden animate-in zoom-in-95 duration-500 relative"
+                    onClick={e => e.stopPropagation()}
+                >
+                    {/* Header Strip */}
+                    <div className="h-2 bg-gradient-to-r from-indigo-500 via-violet-500 to-cyan-500" />
+                    
+                    <div className="p-10 md:p-12">
+                        <div className="flex items-center justify-between mb-10">
+                            <div className="flex items-center gap-5">
+                                <div className="w-14 h-14 rounded-2xl bg-indigo-500/10 flex items-center justify-center border border-indigo-500/20 text-indigo-500">
+                                    <UserPlus size={28} strokeWidth={2.5} />
+                                </div>
+                                <h3 className="text-3xl font-black text-main tracking-tighter uppercase leading-none">
+                                    {lang === 'ar' ? 'تعريف عميل جديد' : 'New Identity'}
+                                </h3>
+                            </div>
+                            <button 
+                                onClick={() => setShowCustomerModal(false)}
+                                className="w-12 h-12 rounded-xl hover:bg-rose-500/10 hover:text-rose-500 flex items-center justify-center transition-all text-muted/30"
+                            >
+                                <X size={24} />
+                            </button>
+                        </div>
+
+                        <div className="space-y-8">
+                            {/* Name Entry */}
+                            <div className="space-y-3">
+                                <label className="text-[10px] font-black uppercase tracking-[0.3em] text-muted pl-1">Full Legal Name</label>
+                                <div className="relative">
+                                    <Smartphone className="absolute left-5 top-1/2 -translate-y-1/2 text-muted/20 w-5 h-5 pointer-events-none" />
+                                    <input
+                                        className="w-full pl-14 pr-6 py-5 bg-elevated/20 border border-border/30 rounded-2xl text-main font-black text-sm outline-none focus:border-indigo-500/50 transition-all shadow-inner"
+                                        value={newCustomer.name}
+                                        onChange={(e) => setNewCustomer({ ...newCustomer, name: e.target.value })}
+                                        placeholder="AUTHORIZED IDENTITY NAME..."
+                                        autoFocus
+                                    />
+                                </div>
+                            </div>
+
+                            {/* Phone Entry */}
+                            <div className="space-y-3">
+                                <label className="text-[10px] font-black uppercase tracking-[0.3em] text-muted pl-1">Mobile Terminal</label>
+                                <div className="relative">
+                                    <Phone className="absolute left-5 top-1/2 -translate-y-1/2 text-muted/20 w-5 h-5 pointer-events-none" />
+                                    <input
+                                        className="w-full pl-14 pr-6 py-5 bg-elevated/20 border border-border/30 rounded-2xl text-main font-black text-sm outline-none focus:border-indigo-500/50 transition-all shadow-inner tabular-nums"
+                                        value={newCustomer.phone}
+                                        onChange={(e) => setNewCustomer({ ...newCustomer, phone: e.target.value })}
+                                        placeholder="01XXXXXXXXX..."
+                                    />
+                                </div>
+                            </div>
+
+                            {/* Address Entry */}
+                            <div className="space-y-3">
+                                <label className="text-[10px] font-black uppercase tracking-[0.3em] text-muted pl-1">Operational Dispatch Area</label>
+                                <div className="relative">
+                                    <MapPin className="absolute left-5 top-6 text-muted/20 w-5 h-5 pointer-events-none" />
+                                    <textarea
+                                        className="w-full pl-14 pr-6 py-5 bg-elevated/20 border border-border/30 rounded-2xl text-main font-black text-sm outline-none focus:border-indigo-500/50 transition-all resize-none shadow-inner h-32 no-scrollbar"
+                                        value={newCustomer.address}
+                                        onChange={(e) => setNewCustomer({ ...newCustomer, address: e.target.value })}
+                                        placeholder="GEOGRAPHICAL LOCATION DATA..."
+                                    />
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className="flex gap-4 mt-12 bg-app/20 -mx-10 md:-mx-12 -mb-10 md:-mb-12 p-8 md:p-10 border-t border-border/10">
+                            <button
+                                onClick={() => setShowCustomerModal(false)}
+                                className="flex-1 h-16 text-[10px] font-black uppercase tracking-[0.2em] text-muted hover:bg-elevated/60 rounded-2xl transition-all"
+                            >
+                                {lang === 'ar' ? 'إلغاء العملية' : 'ABORT OPERATION'}
+                            </button>
+                            <button
+                                onClick={handleSaveCustomer}
+                                className="flex-[2] h-16 bg-gradient-to-r from-indigo-600 to-violet-600 text-white rounded-2xl font-black uppercase text-[10px] tracking-[0.2em] hover:shadow-2xl hover:shadow-indigo-500/30 transition-all active:scale-95 border-b-4 border-indigo-900/40"
+                            >
+                                {lang === 'ar' ? 'حفظ وتثبيت' : 'SEAL & DEPLOY PROFILE'}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+         )}
       </div>
    );
 };

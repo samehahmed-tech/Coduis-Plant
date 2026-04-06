@@ -9,6 +9,9 @@ import { db } from '../db';
 import { orders, orderItems, payments, auditLogs, settings } from '../../src/db/schema';
 import { eq, and, sql } from 'drizzle-orm';
 import { financeEngine } from './financeEngine';
+import logger from '../utils/logger';
+
+const log = logger.child({ service: 'refund' });
 
 // =============================================================================
 // Types
@@ -342,7 +345,7 @@ export const refundService = {
             });
         } catch (finErr) {
             // Log but don't block refund processing
-            console.error('Finance posting failed for refund:', finErr);
+            log.error({ refundId: refund.id, orderId: refund.orderId, err: (finErr as any)?.message }, 'Finance posting failed for refund');
         }
 
         // 4. Record audit log

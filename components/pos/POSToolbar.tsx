@@ -4,7 +4,7 @@
  */
 import React from 'react';
 import {
-    UtensilsCrossed, ShoppingBag, MapPin, Truck, LayoutGrid, Zap
+    UtensilsCrossed, ShoppingBag, MapPin, Truck, LayoutGrid, Zap, Plus
 } from 'lucide-react';
 import { OrderType } from '../../types';
 
@@ -17,6 +17,7 @@ interface POSToolbarProps {
     onToggleCart: () => void;
     onShowTables: () => void;
     onShowCustomers: () => void;
+    onNewCustomer: () => void;
     onQuickPay: () => void;
     onFocusSearch: () => void;
     hasCartItems: boolean;
@@ -70,10 +71,15 @@ const POSToolbar: React.FC<POSToolbarProps> = ({
                     </button>
                 )}
                 {activeOrderType === OrderType.DELIVERY && (
-                    <button onClick={onShowCustomers} className="shrink-0 inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-warning/5 text-warning border border-warning/10 text-[9px] font-bold uppercase tracking-wider hover:bg-warning hover:text-white transition-colors active:scale-95">
-                        <Truck size={12} />
-                        <span className="hidden sm:inline">{isRTL ? 'العملاء' : 'Customers'}</span>
-                    </button>
+                    <div className="flex items-center gap-0.5">
+                        <button onClick={onShowCustomers} className="shrink-0 inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-warning/5 text-warning border border-warning/10 text-[9px] font-bold uppercase tracking-wider hover:bg-warning hover:text-white transition-colors active:scale-95">
+                            <Truck size={12} />
+                            <span className="hidden sm:inline">{isRTL ? 'العملاء' : 'Customers'}</span>
+                        </button>
+                        <button onClick={onNewCustomer} className="w-7 h-7 shrink-0 flex items-center justify-center rounded-lg bg-warning/10 border border-warning/20 text-warning hover:bg-warning hover:text-white transition-all active:scale-90">
+                            <Plus size={12} />
+                        </button>
+                    </div>
                 )}
 
                 {/* Cart toggle (mobile) */}

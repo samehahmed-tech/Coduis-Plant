@@ -3,6 +3,7 @@ import { db } from '../db';
 import { deliveryPlatforms } from '../../src/db/schema';
 import { eq } from 'drizzle-orm';
 import { nanoid } from 'nanoid';
+import logger from '../utils/logger';
 
 export const getPlatforms = async (_req: Request, res: Response) => {
     try {
@@ -11,7 +12,7 @@ export const getPlatforms = async (_req: Request, res: Response) => {
         });
         res.json(platforms);
     } catch (error: any) {
-        console.error('Error fetching delivery platforms:', error);
+        logger.error({ err: error }, 'Error in delivery platforms operation');
         res.status(500).json({ error: 'Failed to fetch platforms' });
     }
 };
@@ -30,7 +31,7 @@ export const createPlatform = async (req: Request, res: Response) => {
 
         res.status(201).json(created);
     } catch (error: any) {
-        console.error('Error creating delivery platform:', error);
+        logger.error({ err: error }, 'Error creating delivery platform');
         res.status(500).json({ error: 'Failed to create platform' });
     }
 };
@@ -54,7 +55,7 @@ export const updatePlatform = async (req: Request, res: Response) => {
 
         res.json(updated);
     } catch (error: any) {
-        console.error('Error updating delivery platform:', error);
+        logger.error({ err: error }, 'Error updating delivery platform');
         res.status(500).json({ error: 'Failed to update platform' });
     }
 };
@@ -69,7 +70,7 @@ export const deletePlatform = async (req: Request, res: Response) => {
         await db.delete(deliveryPlatforms).where(eq(deliveryPlatforms.id, id));
         res.json({ success: true });
     } catch (error: any) {
-        console.error('Error deleting delivery platform:', error);
+        logger.error({ err: error }, 'Error deleting delivery platform');
         res.status(500).json({ error: 'Failed to delete platform' });
     }
 };

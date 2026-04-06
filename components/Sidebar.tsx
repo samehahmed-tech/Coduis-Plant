@@ -4,7 +4,7 @@ import {
   Users, BarChart3, BookOpen, Landmark, Languages, Sparkles, Settings, Menu, X,
   ChevronLeft, ChevronRight, Headset, Shield, Fingerprint, Building2, ShoppingBag,
   Calculator, Tablet, Printer as PrinterIcon, Zap, Factory, Megaphone, Truck,
-  ShieldCheck, ClipboardCheck, Map as MapIcon, Wifi, WifiOff, ChevronDown
+  ShieldCheck, ClipboardCheck, Map as MapIcon, Wifi, WifiOff, ChevronDown, Trash2, RotateCcw
 } from 'lucide-react';
 import { UserRole, AppPermission, AppTheme } from '../types';
 import { translations } from '../services/translations';
@@ -68,11 +68,48 @@ const Sidebar: React.FC = () => {
   const [isMobileOpen, setIsMobileOpen] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const [showCalc, setShowCalc] = useState(false);
+  const [isResettingData, setIsResettingData] = useState(false);
   const [isOnline, setIsOnline] = useState(
     typeof navigator !== 'undefined' ? navigator.onLine : true
   );
   const [syncStats, setSyncStats] = useState({ total: 0, pending: 0, failed: 0, synced: 0 });
   const t = translations[lang] || translations['en'];
+
+  const handleResetTestData = () => {
+    showModal({
+      title: lang === 'ar' ? '⚠️ مسح كل بيانات التجربة' : '⚠️ Reset All Test Data',
+      message: lang === 'ar'
+        ? 'سيتم حذف كل الأوردرات والمنيو والمخزون والعملاء والمندوبين والمبيعات. البيانات الهيكلية (الفروع، المستخدمين، الإعدادات) ستبقى كما هي. هل أنت متأكد؟'
+        : 'This will DELETE all orders, menu items, inventory, customers, drivers, and sales data. Structural data (branches, users, settings) will be preserved. Are you sure?',
+      type: 'danger',
+      confirmText: lang === 'ar' ? 'نعم، امسح كل شيء' : 'Yes, Wipe Everything',
+      cancelText: lang === 'ar' ? 'إلغاء' : 'Cancel',
+      onConfirm: async () => {
+        setIsResettingData(true);
+        try {
+          const res = await fetch('/api/setup/reset-test-data', { method: 'POST' });
+          const data = await res.json();
+          if (data.ok) {
+            showModal({
+              title: lang === 'ar' ? '✅ تم بنجاح' : '✅ Reset Complete',
+              message: lang === 'ar'
+                ? `تم مسح ${data.truncated} جدول بنجاح. أعد تحميل الصفحة للبدء من جديد.`
+                : `Successfully cleared ${data.truncated} tables. Reload the page to start fresh.`,
+              type: 'info',
+              confirmText: lang === 'ar' ? 'إعادة تحميل' : 'Reload Now',
+              onConfirm: () => window.location.reload(),
+            });
+          } else {
+            showModal({ title: 'Error', message: data.error || 'Reset failed', type: 'danger' });
+          }
+        } catch (err: any) {
+          showModal({ title: 'Error', message: err.message, type: 'danger' });
+        } finally {
+          setIsResettingData(false);
+        }
+      },
+    });
+  };
 
   /* ────────── Nav sections ────────── */
   const sectionsToUse = useMemo(() => {
@@ -487,6 +524,29 @@ const Sidebar: React.FC = () => {
         {/* ════════ FOOTER ════════ */}
         <div className={`border-t border-border/20 pt-2 pb-3 shrink-0 ${isCollapsed ? 'px-1.5 space-y-1' : 'px-2 space-y-2'} relative`}>
 
+          {/* DEV: Reset Test Data */}
+          {isAdmin && (
+            isCollapsed ? (
+              <button
+                onClick={handleResetTestData}
+                disabled={isResettingData}
+                className="group relative w-full flex justify-center py-2.5 rounded-xl text-muted hover:text-rose-500 hover:bg-rose-500/10 border border-transparent hover:border-rose-500/20 transition-all disabled:opacity-50"
+                title="Reset Test Data"
+              >
+                {isResettingData ? <RotateCcw size={14} className="animate-spin" /> : <Trash2 size={14} />}
+                <Tooltip label={lang === 'ar' ? 'مسح بيانات التجربة' : 'Reset Test Data'} />
+              </button>
+            ) : (
+              <button
+                onClick={handleResetTestData}
+                disabled={isResettingData}
+                className="w-full flex items-center gap-2 px-3 py-1.5 rounded-xl bg-rose-500/5 text-rose-400 hover:bg-rose-500/15 hover:text-rose-500 border border-rose-500/10 hover:border-rose-500/25 transition-all text-[9px] font-black uppercase tracking-wide disabled:opacity-50"
+              >
+                {isResettingData ? <RotateCcw size={13} className="animate-spin" /> : <Trash2 size={13} />}
+                <span>{isResettingData ? (lang === 'ar' ? 'جاري المسح...' : 'Resetting...') : (lang === 'ar' ? 'مسح بيانات التجربة' : 'Reset Test Data')}</span>
+              </button>
+            )
+          )}
 
 
           {/* Sync stats */}

@@ -1,46 +1,25 @@
 import { Request, Response } from 'express';
 import { db } from '../db';
-import { deliveryZones, drivers, orders, settings } from '../../src/db/schema';
-import { eq, and, desc, or } from 'drizzle-orm';
+import { deliveryZones, drivers, orders, settings, driverTelemetry, driverTelemetryLatest } from '../../src/db/schema';
+import { eq, and, desc, or, sql } from 'drizzle-orm';
 import { getIO } from '../socket';
 import { getStringParam } from '../utils/request';
+import { webhookService } from '../services/webhookService';
 
-type DriverTelemetry = {
+type DriverTelemetryData = {
     driverId: string;
     branchId?: string | null;
     lat: number;
     lng: number;
     speedKmh?: number;
     accuracy?: number;
+    heading?: number;
+    batteryLevel?: number;
+    orderId?: string | null;
     updatedAt: string;
 };
 
-const TELEMETRY_SETTINGS_KEY = 'driverTelemetry';
 const SLA_ESCALATIONS_KEY = 'deliverySlaEscalations';
-
-const loadTelemetry = async (): Promise<Record<string, DriverTelemetry>> => {
-    const [row] = await db.select().from(settings).where(eq(settings.key, TELEMETRY_SETTINGS_KEY)).limit(1);
-    if (!row?.value || typeof row.value !== 'object') return {};
-    return row.value as Record<string, DriverTelemetry>;
-};
-
-const saveTelemetry = async (telemetry: Record<string, DriverTelemetry>, updatedBy?: string) => {
-    await db.insert(settings).values({
-        key: TELEMETRY_SETTINGS_KEY,
-        value: telemetry,
-        category: 'delivery',
-        updatedBy: updatedBy || 'system',
-        updatedAt: new Date(),
-    }).onConflictDoUpdate({
-        target: settings.key,
-        set: {
-            value: telemetry,
-            category: 'delivery',
-            updatedBy: updatedBy || 'system',
-            updatedAt: new Date(),
-        },
-    });
-};
 
 export const getAllZones = async (req: Request, res: Response) => {
     try {
@@ -145,6 +124,9 @@ export const updateDriverLocation = async (req: Request, res: Response) => {
         const lng = Number(req.body?.lng);
         const speedKmh = req.body?.speedKmh !== undefined ? Number(req.body.speedKmh) : undefined;
         const accuracy = req.body?.accuracy !== undefined ? Number(req.body.accuracy) : undefined;
+        const heading = req.body?.heading !== undefined ? Number(req.body.heading) : undefined;
+        const batteryLevel = req.body?.batteryLevel !== undefined ? Number(req.body.batteryLevel) : undefined;
+        const isCharging = req.body?.isCharging;
 
         if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
             return res.status(400).json({ error: 'INVALID_COORDINATES' });
@@ -153,25 +135,67 @@ export const updateDriverLocation = async (req: Request, res: Response) => {
         const [driver] = await db.select().from(drivers).where(eq(drivers.id, driverId)).limit(1);
         if (!driver) return res.status(404).json({ error: 'DRIVER_NOT_FOUND' });
 
-        const current = await loadTelemetry();
-        const nextItem: DriverTelemetry = {
+        // 1. Insert into telemetry history (time-series)
+        await db.insert(driverTelemetry).values({
             driverId,
             branchId: driver.branchId || null,
             lat,
             lng,
             ...(Number.isFinite(speedKmh) ? { speedKmh } : {}),
             ...(Number.isFinite(accuracy) ? { accuracy } : {}),
-            updatedAt: new Date().toISOString(),
-        };
-        const next = { ...current, [driverId]: nextItem };
-        await saveTelemetry(next, req.user?.id);
+            ...(Number.isFinite(heading) ? { heading } : {}),
+            ...(Number.isFinite(batteryLevel) ? { batteryLevel } : {}),
+            ...(isCharging !== undefined ? { isCharging: Boolean(isCharging) } : {}),
+        });
 
+        // 2. Upsert into latest-telemetry (fast lookups)
+        const now = new Date();
+        await db.insert(driverTelemetryLatest).values({
+            driverId,
+            branchId: driver.branchId || null,
+            lat,
+            lng,
+            ...(Number.isFinite(speedKmh) ? { speedKmh } : {}),
+            ...(Number.isFinite(accuracy) ? { accuracy } : {}),
+            ...(Number.isFinite(heading) ? { heading } : {}),
+            ...(Number.isFinite(batteryLevel) ? { batteryLevel } : {}),
+            updatedAt: now,
+        }).onConflictDoUpdate({
+            target: driverTelemetryLatest.driverId,
+            set: {
+                branchId: driver.branchId || null,
+                lat,
+                lng,
+                ...(Number.isFinite(speedKmh) ? { speedKmh } : {}),
+                ...(Number.isFinite(accuracy) ? { accuracy } : {}),
+                ...(Number.isFinite(heading) ? { heading } : {}),
+                ...(Number.isFinite(batteryLevel) ? { batteryLevel } : {}),
+                updatedAt: now,
+            },
+        });
+
+        const nextItem: DriverTelemetryData = {
+            driverId,
+            branchId: driver.branchId || null,
+            lat,
+            lng,
+            ...(Number.isFinite(speedKmh) ? { speedKmh } : {}),
+            ...(Number.isFinite(accuracy) ? { accuracy } : {}),
+            ...(Number.isFinite(heading) ? { heading } : {}),
+            ...(Number.isFinite(batteryLevel) ? { batteryLevel } : {}),
+            updatedAt: now.toISOString(),
+        };
+
+        // 3. Emit via Socket.io
         try {
             const branchRoom = driver.branchId ? `branch:${driver.branchId}` : null;
             if (branchRoom) getIO().to(branchRoom).emit('driver:location', nextItem);
         } catch {
             // socket optional
         }
+
+        // 4. Dispatch via webhook system
+        webhookService.dispatch('driver.location_updated', nextItem, driver.branchId || undefined).catch(() => {});
 
         res.json(nextItem);
     } catch (error: any) {
@@ -182,10 +206,27 @@ export const updateDriverLocation = async (req: Request, res: Response) => {
 export const getDriverTelemetry = async (req: Request, res: Response) => {
     try {
         const branchId = getStringParam(req.query.branchId);
-        const telemetry = await loadTelemetry();
-        const list = Object.values(telemetry).filter((item) => !branchId || String(item.branchId || '') === branchId);
-        list.sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
-        res.json(list);
+
+        // Query from dedicated indexed table instead of KV store
+        const conditions: any[] = [];
+        if (branchId) conditions.push(eq(driverTelemetryLatest.branchId, branchId));
+
+        const latest = conditions.length > 0
+            ? await db.select().from(driverTelemetryLatest).where(and(...conditions)).orderBy(desc(driverTelemetryLatest.updatedAt))
+            : await db.select().from(driverTelemetryLatest).orderBy(desc(driverTelemetryLatest.updatedAt));
+
+        res.json(latest.map(t => ({
+            driverId: t.driverId,
+            branchId: t.branchId,
+            lat: t.lat,
+            lng: t.lng,
+            speedKmh: t.speedKmh,
+            accuracy: t.accuracy,
+            heading: t.heading,
+            batteryLevel: t.batteryLevel,
+            orderId: t.orderId,
+            updatedAt: t.updatedAt?.toISOString() || new Date().toISOString(),
+        })));
     } catch (error: any) {
         res.status(500).json({ error: error.message || 'FAILED_TO_LOAD_DRIVER_TELEMETRY' });
     }
@@ -234,7 +275,11 @@ const saveSlaEscalations = async (records: DeliverySlaEscalationRecord[], update
 };
 
 const buildSlaAlerts = async (branchId?: string, delayMinutes = 45, staleLocationMinutes = 10): Promise<SlaAlert[]> => {
-    const telemetry = await loadTelemetry();
+    const latestTelemetry = await db.select().from(driverTelemetryLatest);
+    const telemetry: Record<string, any> = {};
+    for (const t of latestTelemetry) {
+        telemetry[t.driverId] = t;
+    }
     const conditions: any[] = [
         eq(orders.type, 'DELIVERY'),
         or(eq(orders.status, 'READY'), eq(orders.status, 'PREPARING'), eq(orders.status, 'OUT_FOR_DELIVERY')),

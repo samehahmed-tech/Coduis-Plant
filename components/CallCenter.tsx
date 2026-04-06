@@ -141,7 +141,7 @@ const DriverAssignmentModal: React.FC<{
                     {!isLoading && !errorMessage && drivers.length === 0 && (
                         <div className="p-6 text-center text-xs font-bold text-muted">No drivers available for this branch.</div>
                     )}
-                    {!isLoading && !errorMessage && drivers.map(driver => {
+                    {!isLoading && !errorMessage && filteredDrivers.map(driver => {
                         const isAvailable = String(driver.status || '').toUpperCase() === 'AVAILABLE';
                         const isAssigningThisDriver = assigningDriverId === driver.id;
                         return (
@@ -181,7 +181,7 @@ const DriverAssignmentModal: React.FC<{
 };
 
 // Customer Registration Modal Component
-const CustomerRegistrationModal: React.FC<{
+const InlineCustomerRegistration: React.FC<{
     isOpen: boolean;
     onClose: () => void;
     initialPhone: string;
@@ -220,9 +220,9 @@ const CustomerRegistrationModal: React.FC<{
     };
 
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-app/80 backdrop-blur-md animate-in fade-in">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-app/80 backdrop-blur-md animate-in fade-in zoom-in-95 duration-500">
             <div className="absolute inset-0" onClick={onClose} />
-            <div className="bg-card/90 backdrop-blur-xl rounded-[2.5rem] w-full max-w-lg shadow-2xl border border-border/50 animate-in zoom-in-95 slide-in-from-bottom-4 relative z-10">
+            <div className="bg-card/90 backdrop-blur-3xl rounded-[2.5rem] w-full max-w-4xl shadow-[0_32px_80px_rgba(0,0,0,0.08)] border border-border/20 flex flex-col relative overflow-hidden max-h-[85vh] animate-in zoom-in-95 slide-in-from-bottom-4">
                 <div className="p-6 border-b border-border/50 flex justify-between items-center relative">
                     <div className="absolute inset-0 bg-gradient-to-r from-indigo-500/5 to-cyan-500/5 pointer-events-none rounded-t-[2.5rem]" />
                     <div className="flex items-center gap-4 relative z-10">
@@ -321,7 +321,7 @@ const CallCenter: React.FC = () => {
     const { customers, addCustomer } = useCRMStore();
     const { branches, settings, printers } = useAuthStore();
     const { categories } = useMenuStore();
-    const { orders, placeOrder, discount, setDiscount, fetchOrders } = useOrderStore();
+    const { orders, placeOrder, discount, setDiscount, fetchOrders, updateOrderStatus } = useOrderStore();
 
     const lang = (settings.language || 'en') as 'en' | 'ar';
     const t = translations[lang] || translations['en'];
@@ -1237,6 +1237,33 @@ const CallCenter: React.FC = () => {
                                                 <span className="text-[10px] font-black uppercase tracking-[0.2em]">{lang === 'ar' ? '����' : 'Urgent'}</span>
                                             </div>
                                         )}
+                                        {/* Action Buttons */}
+                                        <div className="mt-4 flex gap-2 relative z-10">
+                                            {order.status === OrderStatus.READY && (
+                                                <button
+                                                    onClick={() => { setSelectedTrackingOrder(order); setShowDriverModal(true); }}
+                                                    className="flex-1 py-3 bg-gradient-to-r from-indigo-500 to-cyan-500 text-white rounded-[1.2rem] text-[10px] font-black uppercase tracking-[0.2em] hover:opacity-90 active:scale-95 transition-all shadow-xl shadow-indigo-500/25 flex items-center justify-center gap-2"
+                                                >
+                                                    <Truck size={14} /> {lang === 'ar' ? 'تعيين مندوب' : 'Dispatch'}
+                                                </button>
+                                            )}
+                                            {order.status === OrderStatus.OUT_FOR_DELIVERY && (
+                                                <button
+                                                    onClick={async () => {
+                                                        try {
+                                                            await updateOrderStatus(order.id, OrderStatus.DELIVERED);
+                                                            showToast(lang === 'ar' ? 'تم تأكيد التوصيل' : 'Delivery confirmed', 'success');
+                                                            await fetchOrders();
+                                                        } catch (e) {
+                                                            showToast(getActionableErrorMessage(e, lang), 'error');
+                                                        }
+                                                    }}
+                                                    className="flex-1 py-3 bg-gradient-to-r from-emerald-500 to-teal-500 text-white rounded-[1.2rem] text-[10px] font-black uppercase tracking-[0.2em] hover:opacity-90 active:scale-95 transition-all shadow-xl shadow-emerald-500/25 flex items-center justify-center gap-2"
+                                                >
+                                                    <CheckCircle size={14} /> {lang === 'ar' ? 'تم التوصيل' : 'Delivered'}
+                                                </button>
+                                            )}
+                                        </div>
                                     </div>
                                 ))}
                             </div>
@@ -1268,6 +1295,22 @@ const CallCenter: React.FC = () => {
                                                 Dispatch
                                             </button>
                                         )}
+                                        {order.status === OrderStatus.OUT_FOR_DELIVERY && (
+                                            <button
+                                                onClick={async () => {
+                                                    try {
+                                                        await updateOrderStatus(order.id, OrderStatus.DELIVERED);
+                                                        showToast(lang === 'ar' ? 'تم تأكيد التوصيل' : 'Delivery confirmed', 'success');
+                                                        await fetchOrders();
+                                                    } catch (e: any) {
+                                                        showToast(getActionableErrorMessage(e, lang), 'error');
+                                                    }
+                                                }}
+                                                className="px-6 py-3 bg-gradient-to-r from-emerald-500 to-teal-500 text-white rounded-[1.2rem] text-[10px] font-black uppercase tracking-[0.2em] hover:opacity-90 active:scale-95 transition-all shadow-xl shadow-emerald-500/25 relative z-10 flex items-center gap-2"
+                                            >
+                                                <CheckCircle size={12} /> {lang === 'ar' ? 'تم التوصيل' : 'Delivered'}
+                                            </button>
+                                        )}
                                         <p className="text-2xl font-black text-main w-36 text-right relative z-10">
                                             {order.total?.toFixed(2)} <span className="text-[10px] font-black uppercase tracking-widest opacity-50">{currencySymbol}</span>
                                         </p>
@@ -1280,7 +1323,7 @@ const CallCenter: React.FC = () => {
             )}
 
             {/* Modals */}
-            <CustomerRegistrationModal
+            <InlineCustomerRegistration
                 isOpen={showRegistrationModal}
                 onClose={() => setShowRegistrationModal(false)}
                 initialPhone={phoneSearch}
@@ -1298,6 +1341,9 @@ const CallCenter: React.FC = () => {
                 }}
                 branchId={selectedTrackingOrder?.branchId || ''}
                 orderId={selectedTrackingOrder?.id}
+                orderAddress={selectedTrackingOrder?.deliveryAddress || ''}
+                orderCustomer={selectedTrackingOrder?.customerName || ''}
+                totalAmount={selectedTrackingOrder?.total || 0}
                 lang={lang}
             />
 

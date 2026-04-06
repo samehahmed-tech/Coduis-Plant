@@ -4,6 +4,7 @@ import { campaigns, orders, customers } from '../../src/db/schema';
 import { and, desc, eq, gte, inArray, sql } from 'drizzle-orm';
 import { sendWhatsAppText } from '../services/whatsappService';
 import { nanoid } from 'nanoid';
+import logger from '../utils/logger';
 
 // Optional: keep dispatch logs in settings for now, or just don't log them extensively like before.
 import { settings } from '../../src/db/schema';
@@ -34,7 +35,7 @@ export const getCampaigns = async (_req: Request, res: Response) => {
 
         res.json(mapped);
     } catch (error: any) {
-        console.error('Error fetching campaigns:', error);
+        logger.error({ err: error }, 'Error fetching campaigns');
         res.status(500).json({ error: 'Failed to fetch campaigns' });
     }
 };
@@ -68,7 +69,7 @@ export const createCampaign = async (req: Request, res: Response) => {
             updatedAt: created.updatedAt?.toISOString()
         });
     } catch (error: any) {
-        console.error('Error creating campaign:', error);
+        logger.error({ err: error }, 'Error creating campaign');
         res.status(500).json({ error: 'Failed to create campaign' });
     }
 };
@@ -107,7 +108,7 @@ export const updateCampaign = async (req: Request, res: Response) => {
             updatedAt: updated.updatedAt?.toISOString()
         });
     } catch (error: any) {
-        console.error('Error updating campaign:', error);
+        logger.error({ err: error }, 'Error updating campaign');
         res.status(500).json({ error: 'Failed to update campaign' });
     }
 };
@@ -118,7 +119,7 @@ export const deleteCampaign = async (req: Request, res: Response) => {
         await db.delete(campaigns).where(eq(campaigns.id, id));
         res.json({ success: true });
     } catch (error: any) {
-        console.error('Error deleting campaign:', error);
+        logger.error({ err: error }, 'Error deleting campaign');
         res.status(500).json({ error: 'Failed to delete campaign' });
     }
 };
@@ -152,7 +153,7 @@ export const getCampaignStats = async (req: Request, res: Response) => {
             }
         });
     } catch (error: any) {
-        console.error('Error calculating campaign stats:', error);
+        logger.error({ err: error }, 'Error calculating campaign stats');
         res.status(500).json({ error: 'Failed to calculate stats' });
     }
 };
@@ -294,7 +295,7 @@ export const dispatchCampaign = async (req: Request, res: Response) => {
             dispatchId: dispatchLog.id,
         });
     } catch (error: any) {
-        console.error('Dispatch error:', error);
+        logger.error({ err: error }, 'Campaign dispatch error');
         return res.status(500).json({ error: error.message || 'CAMPAIGN_DISPATCH_FAILED' });
     }
 };

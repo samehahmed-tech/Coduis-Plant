@@ -1,6 +1,9 @@
 import { db } from '../db';
 import { inventoryStock, stockMovements, recipes, recipeIngredients, inventoryBatches, batchTransactions } from '../../src/db/schema';
 import { eq, and, asc, sql } from 'drizzle-orm';
+import logger from '../utils/logger';
+
+const log = logger.child({ service: 'inventory' });
 
 export const inventoryService = {
     /**
@@ -124,7 +127,7 @@ export const inventoryService = {
         }
 
         if (remainingQty > 0) {
-            console.error(`FEFO Deduction Warning: Insufficient stock for Item ${itemId}. Short by ${remainingQty}`);
+            log.warn({ itemId, warehouseId: movement?.warehouseId, shortBy: remainingQty }, 'FEFO Deduction Warning: Insufficient stock');
             throw new Error(`Insufficient inventory: Unable to fulfill ${remainingQty} units from batches.`);
         }
 

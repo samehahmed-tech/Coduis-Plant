@@ -407,7 +407,6 @@ const Reports: React.FC = () => {
          revenue: Number(row.revenue || 0),
          cost: Number(row.cogs || 0),
          profit: Number(row.grossProfit || 0),
-         tax: Number(row.tax || 0)
       }))
    ), [profitDaily]);
 
@@ -415,19 +414,27 @@ const Reports: React.FC = () => {
 
    return (
       <div ref={printableRootRef} className="flex h-screen bg-app overflow-hidden font-neo pb-20 md:pb-0 text-main relative z-10 transition-colors duration-500">
+         {/* Premium Animated Background Layer */}
+         <div className="fixed inset-0 pointer-events-none z-0 overflow-hidden">
+            <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-indigo-500/10 blur-[120px] rounded-full animate-pulse" />
+            <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-cyan-500/10 blur-[120px] rounded-full animate-pulse" style={{ animationDelay: '2s' }} />
+         </div>
+
          {/* Vertical Sidebar */}
-         <div className="w-20 md:w-64 flex-shrink-0 bg-card/80 backdrop-blur-xl border-r border-border/50 flex flex-col items-center md:items-stretch py-8 shadow-2xl z-20 overflow-y-auto no-scrollbar">
-            <div className="px-6 mb-8 hidden md:block">
-               <h2 className="text-xl lg:text-3xl font-black text-transparent bg-clip-text bg-gradient-to-r from-indigo-500 to-cyan-500 uppercase tracking-tighter flex items-center gap-3">
-                  <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-indigo-500 to-cyan-500 flex items-center justify-center text-white shadow-lg shadow-indigo-500/20">
-                     <ChartIcon size={18} strokeWidth={3} />
+         <div className="w-20 md:w-72 flex-shrink-0 bg-card/40 backdrop-blur-3xl border-r border-border/20 flex flex-col items-center md:items-stretch py-8 shadow-2xl z-20 overflow-y-auto no-scrollbar relative">
+            <div className="px-8 mb-10 hidden md:block">
+               <div className="flex items-center gap-4 group">
+                  <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-indigo-500 to-cyan-500 flex items-center justify-center text-white shadow-xl shadow-indigo-500/20 group-hover:scale-110 transition-transform duration-500">
+                     <ChartIcon size={24} strokeWidth={2.5} />
                   </div>
-                  Reports
-               </h2>
-               <p className="text-[10px] text-muted font-bold tracking-[0.2em] uppercase mt-2">Enterprise Insights</p>
+                  <div>
+                     <h2 className="text-2xl font-black text-main uppercase tracking-tighter leading-none">BI Hub</h2>
+                     <p className="text-[9px] text-muted font-black tracking-[0.25em] uppercase mt-1">Intelligence</p>
+                  </div>
+               </div>
             </div>
 
-            <nav className="flex-1 w-full space-y-2 px-2 md:px-4">
+            <nav className="flex-1 w-full space-y-1.5 px-3 md:px-4">
                {REPORT_CATEGORIES.map(category => {
                   const isActive = activeCategory === category.id;
                   const Icon = category.icon;
@@ -438,19 +445,22 @@ const Reports: React.FC = () => {
                               setActiveCategory(category.id);
                               setActiveSubReport(category.subReports[0]);
                            }}
-                           className={`w-full flex items-center justify-center md:justify-start gap-3 px-3 py-3.5 md:p-4 rounded-2xl transition-all duration-300 group ${isActive ? 'bg-gradient-to-r from-indigo-500 to-cyan-500 shadow-lg shadow-indigo-500/25 text-white' : 'hover:bg-elevated text-slate-500 hover:text-main'}`}
+                           className={`w-full flex items-center justify-center md:justify-start gap-4 px-3 py-4 md:p-5 rounded-[1.5rem] transition-all duration-500 group relative overflow-hidden ${isActive ? 'bg-indigo-500 text-white shadow-xl shadow-indigo-500/20' : 'hover:bg-card/60 text-slate-400 hover:text-main'}`}
                         >
-                           <Icon size={20} className={isActive ? 'text-white' : 'text-slate-400 group-hover:text-indigo-400'} strokeWidth={isActive ? 2.5 : 2} />
-                           <span className="hidden md:block text-xs font-black uppercase tracking-wider">{category.label}</span>
+                           {isActive && <div className="absolute inset-0 bg-gradient-to-r from-indigo-600 to-cyan-600 opacity-100" />}
+                           <div className="relative z-10">
+                              <Icon size={22} className={isActive ? 'text-white' : 'text-slate-500 group-hover:text-indigo-500'} strokeWidth={isActive ? 2.5 : 2} />
+                           </div>
+                           <span className="relative z-10 hidden md:block text-[11px] font-black uppercase tracking-widest leading-none">{category.label}</span>
                         </button>
 
                         {isActive && (
-                           <div className="hidden md:flex flex-col gap-1 mt-2 pl-4 border-l-2 border-indigo-500/20 ml-6 animate-in slide-in-from-top-2 duration-300">
+                           <div className="hidden md:flex flex-col gap-1 mt-3 pl-6 border-l-2 border-indigo-500 animate-in slide-in-from-left-4 duration-500 mb-6">
                               {category.subReports.map(sub => (
                                  <button
                                     key={sub}
                                     onClick={() => setActiveSubReport(sub)}
-                                    className={`text-left px-4 py-2 rounded-xl text-[10px] font-bold uppercase tracking-widest transition-all ${activeSubReport === sub ? 'bg-indigo-500/10 text-indigo-500' : 'text-muted hover:text-main hover:bg-elevated'}`}
+                                    className={`text-left px-4 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${activeSubReport === sub ? 'bg-indigo-500/10 text-indigo-500 shadow-sm' : 'text-muted/60 hover:text-main hover:bg-white/5'}`}
                                  >
                                     {sub}
                                  </button>
@@ -464,73 +474,77 @@ const Reports: React.FC = () => {
          </div>
 
          {/* Main Content Area */}
-         <div className="flex-1 flex flex-col h-full overflow-hidden relative">
-            <div className="absolute top-0 right-0 w-full h-[50vh] bg-gradient-to-b from-indigo-500/5 to-transparent pointer-events-none" />
-
-            {/* Header / Global Filters */}
-            <div className="flex-shrink-0 p-6 md:p-8 flex flex-col xl:flex-row justify-between items-start xl:items-center gap-4 border-b border-border/50 bg-card/95 z-10 sticky top-0">
-               <div>
-                  <h3 className="text-2xl font-black text-main flex items-center gap-3 uppercase tracking-tighter">
-                     {activeCategoryData?.icon && React.createElement(activeCategoryData.icon, { size: 24, className: "text-indigo-500" })}
-                     {activeSubReport}
-                  </h3>
-                  <p className="text-xs text-muted font-bold tracking-widest uppercase mt-1">
-                     {activeCategoryData?.label} Division
-                  </p>
+         <div className="flex-1 flex flex-col h-full overflow-hidden relative z-10">
+            {/* Premium Header */}
+            <header className="flex-shrink-0 px-8 py-8 flex flex-col xl:flex-row justify-between items-start xl:items-center gap-6 border-b border-border/10 bg-card/20 backdrop-blur-md sticky top-0 z-30">
+               <div className="flex items-center gap-6">
+                  <div className={`w-16 h-16 rounded-[2rem] bg-gradient-to-br transition-all duration-700 shadow-2xl flex items-center justify-center text-white`} style={{ background: `linear-gradient(135deg, ${activeCategoryData?.color}ee, ${activeCategoryData?.color}aa)` }}>
+                    {activeCategoryData?.icon && React.createElement(activeCategoryData.icon, { size: 32, strokeWidth: 2.5 })}
+                  </div>
+                  <div>
+                    <h1 className="text-3xl font-black text-main flex items-center gap-4 tracking-tighter uppercase leading-none">
+                       {activeSubReport}
+                    </h1>
+                    <div className="flex items-center gap-3 mt-2">
+                       <span className="text-[10px] text-white font-black bg-indigo-500 px-3 py-1 rounded-full uppercase tracking-widest shadow-lg shadow-indigo-500/20">{activeCategoryData?.label}</span>
+                       <span className="w-1.5 h-1.5 rounded-full bg-muted/30" />
+                       <span className="text-[10px] text-muted font-black tracking-widest uppercase">{activeBranchId ? branches.find(b => b.id === activeBranchId)?.name : 'Global Entity'}</span>
+                    </div>
+                  </div>
                </div>
 
-               <div className="flex flex-wrap items-center gap-3 w-full xl:w-auto">
-                  <div className="flex items-center gap-3 bg-elevated/80 border border-border/50 p-2 rounded-2xl shadow-sm">
-                     <Calendar size={16} className="text-indigo-500 ml-2" />
-                     <input
-                        type="date"
-                        value={dateRange.start}
-                        onChange={(e) => setDateRange(prev => ({ ...prev, start: e.target.value }))}
-                        className="bg-transparent text-[11px] font-black text-main outline-none min-w-[110px]"
-                     />
-                     <span className="text-muted/50 font-black">-</span>
-                     <input
-                        type="date"
-                        value={dateRange.end}
-                        onChange={(e) => setDateRange(prev => ({ ...prev, end: e.target.value }))}
-                        className="bg-transparent text-[11px] font-black text-main outline-none min-w-[110px] mr-2"
-                     />
+               <div className="flex flex-wrap items-center gap-4 w-full xl:w-auto">
+                  <div className="flex items-center gap-4 bg-card/60 backdrop-blur-xl border border-border/30 p-2 pl-5 rounded-[2rem] shadow-xl">
+                     <Calendar size={18} className="text-indigo-500" />
+                     <div className="flex items-center gap-2">
+                        <input
+                           type="date"
+                           value={dateRange.start}
+                           onChange={(e) => setDateRange(prev => ({ ...prev, start: e.target.value }))}
+                           className="bg-transparent text-[11px] font-black text-main outline-none focus:text-indigo-500 transition-colors"
+                        />
+                        <span className="text-muted/30 font-black">—</span>
+                        <input
+                           type="date"
+                           value={dateRange.end}
+                           onChange={(e) => setDateRange(prev => ({ ...prev, end: e.target.value }))}
+                           className="bg-transparent text-[11px] font-black text-main outline-none focus:text-indigo-500 transition-colors mr-3"
+                        />
+                     </div>
                      <button
                         onClick={() => setAppliedRange(dateRange)}
-                        className="px-4 py-2 rounded-xl bg-indigo-500 border border-indigo-400 text-[10px] font-black uppercase tracking-widest text-white shrink-0 hover:bg-indigo-600 transition-colors shadow-md"
+                        className="px-6 py-3 rounded-2xl bg-indigo-500 border-b-4 border-indigo-700 text-[11px] font-black uppercase tracking-widest text-white shrink-0 hover:bg-indigo-600 active:border-b-0 active:translate-y-1 transition-all shadow-xl shadow-indigo-500/20"
                      >
-                        Apply
+                        Sync Intelligence
                      </button>
                   </div>
 
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-3">
                      <button
                         onClick={handleExportCsv}
-                        className="flex items-center gap-2 px-4 py-2.5 rounded-2xl bg-emerald-500/10 text-emerald-600 hover:bg-emerald-500 hover:text-white border border-emerald-500/20 transition-all shadow-sm text-[10px] font-black uppercase tracking-widest"
-                        title="Export Excel / CSV"
+                        className="flex items-center gap-3 px-6 py-3.5 rounded-[1.5rem] bg-card/60 backdrop-blur-xl text-emerald-500 hover:bg-emerald-500 hover:text-white border border-border/30 transition-all shadow-lg text-[10px] font-black uppercase tracking-widest"
                      >
-                        <Download size={16} />
+                        <Download size={18} />
                         CSV
                      </button>
                      <button
                         onClick={() => handleExportPdf(activeCategory)}
-                        className="flex items-center gap-2 px-4 py-2.5 rounded-2xl bg-rose-500/10 text-rose-600 hover:bg-rose-500 hover:text-white border border-rose-500/20 transition-all shadow-sm text-[10px] font-black uppercase tracking-widest"
-                        title="Export PDF"
+                        className="flex items-center gap-3 px-6 py-3.5 rounded-[1.5rem] bg-card/60 backdrop-blur-xl text-rose-500 hover:bg-rose-500 hover:text-white border border-border/30 transition-all shadow-lg text-[10px] font-black uppercase tracking-widest"
                      >
-                        <Download size={16} />
+                        <Download size={18} />
                         PDF
                      </button>
                      <button
                         onClick={handlePrintCurrentReport}
-                        className="flex items-center gap-2 px-4 py-2.5 rounded-2xl bg-indigo-500/10 text-indigo-500 hover:bg-indigo-500 hover:text-white border border-indigo-500/20 transition-all shadow-sm text-[10px] font-black uppercase tracking-widest"
-                        title="Print Report"
+                        className="flex items-center gap-3 px-6 py-3.5 rounded-[1.5rem] bg-indigo-500 text-white hover:bg-indigo-600 transition-all shadow-xl shadow-indigo-500/20 text-[10px] font-black uppercase tracking-widest border-b-4 border-indigo-800 active:border-b-0 active:translate-y-1"
                      >
-                        <Printer size={16} />
+                        <Printer size={18} />
                         Print
                      </button>
                   </div>
                </div>
-            </div>
+            </header>
+
 
             {/* Content Scroll Area */}
             <div className="flex-1 overflow-y-auto p-6 md:p-8 space-y-8 no-scrollbar relative z-0 pb-32">
@@ -548,9 +562,6 @@ const Reports: React.FC = () => {
                   <div className="p-4 rounded-2xl bg-rose-500/10 border border-rose-500/20 text-rose-500 text-xs font-black uppercase tracking-widest flex items-center gap-3">
                      <Target size={16} />
                      {reportError}
-                  </div>
-               )}
-
                {integrity && (
                   <div className={`text-[10px] font-black uppercase tracking-widest ${integrity.ok ? 'text-emerald-500/70' : 'text-rose-500/70'} flex justify-end`}>
                      Data Integrity Link: {integrity.summary?.passed || 0}/{integrity.summary?.total || 0} Synced
@@ -560,50 +571,6 @@ const Reports: React.FC = () => {
 
                {/* Dynamic Content Routing */}
                {activeCategory === 'SALES' && activeSubReport === 'Daily Sales' && (
-                  <div className="grid grid-cols-1 xl:grid-cols-[2fr_1fr] gap-8 animate-in slide-in-from-bottom-5 duration-700">
-                     <div className="bg-card/80 backdrop-blur-xl p-8 md:p-10 rounded-[3.5rem] border border-border/50 shadow-2xl relative group">
-                        <div className="absolute inset-0 bg-gradient-to-br from-indigo-500/5 to-cyan-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-1000 pointer-events-none rounded-[3.5rem]" />
-                        <h3 className="text-3xl font-black text-main mb-10 tracking-tighter uppercase flex items-center gap-4">
-                           <div className="w-1.5 h-8 bg-gradient-to-b from-indigo-500 to-cyan-500 rounded-full" />
-                           Sales Distribution
-                        </h3>
-                        <div className="min-h-[260px] md:h-[340px] lg:h-[400px] w-full relative overflow-hidden z-10">
-                           <ResponsiveContainer width="100%" height="100%" minHeight={400} minWidth={0}>
-                              <BarChart data={salesSeries} margin={{ top: 10, right: 30, left: 10, bottom: 0 }}>
-                                 <defs>
-                                    <linearGradient id="colorBar" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor="#6366f1" /><stop offset="95%" stopColor="#06b6d4" /></linearGradient>
-                                 </defs>
-                                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="rgba(255,255,255,0.05)" />
-                                 <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: '#818cf8', fontWeight: 900 }} dy={10} />
-                                 <YAxis axisLine={false} tickLine={false} tick={{ fill: '#818cf8', fontSize: 12, fontWeight: 900 }} dx={-10} />
-                                 <Tooltip contentStyle={{ borderRadius: '1.5rem', backgroundColor: 'rgba(15,23,42,0.9)', backdropFilter: 'blur(12px)', border: '1px solid rgba(255,255,255,0.1)', boxShadow: '0 25px 50px -12px rgba(0,0,0,0.5)', padding: '24px' }} cursor={{ fill: 'rgba(255,255,255,0.02)' }} />
-                                 <Bar dataKey="revenue" fill="url(#colorBar)" radius={[12, 12, 12, 12]} barSize={48} />
-                              </BarChart>
-                           </ResponsiveContainer>
-                        </div>
-                     </div>
-
-                     <div className="bg-card/80 backdrop-blur-xl p-8 md:p-10 rounded-[3.5rem] border border-border/50 shadow-2xl flex flex-col relative overflow-hidden group">
-                        <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_0%,rgba(99,102,241,0.1),transparent_70%)] opacity-50" />
-                        <div className="relative z-10 flex flex-col items-center flex-1">
-                           <div className="w-20 h-20 rounded-[2rem] bg-indigo-500/10 flex items-center justify-center border border-indigo-500/20 mb-8 mt-4 shadow-inner">
-                              <Target size={40} className="text-indigo-500" />
-                           </div>
-                           <h3 className="text-3xl font-black text-main uppercase tracking-tighter mb-4">Payment Mix</h3>
-                           <p className="text-indigo-400 font-bold text-center max-w-xs mb-10 uppercase text-xs tracking-[0.2em] bg-indigo-500/10 px-4 py-2 rounded-xl">Live DB Tracker</p>
-
-                           <div className="w-full space-y-4 flex-1 overflow-y-auto no-scrollbar pr-1">
-                              {paymentSummary.length === 0 ? (
-                                 <div className="p-8 border-2 border-dashed border-border/50 rounded-3xl text-[10px] font-black uppercase tracking-widest text-muted text-center mt-8">No payments in selected range</div>
-                              ) : paymentSummary.map((p) => (
-                                 <div key={p.method} className="flex items-center justify-between rounded-2xl bg-elevated/50 border border-border/50 px-6 py-4 hover:border-indigo-500/50 hover:bg-elevated transition-colors group/item">
-                                    <span className="text-[11px] font-black uppercase tracking-[0.2em] text-muted group-hover/item:text-indigo-400 transition-colors">{p.method}</span>
-                                    <span className="text-sm md:text-base font-black text-main">{Number(p.total || 0).toLocaleString()} LE</span>
-                                 </div>
-                              ))}
-                           </div>
-                        </div>
-                     </div>
                   </div>
                )}
 

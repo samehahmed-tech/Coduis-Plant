@@ -10,6 +10,7 @@ import { createSignedAuditLog } from '../services/auditLogService';
 import crypto from 'crypto';
 import { buildOtpAuthUri, generateBase32Secret, verifyTotp } from '../services/totpService';
 import { validatePassword, getPasswordPolicyRules } from '../services/passwordPolicyService';
+import logger from '../utils/logger';
 
 const JWT_SECRET = requireEnv('JWT_SECRET');
 const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || '15m';
@@ -150,7 +151,7 @@ export const login = async (req: Request, res: Response) => {
             const policyResult = validatePassword(String(password));
             if (!policyResult.valid) {
                 // Accept weak password for legacy compatibility, but log warning
-                console.warn(`[AUTH] User ${user.email} set a weak password on first login. Recommend password change.`);
+                logger.warn({ email: user.email }, 'User set a weak password on first login — recommend password change');
             }
             const hash = await bcrypt.hash(password, 10);
             await db.update(users).set({ passwordHash: hash, updatedAt: new Date() }).where(eq(users.id, user.id));

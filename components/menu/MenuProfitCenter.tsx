@@ -62,6 +62,12 @@ const MenuProfitCenter: React.FC = () => {
     const [selectedBranchId, setSelectedBranchId] = useState<string | 'all'>('all');
     const [comparisonMode, setComparisonMode] = useState(false);
 
+    // Menu Design modal
+    const [showDesignModal, setShowDesignModal] = useState(false);
+    // Import modal
+    const [showImportModal, setShowImportModal] = useState(false);
+    const [importData, setImportData] = useState<string>('');
+
     // Keyboard shortcuts
     useEffect(() => {
         const handler = (e: KeyboardEvent) => {
@@ -267,6 +273,67 @@ const MenuProfitCenter: React.FC = () => {
         ? allItems.reduce((s, i) => s + (i.cost && i.price > 0 ? ((i.price - i.cost) / i.price) * 100 : 0), 0) / allItems.length
         : 0;
 
+    // --- Excel Export ---
+    const handleExportMenu = useCallback(() => {
+        const headers = ['Name', 'Name (AR)', 'Category', 'Price', 'Cost', 'Margin %', 'SKU', 'Barcode', 'Available', 'Tags'];
+        const rows = allItems.map(i => {
+            const margin = i.cost && i.price > 0 ? ((i.price - i.cost) / i.price * 100).toFixed(1) : '';
+            return [
+                i.name, i.nameAr || '', (i as any)._categoryName || '', i.price, i.cost || '',
+                margin, i.sku || '', i.barcode || '', i.isAvailable ? 'Yes' : 'No',
+                (i.tags || []).join('; ')
+            ];
+        });
+        const csv = [headers, ...rows].map(r => r.map(c => `"${String(c).replace(/"/g, '""')}"`).join(',')).join('\n');
+        const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `menu_${selectedMenu?.name || 'export'}_${new Date().toISOString().slice(0, 10)}.csv`;
+        a.click();
+        URL.revokeObjectURL(url);
+    }, [allItems, selectedMenu]);
+
+    // --- Excel Import ---
+    const handleImportMenu = useCallback(() => {
+        setShowImportModal(true);
+    }, []);
+
+    const handleImportConfirm = useCallback(() => {
+        if (!importData.trim()) return;
+        try {
+            const lines = importData.trim().split('\n');
+            if (lines.length < 2) return;
+            const firstCat = filteredCategories[0];
+            if (!firstCat) return;
+            // Skip header
+            for (let i = 1; i < lines.length; i++) {
+                const cols = lines[i].split(',').map(c => c.replace(/^"|"$/g, '').replace(/""/g, '"').trim());
+                if (!cols[0]) continue;
+                const name = cols[0];
+                const nameAr = cols[1] || '';
+                const price = parseFloat(cols[3]) || 0;
+                const cost = parseFloat(cols[4]) || 0;
+                const sku = cols[6] || '';
+                const barcode = cols[7] || '';
+                const isAvailable = (cols[8] || 'Yes').toLowerCase() !== 'no';
+                addMenuItem(selectedMenuId, firstCat.id, {
+                    id: `item-${Date.now()}-${i}`,
+                    name, nameAr, price, cost, sku, barcode, isAvailable,
+                    categoryId: firstCat.id,
+                    modifierGroups: [], priceLists: [], printerIds: [],
+                });
+            }
+            setShowImportModal(false);
+            setImportData('');
+        } catch (err) { console.error('Import failed', err); }
+    }, [importData, filteredCategories, selectedMenuId, addMenuItem]);
+
+    // --- Menu Design ---
+    const handleDesignMenu = useCallback(() => {
+        setShowDesignModal(true);
+    }, []);
+
     // --- Loading ---
     if (isLoading && categories.length === 0) {
         return (
@@ -369,6 +436,9 @@ const MenuProfitCenter: React.FC = () => {
                         onSelectBranch={setSelectedBranchId}
                         comparisonMode={comparisonMode}
                         onToggleComparison={() => setComparisonMode(!comparisonMode)}
+                        onExport={handleExportMenu}
+                        onImport={handleImportMenu}
+                        onDesignMenu={handleDesignMenu}
                     />
 
                     {/* BREADCRUMB + METRICS STRIP */}
@@ -603,6 +673,85 @@ const MenuProfitCenter: React.FC = () => {
                     } : undefined}
                     lang={lang}
                 />
+            )}
+
+            {/* IMPORT MODAL */}
+            {showImportModal && (
+                <div className="fixed inset-0 z-[100] flex items-center justify-center">
+                    <div className="absolute inset-0 bg-slate-950/60" onClick={() => setShowImportModal(false)} />
+                    <div className="relative w-full max-w-lg bg-card rounded-lg shadow-2xl border border-border/20 p-6 space-y-4 animate-in zoom-in-95 duration-200">
+                        <div className="flex items-center justify-between">
+                            <h3 className="text-[15px] font-semibold text-main">{lang === 'ar' ? 'استيراد من CSV' : 'Import from CSV'}</h3>
+                            <button onClick={() => setShowImportModal(false)} className="p-2 rounded-md text-muted/70 hover:text-main hover:bg-white/[0.05] border border-border/30"><X size={16} /></button>
+                        </div>
+                        <p className="text-[12px] text-muted/70">{lang === 'ar' ? 'الصق بيانات CSV (العنوان: Name, Name (AR), Category, Price, Cost, Margin%, SKU, Barcode, Available, Tags)' : 'Paste CSV data (header: Name, Name (AR), Category, Price, Cost, Margin%, SKU, Barcode, Available, Tags)'}</p>
+                        <textarea
+                            rows={10}
+                            value={importData}
+                            onChange={e => setImportData(e.target.value)}
+                            placeholder={`Name,Name (AR),Category,Price,Cost,Margin%,SKU,Barcode,Available,Tags\nClassic Burger,برجر كلاسيك,Burgers,85,30,,SKU-001,,Yes,best-seller`}
+                            className="w-full bg-elevated/50 rounded-md border border-border/30 p-3 text-[12px] text-main outline-none focus:border-indigo-500/50 focus:ring-1 focus:ring-indigo-500/50 font-mono resize-none placeholder:text-muted/30"
+                        />
+                        <div className="flex gap-3">
+                            <button onClick={() => setShowImportModal(false)} className="flex-1 h-9 rounded-md border border-border/30 text-[12px] font-medium text-main hover:bg-white/[0.02]">
+                                {lang === 'ar' ? 'إلغاء' : 'Cancel'}
+                            </button>
+                            <button onClick={handleImportConfirm} disabled={!importData.trim()} className="flex-[2] h-9 rounded-md bg-indigo-500 hover:bg-indigo-600 text-white text-[12px] font-medium disabled:opacity-50 flex items-center justify-center gap-2">
+                                {lang === 'ar' ? 'استيراد الأصناف' : 'Import Items'}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* MENU DESIGN MODAL */}
+            {showDesignModal && (
+                <div className="fixed inset-0 z-[100] flex items-center justify-center">
+                    <div className="absolute inset-0 bg-slate-950/60" onClick={() => setShowDesignModal(false)} />
+                    <div className="relative w-full max-w-4xl max-h-[90vh] bg-white dark:bg-card rounded-lg shadow-2xl border border-border/20 overflow-hidden flex flex-col animate-in zoom-in-95 duration-200">
+                        <div className="p-5 border-b border-gray-200 dark:border-white/[0.05] flex items-center justify-between">
+                            <div>
+                                <h3 className="text-[16px] font-semibold text-gray-900 dark:text-main">{lang === 'ar' ? 'تصميم المنيو للطباعة' : 'Menu Design Preview'}</h3>
+                                <p className="text-[11px] text-gray-500 dark:text-muted/60 mt-0.5">{lang === 'ar' ? 'معاينة قبل الطباعة أو مشاركة رابط' : 'Preview before print or share link'}</p>
+                            </div>
+                            <div className="flex items-center gap-2">
+                                <button onClick={() => window.print()} className="h-8 flex items-center gap-1.5 px-4 rounded-lg bg-indigo-500 hover:bg-indigo-600 text-white text-[12px] font-medium transition-colors">
+                                    {lang === 'ar' ? 'طباعة' : 'Print'}
+                                </button>
+                                <button onClick={() => setShowDesignModal(false)} className="p-2 rounded-md text-muted/70 hover:text-main hover:bg-white/[0.05] border border-border/30"><X size={16} /></button>
+                            </div>
+                        </div>
+                        <div className="flex-1 overflow-y-auto p-8 bg-gray-50 dark:bg-elevated/30" id="menu-print-area">
+                            <div className="max-w-2xl mx-auto bg-white dark:bg-card p-8 rounded-lg shadow-sm border border-gray-200 dark:border-border/20 print:shadow-none print:border-0">
+                                <div className="text-center mb-8">
+                                    <h1 className="text-3xl font-bold text-gray-900 dark:text-main">{selectedMenu?.name || 'Menu'}</h1>
+                                    {selectedMenu?.nameAr && <p className="text-lg text-gray-500 dark:text-muted mt-1 font-medium" dir="rtl">{selectedMenu.nameAr}</p>}
+                                </div>
+                                {filteredCategories.map(cat => (
+                                    <div key={cat.id} className="mb-8">
+                                        <h2 className="text-xl font-bold text-gray-800 dark:text-main border-b-2 border-indigo-500 pb-2 mb-4">
+                                            {lang === 'ar' ? (cat.nameAr || cat.name) : cat.name}
+                                        </h2>
+                                        <div className="space-y-3">
+                                            {cat.items.filter(i => i.isAvailable && !i.archivedAt).map(item => (
+                                                <div key={item.id} className="flex items-start justify-between py-2 border-b border-gray-100 dark:border-white/5 last:border-0">
+                                                    <div className="flex-1">
+                                                        <div className="flex items-center gap-2">
+                                                            <p className="text-[14px] font-semibold text-gray-800 dark:text-main">{lang === 'ar' ? (item.nameAr || item.name) : item.name}</p>
+                                                            {item.dietaryBadges?.map(b => <span key={b} className="text-[9px] px-1.5 py-0.5 rounded bg-gray-100 dark:bg-elevated text-gray-500 dark:text-muted font-medium">{b}</span>)}
+                                                        </div>
+                                                        {item.description && <p className="text-[11px] text-gray-400 dark:text-muted/60 mt-0.5 max-w-md">{lang === 'ar' ? (item.descriptionAr || item.description) : item.description}</p>}
+                                                    </div>
+                                                    <p className="text-[14px] font-bold text-gray-900 dark:text-main ml-4 shrink-0">{settings.currencySymbol}{item.price.toFixed(2)}</p>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    </div>
+                </div>
             )}
         </div>
     );

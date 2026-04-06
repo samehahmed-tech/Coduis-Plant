@@ -1,16 +1,16 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import {
-    X, Save, Trash2, Plus, Minus, Sparkles,
+    X, Save, Trash2, Plus, Minus, Sparkles, Scale,
     LayoutGrid, Printer as PrinterIcon, Layers, Clock,
     DollarSign, Globe, History, Package, ImageIcon
 } from 'lucide-react';
-import { MenuItem, MenuCategory, Printer, Branch, InventoryItem, ModifierGroup, ModifierOption, ItemSize, PlatformPrice } from '../../types';
+import { MenuItem, MenuCategory, Printer, Branch, InventoryItem, ModifierGroup, ModifierOption, ItemSize, PlatformPrice, RecipeIngredient } from '../../types';
 import ImageUploader from '../common/ImageUploader';
 import BarcodeScanner from '../common/BarcodeScanner';
 import { barcodeApi } from '../../services/api';
 
-type DrawerTab = 'BASIC' | 'SIZES' | 'MODIFIERS' | 'PRICING' | 'PLATFORMS' | 'SCHEDULE' | 'HISTORY';
+type DrawerTab = 'BASIC' | 'SIZES' | 'MODIFIERS' | 'RECIPE' | 'PRICING' | 'PLATFORMS' | 'SCHEDULE' | 'HISTORY';
 
 interface Props {
     item: MenuItem;
@@ -67,6 +67,7 @@ const ItemDrawer: React.FC<Props> = ({
         { id: 'BASIC', icon: LayoutGrid, labelEn: 'Basic', labelAr: 'أساسي' },
         { id: 'SIZES', icon: Package, labelEn: 'Sizes', labelAr: 'الأحجام' },
         { id: 'MODIFIERS', icon: Layers, labelEn: 'Modifiers', labelAr: 'الإضافات' },
+        { id: 'RECIPE', icon: Scale, labelEn: 'Recipe', labelAr: '\u0627\u0644\u0631\u064a\u0633\u0628\u064a' },
         { id: 'PRICING', icon: DollarSign, labelEn: 'Pricing', labelAr: 'الأسعار' },
         { id: 'PLATFORMS', icon: Globe, labelEn: 'Platforms', labelAr: 'المنصات' },
         { id: 'SCHEDULE', icon: Clock, labelEn: 'Schedule', labelAr: 'الجدولة' },
@@ -105,6 +106,35 @@ const ItemDrawer: React.FC<Props> = ({
         update({ printerIds: current.includes(pId) ? current.filter(id => id !== pId) : [...current, pId] });
     };
 
+    // Recipe handlers
+    const [recipeIngredientId, setRecipeIngredientId] = useState('');
+    const [recipeIngredientQty, setRecipeIngredientQty] = useState(0);
+
+    const addRecipeIngredient = () => {
+        if (!recipeIngredientId || recipeIngredientQty <= 0) return;
+        const inv = inventory.find(i => i.id === recipeIngredientId);
+        if (!inv) return;
+        const existing = item.recipe || [];
+        const found = existing.find(r => r.itemId === recipeIngredientId);
+        if (found) {
+            update({ recipe: existing.map(r => r.itemId === recipeIngredientId ? { ...r, quantity: r.quantity + recipeIngredientQty } : r) });
+        } else {
+            update({ recipe: [...existing, { itemId: recipeIngredientId, quantity: recipeIngredientQty, unit: String(inv.unit) }] });
+        }
+        setRecipeIngredientId('');
+        setRecipeIngredientQty(0);
+    };
+
+    const removeRecipeIngredient = (iId: string) => {
+        update({ recipe: (item.recipe || []).filter(r => r.itemId !== iId) });
+    };
+
+    const recipeCost = (item.recipe || []).reduce((sum, r) => {
+        const inv = inventory.find(i => i.id === r.itemId);
+        return sum + (inv ? inv.costPrice * r.quantity : 0);
+    }, 0);
+    const recipeMargin = item.price > 0 && recipeCost > 0 ? ((item.price - recipeCost) / item.price * 100) : null;
+
     // Day toggle
     const toggleDay = (dayId: string) => {
         const current = item.availableDays || [];
@@ -142,61 +172,94 @@ const ItemDrawer: React.FC<Props> = ({
     const margin = item.cost && item.price > 0 ? ((item.price - item.cost) / item.price * 100) : null;
     const marginColor = margin === null ? 'text-muted' : margin >= 30 ? 'text-emerald-500' : margin >= 15 ? 'text-amber-500' : 'text-rose-500';
 
-    const inputCls = "w-full h-9 px-3 bg-elevated/50 rounded-md border border-border/30 focus:border-indigo-500/50 focus:ring-1 focus:ring-indigo-500/50 outline-none transition-all text-[13px] text-main placeholder:text-muted/50";
-    const labelCls = "text-[11px] font-semibold text-muted/80 mb-1.5 block";
+    const inputCls = "w-full h-10 px-3.5 bg-white/[0.04] rounded-xl border border-white/[0.08] focus:border-indigo-500/60 focus:ring-2 focus:ring-indigo-500/20 outline-none transition-all duration-200 text-[13px] text-main placeholder:text-muted/40 hover:border-white/[0.14]";
+    const labelCls = "text-[11px] font-semibold text-muted/70 uppercase tracking-wider mb-2 block";
 
     return (
         <div className="fixed inset-0 z-[100] flex justify-end">
             {/* Backdrop */}
-            <div className="absolute inset-0 bg-slate-950/60 backdrop-blur-sm" onClick={onClose} />
+            <div className="absolute inset-0 bg-black/50" onClick={onClose} style={{ animation: 'fadeIn 200ms ease-out' }} />
 
             {/* Drawer */}
-            <div className="relative w-full max-w-xl bg-card shadow-2xl flex flex-col overflow-hidden animate-in slide-in-from-right duration-200">
-                {/* Header (Clean SaaS) */}
-                <div className="px-6 py-4 border-b border-white/[0.05] flex items-center justify-between">
-                    <div>
-                        <h3 className="text-lg font-semibold text-main">
-                            {mode === 'ADD' ? (lang === 'ar' ? 'صنف جديد' : 'New Item') : (lang === 'ar' ? 'تعديل الصنف' : 'Edit Item')}
-                        </h3>
-                        {margin !== null && (
-                            <p className={`text-[11px] font-medium mt-0.5 ${marginColor}`}>
-                                {lang === 'ar' ? 'هامش الربح' : 'Margin'}: {margin.toFixed(1)}%
-                            </p>
-                        )}
-                    </div>
-                    <div className="flex items-center gap-2">
-                        {onDelete && (
-                            <button onClick={onDelete} className="p-2 rounded-md text-muted/70 hover:text-rose-400 hover:bg-rose-500/10 transition-colors border border-transparent">
-                                <Trash2 size={16} />
+            <div className="relative w-full max-w-[560px] bg-gradient-to-b from-[#1a1b2e] to-[#141520] shadow-2xl shadow-black/50 flex flex-col overflow-hidden" style={{ animation: 'slideInRight 300ms cubic-bezier(0.16, 1, 0.3, 1)' }}>
+
+                {/* Header — Premium with image preview */}
+                <div className="relative px-6 pt-5 pb-4">
+                    {/* Gradient accent line */}
+                    <div className="absolute top-0 left-0 right-0 h-[2px] bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 opacity-80" />
+
+                    <div className="flex items-start gap-4">
+                        {/* Image thumbnail */}
+                        <div className="w-14 h-14 rounded-xl overflow-hidden border border-white/[0.08] shrink-0 bg-white/[0.03]">
+                            {item.image ? (
+                                <img src={item.image} alt="" className="w-full h-full object-cover" />
+                            ) : (
+                                <div className="w-full h-full flex items-center justify-center text-muted/20">
+                                    <ImageIcon size={20} />
+                                </div>
+                            )}
+                        </div>
+
+                        {/* Title + meta */}
+                        <div className="flex-1 min-w-0">
+                            <h3 className="text-[17px] font-bold text-white tracking-tight truncate">
+                                {item.name || (mode === 'ADD' ? (lang === 'ar' ? 'صنف جديد' : 'New Item') : (lang === 'ar' ? 'تعديل الصنف' : 'Edit Item'))}
+                            </h3>
+                            <div className="flex items-center gap-2 mt-1.5">
+                                {item.price > 0 && (
+                                    <span className="text-[12px] font-semibold text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-full">
+                                        {currency}{item.price.toFixed(2)}
+                                    </span>
+                                )}
+                                {margin !== null && (
+                                    <span className={`text-[11px] font-semibold px-2 py-0.5 rounded-full ${margin >= 30 ? 'text-emerald-400 bg-emerald-500/10' : margin >= 15 ? 'text-amber-400 bg-amber-500/10' : 'text-rose-400 bg-rose-500/10'}`}>
+                                        {margin.toFixed(0)}% {lang === 'ar' ? 'هامش' : 'margin'}
+                                    </span>
+                                )}
+                                {item.sku && (
+                                    <span className="text-[10px] font-mono text-muted/50 bg-white/[0.03] px-1.5 py-0.5 rounded">{item.sku}</span>
+                                )}
+                            </div>
+                        </div>
+
+                        {/* Actions */}
+                        <div className="flex items-center gap-1.5 shrink-0">
+                            {onDelete && (
+                                <button onClick={onDelete} className="p-2 rounded-lg text-white/30 hover:text-rose-400 hover:bg-rose-500/10 transition-all duration-200">
+                                    <Trash2 size={16} />
+                                </button>
+                            )}
+                            <button onClick={onClose} className="p-2 rounded-lg text-white/40 hover:text-white hover:bg-white/[0.08] transition-all duration-200">
+                                <X size={16} />
                             </button>
-                        )}
-                        <button onClick={onClose} className="p-2 rounded-md text-muted/70 hover:text-main hover:bg-white/[0.05] transition-colors border border-border/30">
-                            <X size={16} />
-                        </button>
+                        </div>
                     </div>
                 </div>
 
-                {/* Tab Nav (Segmented Control Style) */}
-                <div className="px-6 py-3 border-b border-white/[0.05] overflow-x-auto no-scrollbar">
-                    <div className="flex bg-elevated/50 rounded-md p-1 border border-white/[0.02] w-fit">
+                {/* Tab Nav — Modern underline style */}
+                <div className="px-6 border-b border-white/[0.06] overflow-x-auto no-scrollbar">
+                    <div className="flex gap-0.5">
                         {tabs.map(t => (
                             <button
                                 key={t.id}
                                 onClick={() => setTab(t.id)}
-                                className={`flex items-center gap-1.5 px-3 py-1.5 rounded text-[11px] font-medium whitespace-nowrap transition-colors ${tab === t.id
-                                    ? 'bg-card text-main shadow-sm ring-1 ring-white/5'
-                                    : 'text-muted/70 hover:text-main hover:bg-white/[0.02]'
+                                className={`relative flex items-center gap-1.5 px-3 py-3 text-[11px] font-semibold whitespace-nowrap transition-all duration-200 rounded-t-md ${tab === t.id
+                                    ? 'text-white'
+                                    : 'text-white/35 hover:text-white/60 hover:bg-white/[0.02]'
                                     }`}
                             >
-                                <t.icon size={13} className={tab === t.id ? 'text-indigo-400' : 'opacity-50'} />
+                                <t.icon size={13} className={tab === t.id ? 'text-indigo-400' : ''} />
                                 {lang === 'ar' ? t.labelAr : t.labelEn}
+                                {tab === t.id && (
+                                    <span className="absolute bottom-0 left-2 right-2 h-[2px] bg-gradient-to-r from-indigo-500 to-purple-500 rounded-full" />
+                                )}
                             </button>
                         ))}
                     </div>
                 </div>
 
                 {/* Content */}
-                <div className="flex-1 overflow-y-auto p-6 space-y-6 no-scrollbar">
+                <div className="flex-1 overflow-y-auto p-6 space-y-5 no-scrollbar" style={{ scrollBehavior: 'smooth' }}>
 
                     {/* BASIC TAB */}
                     {tab === 'BASIC' && (
@@ -443,6 +506,91 @@ const ItemDrawer: React.FC<Props> = ({
                         </div>
                     )}
 
+                    {/* RECIPE TAB */}
+                    {tab === 'RECIPE' && (
+                        <div className="space-y-4 animate-in fade-in duration-200">
+                            {(item.recipe || []).length > 0 && (
+                                <div className="grid grid-cols-3 gap-3">
+                                    <div className="p-3 bg-elevated/30 rounded-md border border-border/20 text-center">
+                                        <p className="text-[10px] text-muted/60 font-semibold uppercase">{lang === 'ar' ? 'تكلفة الريسبي' : 'Recipe Cost'}</p>
+                                        <p className="text-[14px] font-bold text-amber-500 mt-1">{currency}{recipeCost.toFixed(2)}</p>
+                                    </div>
+                                    <div className="p-3 bg-elevated/30 rounded-md border border-border/20 text-center">
+                                        <p className="text-[10px] text-muted/60 font-semibold uppercase">{lang === 'ar' ? 'سعر البيع' : 'Sell Price'}</p>
+                                        <p className="text-[14px] font-bold text-emerald-500 mt-1">{currency}{item.price.toFixed(2)}</p>
+                                    </div>
+                                    <div className="p-3 bg-elevated/30 rounded-md border border-border/20 text-center">
+                                        <p className="text-[10px] text-muted/60 font-semibold uppercase">{lang === 'ar' ? 'الهامش' : 'Margin'}</p>
+                                        <p className={`text-[14px] font-bold mt-1 ${recipeMargin !== null ? (recipeMargin >= 30 ? 'text-emerald-500' : recipeMargin >= 15 ? 'text-amber-500' : 'text-rose-500') : 'text-muted/50'}`}>
+                                            {recipeMargin !== null ? recipeMargin.toFixed(0) + '%' : '—'}
+                                        </p>
+                                    </div>
+                                </div>
+                            )}
+                            <div className="flex items-center justify-between">
+                                <label className={labelCls}>{lang === 'ar' ? 'مكونات الريسبي' : 'Recipe Ingredients'}</label>
+                                <span className="text-[10px] text-muted/50">{(item.recipe || []).length} {lang === 'ar' ? 'مكون' : 'items'}</span>
+                            </div>
+                            {(item.recipe || []).length === 0 && (
+                                <div className="text-center py-10 bg-elevated/30 rounded-md border border-dashed border-border/30">
+                                    <Scale size={24} className="mx-auto mb-2 text-muted/30" />
+                                    <p className="text-[12px] font-medium text-muted/70">{lang === 'ar' ? 'لم يتم إضافة مكونات بعد' : 'No ingredients added yet'}</p>
+                                </div>
+                            )}
+                            <div className="space-y-2">
+                                {(item.recipe || []).map(ri => {
+                                    const inv = inventory.find(i => i.id === ri.itemId);
+                                    const lineCost = inv ? inv.costPrice * ri.quantity : 0;
+                                    return (
+                                        <div key={ri.itemId} className="flex items-center gap-3 p-3 bg-elevated/30 rounded-md border border-border/20 group">
+                                            <div className="flex-1 min-w-0">
+                                                <p className="text-[12px] font-medium text-main truncate">{inv?.name || ri.itemId}</p>
+                                                <p className="text-[10px] text-muted/60">{ri.quantity} {ri.unit} × {currency}{inv?.costPrice?.toFixed(2) || '0.00'}</p>
+                                            </div>
+                                            <span className="text-[12px] font-medium text-amber-500 shrink-0">{currency}{lineCost.toFixed(2)}</span>
+                                            <input type="number" step="0.01" value={ri.quantity}
+                                                onChange={e => { const qty = parseFloat(e.target.value) || 0; update({ recipe: (item.recipe || []).map(r => r.itemId === ri.itemId ? { ...r, quantity: qty } : r) }); }}
+                                                className={`${inputCls} w-20 text-center`} />
+                                            <button onClick={() => removeRecipeIngredient(ri.itemId)} className="h-8 w-8 flex items-center justify-center rounded-md border border-border/20 text-muted/50 hover:text-rose-400 hover:border-rose-500/30 transition-colors opacity-0 group-hover:opacity-100">
+                                                <Trash2 size={13} />
+                                            </button>
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                            <div className="p-4 bg-amber-500/5 rounded-md border border-amber-500/20 space-y-3">
+                                <p className="text-[10px] font-semibold uppercase tracking-wider text-amber-500 flex items-center gap-1.5"><Plus size={12} /> {lang === 'ar' ? 'إضافة مكون' : 'Add Ingredient'}</p>
+                                <div className="grid grid-cols-2 gap-3">
+                                    <div>
+                                        <label className={labelCls}>{lang === 'ar' ? 'صنف المخزون' : 'Inventory Item'}</label>
+                                        <div className="relative">
+                                            <select value={recipeIngredientId} onChange={e => setRecipeIngredientId(e.target.value)} className={`${inputCls} appearance-none cursor-pointer pr-8`}>
+                                                <option value="">{lang === 'ar' ? 'اختر صنف...' : 'Select item...'}</option>
+                                                {inventory.map(inv => <option key={inv.id} value={inv.id}>{inv.name} ({inv.unit})</option>)}
+                                            </select>
+                                            <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-muted/50">▼</div>
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <label className={labelCls}>{lang === 'ar' ? 'الكمية' : 'Quantity'}</label>
+                                        <input type="number" step="0.01" value={recipeIngredientQty || ''} onChange={e => setRecipeIngredientQty(parseFloat(e.target.value) || 0)} placeholder="0.00" className={inputCls} />
+                                    </div>
+                                </div>
+                                <button onClick={addRecipeIngredient} disabled={!recipeIngredientId || recipeIngredientQty <= 0}
+                                    className="w-full h-9 bg-amber-500/10 text-amber-500 hover:bg-amber-500/20 rounded-md text-[12px] font-medium transition-colors disabled:opacity-50 flex items-center justify-center gap-1.5">
+                                    <Plus size={14} /> {lang === 'ar' ? 'أضف للريسبي' : 'Add to Recipe'}
+                                </button>
+                            </div>
+                            {recipeCost > 0 && item.cost !== parseFloat(recipeCost.toFixed(2)) && (
+                                <button onClick={() => update({ cost: parseFloat(recipeCost.toFixed(2)) })}
+                                    className="w-full flex items-center justify-center gap-2 h-9 bg-indigo-500/10 text-indigo-400 rounded-md text-[12px] font-medium hover:bg-indigo-500/20 transition-colors">
+                                    <Sparkles size={14} />
+                                    {lang === 'ar' ? 'تحديث التكلفة: ' + currency + recipeCost.toFixed(2) : 'Sync Cost from Recipe: ' + currency + recipeCost.toFixed(2)}
+                                </button>
+                            )}
+                        </div>
+                    )}
+
                     {/* PRICING TAB */}
                     {tab === 'PRICING' && (
                         <div className="space-y-4 animate-in fade-in duration-200">
@@ -593,15 +741,15 @@ const ItemDrawer: React.FC<Props> = ({
                     )}
                 </div>
 
-                {/* Footer (Clean flat buttons) */}
-                <div className="p-4 border-t border-white/[0.05] bg-card flex gap-3">
-                    <button onClick={onClose} className="flex-1 h-9 rounded-md border border-border/30 text-[12px] font-medium text-main hover:bg-white/[0.02] transition-colors">
+                {/* Footer — Premium elevated */}
+                <div className="p-4 border-t border-white/[0.06] bg-gradient-to-t from-black/20 to-transparent backdrop-blur-sm flex gap-3">
+                    <button onClick={onClose} className="flex-1 h-10 rounded-xl border border-white/[0.1] text-[12px] font-semibold text-white/60 hover:text-white hover:bg-white/[0.05] hover:border-white/[0.15] transition-all duration-200">
                         {lang === 'ar' ? 'إلغاء' : 'Cancel'}
                     </button>
                     <button
                         onClick={() => onSave(item, activeCategoryId)}
                         disabled={!item.name.trim()}
-                        className="flex-[2] h-9 rounded-md bg-indigo-500 hover:bg-indigo-600 text-white text-[12px] font-medium transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+                        className="flex-[2] h-10 rounded-xl bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-400 hover:to-purple-500 text-white text-[12px] font-semibold transition-all duration-200 disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2 shadow-lg shadow-indigo-500/25 hover:shadow-indigo-500/40"
                     >
                         <Save size={14} /> {lang === 'ar' ? 'حفظ الصنف' : 'Save Item'}
                     </button>

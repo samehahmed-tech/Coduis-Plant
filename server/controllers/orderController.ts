@@ -1,6 +1,6 @@
 import { Request, Response } from 'express';
 import { db } from '../db';
-import { orders, orderItems, orderStatusHistory, payments, warehouses, shifts, settings, idempotencyKeys, menuItems } from '../../src/db/schema';
+import { orders, orderItems, orderStatusHistory, payments, warehouses, shifts, settings, idempotencyKeys, menuItems, drivers } from '../../src/db/schema';
 import { eq, and, desc, gte, lte, inArray, gt } from 'drizzle-orm';
 import { inventoryService } from '../services/inventoryService';
 import { getStringParam } from '../utils/request';
@@ -9,6 +9,9 @@ import { submitOrderToFiscal } from '../services/fiscalSubmitService';
 import { postPosOrderEntry } from '../services/financePostingService';
 import { buildRequestHash, getIdempotencyKeyFromRequest, sanitizeIdempotencyPayload } from '../services/idempotencyService';
 import { evaluateOrderStatusUpdate } from '../services/orderStatusPolicy';
+import { webhookService } from '../services/webhookService';
+import { analyticsService } from '../services/analyticsService';
+import { loyaltyService } from '../services/loyaltyService';
 import { randomUUID } from 'crypto';
 
 const ORDER_CREATE_SCOPE = 'ORDER_CREATE';
@@ -506,6 +509,26 @@ export const createOrder = async (req: Request, res: Response) => {
             // socket is optional
         }
 
+        // Analytics & Loyalty hooks (non-blocking)
+        if (['COMPLETED', 'DELIVERED'].includes(String(savedOrder.status))) {
+            analyticsService.recordOrderImpact(savedOrder.id).catch(() => {});
+            if (savedOrder.customerId) {
+                loyaltyService.awardPoints(savedOrder.customerId, Number(savedOrder.total || 0), savedOrder.branchId || undefined).catch(() => {});
+            }
+        }
+
+        // Webhook: notify external integrations (non-blocking)
+        webhookService.dispatch('order.created', {
+            id: savedOrder.id,
+            orderNumber: savedOrder.orderNumber,
+            type: savedOrder.type,
+            status: savedOrder.status,
+            total: savedOrder.total,
+            branchId: savedOrder.branchId,
+            customerId: savedOrder.customerId,
+            createdAt: savedOrder.createdAt,
+        }, savedOrder.branchId || undefined).catch(() => {});
+
         // Finance posting: POS sale journal entry (non-blocking)
         postPosOrderEntry({
             orderId: savedOrder.id,
@@ -690,6 +713,13 @@ export const updateOrderStatus = async (req: Request, res: Response) => {
                 createdAt: new Date(),
             });
 
+            // Auto-release driver when order is DELIVERED or CANCELLED
+            if (['DELIVERED', 'COMPLETED', 'CANCELLED'].includes(nextStatus) && updatedOrder.driverId) {
+                await tx.update(drivers)
+                    .set({ status: 'AVAILABLE' })
+                    .where(eq(drivers.id, updatedOrder.driverId));
+            }
+
             return updatedOrder;
         });
 
@@ -716,12 +746,40 @@ export const updateOrderStatus = async (req: Request, res: Response) => {
             const branchRoom = result.branchId ? `branch:${result.branchId}` : null;
             if (branchRoom) {
                 getIO().to(branchRoom).emit('order:status', { id: result.id, status: result.status });
+                // Notify if driver was released
+                if (['DELIVERED', 'COMPLETED', 'CANCELLED'].includes(String(result.status)) && result.driverId) {
+                    getIO().to(branchRoom).emit('driver:status', { id: result.driverId, status: 'AVAILABLE' });
+                }
             }
         } catch {
             // socket is optional
         }
 
+        // Webhook: notify external integrations of status change (non-blocking)
+        const statusStr = String(result.status || '');
+        const webhookEvent = statusStr === 'COMPLETED' || statusStr === 'DELIVERED'
+            ? 'order.completed' as const
+            : statusStr === 'CANCELLED'
+                ? 'order.cancelled' as const
+                : 'order.status_changed' as const;
+        webhookService.dispatch(webhookEvent, {
+            id: result.id,
+            status: result.status,
+            previousStatus: req.body.status,
+            branchId: result.branchId,
+            driverId: result.driverId,
+            updatedAt: result.updatedAt,
+        }, result.branchId || undefined).catch(() => {});
+
         if (['DELIVERED', 'COMPLETED'].includes(String(result.status))) {
+            // Analytics: record business impact
+            analyticsService.recordOrderImpact(result.id).catch(() => {});
+
+            // Loyalty: award points
+            if (result.customerId) {
+                loyaltyService.awardPoints(result.customerId, Number(result.total || 0), result.branchId || undefined).catch(() => {});
+            }
+
             setTimeout(() => {
                 submitOrderToFiscal(result.id).catch(() => {
                     // background submission; errors are stored in fiscal logs

@@ -109,13 +109,37 @@ export class GLService {
      */
     static async postSalesOrder(orderId: string, subtotal: number, tax: number, paymentMethod: string, amountPaid: number, branchId: string) {
         // Fetch accounts mapping
-        // In reality, these should be cached or configured system settings
         const paymentAcc = await db.select().from(paymentMethodAccounts).where(eq(paymentMethodAccounts.paymentMethod, paymentMethod)).limit(1);
         const taxAcc = await db.select().from(taxAccounts).where(eq(taxAccounts.taxType, 'OUTPUT_VAT')).limit(1);
-        const revenueAcc = await db.select().from(chartOfAccounts).where(eq(chartOfAccounts.code, '4000')).limit(1); // Standard Revenue code
+        const revenueAcc = await db.select().from(chartOfAccounts).where(eq(chartOfAccounts.code, '4000')).limit(1);
 
         if (paymentAcc.length === 0 || taxAcc.length === 0 || revenueAcc.length === 0) {
-            console.warn('Accounting configuration missing for Sales posting. Skipping GL sync.');
+            // CRITICAL: Log to audit trail instead of silently skipping.
+            // This ensures administrators are notified that orders are being
+            // processed without accounting records — a data integrity risk.
+            const missing: string[] = [];
+            if (paymentAcc.length === 0) missing.push(`paymentMethodAccounts(${paymentMethod})`);
+            if (taxAcc.length === 0) missing.push('taxAccounts(OUTPUT_VAT)');
+            if (revenueAcc.length === 0) missing.push('chartOfAccounts(4000 Revenue)');
+
+            try {
+                const { createSignedAuditLog } = await import('./auditService');
+                await createSignedAuditLog({
+                    eventType: 'GL_CONFIG_MISSING',
+                    userId: 'system',
+                    branchId,
+                    payload: {
+                        orderId,
+                        amount: amountPaid,
+                        missingAccounts: missing,
+                        message: `GL posting skipped for order ${orderId}: missing ${missing.join(', ')}`,
+                        severity: 'HIGH',
+                    },
+                });
+            } catch {
+                // Fallback if audit service fails
+            }
+            console.warn(`[GL] ⚠️ ACCOUNTS NOT CONFIGURED — Order ${orderId} has NO journal entry. Missing: ${missing.join(', ')}`);
             return;
         }
 

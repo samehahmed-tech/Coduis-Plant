@@ -2,6 +2,9 @@ import crypto from 'crypto';
 import { db } from '../db';
 import { etaDeadLetters, fiscalLogs } from '../../src/db/schema';
 import { eq } from 'drizzle-orm';
+import logger from '../utils/logger';
+
+const log = logger.child({ service: 'eta' });
 
 const ETA_BASE_URL = process.env.ETA_BASE_URL;
 const ETA_TOKEN_URL = process.env.ETA_TOKEN_URL;
@@ -110,7 +113,7 @@ export const etaService = {
                 return result;
             } catch (err: any) {
                 lastError = err;
-                console.error(`[ETA] Attempt ${attempt}/${MAX_RETRIES} failed:`, err.message);
+                log.warn({ attempt, maxRetries: MAX_RETRIES, err: err.message }, 'ETA submission attempt failed');
 
                 if (attempt < MAX_RETRIES) {
                     const delay = calculateBackoff(attempt);
@@ -127,7 +130,7 @@ export const etaService = {
     },
 
     async addToDeadLetter(payload: any, orderId?: string, branchId?: string, errorMessage?: string) {
-        console.error(`[ETA] Moving to dead-letter queue: ${orderId || 'unknown order'}`);
+        log.error({ orderId: orderId || 'unknown', err: errorMessage }, 'ETA moving to dead-letter queue');
 
         await db.insert(etaDeadLetters).values({
             orderId,

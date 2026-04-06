@@ -1,5 +1,5 @@
 
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useCallback, useTransition, useRef, lazy, Suspense } from 'react';
 import {
   Plus, Search, Edit3, Trash2, Tag,
   Layers, Clock, CheckCircle2, AlertCircle,
@@ -21,6 +21,7 @@ import { translations } from '../services/translations';
 
 // Components
 import ImageUploader from './common/ImageUploader';
+import MenuCategoryList from './menu/MenuCategoryList';
 
 const MenuManager: React.FC = () => {
   // Global State
@@ -43,7 +44,19 @@ const MenuManager: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'MENUS' | 'OFFERS'>('MENUS');
   const [selectedMenuId, setSelectedMenuId] = useState<string>(menus[0]?.id || '');
   const [searchQuery, setSearchQuery] = useState('');
+  const [deferredSearch, setDeferredSearch] = useState('');
   const [showAddExistingCategory, setShowAddExistingCategory] = useState(false);
+  const [isPending, startTransition] = useTransition();
+  const searchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Debounced search handler
+  const handleSearchChange = useCallback((value: string) => {
+    setSearchQuery(value);
+    if (searchTimerRef.current) clearTimeout(searchTimerRef.current);
+    searchTimerRef.current = setTimeout(() => {
+      startTransition(() => setDeferredSearch(value));
+    }, 150);
+  }, []);
 
   // Modals
   const [itemModal, setItemModal] = useState<{ isOpen: boolean; mode: 'ADD' | 'EDIT'; menuId: string; categoryId: string; item: MenuItem; } | null>(null);
@@ -58,9 +71,6 @@ const MenuManager: React.FC = () => {
   const [newIngredientId, setNewIngredientId] = useState('');
   const [newIngredientQty, setNewIngredientQty] = useState<number>(0);
 
-  // Quick Add State
-  const [quickAddItem, setQuickAddItem] = useState<{ categoryId: string; name: string; price: string }>({ categoryId: '', name: '', price: '' });
-
   // Modal Tabs
   const [itemModalTab, setItemModalTab] = useState<'BASIC' | 'PRICING' | 'PRINTERS' | 'MODIFIERS'>('BASIC');
 
@@ -69,15 +79,21 @@ const MenuManager: React.FC = () => {
   const filteredCategories = useMemo(() => {
     if (!selectedMenu) return [];
     let cats = categories.filter(cat => cat.menuIds.includes(selectedMenu.id));
-    if (!searchQuery) return cats;
+    // Pre-sort items inside each category once
+    cats = cats.map(cat => ({
+      ...cat,
+      items: [...cat.items].sort((a, b) => (a.sortOrder || 0) - (b.sortOrder || 0))
+    }));
+    if (!deferredSearch) return cats;
+    const q = deferredSearch.toLowerCase();
     return cats.map(cat => ({
       ...cat,
       items: cat.items.filter(item =>
-        item.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        item.description?.toLowerCase().includes(searchQuery.toLowerCase())
+        item.name.toLowerCase().includes(q) ||
+        item.description?.toLowerCase().includes(q)
       )
     })).filter(cat => cat.items.length > 0);
-  }, [selectedMenu, categories, searchQuery]);
+  }, [selectedMenu, categories, deferredSearch]);
 
   const otherCategories = useMemo(() => {
     if (!selectedMenu) return [];
@@ -85,37 +101,43 @@ const MenuManager: React.FC = () => {
   }, [selectedMenu, categories]);
 
   // --- HANDLERS ---
-  const handleSaveItem = () => {
+  const handleSaveItem = useCallback(() => {
     if (!itemModal) return;
-    if (itemModal.mode === 'ADD') {
-      addMenuItem(itemModal.menuId, itemModal.categoryId, { ...itemModal.item, id: `item-${Date.now()}` });
-    } else {
-      updateMenuItem(itemModal.menuId, itemModal.categoryId, itemModal.item);
-    }
+    // Use startTransition so modal closes instantly while store update reconciles in background
+    startTransition(() => {
+      if (itemModal.mode === 'ADD') {
+        addMenuItem(itemModal.menuId, itemModal.categoryId, { ...itemModal.item, id: `item-${Date.now()}` });
+      } else {
+        updateMenuItem(itemModal.menuId, itemModal.categoryId, itemModal.item);
+      }
+    });
     setItemModal(null);
-  };
+  }, [itemModal, addMenuItem, updateMenuItem, startTransition]);
 
-  const handleSaveCategory = () => {
+  const handleSaveCategory = useCallback(() => {
     if (!categoryModal) return;
-    if (categoryModal.mode === 'ADD') {
-      const newCat: MenuCategory = {
-        ...categoryModal.category,
-        id: `cat-${Date.now()}`,
-        items: []
-      };
-      // The modal logic ensures menuIds has at least the current menu
-      addCategory(selectedMenuId, newCat);
-    } else {
-      updateCategory(categoryModal.category);
-    }
+    startTransition(() => {
+      if (categoryModal.mode === 'ADD') {
+        const newCat: MenuCategory = {
+          ...categoryModal.category,
+          id: `cat-${Date.now()}`,
+          items: []
+        };
+        addCategory(selectedMenuId, newCat);
+      } else {
+        updateCategory(categoryModal.category);
+      }
+    });
     setCategoryModal(null);
-  };
+  }, [categoryModal, selectedMenuId, addCategory, updateCategory, startTransition]);
 
-  const handleSaveRecipe = () => {
+  const handleSaveRecipe = useCallback(() => {
     if (!recipeModal) return;
-    updateMenuItem(recipeModal.menuId, recipeModal.categoryId, { ...recipeModal.item, recipe: recipeModal.tempRecipe });
+    startTransition(() => {
+      updateMenuItem(recipeModal.menuId, recipeModal.categoryId, { ...recipeModal.item, recipe: recipeModal.tempRecipe });
+    });
     setRecipeModal(null);
-  };
+  }, [recipeModal, updateMenuItem, startTransition]);
 
   const addIngredientToTemp = () => {
     if (!newIngredientId || newIngredientQty <= 0 || !recipeModal) return;
@@ -150,33 +172,30 @@ const MenuManager: React.FC = () => {
     setItemModal({ ...itemModal, item: { ...itemModal.item, printerIds: nextPrinters } });
   };
 
-  const handleQuickAdd = (categoryId: string) => {
-    if (!selectedMenuId || !quickAddItem.name.trim() || !quickAddItem.price) return;
+  const handleQuickAdd = useCallback((catId: string, name: string, price: string) => {
+    if (!selectedMenuId || !name.trim() || !price) return;
 
-    const price = parseFloat(quickAddItem.price) || 0;
-
-    // Determine sort order
-    const category = categories.find(c => c.id === categoryId);
+    const parsedPrice = parseFloat(price) || 0;
+    const category = categories.find(c => c.id === catId);
     const order = category ? category.items.length + 1 : 1;
 
     const newItem: MenuItem = {
       id: `item-${Date.now()}`,
-      name: quickAddItem.name.trim(),
-      price: price,
-      categoryId: categoryId,
+      name: name.trim(),
+      price: parsedPrice,
+      categoryId: catId,
       isAvailable: true,
       availableDays: [],
       availableFrom: '',
       availableTo: '',
       modifierGroups: [],
       priceLists: [],
-      printerIds: category?.printerIds || [], // inherit category printers
+      printerIds: category?.printerIds || [],
       sortOrder: order,
     };
 
-    addMenuItem(selectedMenuId, categoryId, newItem);
-    setQuickAddItem({ categoryId: '', name: '', price: '' });
-  };
+    addMenuItem(selectedMenuId, catId, newItem);
+  }, [selectedMenuId, categories, addMenuItem]);
 
   const toggleCategoryPrinter = (printerId: string) => {
     if (!categoryModal) return;
@@ -186,6 +205,23 @@ const MenuManager: React.FC = () => {
       : [...currentPrinters, printerId];
     setCategoryModal({ ...categoryModal, category: { ...categoryModal.category, printerIds: nextPrinters } });
   };
+
+  // Stable callbacks for memoized MenuItemCard
+  const handleToggleAvailability = useCallback((mId: string, catId: string, item: MenuItem) => {
+    updateMenuItem(mId, catId, { ...item, isAvailable: !item.isAvailable });
+  }, [updateMenuItem]);
+
+  const handleEditItem = useCallback((mId: string, catId: string, item: MenuItem) => {
+    setItemModal({ isOpen: true, mode: 'EDIT', menuId: mId, categoryId: catId, item });
+  }, []);
+
+  const handleOpenRecipe = useCallback((mId: string, catId: string, item: MenuItem) => {
+    setRecipeModal({ isOpen: true, menuId: mId, categoryId: catId, item, tempRecipe: item.recipe || [] });
+  }, []);
+
+  const handleEditCategory = useCallback((category: MenuCategory) => {
+    setCategoryModal({ isOpen: true, mode: 'EDIT', category });
+  }, []);
 
   const dayOptions = [
     { id: 'mon', en: 'Mon', ar: '�������' },
@@ -380,7 +416,7 @@ const MenuManager: React.FC = () => {
           <div className="absolute inset-0 bg-gradient-to-r from-indigo-500 to-cyan-500 rounded-[1.5rem] blur-md opacity-20 group-focus-within:opacity-40 transition-opacity duration-500" />
           <div className="relative">
             <Search className="absolute left-5 top-1/2 -translate-y-1/2 text-muted w-5 h-5 group-focus-within:text-indigo-500 transition-colors z-10" />
-            <input type="text" placeholder={lang === 'ar' ? '��� �� �����...' : 'Search items...'} value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="w-full pl-14 pr-6 py-4 bg-card/60 backdrop-blur-md border border-border/30 rounded-[1.5rem] outline-none focus:ring-2 focus:ring-indigo-500/50 transition-all shadow-inner font-bold text-sm text-main placeholder:text-muted/50" />
+            <input type="text" placeholder={lang === 'ar' ? '��� �� �����...' : 'Search items...'} value={searchQuery} onChange={(e) => handleSearchChange(e.target.value)} className="w-full pl-14 pr-6 py-4 bg-card/60 backdrop-blur-md border border-border/30 rounded-[1.5rem] outline-none focus:ring-2 focus:ring-indigo-500/50 transition-all shadow-inner font-bold text-sm text-main placeholder:text-muted/50" />
           </div>
         </div>
       </div>
@@ -423,154 +459,21 @@ const MenuManager: React.FC = () => {
           ))}
         </div>
 
-        {/* Categories & Items */}
+        {/* Categories & Items — Memoized to prevent re-render on modal state changes */}
         <div className="lg:col-span-9 space-y-12">
-          {filteredCategories.length > 0 ? filteredCategories.map(category => (
-            <div key={category.id} className="relative z-10 animate-fade-in pb-10">
-              <div className="flex justify-between items-end mb-8 px-4 border-b border-border/20 pb-6">
-                <div className="flex items-center gap-5">
-                  {category.image ? (
-                    <div className="relative w-16 h-16 group/cat-img cursor-pointer">
-                      <div className="absolute inset-0 bg-indigo-500/20 rounded-[1.2rem] blur-xl opacity-0 group-hover/cat-img:opacity-100 transition-opacity duration-500" />
-                      <img src={category.image} alt={category.name} className="relative w-full h-full rounded-[1.2rem] object-cover shadow-lg border border-border/30" />
-                    </div>
-                  ) : (
-                    <div className="p-4 bg-gradient-to-br from-indigo-500/10 to-cyan-500/10 rounded-[1.2rem] text-indigo-400 border border-border/20 shadow-inner">
-                      <Layers size={24} />
-                    </div>
-                  )}
-                  <div>
-                    <h4 className="text-2xl md:text-3xl font-black text-main uppercase tracking-tight drop-shadow-sm">{lang === 'ar' ? (category.nameAr || category.name) : category.name}</h4>
-                    <div className="flex items-center gap-3 mt-2">
-                      <p className="text-[10px] font-black text-indigo-400 uppercase tracking-widest px-2.5 py-1 bg-indigo-500/10 rounded-lg border border-indigo-500/20">{category.items.length} {lang === 'ar' ? '�����' : 'Items'}</p>
-                      {category.printerIds && category.printerIds.length > 0 && (
-                        <span className="px-2.5 py-1 bg-elevated/70 text-muted text-[10px] font-black rounded-lg flex items-center gap-1.5 border border-border/20 shadow-sm">
-                          <PrinterIcon size={12} /> {category.printerIds.length}
-                        </span>
-                      )}
-                      {category.targetOrderTypes && category.targetOrderTypes.length > 0 && (
-                        <div className="flex gap-1">
-                          {category.targetOrderTypes.includes('DINE_IN' as any) && <span className="p-1.5 rounded-lg bg-orange-500/10 border border-orange-500/20 text-orange-500 shadow-sm" title="Dine In"><UtensilsCrossed size={12} /></span>}
-                          {category.targetOrderTypes.includes('TAKEAWAY' as any) && <span className="p-1.5 rounded-lg bg-blue-500/10 border border-blue-500/20 text-blue-500 shadow-sm" title="Takeaway"><ShoppingBag size={12} /></span>}
-                          {category.targetOrderTypes.includes('PICKUP' as any) && <span className="p-1.5 rounded-lg bg-teal-500/10 border border-teal-500/20 text-teal-500 shadow-sm" title="Pickup"><Map size={12} /></span>}
-                          {category.targetOrderTypes.includes('DELIVERY' as any) && <span className="p-1.5 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-500 shadow-sm" title="Delivery"><Truck size={12} /></span>}
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                </div>
-                <div className="flex items-center gap-2">
-                  <button
-                    onClick={() => setCategoryModal({ isOpen: true, mode: 'EDIT', category })}
-                    className="p-3 bg-card/60 backdrop-blur-md rounded-[1rem] border border-border/20 text-muted hover:text-indigo-400 hover:border-indigo-500/30 hover:bg-indigo-500/10 transition-all shadow-sm active:scale-95"
-                  >
-                    <Edit3 size={18} />
-                  </button>
-                  <button onClick={() => deleteCategory(selectedMenuId, category.id)} className="p-3 bg-card/60 backdrop-blur-md rounded-[1rem] border border-border/20 text-muted hover:text-rose-400 hover:border-rose-500/30 hover:bg-rose-500/10 transition-all shadow-sm active:scale-95">
-                    <Trash2 size={18} />
-                  </button>
-                </div>
-              </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-8">
-                {category.items.sort((a, b) => (a.sortOrder || 0) - (b.sortOrder || 0)).map((item, idx) => (
-                  <div key={item.id} className={`bg-card/60 backdrop-blur-3xl rounded-[2.5rem] border border-border/20 p-6 shadow-lg hover:shadow-[0_20px_40px_rgba(0,0,0,0.3)] hover:-translate-y-2 hover:border-border/30 transition-all duration-500 group relative flex flex-col h-full overflow-hidden ${item.layoutType === 'wide' ? 'md:col-span-2' : ''}`} style={{ animationDelay: `${idx * 50}ms` }}>
-                    <div className={`absolute inset-0 bg-gradient-to-br from-indigo-500/0 via-cyan-500/5 to-indigo-500/0 opacity-0 group-hover:opacity-100 transition-opacity duration-700 pointer-events-none`} />
-                    <div className="absolute top-6 left-6 flex gap-2 z-10">
-                      {item.sortOrder !== undefined && <span className="px-3 py-1.5 bg-gradient-to-br from-indigo-500 to-indigo-600 text-white text-[9px] font-black rounded-[0.8rem] shadow-lg tracking-widest border border-indigo-400/50">#{item.sortOrder}</span>}
-                      {item.printerIds && item.printerIds.length > 0 && <span className="px-3 py-1.5 bg-card/80 backdrop-blur-sm border border-border/30 text-muted text-[9px] font-black rounded-[0.8rem] flex items-center gap-1.5 shadow-sm"><PrinterIcon size={10} /> {item.printerIds.length}</span>}
-                    </div>
-                    <button
-                      onClick={() => updateMenuItem(selectedMenuId, category.id, { ...item, isAvailable: !item.isAvailable })}
-                      className={`absolute top-6 right-6 p-3 rounded-xl z-10 transition-all duration-300 hover:scale-110 active:scale-95 shadow-lg border backdrop-blur-md ${item.isAvailable ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20 hover:bg-emerald-500/20' : 'bg-rose-500/10 text-rose-400 border-rose-500/20 hover:bg-rose-500/20'}`}
-                      title={item.isAvailable ? (lang === 'ar' ? '����� ����� (86)' : 'Disable item (86)') : (lang === 'ar' ? '����� �����' : 'Enable item')}
-                    >
-                      {item.isAvailable ? <Eye size={16} /> : <EyeOff size={16} />}
-                    </button>
-
-                    <div className={`mb-8 flex ${item.layoutType === 'wide' ? 'justify-start gap-8 mt-12' : 'justify-center flex-col items-center mt-6'} relative z-10`}>
-                      {item.image ? (
-                        <div className={`relative ${item.layoutType === 'wide' ? 'w-40 h-40' : 'w-48 h-48 group-hover:scale-[1.03] transition-transform duration-700 ease-out'}`}>
-                          <div className={`absolute inset-0 bg-gradient-to-tr from-indigo-500/20 to-cyan-500/20 rounded-[2rem] blur-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-700`} />
-                          <img src={item.image} alt={item.name} className={`relative w-full h-full object-cover rounded-[2.5rem] shadow-[0_10px_20px_rgba(0,0,0,0.3)] border border-border/30`} />
-                        </div>
-                      ) : (
-                        <div className={`${item.layoutType === 'wide' ? 'w-40 h-40' : 'w-48 h-48'} bg-elevated/30 rounded-[2.5rem] flex items-center justify-center text-muted group-hover:text-indigo-400 group-hover:bg-indigo-500/10 transition-all border border-border/20 shadow-inner group-hover:scale-105 duration-700`}>
-                          <ImageIcon size={64} className="opacity-40" />
-                        </div>
-                      )}
-
-                      <div className={`${item.layoutType === 'wide' ? 'text-left flex-1 py-4' : 'text-center mt-8'}`}>
-                        <h5 className="font-black text-xl lg:text-2xl text-main mb-2 tracking-tight group-hover:text-indigo-400 transition-colors duration-500 drop-shadow-sm">{lang === 'ar' ? (item.nameAr || item.name) : item.name}</h5>
-                        <p className="text-2xl lg:text-3xl font-black text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 to-teal-400 tracking-tighter drop-shadow-sm">{settings.currencySymbol} {item.price.toFixed(2)}</p>
-                        {item.layoutType === 'wide' && item.description && <p className="text-xs text-muted font-bold line-clamp-3 mt-4 leading-relaxed">{lang === 'ar' ? (item.descriptionAr || item.description) : item.description}</p>}
-                      </div>
-                    </div>
-
-                    <div className="mt-auto flex gap-3 pt-6 border-t border-border/20 relative z-10">
-                      <button onClick={() => setItemModal({ isOpen: true, mode: 'EDIT', menuId: selectedMenuId, categoryId: category.id, item })} className="flex-[3] py-4 bg-indigo-500/10 hover:bg-gradient-to-r hover:from-indigo-500 hover:to-cyan-500 text-indigo-400 hover:text-white border border-indigo-500/20 rounded-[1.2rem] text-[10px] font-black uppercase tracking-[0.2em] transition-all hover:shadow-[0_10px_20px_rgba(99,102,241,0.3)] active:scale-95 duration-300">Edit Details</button>
-                      <button onClick={() => setRecipeModal({ isOpen: true, menuId: selectedMenuId, categoryId: category.id, item, tempRecipe: item.recipe || [] })} className="flex-1 flex items-center justify-center p-4 bg-card/60 backdrop-blur-md border border-border/20 text-muted hover:text-amber-400 hover:border-amber-400/30 rounded-[1.2rem] transition-all shadow-sm hover:bg-amber-500/10 active:scale-95 duration-300" title="Manage Recipe"><Scale size={18} /></button>
-                      <button onClick={() => deleteMenuItem(selectedMenuId, category.id, item.id)} className="flex-1 flex items-center justify-center p-4 bg-card/60 backdrop-blur-md border border-border/20 text-muted hover:text-rose-400 hover:border-rose-400/30 rounded-[1.2rem] transition-all shadow-sm hover:bg-rose-500/10 active:scale-95 duration-300" title="Delete Item"><Trash2 size={18} /></button>
-                    </div>
-                  </div>
-                ))}
-
-                {/* QUICK ADD CARD */}
-                <div className={`bg-card/40 backdrop-blur-3xl rounded-[2.5rem] border border-dashed border-border/40 p-6 flex flex-col items-center justify-center min-h-[300px] hover:bg-card/60 transition-all duration-300 group`}>
-                  <div className="w-full space-y-4 relative z-10 transition-all duration-300">
-                    <div className="bg-elevated/30 rounded-[1.5rem] p-4 flex flex-col gap-3 group-hover:bg-elevated/50 transition-colors border border-border/20">
-                      <div className="flex items-center gap-2 text-indigo-400 font-black text-[10px] uppercase tracking-[0.2em] mb-2">
-                        <Sparkles size={14} className="text-cyan-400" />
-                        {lang === 'ar' ? '����� �����' : 'Quick Add'}
-                      </div>
-                      <input
-                        type="text"
-                        placeholder={lang === 'ar' ? '��� ����� ������...' : 'New item name...'}
-                        value={quickAddItem.categoryId === category.id ? quickAddItem.name : ''}
-                        onChange={(e) => setQuickAddItem(prev => ({ ...prev, categoryId: category.id, name: e.target.value }))}
-                        onKeyDown={(e) => {
-                          if (e.key === 'Enter' && quickAddItem.categoryId === category.id) {
-                            handleQuickAdd(category.id);
-                          }
-                        }}
-                        className="w-full bg-card/50 px-4 py-3 rounded-xl border border-border/30 text-sm font-bold text-main outline-none focus:border-indigo-500/50 focus:ring-1 focus:ring-indigo-500/50 transition-all placeholder:text-muted/50"
-                      />
-                      <div className="flex items-center gap-3">
-                        <div className="relative flex-1">
-                          <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 text-muted w-4 h-4" />
-                          <input
-                            type="number"
-                            placeholder="0.00"
-                            value={quickAddItem.categoryId === category.id ? quickAddItem.price : ''}
-                            onChange={(e) => setQuickAddItem(prev => ({ ...prev, categoryId: category.id, price: e.target.value }))}
-                            onKeyDown={(e) => {
-                              if (e.key === 'Enter' && quickAddItem.categoryId === category.id) {
-                                handleQuickAdd(category.id);
-                              }
-                            }}
-                            className="w-full bg-card/50 pl-9 pr-4 py-3 rounded-xl border border-border/30 text-sm font-black text-emerald-400 outline-none focus:border-emerald-500/50 focus:ring-1 focus:ring-emerald-500/50 transition-all placeholder:text-muted/50"
-                          />
-                        </div>
-                        <button
-                          onClick={() => handleQuickAdd(category.id)}
-                          disabled={quickAddItem.categoryId !== category.id || !quickAddItem.name.trim() || !quickAddItem.price}
-                          className="bg-indigo-500/20 text-indigo-400 hover:bg-gradient-to-r hover:from-indigo-500 hover:to-cyan-500 hover:text-white p-3 rounded-xl transition-all disabled:opacity-50 disabled:pointer-events-none active:scale-95"
-                        >
-                          <Plus size={20} />
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                  {quickAddItem.categoryId !== category.id && (
-                    <div className="absolute inset-0 flex items-center justify-center pointer-events-none opacity-40 group-hover:opacity-0 transition-opacity">
-                      <Plus size={48} className="text-muted" />
-                    </div>
-                  )}
-                </div>
-              </div>
-            </div>
-          )) : (
-            <div className="py-20 text-center bg-card rounded-[3rem] border border-border"><p className="text-muted font-black uppercase tracking-widest">{lang === 'ar' ? '�� ���� ����� ������' : 'No sections linked to this menu'}</p></div>
-          )}
+          <MenuCategoryList
+            categories={filteredCategories}
+            selectedMenuId={selectedMenuId}
+            lang={lang}
+            currencySymbol={settings.currencySymbol}
+            onEditCategory={handleEditCategory}
+            onDeleteCategory={deleteCategory}
+            onToggleAvailability={handleToggleAvailability}
+            onEditItem={handleEditItem}
+            onRecipeItem={handleOpenRecipe}
+            onDeleteItem={deleteMenuItem}
+            onQuickAdd={handleQuickAdd}
+          />
 
           {/* Link Existing */}
           {otherCategories.length > 0 && !showAddExistingCategory && (
@@ -595,7 +498,7 @@ const MenuManager: React.FC = () => {
 
       {/* MENU SETTINGS MODAL */}
       {menuSettingsModal && (
-        <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-md flex items-center justify-center z-[110] p-4 animate-in fade-in duration-300">
+        <div className="fixed inset-0 bg-slate-950/90 flex items-center justify-center z-[110] p-4 animate-in fade-in duration-300">
           <div className="bg-card w-full max-w-2xl rounded-[3rem] shadow-[0_30px_60px_rgba(0,0,0,0.5)] border border-border/30 overflow-hidden flex flex-col max-h-[90vh] animate-in zoom-in-95 duration-500 relative">
             <div className="absolute inset-0 bg-gradient-to-br from-indigo-500/10 via-transparent to-cyan-500/5 pointer-events-none" />
             <div className="p-8 border-b border-border/20 flex justify-between items-center bg-elevated/40 backdrop-blur-md relative z-10">
@@ -648,7 +551,7 @@ const MenuManager: React.FC = () => {
 
       {/* ITEM MODAL */}
       {itemModal && (
-        <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-md flex items-center justify-center z-[110] p-4 animate-in fade-in zoom-in duration-300">
+        <div className="fixed inset-0 bg-slate-950/90 flex items-center justify-center z-[110] p-4 animate-in fade-in zoom-in duration-300">
           <div className="bg-card w-full max-w-4xl rounded-[3rem] shadow-[0_30px_60px_rgba(0,0,0,0.5)] border border-border/30 overflow-hidden flex flex-col max-h-[95vh] relative text-main">
             <div className="absolute inset-0 bg-gradient-to-br from-indigo-500/10 via-transparent to-cyan-500/5 pointer-events-none" />
 
@@ -1035,7 +938,7 @@ const MenuManager: React.FC = () => {
 
       {/* CATEGORY MODAL */}
       {categoryModal && (
-        <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-md flex items-center justify-center z-[110] p-4 animate-in fade-in zoom-in duration-300">
+        <div className="fixed inset-0 bg-slate-950/90 flex items-center justify-center z-[110] p-4 animate-in fade-in zoom-in duration-300">
           <div className="bg-card w-full max-w-2xl rounded-[3rem] shadow-[0_30px_60px_rgba(0,0,0,0.5)] border border-border/30 overflow-hidden flex flex-col max-h-[95vh] relative text-main">
             <div className="absolute inset-0 bg-gradient-to-br from-indigo-500/10 via-transparent to-cyan-500/5 pointer-events-none" />
             <div className="p-8 border-b border-border/20 flex justify-between items-center bg-elevated/40 backdrop-blur-md relative z-10">
@@ -1162,7 +1065,7 @@ const MenuManager: React.FC = () => {
 
       {/* RECIPE MODAL */}
       {recipeModal && (
-        <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-md flex items-center justify-center z-[110] p-4 animate-in fade-in zoom-in duration-300">
+        <div className="fixed inset-0 bg-slate-950/90 flex items-center justify-center z-[110] p-4 animate-in fade-in zoom-in duration-300">
           <div className="bg-card w-full max-w-3xl rounded-[3rem] shadow-[0_30px_60px_rgba(0,0,0,0.5)] border border-border/30 overflow-hidden flex flex-col max-h-[95vh] relative text-main">
             <div className="absolute inset-0 bg-gradient-to-br from-amber-500/10 via-transparent to-orange-500/5 pointer-events-none" />
             <div className="p-8 border-b border-border/20 bg-elevated/40 backdrop-blur-md flex justify-between items-center relative z-10">

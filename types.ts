@@ -120,6 +120,13 @@ export interface ModifierOption {
   recipe?: RecipeIngredient[]; // Recipe for the specific modifier option
 }
 
+export interface RecipeIngredient {
+  itemId: string;      // Reference to InventoryItem
+  quantity: number;    // Amount needed
+  unit: string;        // 'kg', 'g', 'L', 'pc', etc.
+  cost?: number;       // Calculated cost (qty × unit cost)
+}
+
 export interface ModifierGroup {
   id: string;
   name: string;
@@ -591,7 +598,15 @@ export enum AppPermission {
   OP_PROCESS_PAYROLL = 'OP_PROCESS_PAYROLL',
   OP_MANAGE_CASH_DRAWER = 'OP_MANAGE_CASH_DRAWER',
   DATA_VIEW_SALARIES = 'DATA_VIEW_SALARIES',
-  NAV_USER_MANAGEMENT = 'NAV_USER_MANAGEMENT'
+  NAV_USER_MANAGEMENT = 'NAV_USER_MANAGEMENT',
+
+  // --- Extended Permissions (Phase 2 — Guide.md) ---
+  NAV_MARKETING = 'NAV_MARKETING',
+  NAV_WHATSAPP = 'NAV_WHATSAPP',
+  NAV_PLATFORMS = 'NAV_PLATFORMS',
+  NAV_WEBHOOKS = 'NAV_WEBHOOKS',
+  NAV_REFUNDS = 'NAV_REFUNDS',
+  NAV_FISCAL = 'NAV_FISCAL',
 }
 
 export enum UserRole {

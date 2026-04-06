@@ -141,72 +141,101 @@ const ZenPeople: React.FC = () => {
     };
 
     return (
-        <div className="p-4 md:p-8 lg:p-10 bg-app min-h-screen pb-24">
-            {/* Header */}
-            <div className="flex flex-col xl:flex-row justify-between items-start xl:items-center gap-6 mb-8">
-                <div>
-                    <div className="flex items-center gap-4 mb-2">
-                        <div className="w-14 h-14 rounded-[1.5rem] bg-gradient-to-br from-indigo-600 to-violet-600 text-white flex items-center justify-center shadow-2xl shadow-indigo-600/30">
-                            <Users size={28} />
-                        </div>
-                        <h2 className="text-3xl font-black text-main uppercase tracking-tighter">
-                            {lang === 'ar' ? 'الموارد البشرية' : 'Human Resources'}
-                        </h2>
-                    </div>
-                    <p className="text-muted font-bold text-xs uppercase tracking-widest opacity-60">
-                        {lang === 'ar' ? 'إدارة الموظفين والحضور والرواتب' : 'Workforce · Attendance · Leave · Payroll'}
-                    </p>
-                </div>
-                {activeTab === 'employees' && (
-                    <button onClick={openAddEmployee} className="bg-gradient-to-r from-indigo-600 to-violet-600 text-white px-6 py-3 rounded-2xl shadow-2xl shadow-indigo-600/30 font-black uppercase text-[10px] tracking-widest flex items-center gap-2 hover:scale-105 transition-transform">
-                        <UserPlus size={16} /> {lang === 'ar' ? 'موظف جديد' : 'Add Employee'}
-                    </button>
-                )}
-                {activeTab === 'leave' && (
-                    <button onClick={() => { setLeaveForm({ employeeId: '', leaveTypeId: '', startDate: '', endDate: '', reason: '' }); setShowLeaveModal(true); }} className="bg-gradient-to-r from-indigo-600 to-violet-600 text-white px-6 py-3 rounded-2xl shadow-2xl shadow-indigo-600/30 font-black uppercase text-[10px] tracking-widest flex items-center gap-2 hover:scale-105 transition-transform">
-                        <Plus size={16} /> New Leave Request
-                    </button>
-                )}
+        <div className="p-4 md:p-8 lg:p-10 bg-app min-h-screen pb-24 overflow-y-auto custom-scrollbar">
+            {/* Visual Effects Overlay */}
+            <div className="fixed inset-0 pointer-events-none z-0">
+                <div className="absolute top-[-10%] left-[-5%] w-[400px] h-[400px] rounded-full bg-indigo-500/5 blur-[120px] animate-pulse" />
+                <div className="absolute bottom-[-10%] right-[-5%] w-[500px] h-[500px] rounded-full bg-violet-500/5 blur-[150px] animate-pulse" style={{ animationDelay: '2s' }} />
             </div>
 
-            {/* KPI Cards */}
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
-                {[
-                    { label: 'Total Workforce', value: employees.length, icon: Users, color: 'text-blue-500', bg: 'bg-blue-500/10' },
-                    { label: 'Active Now', value: activeAttendance.length, icon: Clock, color: 'text-emerald-500', bg: 'bg-emerald-500/10' },
-                    { label: 'Payroll Liability', value: `${payrollLiability.toLocaleString()} LE`, icon: Wallet, color: 'text-indigo-500', bg: 'bg-indigo-500/10' },
-                    { label: 'Attendance Rate', value: employees.length > 0 ? `${Math.round((activeAttendance.length / employees.length) * 100)}%` : '0%', icon: TrendingUp, color: 'text-amber-500', bg: 'bg-amber-500/10' },
-                ].map((stat, i) => (
-                    <div key={i} className="card-primary border border-border p-6 rounded-[2rem] shadow-sm">
-                        <div className="flex items-center gap-3 mb-3">
-                            <div className={`w-10 h-10 rounded-xl ${stat.bg} ${stat.color} flex items-center justify-center`}>
-                                <stat.icon size={18} />
+            <div className="relative z-10 max-w-[1920px] mx-auto">
+                {/* Header */}
+                <div className="flex flex-col xl:flex-row justify-between items-start xl:items-end gap-6 mb-10 pb-8 border-b border-border/20">
+                    <div className="flex items-center gap-6">
+                        <div className="w-20 h-20 rounded-[1.75rem] bg-gradient-to-br from-indigo-600 to-violet-600 p-0.5 shadow-2xl shadow-indigo-600/20">
+                            <div className="w-full h-full rounded-[1.6rem] bg-card flex items-center justify-center">
+                                <Users size={36} className="text-indigo-600 animate-pulse-soft" />
                             </div>
                         </div>
-                        <p className="text-[9px] font-black text-muted uppercase tracking-widest mb-1">{stat.label}</p>
-                        <h4 className="text-2xl font-black text-main">{stat.value}</h4>
+                        <div>
+                            <h2 className="text-3xl lg:text-5xl font-black text-main uppercase tracking-tighter flex items-center gap-4">
+                                {lang === 'ar' ? 'الموارد البشرية' : 'Human Resources'}
+                                <span className="hidden md:flex px-3 py-1 bg-indigo-500/10 text-indigo-500 border border-indigo-500/20 rounded-full text-[10px] font-black uppercase tracking-widest">
+                                    {employees.length} Staff
+                                </span>
+                            </h2>
+                            <p className="text-muted font-bold text-xs uppercase tracking-[0.2em] mt-2 opacity-60">
+                                {lang === 'ar' ? 'إدارة الموظفين والحضور والرواتب' : 'Workforce · Attendance · Leave · Payroll'}
+                            </p>
+                        </div>
                     </div>
-                ))}
-            </div>
+                    <div className="flex flex-wrap gap-3">
+                        {activeTab === 'employees' && (
+                            <button onClick={openAddEmployee} className="bg-gradient-to-r from-indigo-600 to-violet-600 text-white px-8 py-4 rounded-2xl shadow-2xl shadow-indigo-600/30 font-black uppercase text-[11px] tracking-widest flex items-center gap-3 hover:scale-105 active:scale-95 transition-all">
+                                <UserPlus size={18} /> {lang === 'ar' ? 'موظف جديد' : 'Add Employee'}
+                            </button>
+                        )}
+                        {activeTab === 'leave' && (
+                            <button onClick={() => { setLeaveForm({ employeeId: '', leaveTypeId: '', startDate: '', endDate: '', reason: '' }); setShowLeaveModal(true); }} className="bg-gradient-to-r from-indigo-600 to-violet-600 text-white px-8 py-4 rounded-2xl shadow-2xl shadow-indigo-600/30 font-black uppercase text-[11px] tracking-widest flex items-center gap-3 hover:scale-105 active:scale-95 transition-all">
+                                <Plus size={18} /> New Leave Request
+                            </button>
+                        )}
+                    </div>
+                </div>
 
-            {/* Tab Navigation */}
-            <div className="flex gap-1 mb-8 bg-elevated/40 p-1.5 rounded-2xl border border-border w-fit">
-                {TABS.map(tab => (
-                    <button key={tab.id} onClick={() => setActiveTab(tab.id)}
-                        className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${activeTab === tab.id ? 'bg-gradient-to-r from-indigo-600 to-violet-600 text-white shadow-lg shadow-indigo-600/20' : 'text-muted hover:text-main hover:bg-elevated/60'}`}>
-                        <tab.icon size={14} /> {lang === 'ar' ? tab.labelAr : tab.label}
-                    </button>
-                ))}
-            </div>
+                {/* KPI Cards */}
+                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6 mb-10">
+                    {[
+                        { label: 'Total Workforce', value: employees.length, icon: Users, color: '#4f46e5' },
+                        { label: 'Active Now', value: activeAttendance.length, icon: Clock, color: '#10b981', trend: { val: 12, up: true } },
+                        { label: 'Payroll Liability', value: `${payrollLiability.toLocaleString()}`, subValue: 'LE', icon: Wallet, color: '#8b5cf6' },
+                        { label: 'Attendance Rate', value: employees.length > 0 ? `${Math.round((activeAttendance.length / employees.length) * 100)}%` : '0%', icon: TrendingUp, color: '#f59e0b' },
+                    ].map((stat, i) => (
+                        <div key={i} className="relative group overflow-hidden bg-card/60 backdrop-blur-xl border border-border/30 rounded-[2rem] p-6 transition-all hover:scale-[1.02] hover:bg-card/70 hover:shadow-2xl active:scale-[0.98]">
+                            <div className="absolute top-0 right-0 w-24 h-24 bg-gradient-to-br transition-opacity duration-500 opacity-10 group-hover:opacity-20 blur-3xl" style={{ background: stat.color }} />
+                            <div className="flex items-start justify-between relative z-10">
+                                <div>
+                                    <p className="text-[10px] font-black uppercase tracking-[0.15em] text-muted mb-2">{stat.label}</p>
+                                    <h4 className="text-3xl font-black text-main tracking-tighter tabular-nums flex items-end gap-1.5">
+                                        {stat.value}
+                                        {stat.subValue && <span className="text-xs font-bold text-muted mb-1 opacity-60">{stat.subValue}</span>}
+                                    </h4>
+                                    {stat.trend && (
+                                        <div className={`flex items-center gap-1 mt-2 text-[10px] font-black uppercase tracking-wider ${stat.trend.up ? 'text-emerald-500' : 'text-rose-500'}`}>
+                                            <Activity size={12} />
+                                            {stat.trend.val}% <span className="text-muted ml-1 opacity-70">vs prev</span>
+                                        </div>
+                                    )}
+                                </div>
+                                <div className="p-4 rounded-2xl border flex items-center justify-center shadow-lg transition-transform duration-500 group-hover:rotate-12" style={{ borderColor: `${stat.color}30`, backgroundColor: `${stat.color}15`, color: stat.color }}>
+                                    <stat.icon size={22} />
+                                </div>
+                            </div>
+                        </div>
+                    ))}
+                </div>
+
+                {/* Tab Navigation */}
+                <div className="flex flex-wrap gap-2 mb-10 bg-card/40 backdrop-blur-md p-2 rounded-[2rem] border border-border/30 w-fit">
+                    {TABS.map(tab => (
+                        <button key={tab.id} onClick={() => setActiveTab(tab.id)}
+                            className={`flex items-center gap-3 px-6 py-3.5 rounded-[1.5rem] text-[10px] font-black uppercase tracking-widest transition-all duration-300 ${activeTab === tab.id ? 'bg-gradient-to-r from-indigo-600 to-violet-600 text-white shadow-xl shadow-indigo-600/20 scale-105' : 'text-muted hover:text-main hover:bg-elevated/60'}`}>
+                            <tab.icon size={16} /> {lang === 'ar' ? tab.labelAr : tab.label}
+                        </button>
+                    ))}
+                </div>
 
             {/* ═══════════ EMPLOYEES TAB ═══════════ */}
             {activeTab === 'employees' && (
-                <div className="card-primary border border-border rounded-[2.5rem] shadow-sm overflow-hidden animate-in slide-in-from-bottom-5 duration-500">
-                    <div className="p-6 border-b border-border bg-elevated/30 flex justify-between items-center gap-4">
-                        <h3 className="text-lg font-black text-main uppercase tracking-tight">Talent Roster ({filteredEmployees.length})</h3>
-                        <div className="relative w-full max-w-xs">
-                            <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-muted w-4 h-4" />
-                            <input type="text" placeholder="Search employees..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="w-full pl-12 pr-6 py-3 bg-app border border-border rounded-xl font-bold text-xs outline-none focus:border-indigo-500 transition-colors" />
+                <div className="bg-card/60 backdrop-blur-xl border border-border/30 rounded-[3rem] shadow-2xl overflow-hidden animate-in fade-in slide-in-from-bottom-10 duration-700">
+                    <div className="p-8 border-b border-border/20 bg-elevated/30 flex flex-col md:flex-row justify-between items-center gap-6">
+                        <div>
+                            <h3 className="text-xl font-black text-main uppercase tracking-tighter">Talent Roster</h3>
+                            <p className="text-[10px] font-bold text-muted uppercase tracking-widest mt-1">Manage global employee directory</p>
+                        </div>
+                        <div className="relative w-full max-w-sm group">
+                            <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-muted group-focus-within:text-indigo-500 transition-colors" size={18} />
+                            <input type="text" placeholder="Search employees name, role, phone..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="w-full pl-12 pr-6 py-4 bg-app/50 border border-border/40 rounded-2xl font-bold text-xs outline-none focus:border-indigo-500/50 focus:bg-app transition-all placeholder:text-muted/50" />
                         </div>
                     </div>
                     <div className="responsive-table">
@@ -573,42 +602,62 @@ const ZenPeople: React.FC = () => {
 
             {/* ═══════════ EMPLOYEE MODAL ═══════════ */}
             {showEmployeeModal && (
-                <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4" onClick={() => setShowEmployeeModal(false)}>
-                    <div className="bg-card border border-border rounded-[2rem] w-full max-w-lg shadow-2xl" onClick={e => e.stopPropagation()}>
-                        <div className="p-6 border-b border-border flex items-center justify-between">
-                            <h3 className="text-lg font-black text-main">{editingEmployee ? 'Edit Employee' : 'Add Employee'}</h3>
-                            <button onClick={() => setShowEmployeeModal(false)} className="p-2 text-muted hover:text-main"><X size={18} /></button>
+                <div className="fixed inset-0 bg-black/80 backdrop-blur-xl z-[100] flex items-center justify-center p-4 animate-in fade-in duration-300" onClick={() => setShowEmployeeModal(false)}>
+                    <div className="bg-card border border-border/50 rounded-[3rem] w-full max-w-xl shadow-2xl overflow-hidden relative" onClick={e => e.stopPropagation()}>
+                        <div className="absolute top-0 right-0 w-64 h-64 bg-indigo-600/10 blur-[100px] -z-10" />
+                        
+                        <div className="p-8 border-b border-border/20 flex items-center justify-between">
+                            <div>
+                                <h3 className="text-2xl font-black text-main tracking-tighter uppercase">{editingEmployee ? 'Update Profile' : 'New Employee'}</h3>
+                                <p className="text-[10px] font-bold text-muted uppercase tracking-widest mt-1">Fill out the essential staff details</p>
+                            </div>
+                            <button onClick={() => setShowEmployeeModal(false)} className="w-12 h-12 rounded-2xl bg-elevated/50 flex items-center justify-center text-muted hover:text-rose-500 hover:bg-rose-500/10 transition-all border border-border/20"><X size={20} /></button>
                         </div>
-                        <div className="p-6 space-y-4 max-h-[60vh] overflow-y-auto">
-                            {[
-                                { key: 'name', label: 'Full Name', icon: Users },
-                                { key: 'phone', label: 'Phone', icon: Phone },
-                                { key: 'email', label: 'Email', icon: Mail },
-                                { key: 'nationalId', label: 'National ID', icon: ShieldCheck },
-                                { key: 'basicSalary', label: 'Basic Salary (LE)', icon: Wallet },
-                                { key: 'emergencyContact', label: 'Emergency Contact', icon: AlertTriangle },
-                                { key: 'bankAccount', label: 'Bank Account', icon: CreditCard },
-                            ].map(f => (
-                                <div key={f.key}>
-                                    <label className="text-[9px] font-black uppercase tracking-widest text-muted mb-1 block">{f.label}</label>
-                                    <div className="relative">
-                                        <f.icon className="absolute left-3 top-1/2 -translate-y-1/2 text-muted" size={14} />
-                                        <input type="text" value={(empForm as any)[f.key]} onChange={e => setEmpForm(prev => ({ ...prev, [f.key]: e.target.value }))}
-                                            className="w-full pl-10 pr-4 py-3 bg-app border border-border rounded-xl text-xs font-bold outline-none focus:border-indigo-500 transition-colors text-main" />
+                        
+                        <div className="p-8 space-y-6 max-h-[70vh] overflow-y-auto custom-scrollbar">
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                {[
+                                    { key: 'name', label: 'Full Name', icon: Users, span: 'col-span-2' },
+                                    { key: 'phone', label: 'Phone Number', icon: Phone },
+                                    { key: 'email', label: 'Email Address', icon: Mail },
+                                    { key: 'nationalId', label: 'National ID', icon: ShieldCheck },
+                                    { key: 'basicSalary', label: 'Basic Salary (LE)', icon: Wallet },
+                                    { key: 'emergencyContact', label: 'Emergency Contact', icon: AlertTriangle },
+                                    { key: 'bankAccount', label: 'Bank Account/Iban', icon: CreditCard },
+                                ].map(f => (
+                                    <div key={f.key} className={f.span || ''}>
+                                        <label className="text-[10px] font-black uppercase tracking-[0.15em] text-muted mb-2 block ml-1">{f.label}</label>
+                                        <div className="relative group">
+                                            <div className="absolute left-4 top-1/2 -translate-y-1/2 text-muted group-focus-within:text-indigo-500 transition-colors">
+                                                <f.icon size={16} />
+                                            </div>
+                                            <input type="text" value={(empForm as any)[f.key]} onChange={e => setEmpForm(prev => ({ ...prev, [f.key]: e.target.value }))}
+                                                className="w-full pl-12 pr-4 py-4 bg-app/50 border border-border/40 rounded-2xl text-xs font-bold outline-none focus:border-indigo-500/50 focus:bg-app transition-all text-main" placeholder={`Enter ${f.label.toLowerCase()}`} />
+                                        </div>
+                                    </div>
+                                ))}
+                                <div className="col-span-2">
+                                    <label className="text-[10px] font-black uppercase tracking-[0.15em] text-muted mb-2 block ml-1">Assigned Role</label>
+                                    <div className="relative group">
+                                        <div className="absolute left-4 top-1/2 -translate-y-1/2 text-muted group-focus-within:text-indigo-500">
+                                            <Briefcase size={16} />
+                                        </div>
+                                        <select value={empForm.role} onChange={e => e.target.value && setEmpForm(prev => ({ ...prev, role: e.target.value }))}
+                                            className="w-full pl-12 pr-10 py-4 bg-app/50 border border-border/40 rounded-2xl text-xs font-bold outline-none focus:border-indigo-500/50 focus:bg-app transition-all text-main appearance-none cursor-pointer">
+                                            {['STAFF', 'CASHIER', 'WAITER', 'COOK', 'MANAGER', 'ADMIN', 'DRIVER', 'SUPERVISOR'].map(r => <option key={r} value={r}>{r}</option>)}
+                                        </select>
+                                        <ChevronRight className="absolute right-4 top-1/2 -translate-y-1/2 text-muted rotate-90 pointer-events-none" size={16} />
                                     </div>
                                 </div>
-                            ))}
-                            <div>
-                                <label className="text-[9px] font-black uppercase tracking-widest text-muted mb-1 block">Role</label>
-                                <select value={empForm.role} onChange={e => setEmpForm(prev => ({ ...prev, role: e.target.value }))}
-                                    className="w-full px-4 py-3 bg-app border border-border rounded-xl text-xs font-bold outline-none focus:border-indigo-500 text-main">
-                                    {['STAFF', 'CASHIER', 'WAITER', 'COOK', 'MANAGER', 'ADMIN', 'DRIVER', 'SUPERVISOR'].map(r => <option key={r} value={r}>{r}</option>)}
-                                </select>
                             </div>
                         </div>
-                        <div className="p-6 border-t border-border flex gap-3">
-                            <button onClick={() => setShowEmployeeModal(false)} className="flex-1 px-4 py-3 bg-app border border-border rounded-xl text-xs font-black text-muted uppercase tracking-widest">Cancel</button>
-                            <button onClick={handleSaveEmployee} className="flex-1 px-4 py-3 bg-gradient-to-r from-indigo-600 to-violet-600 text-white rounded-xl text-xs font-black uppercase tracking-widest flex items-center justify-center gap-2"><Save size={14} /> Save</button>
+                        
+                        <div className="p-8 border-t border-border/20 bg-elevated/30 flex gap-4">
+                            <button onClick={() => setShowEmployeeModal(false)} className="flex-1 px-6 py-4 bg-app border border-border rounded-2xl text-xs font-black text-muted uppercase tracking-widest hover:bg-border transition-colors">Cancel Changes</button>
+                            <button onClick={handleSaveEmployee} className="flex-[1.5] px-6 py-4 bg-gradient-to-r from-indigo-600 to-violet-600 text-white rounded-2xl text-xs font-black uppercase tracking-widest flex items-center justify-center gap-3 shadow-xl shadow-indigo-600/20 hover:scale-[1.02] active:scale-95 transition-all">
+                                <Save size={18} />
+                                {editingEmployee ? 'Confirm Updates' : 'Create Staff Member'}
+                            </button>
                         </div>
                     </div>
                 </div>
@@ -616,50 +665,60 @@ const ZenPeople: React.FC = () => {
 
             {/* ═══════════ LEAVE REQUEST MODAL ═══════════ */}
             {showLeaveModal && (
-                <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4" onClick={() => setShowLeaveModal(false)}>
-                    <div className="bg-card border border-border rounded-[2rem] w-full max-w-md shadow-2xl" onClick={e => e.stopPropagation()}>
-                        <div className="p-6 border-b border-border flex items-center justify-between">
-                            <h3 className="text-lg font-black text-main">New Leave Request</h3>
-                            <button onClick={() => setShowLeaveModal(false)} className="p-2 text-muted hover:text-main"><X size={18} /></button>
+                <div className="fixed inset-0 bg-black/80 backdrop-blur-xl z-[100] flex items-center justify-center p-4 animate-in fade-in duration-300" onClick={() => setShowLeaveModal(false)}>
+                    <div className="bg-card border border-border/50 rounded-[3rem] w-full max-w-xl shadow-2xl overflow-hidden relative" onClick={e => e.stopPropagation()}>
+                        <div className="absolute top-0 right-0 w-64 h-64 bg-indigo-600/10 blur-[100px] -z-10" />
+                        
+                        <div className="p-8 border-b border-border/20 flex items-center justify-between">
+                            <div>
+                                <h3 className="text-2xl font-black text-main tracking-tighter uppercase">Leave Registration</h3>
+                                <p className="text-[10px] font-bold text-muted uppercase tracking-widest mt-1">Submit a formal time-off request</p>
+                            </div>
+                            <button onClick={() => setShowLeaveModal(false)} className="w-12 h-12 rounded-2xl bg-elevated/50 flex items-center justify-center text-muted hover:text-rose-500 transition-all border border-border/20"><X size={20} /></button>
                         </div>
-                        <div className="p-6 space-y-4">
-                            <div>
-                                <label className="text-[9px] font-black uppercase tracking-widest text-muted mb-1 block">Employee</label>
-                                <select value={leaveForm.employeeId} onChange={e => setLeaveForm(prev => ({ ...prev, employeeId: e.target.value }))}
-                                    className="w-full px-4 py-3 bg-app border border-border rounded-xl text-xs font-bold outline-none text-main">
-                                    <option value="">Select Employee</option>
-                                    {employees.map(emp => <option key={emp.id} value={emp.id}>{emp.name || emp.id}</option>)}
-                                </select>
-                            </div>
-                            <div>
-                                <label className="text-[9px] font-black uppercase tracking-widest text-muted mb-1 block">Leave Type</label>
-                                <select value={leaveForm.leaveTypeId} onChange={e => setLeaveForm(prev => ({ ...prev, leaveTypeId: e.target.value }))}
-                                    className="w-full px-4 py-3 bg-app border border-border rounded-xl text-xs font-bold outline-none text-main">
-                                    <option value="">Select Type</option>
-                                    {leaveTypes.map((lt: any) => <option key={lt.id} value={lt.id}>{lt.name}</option>)}
-                                </select>
-                            </div>
-                            <div className="grid grid-cols-2 gap-3">
+                        
+                        <div className="p-8 space-y-6">
+                            <div className="grid grid-cols-2 gap-6">
+                                <div className="col-span-2">
+                                    <label className="text-[10px] font-black uppercase tracking-[0.15em] text-muted mb-2 block ml-1">Staff Member</label>
+                                    <select value={leaveForm.employeeId} onChange={e => setLeaveForm(prev => ({ ...prev, employeeId: e.target.value }))}
+                                        className="w-full px-6 py-4 bg-app/50 border border-border/40 rounded-2xl text-xs font-bold outline-none focus:border-indigo-500/50 transition-all text-main">
+                                        <option value="">Choose Employee...</option>
+                                        {employees.map(emp => <option key={emp.id} value={emp.id}>{emp.name || emp.id}</option>)}
+                                    </select>
+                                </div>
+                                <div className="col-span-2">
+                                    <label className="text-[10px] font-black uppercase tracking-[0.15em] text-muted mb-2 block ml-1">Type of Leave</label>
+                                    <select value={leaveForm.leaveTypeId} onChange={e => setLeaveForm(prev => ({ ...prev, leaveTypeId: e.target.value }))}
+                                        className="w-full px-6 py-4 bg-app/50 border border-border/40 rounded-2xl text-xs font-bold outline-none focus:border-indigo-500/50 transition-all text-main">
+                                        <option value="">Select Category...</option>
+                                        {leaveTypes.map((lt: any) => <option key={lt.id} value={lt.id}>{lt.name}</option>)}
+                                    </select>
+                                </div>
                                 <div>
-                                    <label className="text-[9px] font-black uppercase tracking-widest text-muted mb-1 block">Start Date</label>
+                                    <label className="text-[10px] font-black uppercase tracking-[0.15em] text-muted mb-2 block ml-1">Start Date</label>
                                     <input type="date" value={leaveForm.startDate} onChange={e => setLeaveForm(prev => ({ ...prev, startDate: e.target.value }))}
-                                        className="w-full px-4 py-3 bg-app border border-border rounded-xl text-xs font-bold outline-none text-main" />
+                                        className="w-full px-6 py-4 bg-app/50 border border-border/40 rounded-2xl text-xs font-bold outline-none text-main" />
                                 </div>
                                 <div>
-                                    <label className="text-[9px] font-black uppercase tracking-widest text-muted mb-1 block">End Date</label>
+                                    <label className="text-[10px] font-black uppercase tracking-[0.15em] text-muted mb-2 block ml-1">End Date</label>
                                     <input type="date" value={leaveForm.endDate} onChange={e => setLeaveForm(prev => ({ ...prev, endDate: e.target.value }))}
-                                        className="w-full px-4 py-3 bg-app border border-border rounded-xl text-xs font-bold outline-none text-main" />
+                                        className="w-full px-6 py-4 bg-app/50 border border-border/40 rounded-2xl text-xs font-bold outline-none text-main" />
+                                </div>
+                                <div className="col-span-2">
+                                    <label className="text-[10px] font-black uppercase tracking-[0.15em] text-muted mb-2 block ml-1">Reason / justificaiton</label>
+                                    <textarea value={leaveForm.reason} onChange={e => setLeaveForm(prev => ({ ...prev, reason: e.target.value }))} rows={3}
+                                        className="w-full px-6 py-4 bg-app/50 border border-border/40 rounded-2xl text-xs font-bold outline-none resize-none text-main focus:border-indigo-500/50 transition-all" placeholder="Explain the reason for leave..." />
                                 </div>
                             </div>
-                            <div>
-                                <label className="text-[9px] font-black uppercase tracking-widest text-muted mb-1 block">Reason</label>
-                                <textarea value={leaveForm.reason} onChange={e => setLeaveForm(prev => ({ ...prev, reason: e.target.value }))} rows={3}
-                                    className="w-full px-4 py-3 bg-app border border-border rounded-xl text-xs font-bold outline-none resize-none text-main" />
-                            </div>
                         </div>
-                        <div className="p-6 border-t border-border flex gap-3">
-                            <button onClick={() => setShowLeaveModal(false)} className="flex-1 px-4 py-3 bg-app border border-border rounded-xl text-xs font-black text-muted uppercase tracking-widest">Cancel</button>
-                            <button onClick={handleSubmitLeave} className="flex-1 px-4 py-3 bg-gradient-to-r from-indigo-600 to-violet-600 text-white rounded-xl text-xs font-black uppercase tracking-widest flex items-center justify-center gap-2"><Save size={14} /> Submit</button>
+                        
+                        <div className="p-8 border-t border-border/20 bg-elevated/30 flex gap-4">
+                            <button onClick={() => setShowLeaveModal(false)} className="flex-1 px-6 py-4 bg-app border border-border rounded-2xl text-xs font-black text-muted uppercase tracking-widest">Withdraw</button>
+                            <button onClick={handleSubmitLeave} className="flex-[1.5] px-6 py-4 bg-gradient-to-r from-indigo-600 to-violet-600 text-white rounded-2xl text-xs font-black uppercase tracking-widest flex items-center justify-center gap-3 shadow-xl shadow-indigo-600/20 hover:scale-[1.02] active:scale-95 transition-all">
+                                <Save size={18} />
+                                Submit Request
+                            </button>
                         </div>
                     </div>
                 </div>

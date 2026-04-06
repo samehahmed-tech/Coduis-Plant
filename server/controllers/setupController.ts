@@ -223,3 +223,93 @@ export const bootstrapSetup = async (req: Request, res: Response) => {
         res.status(500).json({ error: error.message });
     }
 };
+
+/**
+ * DEV / TEST TOOL — Wipes all transactional data while keeping structure intact.
+ * Preserves: branches, users, settings, printers, roles, floor_zones, tables, warehouses, chart_of_accounts
+ * Clears: orders, payments, menu, inventory, shifts, customers, drivers, etc.
+ */
+export const resetTestData = async (req: Request, res: Response) => {
+    try {
+        // Order matters due to FK constraints — children first, then parents
+        const tablesToTruncate = [
+            // Order-related (most dependent)
+            'order_status_history',
+            'order_items',
+            'payments',
+            'delivery_assignments',
+            'refund_records',
+            'idempotency_keys',
+            // Orders themselves
+            'orders',
+            // Shifts
+            'shifts',
+            'day_close_reports',
+            // Menu
+            'menu_item_modifiers',
+            'modifier_options',
+            'modifier_groups',
+            'recipe_ingredients',
+            'recipe_versions',
+            'recipes',
+            'menu_items',
+            'menu_categories',
+            // Inventory
+            'batch_transactions',
+            'inventory_batches',
+            'stock_movements',
+            'inventory_stock',
+            'inventory_items',
+            'purchase_order_items',
+            'purchase_orders',
+            'suppliers',
+            // CRM
+            'customer_addresses',
+            'customers',
+            // Drivers
+            'drivers',
+            // Finance (journals, but keep chart_of_accounts)
+            'journal_lines',
+            'journal_entries',
+            'budget_lines',
+            'budgets',
+            // Logs
+            'audit_logs',
+            'fiscal_logs',
+            'eta_dead_letters',
+            'campaign_logs',
+            'campaigns',
+            'whatsapp_messages',
+            // Production
+            'production_order_items',
+            'production_orders',
+            // HR
+            'payroll_payouts',
+            'payroll_cycles',
+            'leave_requests',
+            'attendance',
+            'employees',
+            // Misc
+            'images',
+            'manager_approvals',
+            'reservations',
+        ];
+
+        let truncated = 0;
+        for (const table of tablesToTruncate) {
+            try {
+                await pool.query(`TRUNCATE TABLE "${table}" CASCADE`);
+                truncated++;
+            } catch {
+                // Table might not exist — skip silently
+            }
+        }
+
+        // Also clear any telemetry / SLA settings stored in settings table
+        await pool.query(`DELETE FROM settings WHERE key IN ('driverTelemetry', 'deliverySlaEscalations')`);
+
+        res.json({ ok: true, truncated, tables: tablesToTruncate.length });
+    } catch (error: any) {
+        res.status(500).json({ error: error.message });
+    }
+};

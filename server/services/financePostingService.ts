@@ -3,6 +3,9 @@ import { GLService } from './glService';
 import { db } from '../db';
 import { orders, paymentMethodAccounts, taxAccounts, chartOfAccounts } from '../../src/db/schema';
 import { eq } from 'drizzle-orm';
+import logger from '../utils/logger';
+
+const log = logger.child({ service: 'financePosting' });
 export const postPosOrderEntry = async (data: { orderId: string; amount: number; branchId?: string; userId?: string }) => {
     try {
         const [order] = await db.select().from(orders).where(eq(orders.id, data.orderId)).limit(1);
@@ -17,7 +20,7 @@ export const postPosOrderEntry = async (data: { orderId: string; amount: number;
             order.branchId
         );
     } catch (err) {
-        console.error('GL Sync Failed (POS_ORDER):', err);
+        log.error({ orderId: data.orderId, err: (err as any)?.message }, 'GL Sync Failed (POS_ORDER)');
     }
 };
 
@@ -37,7 +40,7 @@ export const postPurchaseReceiptEntry = async (data: { poId: string; amount: num
             ]
         });
     } catch (err) {
-        console.error('GL Sync Failed (PO_RECEIPT):', err);
+        log.error({ poId: data.poId, err: (err as any)?.message }, 'GL Sync Failed (PO_RECEIPT)');
     }
 };
 
@@ -99,7 +102,7 @@ export const postWastageEntry = async (data: { referenceId: string; amount: numb
             ]
         });
     } catch (err) {
-        console.error('GL Sync Failed (WASTAGE):', err);
+        log.error({ referenceId: data.referenceId, err: (err as any)?.message }, 'GL Sync Failed (WASTAGE)');
     }
 };
 

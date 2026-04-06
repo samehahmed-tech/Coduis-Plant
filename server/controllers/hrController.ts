@@ -3,6 +3,7 @@ import { db } from '../db';
 import { employees, attendance, payrollCycles, payrollPayouts } from '../../src/db/schema';
 import { eq, and, gte, lte, sql } from 'drizzle-orm';
 import { nanoid } from 'nanoid';
+import logger from '../utils/logger';
 
 // ============================================================================
 // Employees
@@ -15,7 +16,7 @@ export const getEmployees = async (req: Request, res: Response) => {
         });
         res.json(result);
     } catch (error: any) {
-        console.error('Error fetching employees:', error);
+        logger.error({ err: error }, 'Error fetching employees');
         res.status(500).json({ error: 'Failed to fetch employees' });
     }
 };
@@ -63,7 +64,7 @@ export const upsertEmployee = async (req: Request, res: Response) => {
             res.json(created);
         }
     } catch (error: any) {
-        console.error('Error upserting employee:', error);
+        logger.error({ err: error }, 'Error upserting employee');
         res.status(500).json({ error: 'Failed to save employee' });
     }
 };
@@ -86,7 +87,7 @@ export const getAttendance = async (req: Request, res: Response) => {
         });
         res.json(result);
     } catch (error: any) {
-        console.error('Error fetching attendance:', error);
+        logger.error({ err: error }, 'Error fetching attendance');
         res.status(500).json({ error: 'Failed to fetch attendance' });
     }
 };
@@ -116,7 +117,7 @@ export const clockIn = async (req: Request, res: Response) => {
             .returning();
         res.json(record);
     } catch (error: any) {
-        console.error('Error clocking in:', error);
+        logger.error({ err: error }, 'Error clocking in');
         res.status(500).json({ error: 'Failed to clock in' });
     }
 };
@@ -152,7 +153,7 @@ export const clockOut = async (req: Request, res: Response) => {
 
         res.json(updated);
     } catch (error: any) {
-        console.error('Error clocking out:', error);
+        logger.error({ err: error }, 'Error clocking out');
         res.status(500).json({ error: 'Failed to clock out' });
     }
 };
@@ -199,7 +200,7 @@ export const payrollSummary = async (req: Request, res: Response) => {
             amount,
         });
     } catch (error: any) {
-        console.error('Error fetching payroll summary:', error);
+        logger.error({ err: error }, 'Error fetching payroll summary');
         res.status(500).json({ error: 'Failed to fetch payroll summary' });
     }
 };
@@ -297,7 +298,7 @@ export const executePayrollCycle = async (req: Request, res: Response) => {
             entries: allEmps.length
         });
     } catch (error: any) {
-        console.error('Error executing payroll:', error);
+        logger.error({ err: error }, 'Error executing payroll');
         res.status(500).json({ error: 'Failed to execute payroll' });
     }
 };
