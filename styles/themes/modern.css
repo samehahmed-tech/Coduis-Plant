@@ -1,100 +1,54 @@
-/* ═══ Theme: MODERN — French Elegance / Deep Emerald + Gold Accent ═══ */
 [data-theme='modern'] {
-    --primary: 15 118 110;
-    --primary-hover: 13 95 88;
-    --secondary: 87 99 108;
-    --accent: 194 140 42;
-    --success: 22 163 74;
-    --warning: 234 179 8;
-    --danger: 220 38 38;
-    --bg-app: 250 248 244;
-    --bg-card: 255 253 249;
-    --bg-sidebar: 245 242 236;
-    --bg-elevated: 237 233 225;
-    --text-main: 30 35 38;
-    --text-muted: 104 112 116;
-    --border-color: 222 216 206;
-    --border-subtle: 0 0 0 / 0.04;
-    --glass-bg: 255 255 255 / 0.92;
+    --primary: 255 99 88; /* Coral/Telerik Modern */
+    --primary-hover: 235 69 68;
+    --secondary: 104 112 116;
+    --accent: 255 99 88;
+    --bg-app: 247 248 249;
+    --bg-card: 255 255 255;
+    --bg-sidebar: 33 37 41;
+    --bg-elevated: 255 255 255;
+    --text-main: 41 43 44;
+    --text-muted: 108 117 125;
+    --border-color: 222 226 230;
+    --border-subtle: 222 226 230 / 0.3;
+    --glass-bg: 255 255 255 / 1;
 
-    --theme-radius: 16px;
-    --theme-radius-sm: 10px;
-    --theme-radius-lg: 20px;
-    --theme-radius-xl: 28px;
-    --theme-blur: 16px;
-    --theme-surface-opacity: 0.97;
-    --theme-border-width: 1px;
-    --theme-border-opacity: 0.08;
-    --theme-shadow-card: 0 1px 2px rgba(45, 38, 28, 0.03), 0 6px 18px rgba(45, 38, 28, 0.04);
-    --theme-shadow-hover: 0 12px 32px rgba(45, 38, 28, 0.08), 0 0 0 1px rgba(15, 118, 110, 0.06);
-    --theme-shadow-elevated: 0 20px 50px rgba(45, 38, 28, 0.12);
-    --theme-ease: cubic-bezier(0.22, 1, 0.36, 1);
-    --theme-duration: 180ms;
-    --theme-duration-slow: 300ms;
-    --theme-font-weight: 500;
-    --theme-heading-weight: 700;
-    --theme-letter-spacing: -0.01em;
+    --theme-radius: 12px; 
+    --theme-radius-sm: 6px;
+    --theme-radius-lg: 16px;
+    --theme-radius-xl: 20px;
 
-    --bg-global:
-        radial-gradient(ellipse at 15% 8%, rgba(15, 118, 110, 0.07), transparent 40%),
-        radial-gradient(ellipse at 85% 15%, rgba(194, 140, 42, 0.06), transparent 35%),
-        radial-gradient(ellipse at 50% 90%, rgba(15, 118, 110, 0.04), transparent 45%),
-        linear-gradient(172deg, #faf8f4 0%, #f3efe6 40%, #f7f4ec 100%);
-    --app-bg-opacity: 0;
+    --theme-blur: 0px; 
+    --theme-surface-opacity: 1;
+    --theme-border-width: 0px;
+    --theme-border-opacity: 0;
 
-    --theme-card-overlay: none;
-    --theme-card-inner-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.8), inset 0 -1px 0 rgba(0, 0, 0, 0.02);
-    --theme-card-bg: linear-gradient(180deg, rgba(255, 253, 249, 0.97), rgba(252, 249, 242, 0.95));
-    --theme-card-hover-bg: linear-gradient(180deg, rgba(255, 254, 251, 0.99), rgba(249, 245, 236, 0.97));
-    --theme-button-bg: linear-gradient(145deg, rgb(15 118 110) 0%, rgb(13 95 88) 100%);
-    --theme-button-bg-hover: linear-gradient(145deg, rgb(13 95 88) 0%, rgb(15 118 110) 100%);
-    --theme-button-secondary-bg: rgba(255, 252, 247, 0.9);
-    --theme-button-secondary-hover-bg: rgba(15, 118, 110, 0.06);
-    --theme-card-hover-glow: 0 14px 32px rgba(45, 38, 28, 0.08), 0 0 0 1px rgba(15, 118, 110, 0.1);
-    --theme-card-hover-transform: translateY(-1px);
-    --theme-card-hover-border: rgba(15, 118, 110, 0.15);
-    --theme-card-hover-overlay-opacity: 1;
+    --theme-shadow-card: 0 4px 20px rgba(0,0,0,0.05); /* Big soft shadows */
+    --theme-shadow-hover: 0 10px 40px rgba(0,0,0,0.08);
+    --theme-shadow-elevated: 0 20px 60px rgba(0,0,0,0.12);
+
+    --theme-ease: cubic-bezier(0.2, 0.8, 0.2, 1);
+    --theme-duration: 300ms;
+    --theme-duration-slow: 450ms;
+
+    --bg-global: #f7f8f9;
 }
 
 [data-theme='modern'].dark,
 .dark [data-theme='modern'] {
-    --primary: 20 184 166;
-    --primary-hover: 15 150 135;
-    --bg-app: 8 12 14;
-    --bg-card: 16 22 26;
-    --bg-sidebar: 6 10 13;
-    --bg-elevated: 26 33 38;
-    --text-main: 248 245 240;
-    --text-muted: 158 166 164;
-    --border-color: 38 48 54;
-    --border-subtle: 255 255 255 / 0.06;
-    --glass-bg: 16 24 30 / 0.88;
-    --secondary: 148 163 170;
-    --accent: 218 168 72;
-    --theme-shadow-card: 
-        0 1px 3px rgba(20, 184, 166, 0.04),
-        0 4px 12px rgba(0, 0, 0, 0.12),
-        0 0 0 1px rgba(20, 184, 166, 0.03);
-    --theme-shadow-hover: 
-        0 8px 24px rgba(20, 184, 166, 0.06),
-        0 0 0 1px rgba(20, 184, 166, 0.08);
-    --theme-shadow-elevated: 0 16px 40px rgba(0, 0, 0, 0.4);
-
-    --bg-global:
-        radial-gradient(ellipse at 18% 8%, rgba(20, 184, 166, 0.12), transparent 35%),
-        radial-gradient(ellipse at 82% 18%, rgba(218, 168, 72, 0.08), transparent 30%),
-        radial-gradient(ellipse at 50% 85%, rgba(20, 184, 166, 0.04), transparent 40%),
-        linear-gradient(172deg, #080c0e 0%, #060a0c 40%, #080c0e 100%);
-    --app-bg-opacity: 0;
-
-    --theme-card-inner-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05);
-    --theme-card-bg-dark: linear-gradient(180deg, rgba(20, 28, 32, 0.95), rgba(14, 20, 24, 0.95));
-    --theme-button-bg: linear-gradient(145deg, rgb(20 184 166) 0%, rgb(15 150 135) 100%);
-    --theme-button-bg-hover: linear-gradient(145deg, rgb(15 150 135) 0%, rgb(20 184 166) 100%);
-    --theme-button-secondary-bg: rgba(255, 255, 255, 0.04);
-    --theme-button-secondary-hover-bg: rgba(20, 184, 166, 0.1);
-    --theme-card-hover-glow: 
-        0 14px 32px rgba(20, 184, 166, 0.06),
-        0 0 0 1px rgba(20, 184, 166, 0.08);
-    --theme-card-hover-border: rgba(20, 184, 166, 0.2);
+    --primary: 255 119 108;
+    --primary-hover: 255 99 88;
+    --bg-app: 18 18 18;
+    --bg-card: 30 30 30;
+    --bg-sidebar: 18 18 18;
+    --bg-elevated: 45 45 45;
+    --text-main: 248 249 250;
+    --text-muted: 173 181 189;
+    --border-color: 255 255 255 / 0; /* No borders in modern dark */
+    --border-subtle: 255 255 255 / 0;
+    --glass-bg: 30 30 30 / 1;
+    
+    --theme-shadow-card: 0 8px 30px rgba(0,0,0,0.4);
+    --theme-shadow-hover: 0 12px 40px rgba(0,0,0,0.6);
+    --bg-global: #121212;
 }

@@ -60,12 +60,12 @@ export const ManagerApprovalModal: React.FC<ManagerApprovalModalProps> = ({ isOp
 
     return (
         <AnimatePresence>
-            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-[700] flex items-end sm:items-center justify-center bg-slate-950/80 backdrop-blur-xl sm:p-4">
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-[700] flex items-end sm:items-center justify-center theme-modal-overlay p-0 sm:p-4">
                 <div className="absolute inset-0" onClick={onClose} />
                 
                 <motion.div
-                    initial={{ y: "100%", scale: 0.95 }} animate={{ y: 0, scale: 1 }} exit={{ y: "100%", scale: 0.95 }} transition={{ type: "spring", damping: 30, stiffness: 400 }}
-                    className={`relative w-full max-w-sm bg-white dark:bg-slate-900 sm:rounded-[3.5rem] rounded-t-[3.5rem] shadow-[0_32px_128px_rgba(0,0,0,0.4)] overflow-hidden flex flex-col border border-white/10 ${isRTL ? 'text-right' : 'text-left'}`}
+                    initial={{ y: "100%", scale: 1 }} animate={{ y: 0, scale: 1 }} exit={{ y: "100%", scale: 1 }} transition={{ type: "spring", damping: 26, stiffness: 300 }}
+                    className={`theme-modal-content w-full max-w-sm relative overflow-hidden flex flex-col ${isRTL ? 'text-right' : 'text-left'}`}
                 >
                     <div className="p-10 pt-16 relative">
                         {/* Close button */}
@@ -86,7 +86,7 @@ export const ManagerApprovalModal: React.FC<ManagerApprovalModalProps> = ({ isOp
                                     {pin.length === 4 && !loading ? <Unlock className="w-10 h-10 text-white" /> : <Lock className="w-10 h-10 text-white" />}
                                 </div>
                             </div>
-                            <h2 className="text-2xl font-black text-slate-900 dark:text-white uppercase tracking-tighter leading-tight">
+                            <h2 className="text-2xl font-black text-main uppercase tracking-tighter leading-tight">
                                 {isRTL ? 'تأكيد الصلاحية' : 'SecurID Access'}
                             </h2>
                             <div className="mt-3 flex justify-center">
@@ -106,7 +106,7 @@ export const ManagerApprovalModal: React.FC<ManagerApprovalModalProps> = ({ isOp
                                     key={i} 
                                     initial={false}
                                     animate={pin.length > i ? { scale: 1.2, backgroundColor: '#f59e0b' } : { scale: 1, backgroundColor: 'rgba(148,163,184,0.2)' }}
-                                    className={`w-5 h-5 rounded-full transition-all duration-200 ${pin.length > i ? 'shadow-[0_0_15px_rgba(245,158,11,0.5)]' : 'border-2 border-slate-300 dark:border-slate-700'}`} 
+                                    className={`w-5 h-5 rounded-full transition-all duration-200 ${pin.length > i ? 'shadow-[0_0_15px_rgba(245,158,11,0.5)]' : 'border-2 border-border/20'}`} 
                                 />
                             ))}
                         </div>
@@ -120,16 +120,16 @@ export const ManagerApprovalModal: React.FC<ManagerApprovalModalProps> = ({ isOp
                             </motion.p>
                         )}
 
-                        <div className="grid grid-cols-3 gap-4">
+                        <div className="grid grid-cols-3 gap-3">
                             {[1, 2, 3, 4, 5, 6, 7, 8, 9].map(num => (
-                                <button key={num} onClick={() => handleDigit(num.toString())} className="h-20 rounded-[1.75rem] bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-800 text-3xl font-black text-slate-900 dark:text-white hover:bg-white dark:hover:bg-slate-700 hover:border-amber-500/40 hover:shadow-lg transition-all active:scale-90">{num}</button>
+                                <button key={num} onClick={() => handleDigit(num.toString())} className="h-16 rounded-2xl bg-elevated/40 border border-border/10 text-3xl font-black text-main hover:bg-elevated hover:border-amber-500/40 hover:shadow-lg transition-all active:scale-95">{num}</button>
                             ))}
-                            <button onClick={handleClear} className="h-20 rounded-[1.75rem] border border-transparent text-xs font-black uppercase tracking-widest text-rose-500 hover:bg-rose-500/10 transition-all active:scale-90 flex items-center justify-center gap-1">CLR</button>
-                            <button onClick={() => handleDigit('0')} className="h-20 rounded-[1.75rem] bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-800 text-3xl font-black text-slate-900 dark:text-white hover:bg-white dark:hover:bg-slate-700 hover:border-amber-500/40 hover:shadow-lg transition-all active:scale-90">0</button>
+                            <button onClick={handleClear} className="h-16 rounded-2xl border border-transparent text-xs font-black uppercase tracking-widest text-rose-500 hover:bg-rose-500/10 transition-all active:scale-95 flex items-center justify-center gap-1">CLR</button>
+                            <button onClick={() => handleDigit('0')} className="h-16 rounded-2xl bg-elevated/40 border border-border/10 text-3xl font-black text-main hover:bg-elevated hover:border-amber-500/40 hover:shadow-lg transition-all active:scale-95">0</button>
                             <button 
                                 onClick={handleSubmit} 
                                 disabled={pin.length < 4 || loading} 
-                                className={`h-20 rounded-[1.75rem] flex items-center justify-center transition-all shadow-lg active:scale-95 ${pin.length === 4 && !loading ? 'bg-indigo-600 text-white shadow-indigo-600/30 border border-indigo-400 hover:bg-indigo-700' : 'bg-slate-100 dark:bg-slate-800 text-slate-300 dark:text-slate-600 opacity-50 cursor-not-allowed'}`}
+                                className={`h-16 rounded-2xl flex items-center justify-center transition-all shadow-lg active:scale-95 ${pin.length === 4 && !loading ? 'bg-primary text-white shadow-primary/30 border border-primary hover:bg-primary-hover' : 'bg-elevated text-muted opacity-50 cursor-not-allowed'}`}
                             >
                                 {loading ? <div className="w-7 h-7 border-4 border-white/30 border-t-white rounded-full animate-spin" /> : <ChevronRight size={32} className={isRTL ? 'rotate-180' : ''} />}
                             </button>

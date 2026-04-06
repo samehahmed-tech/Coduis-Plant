@@ -218,7 +218,7 @@ const POSItemsPanel: React.FC<POSItemsPanelProps> = ({
     return (
         <div className="flex flex-1 h-full min-h-0 min-w-0 flex-col overflow-hidden bg-app">
             {/* ─── Unified Toolbar ─── */}
-            <div className="pos-items-toolbar shrink-0 border-b border-border/10 bg-white/80 backdrop-blur-sm px-2.5 py-1.5 md:px-3">
+            <div className="pos-items-toolbar relative z-50 shrink-0 border-b border-border/10 bg-white/80 backdrop-blur-sm px-2.5 py-1.5 md:px-3">
                 {/* Row 1: Search + Filters + Tools */}
                 <div className="flex items-center gap-2">
                     {/* Search */}

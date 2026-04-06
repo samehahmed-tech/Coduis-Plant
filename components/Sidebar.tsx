@@ -51,7 +51,7 @@ const Sidebar: React.FC = () => {
   const clearCart = useOrderStore(s => s.clearCart);
   const { showModal } = useModal();
   const activeShift = useFinanceStore(s => s.activeShift);
-  const setIsCloseShiftModalOpen = useFinanceStore(s => s.setIsCloseShiftModalOpen);
+  const setIsShiftDrawerOpen = useFinanceStore(s => s.setIsShiftDrawerOpen);
 
   const isPOS = location.pathname === '/pos';
   const lang = (settings.language || 'en') as 'en' | 'ar';
@@ -579,7 +579,7 @@ const Sidebar: React.FC = () => {
             isCollapsed
               ? (
                 <button
-                  onClick={() => setIsCloseShiftModalOpen(true)}
+                  onClick={() => setIsShiftDrawerOpen(true)}
                   className="group relative w-full flex justify-center py-2.5 rounded-xl bg-primary/10 text-primary border border-primary/15 transition-all"
                   title="Close Shift"
                 >
@@ -589,7 +589,7 @@ const Sidebar: React.FC = () => {
               )
               : (
                 <button
-                  onClick={() => setIsCloseShiftModalOpen(true)}
+                  onClick={() => setIsShiftDrawerOpen(true)}
                   className="w-full flex items-center gap-2 px-3 py-1.5 rounded-xl bg-primary/10 text-primary hover:bg-primary/15 border border-primary/15 transition-all text-[9px] font-black uppercase tracking-wide"
                 >
                   <LogOut size={13} />

@@ -46,7 +46,7 @@ const ContextRail: React.FC<ContextRailProps> = ({ onOpenCommand }) => {
     const setDiscount = useOrderStore((state) => state.setDiscount);
     const discount = useOrderStore((state) => state.discount);
     const activeShift = useFinanceStore((state) => state.activeShift);
-    const setIsCloseShiftModalOpen = useFinanceStore((state) => state.setIsCloseShiftModalOpen);
+    const setIsShiftDrawerOpen = useFinanceStore((state) => state.setIsShiftDrawerOpen);
 
     const lang = (language || 'en') as 'en' | 'ar';
     const isRtl = lang === 'ar';
@@ -332,7 +332,7 @@ const ContextRail: React.FC<ContextRailProps> = ({ onOpenCommand }) => {
                     {activeShift && (
                         <div className="px-2 pb-0.5">
                             <button
-                                onClick={() => setIsCloseShiftModalOpen(true)}
+                                onClick={() => setIsShiftDrawerOpen(true)}
                                 className="sidebar-close-shift"
                             >
                                 <LogOut size={12} />

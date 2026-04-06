@@ -21,10 +21,13 @@ import SplitBillModal from './pos/SplitBillModal';
 import NoteModal from './pos/NoteModal';
 import CustomerSelectView from './pos/CustomerSelectView';
 import CalculatorWidget from './common/CalculatorWidget';
-import { ShiftOverlays, CloseShiftModal } from './pos/ShiftOverlays';
+import { ShiftOverlays } from './pos/ShiftOverlays';
 import { ManagerApprovalModal } from './pos/ManagerApprovalModal';
 import TableManagementModal from './pos/TableManagementModal';
 import ItemOptionsModal from './pos/ItemOptionsModal';
+import HeldOrdersModal from './pos/HeldOrdersModal';
+import TakeawayNameModal from './pos/TakeawayNameModal';
+import MultiTenderPayment from './finance/MultiTenderPayment';
 import POSToolbar from './pos/POSToolbar';
 import POSItemsPanel from './pos/POSItemsPanel';
 import CategorySidebar from './pos/CategorySidebar';
@@ -81,6 +84,7 @@ const POS: React.FC = () => {
    const activeCoupon = useOrderStore(state => state.activeCoupon);
    const applyCoupon = useOrderStore(state => state.applyCoupon);
    const clearCoupon = useOrderStore(state => state.clearCoupon);
+   const holdOrder = useOrderStore(state => state.holdOrder);
    const heldOrders = useOrderStore(state => state.heldOrders);
    const recallOrder = useOrderStore(state => state.recallOrder);
    const recalledOrder = useOrderStore(state => state.recalledOrder);
@@ -137,6 +141,9 @@ const POS: React.FC = () => {
    const [showSplitModal, setShowSplitModal] = useState(false);
    const [showCalculator, setShowCalculator] = useState(false);
    const [showApprovalModal, setShowApprovalModal] = useState(false);
+   const [showHeldOrdersModal, setShowHeldOrdersModal] = useState(false);
+   const [showOrderNameModal, setShowOrderNameModal] = useState(false);
+   const [orderName, setOrderName] = useState('');
    const [isCartOpenMobile, setIsCartOpenMobile] = useState(false);
    const [showMobileFilters, setShowMobileFilters] = useState(false);
    const [isTabletViewport, setIsTabletViewport] = useState(() => typeof window !== 'undefined' ? window.innerWidth <= 1180 : false);
@@ -163,8 +170,8 @@ const POS: React.FC = () => {
    const scanErrorAudioRef = useRef<HTMLAudioElement | null>(null);
    const activeShift = useFinanceStore(state => state.activeShift);
    const setShift = useFinanceStore(state => state.setShift);
-   const isCloseShiftModalOpen = useFinanceStore(state => state.isCloseShiftModalOpen);
-   const setIsCloseShiftModalOpen = useFinanceStore(state => state.setIsCloseShiftModalOpen);
+   const isShiftDrawerOpen = useFinanceStore(state => state.isShiftDrawerOpen);
+   const setIsShiftDrawerOpen = useFinanceStore(state => state.setIsShiftDrawerOpen);
 
    const [isOnline, setIsOnline] = useState(navigator.onLine);
    const [nowTick, setNowTick] = useState(Date.now());
@@ -739,6 +746,46 @@ const POS: React.FC = () => {
       }
    }, [activeOrderType]);
 
+   const handleHoldOrder = useCallback(() => {
+      if (safeActiveCart.length === 0) return;
+      holdOrder({
+         id: Math.random().toString(36).substring(7),
+         cart: [...safeActiveCart],
+         customerId: deliveryCustomer?.id,
+         customerName: orderName || deliveryCustomer?.name,
+         timestamp: new Date(),
+         tableId: selectedTableId || undefined,
+         notes: `Saved at ${new Date().toLocaleTimeString()}`
+      });
+      setOrderName('');
+      setDeliveryCustomer(null);
+      if (activeOrderType === OrderType.DINE_IN && selectedTableId) {
+         leaveTable();
+      } else {
+         clearCart();
+      }
+      showToast(lang === 'ar' ? 'تم تعليق الفاتورة' : 'Order Put on Hold', 'success');
+   }, [safeActiveCart, deliveryCustomer, orderName, selectedTableId, holdOrder, clearCart, leaveTable, activeOrderType, lang, showToast]);
+
+   const handleRecallOrder = useCallback((index: number) => {
+      recallOrder(index);
+      const recalled = heldOrders[index];
+      if (recalled) {
+          if (recalled.customerName) setOrderName(recalled.customerName);
+          if (recalled.tableId) {
+               setOrderMode(OrderType.DINE_IN);
+               switchToTable(recalled.tableId);
+          } else if (recalled.customerId) {
+               setOrderMode(OrderType.DELIVERY);
+               const customer = customers.find(c => c.id === recalled.customerId);
+               if (customer) setDeliveryCustomer(customer);
+          } else {
+               setOrderMode(OrderType.TAKEAWAY);
+          }
+      }
+      showToast(lang === 'ar' ? 'تم استدعاء الفاتورة بنجاح' : 'Order Recalled Successfully', 'success');
+   }, [recallOrder, heldOrders, customers, setOrderMode, switchToTable, lang, showToast]);
+
    useEffect(() => {
       const handleKeyDown = (e: KeyboardEvent) => {
          const processScannerBuffer = () => {
@@ -1189,50 +1236,10 @@ const POS: React.FC = () => {
       }
    }, [safeActiveCart, handleUpdateQuantity]);
 
-   const handleQuickPay = () => {
+   const handleQuickPay = useCallback(async () => {
       handleSetPaymentMethod(PaymentMethod.CASH);
       setTimeout(() => handleSubmitOrder(), 0);
-   };
-
-   const handleRecallLastOrder = () => {
-      if (heldOrders.length > 0) {
-         const idx = heldOrders.length - 1;
-         recallOrder(idx);
-         showToast(
-            lang === 'ar'
-               ? 'تم استرجاع آخر طلب مُعلق'
-               : 'Last held order recalled',
-            'success'
-         );
-         return;
-      }
-      if (orders.length > 0) {
-         const lastOrder = orders[0];
-         // Restore items to cart
-         clearCart();
-         lastOrder.items.forEach(item => {
-            addToCart({
-               ...item,
-               cartId: Math.random().toString(36).substr(2, 9)
-            });
-         });
-         if (lastOrder.tableId) setSelectedTableId(lastOrder.tableId);
-         if (lastOrder.type) setOrderMode(lastOrder.type);
-         showToast(
-            lang === 'ar'
-               ? 'تم استرجاع آخر طلب'
-               : 'Last order recalled',
-            'success'
-         );
-      } else {
-         showToast(
-            lang === 'ar'
-               ? 'لا يوجد طلبات للاسترجاع'
-               : 'No orders available to recall',
-            'error'
-         );
-      }
-   };
+   }, [handleSetPaymentMethod]);
 
    const performCloseTable = async (tableId: string) => {
       const activeOrder = orders.find(o => o.tableId === tableId && o.status !== OrderStatus.DELIVERED);
@@ -1572,16 +1579,30 @@ const POS: React.FC = () => {
          <audio ref={scanErrorAudioRef} preload="auto" src="data:audio/wav;base64,UklGRrQEAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YZAEAACAf3+AgIGAgIGBgYKCgoODg4SEhIWFhYaGhoeHh4iIiImIiIeHh4aGhoWFhISEg4OCgoGBgYCAgIB/f39+fn59fX18fHx7e3t6enp5eXl4eHh4d3d3d3d3eHh4eHl5eXp6ent7e3x8fH19fn5+f3+AgICBgYGCgoKDg4OEhA==" />
          <ShiftOverlays onOpen={() => console.log('Shift opened')} />
 
-         <CloseShiftModal
-            isOpen={isCloseShiftModalOpen}
-            onClose={() => setIsCloseShiftModalOpen(false)}
-         />
+
 
          <ManagerApprovalModal
             isOpen={showApprovalModal}
             onClose={() => { setShowApprovalModal(false); setApprovalCallback(null); }}
             onApproved={() => approvalCallback?.fn()}
             actionName={approvalCallback?.action || 'Operation Authorization'}
+         />
+
+         <HeldOrdersModal
+            isOpen={showHeldOrdersModal}
+            onClose={() => setShowHeldOrdersModal(false)}
+            heldOrders={heldOrders}
+            onRecall={handleRecallOrder}
+            currencySymbol={currencySymbol}
+            lang={lang}
+         />
+
+         <TakeawayNameModal
+            isOpen={showOrderNameModal}
+            onClose={() => setShowOrderNameModal(false)}
+            initialName={orderName}
+            onSave={setOrderName}
+            lang={lang}
          />
 
          {showCalculator && (
@@ -1603,7 +1624,7 @@ const POS: React.FC = () => {
                deliveryCustomer={deliveryCustomer}
                onClearCustomer={() => setDeliveryCustomer(null)}
                isTouchMode={isTouchMode}
-               onRecall={handleRecallLastOrder}
+               onRecall={() => setShowHeldOrdersModal(true)}
                activePriceListId={activePriceListId}
                onSetPriceList={setPriceList}
                isOnline={isOnline}
@@ -1616,16 +1637,18 @@ const POS: React.FC = () => {
                lang={lang}
                t={t}
                cartCount={safeActiveCart.length}
-               onToggleCart={() => setIsCartOpenMobile(prev => !prev)}
-               onShowTables={() => setSelectedTableId(null)}
-               onShowCustomers={() => {
-                  setDeliveryCustomer(null);
-                  setSearchQuery('');
-               }}
-               onNewCustomer={() => setShowCustomerModal(true)}
+               onToggleCart={() => setIsCartOpenMobile(!isCartOpenMobile)}
+               onShowTables={() => { setOrderMode(OrderType.DINE_IN); setSelectedTableId(null); }}
+               onShowCustomers={() => { setOrderMode(OrderType.DELIVERY); setDeliveryCustomer(null); setSearchQuery(''); }}
+               onNewCustomer={() => { setOrderMode(OrderType.DELIVERY); setShowCustomerModal(true); }}
                onQuickPay={handleQuickPay}
                onFocusSearch={() => searchInputRef.current?.focus()}
-               hasCartItems={safeActiveCart.length > 0}
+               onHoldOrder={handleHoldOrder}
+               onRecallOrders={() => setShowHeldOrdersModal(true)}
+               heldOrdersCount={heldOrders.length}
+               onSetOrderName={() => setShowOrderNameModal(true)}
+               orderName={orderName}
+               hasCartItems={hasCartItems}
                cartTotal={cartTotal}
                currencySymbol={currencySymbol}
             />
@@ -1856,6 +1879,7 @@ const POS: React.FC = () => {
                            isCartOpenMobile={isCartOpenMobile}
                            shouldShowCart={shouldShowCart}
                            cartPanelWidthClass={cartPanelWidthClass}
+                           splitPayments={splitPayments}
                         />
                      )}
                   </div>

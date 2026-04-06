@@ -114,25 +114,20 @@ export interface ThemeConfig {
     layout: LayoutTokens;
 }
 
-/* ── Theme Registry ── */
-import { modernTheme } from './themes/modern';
-import { glassyTheme } from './themes/glassy';
-import { tilesTheme } from './themes/tiles';
-import { fluentTheme } from './themes/fluent';
+import { windows11Theme } from './themes/windows11';
+import { fluent2Theme } from './themes/fluent2';
 import { crystalTheme } from './themes/crystal';
-import { matteTheme } from './themes/matte';
-import { touchTheme } from './themes/touch';
-import { acrylicTheme } from './themes/acrylic';
+import { officeTouchTheme } from './themes/office-touch';
+import { modernTheme } from './themes/modern';
+import { glassTheme } from './themes/glass';
 
 export const THEME_REGISTRY: Record<AppTheme, ThemeConfig> = {
-    modern: modernTheme,
-    glassy: glassyTheme,
-    tiles: tilesTheme,
-    fluent: fluentTheme,
-    crystal: crystalTheme,
-    matte: matteTheme,
-    touch_ui: touchTheme,
-    acrylic: acrylicTheme,
+    'windows11': windows11Theme,
+    'fluent2': fluent2Theme,
+    'crystal': crystalTheme,
+    'office-touch': officeTouchTheme,
+    'modern': modernTheme,
+    'glass': glassTheme,
 };
 
 export const THEME_LIST: ThemeConfig[] = Object.values(THEME_REGISTRY);

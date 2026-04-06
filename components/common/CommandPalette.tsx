@@ -15,7 +15,7 @@ interface CommandPaletteProps {
 const CommandPalette: React.FC<CommandPaletteProps> = ({ open, setOpen }) => {
     const navigate = useNavigate();
     const { settings, updateSettings, hasPermission, logout } = useAuthStore();
-    const setIsCloseShiftModalOpen = useFinanceStore(s => s.setIsCloseShiftModalOpen);
+    const setIsShiftDrawerOpen = useFinanceStore(s => s.setIsShiftDrawerOpen);
     const lang = (settings.language || 'en') as 'en' | 'ar';
     const isDarkMode = settings.isDarkMode;
     const isTouchMode = settings.isTouchMode;
@@ -106,7 +106,7 @@ const CommandPalette: React.FC<CommandPaletteProps> = ({ open, setOpen }) => {
                             <Hand className="w-4 h-4 mr-3 text-emerald-500" />
                             {isTouchMode ? (lang === 'ar' ? 'تعطيل اللمس' : 'Disable Touch') : (lang === 'ar' ? 'تفعيل اللمس' : 'Enable Touch')}
                         </Command.Item>
-                        <Command.Item onSelect={() => runCommand(() => setIsCloseShiftModalOpen(true))} className="cursor-pointer flex items-center px-4 py-3 text-sm text-main hover:bg-elevated/50 rounded-xl aria-selected:bg-elevated/50 transition-colors my-1">
+                        <Command.Item onSelect={() => runCommand(() => setIsShiftDrawerOpen(true))} className="cursor-pointer flex items-center px-4 py-3 text-sm text-main hover:bg-elevated/50 rounded-xl aria-selected:bg-elevated/50 transition-colors my-1">
                             <LogOut className="w-4 h-4 mr-3 text-rose-500" />
                             {lang === 'ar' ? 'إغلاق الوردية' : 'Close Shift'}
                         </Command.Item>

@@ -13,6 +13,7 @@ import { useTheme } from '../theme';
 const GlobalSearch = lazy(() => import('./common/GlobalSearch'));
 const KeyboardShortcuts = lazy(() => import('./common/KeyboardShortcuts'));
 const OnlineStatus = lazy(() => import('./common/OnlineStatus'));
+const AIWidgetsRenderer = lazy(() => import('./common/AIWidgetsRenderer'));
 
 const MainLayout: React.FC = () => {
     const { isAuthenticated, language } = useAuthStore(
@@ -74,6 +75,7 @@ const MainLayout: React.FC = () => {
                 <GlobalSearch />
                 <KeyboardShortcuts />
                 <OnlineStatus />
+                <AIWidgetsRenderer />
             </Suspense>
             {!isFullscreenRoute && <ScrollToTop />}
         </div>

@@ -1,10 +1,10 @@
 import type { ThemeConfig } from '../tokens';
 
-export const fluentTheme: ThemeConfig = {
-    id: 'fluent',
-    name: 'Fluent',
-    description: 'Warm & calm — Cream neutrals, Notion-inspired serenity',
-    tags: ['Warm', 'Calm'],
+export const windows11Theme: ThemeConfig = {
+    id: 'windows11',
+    name: 'Windows 11 Mica',
+    description: 'Syncfusion/Telerik inspired Windows 11 UI with Mica effect',
+    tags: ['Windows', 'Mica', 'Premium'],
     shape: {
         radius: '8px',
         radiusSm: '4px',
@@ -12,39 +12,39 @@ export const fluentTheme: ThemeConfig = {
         radiusXl: '16px',
     },
     surfaces: {
-        blur: '16px',
-        surfaceOpacity: 0.88,
+        blur: '30px',
+        surfaceOpacity: 0.75,
         borderWidth: '1px',
-        borderOpacity: 0.08,
+        borderOpacity: 0.2,
     },
     shadows: {
-        card: '0 1.6px 3.6px rgba(0,0,0,0.03), 0 0.3px 0.9px rgba(0,0,0,0.02)',
-        hover: '0 3.2px 7.2px rgba(0,0,0,0.06), 0 0.6px 1.8px rgba(0,0,0,0.04)',
-        elevated: '0 6.4px 14.4px rgba(0,0,0,0.07), 0 1.2px 3.6px rgba(0,0,0,0.04)',
+        card: '0 2px 8px rgba(0,0,0,0.04)',
+        hover: '0 8px 16px rgba(0,0,0,0.08)',
+        elevated: '0 32px 64px rgba(0,0,0,0.14)',
     },
     motion: {
-        style: 'decelerate',
-        easing: 'cubic-bezier(0, 0, 0, 1)',
-        duration: '167ms',
+        style: 'smooth',
+        easing: 'cubic-bezier(0.1, 0.9, 0.2, 1)',
+        duration: '150ms',
         durationSlow: '300ms',
     },
     typography: {
         fontWeight: 500,
-        headingWeight: 700,
+        headingWeight: 600,
         letterSpacing: '0em',
     },
     spacing: {
         unit: '1rem',
         density: 1,
-        gap: '0.75rem',
+        gap: '1rem',
         sectionGap: '1.5rem',
     },
     components: {
-        button: { variant: 'solid', height: '2.5rem', padding: '0.625rem 1.25rem' },
+        button: { variant: 'soft', height: '2.5rem', padding: '0.5rem 1rem' },
         card: { variant: 'elevated' },
         sidebar: { variant: 'blurred', width: '250px', collapsedWidth: '72px' },
         table: { density: 'comfortable', rowHeight: '3rem' },
-        input: { variant: 'filled', height: '2.5rem' },
+        input: { variant: 'outline', height: '2.5rem' },
         modal: { variant: 'centered' },
     },
     layout: {

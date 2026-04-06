@@ -7,14 +7,12 @@ import React, { createContext, useEffect, useMemo } from 'react';
 import { useAuthStore } from '../stores/useAuthStore';
 import { THEME_REGISTRY, type ThemeConfig } from './tokens';
 import type { AppTheme } from '../types';
-import modernThemeUrl from '../styles/themes/modern.css?url';
-import glassyThemeUrl from '../styles/themes/glassy.css?url';
-import tilesThemeUrl from '../styles/themes/tiles.css?url';
-import fluentThemeUrl from '../styles/themes/fluent.css?url';
+import windows11ThemeUrl from '../styles/themes/windows11.css?url';
+import fluent2ThemeUrl from '../styles/themes/fluent2.css?url';
 import crystalThemeUrl from '../styles/themes/crystal.css?url';
-import matteThemeUrl from '../styles/themes/matte.css?url';
-import touchThemeUrl from '../styles/themes/touch.css?url';
-import acrylicThemeUrl from '../styles/themes/acrylic.css?url';
+import officeTouchThemeUrl from '../styles/themes/office-touch.css?url';
+import modernThemeUrl from '../styles/themes/modern.css?url';
+import glassThemeUrl from '../styles/themes/glass.css?url';
 
 /* ── Context shape ── */
 export interface ThemeContextValue {
@@ -35,14 +33,12 @@ export const ThemeContext = createContext<ThemeContextValue | null>(null);
 const THEME_STYLESHEET_ID = 'restoflow-theme-stylesheet';
 
 const THEME_STYLESHEET_URLS: Record<AppTheme, string> = {
-    modern: modernThemeUrl,
-    glassy: glassyThemeUrl,
-    tiles: tilesThemeUrl,
-    fluent: fluentThemeUrl,
-    crystal: crystalThemeUrl,
-    matte: matteThemeUrl,
-    touch_ui: touchThemeUrl,
-    acrylic: acrylicThemeUrl,
+    'windows11': windows11ThemeUrl,
+    'fluent2': fluent2ThemeUrl,
+    'crystal': crystalThemeUrl,
+    'office-touch': officeTouchThemeUrl,
+    'modern': modernThemeUrl,
+    'glass': glassThemeUrl,
 };
 
 /* ── CSS variable injection ── */
@@ -128,7 +124,7 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     }, [themeId, isDark, config, settings.language, settings.wallpaper, settings.wallpaperOpacity]);
 
     useEffect(() => {
-        const href = THEME_STYLESHEET_URLS[themeId] || THEME_STYLESHEET_URLS.modern;
+        const href = THEME_STYLESHEET_URLS[themeId] || THEME_STYLESHEET_URLS.windows11;
         let link = document.getElementById(THEME_STYLESHEET_ID) as HTMLLinkElement | null;
 
         if (!link) {

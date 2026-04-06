@@ -1,0 +1,51 @@
+[data-theme='office-touch'] {
+    --primary: 0 120 212; /* Office Blue */
+    --primary-hover: 16 110 190;
+    --secondary: 161 159 157;
+    --accent: 216 59 1; /* Office Orange/Red */
+    --bg-app: 255 255 255;
+    --bg-card: 255 255 255;
+    --bg-sidebar: 243 242 241;
+    --bg-elevated: 255 255 255;
+    --text-main: 50 49 48;
+    --text-muted: 96 94 92;
+    --border-color: 2ede de de;
+    --border-subtle: 2ede de de / 0.5;
+    --glass-bg: 255 255 255 / 1;
+
+    --theme-radius: 0px; /* Flat */
+    --theme-radius-sm: 0px;
+    --theme-radius-lg: 2px;
+    --theme-radius-xl: 4px;
+
+    --theme-blur: 0px; 
+    --theme-surface-opacity: 1;
+    --theme-border-width: 1px;
+    --theme-border-opacity: 1;
+
+    --theme-shadow-card: none;
+    --theme-shadow-hover: 0 4px 12px rgba(0,0,0,0.1);
+    --theme-shadow-elevated: 0 8px 16px rgba(0,0,0,0.1);
+
+    --theme-ease: linear;
+    --theme-duration: 100ms;
+    --theme-duration-slow: 200ms;
+
+    --bg-global: #ffffff;
+}
+
+[data-theme='office-touch'].dark,
+.dark [data-theme='office-touch'] {
+    --primary: 85 179 255;
+    --primary-hover: 43 136 216;
+    --bg-app: 32 31 30;
+    --bg-card: 40 39 38;
+    --bg-sidebar: 32 31 30;
+    --bg-elevated: 50 49 48;
+    --text-main: 243 242 241;
+    --text-muted: 200 198 196;
+    --border-color: 255 255 255 / 0.1;
+    --border-subtle: 255 255 255 / 0.05;
+    --glass-bg: 40 39 38 / 1;
+    --bg-global: #201f1e;
+}

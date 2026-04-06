@@ -143,7 +143,7 @@
 }
 
 .spring-press:active {
-    transform: scale(0.95);
+    transform: scale(0.97);
 }
 
 .spring-press:hover {
@@ -163,7 +163,7 @@
 }
 
 .spring-card:active {
-    transform: translateY(0) scale(0.99);
+    transform: translateY(0) scale(0.97);
 }
 
 

@@ -17,7 +17,7 @@ interface FinanceState {
     accounts: FinancialAccount[];
     transactions: JournalEntry[];
     activeShift: Shift | null;
-    isCloseShiftModalOpen: boolean;
+    isShiftDrawerOpen: boolean;
     isLoading: boolean;
     error: string | null;
     trialBalance: { debit: number; credit: number; balanced: boolean } | null;
@@ -30,14 +30,14 @@ interface FinanceState {
     resolveReconciliation: (id: string, payload?: { adjustWithJournal?: boolean; adjustmentAccountCode?: string; notes?: string }) => Promise<void>;
     closePeriod: (payload: { periodStart: string; periodEnd: string }) => Promise<void>;
     setShift: (shift: Shift | null) => void;
-    setIsCloseShiftModalOpen: (isOpen: boolean) => void;
+    setIsShiftDrawerOpen: (isOpen: boolean) => void;
 }
 
 export const useFinanceStore = create<FinanceState>((set, get) => ({
     accounts: [],
     transactions: [],
     activeShift: null,
-    isCloseShiftModalOpen: false,
+    isShiftDrawerOpen: false,
     isLoading: false,
     error: null,
     trialBalance: null,
@@ -45,7 +45,7 @@ export const useFinanceStore = create<FinanceState>((set, get) => ({
     periodCloses: [],
 
     setShift: (shift) => set({ activeShift: shift }),
-    setIsCloseShiftModalOpen: (isOpen) => set({ isCloseShiftModalOpen: isOpen }),
+    setIsShiftDrawerOpen: (isOpen) => set({ isShiftDrawerOpen: isOpen }),
 
     fetchFinanceData: async () => {
         set({ isLoading: true, error: null });

@@ -1,0 +1,54 @@
+[data-theme='windows11'] {
+    --primary: 0 120 212; /* Windows Blue */
+    --primary-hover: 0 90 158;
+    --secondary: 96 94 92;
+    --accent: 0 120 212;
+    --bg-app: 243 243 243;
+    --bg-card: 255 255 255;
+    --bg-sidebar: 243 243 243;
+    --bg-elevated: 255 255 255;
+    --text-main: 32 31 30;
+    --text-muted: 96 94 92;
+    --border-color: 228 228 228;
+    --border-subtle: 228 228 228 / 0.5;
+    --glass-bg: 255 255 255 / 0.55;
+
+    --theme-radius: 8px; /* Win11 Rounded */
+    --theme-radius-sm: 4px;
+    --theme-radius-lg: 12px;
+    --theme-radius-xl: 16px;
+
+    --theme-blur: 30px; /* Mica Effect */
+    --theme-surface-opacity: 0.75;
+    --theme-border-width: 1px;
+    --theme-border-opacity: 0.2;
+
+    --theme-shadow-card: 0 2px 8px rgba(0,0,0,0.04);
+    --theme-shadow-hover: 0 8px 16px rgba(0,0,0,0.08);
+    --theme-shadow-elevated: 0 32px 64px rgba(0,0,0,0.14);
+
+    --theme-ease: cubic-bezier(0.1, 0.9, 0.2, 1);
+    --theme-duration: 150ms;
+    --theme-duration-slow: 300ms;
+
+    /* Windows 11 Light Bloom Wallpaper Effect */
+    --bg-global: radial-gradient(120% 120% at 50% 10%, rgba(0, 120, 212, 0.1) 0%, rgba(200, 240, 255, 0.2) 20%, #f3f3f3 60%);
+}
+
+[data-theme='windows11'].dark,
+.dark [data-theme='windows11'] {
+    --primary: 96 205 255; /* Win11 Dark Blue */
+    --primary-hover: 76 185 235;
+    --bg-app: 32 32 32;
+    --bg-card: 39 39 39;
+    --bg-sidebar: 32 32 32;
+    --bg-elevated: 44 44 44;
+    --text-main: 255 255 255;
+    --text-muted: 160 160 160;
+    --border-color: 255 255 255 / 0.08;
+    --border-subtle: 255 255 255 / 0.04;
+    --glass-bg: 39 39 39 / 0.45;
+    
+    /* Windows 11 Dark Bloom Wallpaper Effect */
+    --bg-global: radial-gradient(120% 120% at 50% 10%, rgba(96, 205, 255, 0.15) 0%, rgba(0, 120, 212, 0.1) 30%, #202020 80%);
+}

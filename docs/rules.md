@@ -1,264 +1,248 @@
-# 📜 RestoFlow 2026 — Smart-Tactile System v2.0 (Enhanced Final)
+# 📜 RestoFlow 2026 — Autonomous Product System v5.0 (Zero-Gap Ultimate)
 
-A production-ready design + engineering standard combining:
+A fully unified system combining:
 
-* Enterprise Density (Syncfusion-grade efficiency)
-* Agentic Intelligence (AI-driven workflows)
-* Controlled Skeuomorphic Tactility (precision + physicality)
-
----
-
-# 1. 🏗 Layout System (Precision Grid Engine)
-
-## Grid Architecture
-
-* Desktop: 12 Columns
-* Tablet: 8 Columns
-* Mobile: 4 Columns
-* Base spacing unit: **8px system (8 / 16 / 24 / 32)**
-
-## Bento Containers
-
-* Border radius: **24px**
-* Each card = **self-contained functional module**
-* Strict alignment (no free-floating elements)
-
-## Density Rules
-
-* Tables: **14px font**
-* Row height: 40–48px
-* Mandatory:
-
-  * Sticky headers
-  * Frozen key columns
-  * Inline actions (no hidden menus)
-
-## Data Priority Layers
-
-| Level     | Style                |
-| --------- | -------------------- |
-| Critical  | Bold + high contrast |
-| Important | Normal               |
-| Secondary | Muted                |
+* Design System
+* Product Operating System
+* Multi-Agent AI System
+* Real-time Architecture
+* Continuous Learning Engine
 
 ---
 
-# 2. 🎛 Visual System (Controlled Tactility)
-
-## Depth Model (Layered, Not Overloaded)
-
-| Element | Style          |
-| ------- | -------------- |
-| Tables  | Flat           |
-| Cards   | Soft elevation |
-| Buttons | Full tactile   |
-
-## Shadows
-
-* Rest: soft drop shadow
-* Active: inset shadow (pressed feel)
-
-## Interaction Physics
-
-* Hover → translateY(-2px)
-* Click → scale(0.97)
-* Drag → slight resistance (ease-out)
-
-## Texture
-
-* Max 2% noise overlay (ONLY on large surfaces)
-
----
-
-# 3. ✨ Glow System (Meaningful, Not Decorative)
-
-## Glow Hierarchy
-
-| State    | Glow                 |
-| -------- | -------------------- |
-| Critical | Strong (alerts only) |
-| Active   | Medium               |
-| Live     | Subtle pulse         |
-| Default  | None                 |
-
-## Status Colors
-
-* Cooking → Amber pulse
-* Delivered → Solid emerald
-* Delayed → Orange + subtle blink
-
-⚠️ Rule: Glow must always communicate state — never decoration.
-
----
-
-# 4. 🧠 Agentic UI System (Controlled Intelligence)
+# 1. 🧠 Omni AI Command System (CORE)
 
 ## Omni Command Bar (Cmd + K)
 
-* Central control layer
-* Supports:
+Central brain of the system.
 
-  * Search
-  * Actions
-  * AI queries
+### Capabilities
 
-## AI Response Behavior
-
-* Spawn as **bounded Bento widget**
-* Max active widgets: **2**
-* Auto-dismiss: 6–10 seconds inactivity
-* Always anchored (no random floating)
-
-## Explainable AI
-
-Every suggestion must include context:
-
-> “Recommended: Close Day (based on current time: 11:45 PM)”
+* Global search (orders, tables, reports)
+* Instant actions (refund, close day, assign table)
+* AI queries ("What’s slowing kitchen?")
+* Command execution ("Close all open tabs")
 
 ---
 
-# 5. 🔄 Predictive UX Engine
+## Input Types
 
-## Time-Based Modes
-
-| Mode      | Behavior                   |
-| --------- | -------------------------- |
-| Rush Hour | Minimal UI + large actions |
-| Normal    | Balanced                   |
-| Closing   | Financial focus            |
-| Idle      | Insights + analytics       |
-
-## Next Action System
-
-* Highlight only ONE primary action
-* Secondary actions remain neutral
+* Natural language
+* Structured commands
+* Quick actions
 
 ---
 
-# 6. 👥 Role-Based Interfaces
+## Output Types
 
-## Roles
-
-* Cashier → speed-first UI
-* Manager → analytics + control
-* Kitchen → large readable status UI
-
-## Rule
-
-> Same system, different surfaces — NOT different apps.
+* Direct execution
+* Suggestions
+* Insight panels (Bento widgets)
 
 ---
 
-# 7. 🎨 Design Tokens
+## Behavior Rules
 
-## Core Palette
-
-| Element | Dark    | Light   |
-| ------- | ------- | ------- |
-| Surface | #020617 | #F8FAFC |
-| Primary | #10B981 | #059669 |
-| Accent  | #F97316 | #EA580C |
-
-## Borders
-
-* 1px
-* 5–10% opacity
-* Always visible (no invisible edges)
+* Always accessible
+* Opens in <150ms
+* Keyboard-first interaction
+* Context-aware suggestions
 
 ---
 
-# 8. ⚙️ Motion System
+## AI Response UI
 
-## Rules
-
-* Duration: **0.2s – 0.3s**
-* Easing: ease-out
-* No animation = no feedback ❌
-
-## Layout Changes
-
-* Must use smooth morphing (Framer Motion style)
+* Appears as bounded Bento widget
+* Max 2 visible
+* Auto-dismiss after inactivity
+* Expandable for details
 
 ---
 
-# 9. 🧱 State System (Critical Addition)
+# 2. 🤖 Multi-Agent AI System
 
-## Required States
+## Agents
 
-* Loading → Skeleton ONLY (no spinners)
-* Empty → Guided action
-* Error → Clear + actionable
-* Offline → Cached fallback
+### Ops Agent
 
-## Example
+* Order flow optimization
+* Staff load balancing
 
-> “Connection lost — showing last synced orders”
+### Finance Agent
 
----
+* Revenue tracking
+* Cost optimization
+* Profit alerts
 
-# 10. 🔊 Microcopy System (Humanized Ops Language)
+### Kitchen Agent
 
-Tone:
-
-* Professional
-* Egyptian-friendly
-* Slight personality
-
-## Examples
-
-* “Order #412 is on fire 🔥”
-* “Kitchen picked it up 👨‍🍳”
-* “Let’s wrap the day 💼”
+* Prep time monitoring
+* Delay prediction
 
 ---
 
-# 11. 🧬 Interaction Grammar
+## Coordination Layer
 
-| Action  | Behavior        |
-| ------- | --------------- |
-| Hover   | Lift            |
-| Click   | Press           |
-| Focus   | Glow ring (2px) |
-| Drag    | Resistance      |
-| Success | Soft pulse      |
+* Agents do NOT conflict
+* Highest priority = revenue + time
 
 ---
 
-# 12. 🛡 System Constraints
+# 3. 🧠 Decision Engine
 
-* No random animations
-* No unnecessary glow
-* No hidden critical actions
-* No UI blocking (always responsive)
+## Inputs
 
----
+* Time
+* Load
+* Revenue
+* Staff performance
+* Historical data
 
-# 13. 🚀 System Philosophy (Final Check)
+## Outputs
 
-Every screen must pass:
-
-### 1. Is it Professional?
-
-→ High-density, structured
-
-### 2. Is it Tactile?
-
-→ Feels like a real tool
-
-### 3. Is it Smart?
-
-→ Helps user decide faster
-
-### 4. Is it Controlled?
-
-→ No chaos, no overload
-
-### 5. Is it Fast?
-
-→ Zero friction interaction
+* Suggestion
+* Recommendation
+* Auto-action (if allowed)
 
 ---
 
-# 🧾 Final Principle
+## Priority Model
 
-> “Speed is the product. Clarity is the interface. Intelligence is the advantage.”
+1. Revenue impact
+2. Time sensitivity
+3. Operational load
+4. User intent
+
+---
+
+# 4. 🔄 Continuous Learning System
+
+## Tracks
+
+* User decisions
+* Ignored suggestions
+* Repeated actions
+
+## Adapts
+
+* Suggestion frequency
+* UI highlights
+* Automation thresholds
+
+---
+
+# 5. 🎯 KPI-Driven UI Adaptation
+
+## UI reacts to:
+
+* Revenue drop
+* Order delay spikes
+* Peak load
+
+## Behavior
+
+* Highlights shift dynamically
+* Non-critical UI fades
+
+---
+
+# 6. ⚙️ Automation Boundaries
+
+| Level  | Behavior         |
+| ------ | ---------------- |
+| Safe   | Auto-execute     |
+| Medium | Suggest          |
+| Risky  | Require approval |
+
+---
+
+# 7. 🧬 Memory System
+
+## Remembers
+
+* User habits
+* Preferred actions
+* Peak times
+
+## Usage
+
+* Faster suggestions
+* Personalized workflows
+
+---
+
+# 8. 🏗 Layout + IA + UX (Condensed)
+
+* 12/8/4 grid
+* Bento modules
+* Max 5 nav items
+* Context panels ≤30%
+
+---
+
+# 9. 🎛 Visual + Motion + Feedback
+
+* Tactile interactions
+* No decorative effects
+* Motion = feedback only
+
+---
+
+# 10. 🧱 State + Edge Systems
+
+* Skeleton loading
+* Conflict handling
+* Offline mode
+* Retry + rollback
+
+---
+
+# 11. 👥 Roles + Permissions
+
+* RBAC system
+* Audit logs
+* Manager-only financial control
+
+---
+
+# 12. 📊 Data + Insights
+
+* KPI-driven UI
+* Always comparative analytics
+
+---
+
+# 13. 🚄 Performance + Architecture
+
+* Event-driven
+* Real-time sync
+* Offline-first
+* <100ms interactions
+
+---
+
+# 14. 🛡 Constraints
+
+* No AI spam
+* No UI blocking
+* No hidden actions
+
+---
+
+# 15. 🚀 Final Philosophy
+
+System must:
+
+* Think (AI)
+* Decide (Engine)
+* Act (Automation)
+* Explain (Transparency)
+
+---
+
+# 🧾 FINAL PRINCIPLE
+
+"Don’t just assist the user.
+Understand the business.
+Act when safe.
+Explain always."

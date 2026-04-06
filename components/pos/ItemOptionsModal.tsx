@@ -125,9 +125,9 @@ const ItemOptionsModal: React.FC<ItemOptionsModalProps> = ({
 
     return (
         <AnimatePresence>
-            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center bg-black/40 backdrop-blur-md sm:p-4">
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center theme-modal-overlay p-0 sm:p-4">
                 <div className="absolute inset-0" onClick={onClose} />
-                <motion.div initial={{ y: "100%", scale: 0.95 }} animate={{ y: 0, scale: 1 }} exit={{ y: "100%", scale: 0.95 }} transition={{ type: "spring", damping: 25, stiffness: 300 }} className={`relative w-full sm:max-w-xl bg-card sm:rounded-[2rem] rounded-t-[2rem] shadow-2xl flex flex-col max-h-[90vh] sm:max-h-[85vh] overflow-hidden border border-border/20 ${isRTL ? 'text-right' : 'text-left'}`}>
+                <motion.div initial={{ y: "100%", scale: 1 }} animate={{ y: 0, scale: 1 }} exit={{ y: "100%", scale: 1 }} transition={{ type: "spring", damping: 26, stiffness: 300 }} className={`relative w-full sm:max-w-xl theme-modal-content flex flex-col max-h-[90vh] sm:max-h-[85vh] overflow-hidden ${isRTL ? 'text-right' : 'text-left'}`}>
 
                     {/* Header Image & Info */}
                     <div className="flex flex-col relative shrink-0">
@@ -137,7 +137,7 @@ const ItemOptionsModal: React.FC<ItemOptionsModalProps> = ({
                                 <div className="absolute inset-0 bg-gradient-to-t from-card to-transparent" />
                             </div>
                         )}
-                        <button onClick={onClose} className="absolute top-4 right-4 w-10 h-10 bg-black/50 backdrop-blur-md rounded-full text-white flex items-center justify-center hover:bg-black/70 transition-colors z-10 border border-white/10 shadow-sm">
+                        <button onClick={onClose} className="absolute top-4 right-4 w-10 h-10 bg-black/60 rounded-full text-white flex items-center justify-center hover:bg-black/80 transition-colors z-10 border border-white/20 shadow-sm">
                             <X size={18} />
                         </button>
 
@@ -250,27 +250,36 @@ const ItemOptionsModal: React.FC<ItemOptionsModalProps> = ({
                                 <div key={group.id} className="space-y-3">
                                     <div className="flex items-center justify-between">
                                         <h3 className="text-xs font-black uppercase tracking-widest text-muted">{group.name}</h3>
-                                        <div className={`text-[9px] font-black uppercase px-2 py-0.5 rounded-lg border flex gap-1 items-center ${isRequired ? (!hasMetMin ? 'text-rose-500 bg-rose-500/10 border-rose-500/20' : 'text-emerald-500 bg-emerald-500/10 border-emerald-500/20') : 'text-muted bg-elevated/50 border-border/20'}`}>
+                                        <div className={`text-[9px] font-black uppercase px-2 py-0.5 rounded-lg border flex gap-1 items-center ${isRequired ? (!hasMetMin ? 'text-rose-500 bg-rose-500/10 border-rose-500/20' : 'text-emerald-500 bg-emerald-500/10 border-emerald-500/20') : 'text-muted bg-elevated border-border/20'}`}>
                                             {isRequired ? (isRTL ? `إختر ${group.minSelection}` : `Min ${group.minSelection}`) : (isRTL ? 'إختياري' : 'Optional')}
                                             {group.maxSelection > 0 && <span className="opacity-60">· Max {group.maxSelection}</span>}
                                         </div>
                                     </div>
-                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-4 px-1">
                                         {group.options.map(opt => {
                                             const isSelected = selectedMods[group.id]?.has(opt.id);
                                             return (
-                                                <label key={opt.id} className={`flex items-center p-3 rounded-xl border transition-all cursor-pointer active:scale-[0.98] ${isSelected ? 'bg-indigo-500/5 border-indigo-500/40 shadow-sm' : 'bg-elevated/40 border-border/20 hover:bg-elevated hover:shadow-sm'}`}>
-                                                    <div className={`w-5 h-5 rounded-md border flex items-center justify-center mr-3 shrink-0 transition-colors ${isSelected ? 'bg-indigo-500 border-indigo-600 shadow-inner' : 'bg-card border-border/40'}`}>
-                                                        {isSelected && <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} className="w-2 h-2 bg-white rounded-sm" />}
+                                                <button
+                                                    key={opt.id}
+                                                    onClick={() => handleToggleMod(group.id, opt.id, group.minSelection, group.maxSelection)}
+                                                    className={`flex items-center justify-between p-3.5 outline-none active:scale-[0.98]
+                                                        ${isSelected
+                                                            ? 'border-primary bg-primary/10 text-primary border rounded-2xl'
+                                                            : 'theme-card text-main'
+                                                        }`}
+                                                >
+                                                    <div className="flex items-center gap-3">
+                                                        <div className={`w-5 h-5 rounded-md border flex items-center justify-center transition-colors
+                                                            ${isSelected ? 'bg-primary border-primary text-white' : 'border-muted/30 bg-card'}
+                                                        `}>
+                                                            {isSelected && <svg viewBox="0 0 14 14" fill="none" className="w-3 h-3"><path d="M11.6667 3.5L5.25001 9.91667L2.33334 7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>}
+                                                        </div>
+                                                        <span className="font-bold text-sm tracking-tight">{lang === 'ar' ? (opt.nameAr || opt.name) : opt.name}</span>
                                                     </div>
-                                                    <div className="flex-1 min-w-0 pr-2">
-                                                        <p className={`text-sm font-bold truncate ${isSelected ? 'text-indigo-600 dark:text-indigo-400' : 'text-main'}`}>{opt.name}</p>
-                                                    </div>
-                                                    <span className={`text-[11px] font-black uppercase tracking-widest shrink-0 ${opt.price > 0 ? (isSelected ? 'text-indigo-500' : 'text-muted') : 'text-emerald-500'}`}>
-                                                        {opt.price > 0 ? `+${opt.price.toFixed(2)}` : (isRTL ? 'مجاني' : 'FREE')}
-                                                    </span>
-                                                    <input type="checkbox" className="hidden" checked={isSelected || false} onChange={() => handleToggleMod(group.id, opt.id, group.minSelection, group.maxSelection)} />
-                                                </label>
+                                                    {opt.price > 0 && (
+                                                        <span className="text-xs font-black tabular-nums tracking-tight">+{opt.price.toFixed(2)}</span>
+                                                    )}
+                                                </button>
                                             );
                                         })}
                                     </div>

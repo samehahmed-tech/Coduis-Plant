@@ -17,45 +17,35 @@ const THEME_PREVIEW: Record<AppTheme, {
     light: { bg: string; card: string; sidebar: string; text: string; muted: string; border: string };
     dark: { bg: string; card: string; sidebar: string; text: string; muted: string; border: string };
 }> = {
-    modern: {
-        primary: '#6366f1', accent: '#a855f7',
-        light: { bg: '#fafaff', card: '#ffffff', sidebar: '#fcfcff', text: '#111827', muted: '#64748b', border: '#e2e8f0' },
-        dark: { bg: '#0a0a12', card: '#12121e', sidebar: '#0e0e18', text: '#f8fafc', muted: '#a2aabe', border: '#2a2a3e' },
+    'windows11': {
+        primary: '#0078d4', accent: '#005a9e',
+        light: { bg: '#f3f3f3', card: 'rgba(255,255,255,0.7)', sidebar: '#f3f3f3', text: '#201f1e', muted: '#605e5c', border: '#edebe9' },
+        dark: { bg: '#202020', card: 'rgba(39,39,39,0.7)', sidebar: '#202020', text: '#ffffff', muted: '#a0a0a0', border: '#404040' },
     },
-    glassy: {
-        primary: '#8b5cf6', accent: '#c084fc',
-        light: { bg: '#f5f3ff', card: 'rgba(255,255,255,0.45)', sidebar: '#faf8ff', text: '#1e143c', muted: '#6b5f94', border: 'rgba(221,214,254,0.5)' },
-        dark: { bg: '#080514', card: 'rgba(16,12,36,0.5)', sidebar: '#0c081c', text: '#f5f3ff', muted: '#b2a8d2', border: 'rgba(48,38,82,0.6)' },
+    'fluent2': {
+        primary: '#0f6cbf', accent: '#0c5496',
+        light: { bg: '#fafafa', card: '#ffffff', sidebar: '#ffffff', text: '#242424', muted: '#687074', border: '#e2e2e2' },
+        dark: { bg: '#181818', card: '#212121', sidebar: '#212121', text: '#fafafa', muted: '#aaaaaa', border: '#333333' },
     },
-    tiles: {
+    'crystal': {
         primary: '#0ea5e9', accent: '#38bdf8',
-        light: { bg: '#f4f8fc', card: '#ffffff', sidebar: '#f8fafc', text: '#0c1e30', muted: '#476482', border: '#d2e1f0' },
-        dark: { bg: '#060c14', card: '#0c1624', sidebar: '#081018', text: '#f4f8fc', muted: '#94afc8', border: '#243850' },
+        light: { bg: '#fdfbfb', card: 'rgba(255,255,255,0.8)', sidebar: '#fdfbfb', text: '#0f172a', muted: '#64748b', border: '#e2e8f0' },
+        dark: { bg: '#09090b', card: 'rgba(24,24,27,0.8)', sidebar: '#09090b', text: '#fafafa', muted: '#a1a1aa', border: '#27272a' },
     },
-    fluent: {
-        primary: '#0078d4', accent: '#0099ff',
-        light: { bg: '#f3f3f3', card: '#ffffff', sidebar: '#f9f9f9', text: '#1a1a1a', muted: '#606060', border: '#dadada' },
-        dark: { bg: '#121212', card: '#1c1c1c', sidebar: '#161616', text: '#ffffff', muted: '#acacac', border: '#383838' },
+    'office-touch': {
+        primary: '#0078d4', accent: '#d83b01',
+        light: { bg: '#ffffff', card: '#ffffff', sidebar: '#f3f2f1', text: '#323130', muted: '#605e5c', border: '#edebe9' },
+        dark: { bg: '#201f1e', card: '#282726', sidebar: '#201f1e', text: '#f3f2f1', muted: '#c8c6c4', border: '#484644' },
     },
-    crystal: {
-        primary: '#ec4899', accent: '#f472b6',
-        light: { bg: '#fdf8fc', card: 'rgba(255,255,255,0.6)', sidebar: '#fcf6fc', text: '#30102a', muted: '#805a78', border: 'rgba(238,218,235,0.6)' },
-        dark: { bg: '#0e060e', card: 'rgba(26,14,26,0.55)', sidebar: '#140a14', text: '#fdf8fc', muted: '#c8aac3', border: 'rgba(62,38,58,0.6)' },
+    'modern': {
+        primary: '#ff6358', accent: '#eb4544',
+        light: { bg: '#f7f8f9', card: '#ffffff', sidebar: '#212529', text: '#292b2c', muted: '#6c757d', border: '#dee2e6' },
+        dark: { bg: '#121212', card: '#1e1e1e', sidebar: '#121212', text: '#f8f9fa', muted: '#adb5bd', border: '#343a40' },
     },
-    matte: {
-        primary: '#78716c', accent: '#a8a29e',
-        light: { bg: '#f5f5f4', card: '#fcfcfa', sidebar: '#f8f8f6', text: '#1c1917', muted: '#57534e', border: '#d6d3d1' },
-        dark: { bg: '#10100e', card: '#1c1c1a', sidebar: '#161614', text: '#f5f5f4', muted: '#a8a29e', border: '#3c3834' },
-    },
-    touch_ui: {
-        primary: '#f97316', accent: '#fb923c',
-        light: { bg: '#fefcfa', card: '#ffffff', sidebar: '#fffdf8', text: '#1e140a', muted: '#6b5a48', border: '#f0dac4' },
-        dark: { bg: '#0e0a06', card: '#1a120c', sidebar: '#140e08', text: '#fefcfa', muted: '#c8af96', border: '#402e20' },
-    },
-    acrylic: {
-        primary: '#06b6d4', accent: '#22d3ee',
-        light: { bg: '#f2fafc', card: 'rgba(255,255,255,0.45)', sidebar: '#f6fcfe', text: '#081c26', muted: '#3e6276', border: 'rgba(200,230,240,0.5)' },
-        dark: { bg: '#040a10', card: 'rgba(10,22,32,0.4)', sidebar: '#061018', text: '#f2fafc', muted: '#94bed2', border: 'rgba(28,56,72,0.5)' },
+    'glass': {
+        primary: '#8b5cf6', accent: '#ec4899',
+        light: { bg: '#f5f3ff', card: 'rgba(255,255,255,0.4)', sidebar: '#f5f3ff', text: '#1e1b4b', muted: '#4c1d95', border: 'rgba(255,255,255,0.8)' },
+        dark: { bg: '#020617', card: 'rgba(15,23,42,0.3)', sidebar: '#0f172a', text: '#f8fafc', muted: '#94a3b8', border: 'rgba(255,255,255,0.1)' },
     },
 };
 
@@ -71,7 +61,7 @@ const MOTION_ICON: Record<string, string> = {
    Mini UI Thumbnail — Pure CSS mini-app preview
    ═══════════════════════════════════════════════════════ */
 const ThemeThumbnail: React.FC<{ theme: ThemeConfig; isDark: boolean; isActive: boolean }> = ({ theme, isDark, isActive }) => {
-    const p = THEME_PREVIEW[theme.id];
+    const p = THEME_PREVIEW[theme.id] || THEME_PREVIEW['windows11'];
     const c = isDark ? p.dark : p.light;
     const r = theme.shape.radius;
     const rSm = theme.shape.radiusSm;
@@ -274,15 +264,15 @@ const AppearanceModal: React.FC<AppearanceModalProps> = ({ isOpen, onClose }) =>
                 <div className="relative shrink-0">
                     {/* Gradient decoration */}
                     <div className="absolute inset-0 overflow-hidden" style={{ borderRadius: 'var(--theme-radius-xl, 28px) var(--theme-radius-xl, 28px) 0 0' }}>
-                        <div className="absolute -top-20 -left-20 w-64 h-64 rounded-full opacity-20" style={{ background: `radial-gradient(circle, ${THEME_PREVIEW[settings.theme]?.primary || '#6366f1'}, transparent 70%)` }} />
-                        <div className="absolute -top-10 -right-20 w-48 h-48 rounded-full opacity-10" style={{ background: `radial-gradient(circle, ${THEME_PREVIEW[settings.theme]?.accent || '#a855f7'}, transparent 70%)` }} />
+                        <div className="absolute -top-20 -left-20 w-64 h-64 rounded-full opacity-20" style={{ background: `radial-gradient(circle, ${(THEME_PREVIEW[settings.theme] || THEME_PREVIEW['windows11']).primary}, transparent 70%)` }} />
+                        <div className="absolute -top-10 -right-20 w-48 h-48 rounded-full opacity-10" style={{ background: `radial-gradient(circle, ${(THEME_PREVIEW[settings.theme] || THEME_PREVIEW['windows11']).accent}, transparent 70%)` }} />
                     </div>
 
                     <div className="relative flex items-center justify-between px-6 sm:px-8 py-5">
                         <div className="flex items-center gap-3">
                             <div className="w-11 h-11 rounded-2xl flex items-center justify-center shadow-lg text-white" style={{
-                                background: `linear-gradient(135deg, ${THEME_PREVIEW[settings.theme]?.primary || '#6366f1'}, ${THEME_PREVIEW[settings.theme]?.accent || '#a855f7'})`,
-                                boxShadow: `0 8px 24px ${THEME_PREVIEW[settings.theme]?.primary || '#6366f1'}40`,
+                                background: `linear-gradient(135deg, ${(THEME_PREVIEW[settings.theme] || THEME_PREVIEW['windows11']).primary}, ${(THEME_PREVIEW[settings.theme] || THEME_PREVIEW['windows11']).accent})`,
+                                boxShadow: `0 8px 24px ${(THEME_PREVIEW[settings.theme] || THEME_PREVIEW['windows11']).primary}40`,
                             }}>
                                 <Palette size={20} />
                             </div>
@@ -378,7 +368,7 @@ const AppearanceModal: React.FC<AppearanceModalProps> = ({ isOpen, onClose }) =>
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
                         {THEME_LIST.map(th => {
                             const isActive = settings.theme === th.id;
-                            const preview = THEME_PREVIEW[th.id];
+                            const preview = THEME_PREVIEW[th.id] || THEME_PREVIEW['windows11'];
 
                             return (
                                 <button

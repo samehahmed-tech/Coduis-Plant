@@ -4,7 +4,7 @@
  */
 import React from 'react';
 import {
-    UtensilsCrossed, ShoppingBag, MapPin, Truck, LayoutGrid, Zap, Plus
+    UtensilsCrossed, ShoppingBag, MapPin, Truck, LayoutGrid, Zap, Plus, QrCode, Pause, Clock, User
 } from 'lucide-react';
 import { OrderType } from '../../types';
 
@@ -23,6 +23,11 @@ interface POSToolbarProps {
     hasCartItems: boolean;
     cartTotal: number;
     currencySymbol: string;
+    onHoldOrder?: () => void;
+    onRecallOrders?: () => void;
+    heldOrdersCount?: number;
+    onSetOrderName?: () => void;
+    orderName?: string;
 }
 
 const modeConfig = [
@@ -34,8 +39,9 @@ const modeConfig = [
 
 const POSToolbar: React.FC<POSToolbarProps> = ({
     activeOrderType, onSetOrderMode, lang, t, cartCount,
-    onToggleCart, onShowTables, onShowCustomers, onQuickPay, onFocusSearch,
+    onToggleCart, onShowTables, onShowCustomers, onNewCustomer, onQuickPay, onFocusSearch,
     hasCartItems, cartTotal, currencySymbol,
+    onHoldOrder, onRecallOrders, heldOrdersCount = 0, onSetOrderName, orderName
 }) => {
     const isRTL = lang === 'ar';
 
@@ -70,7 +76,7 @@ const POSToolbar: React.FC<POSToolbarProps> = ({
                         <span className="hidden sm:inline">{isRTL ? 'الطاولات' : 'Tables'}</span>
                     </button>
                 )}
-                {activeOrderType === OrderType.DELIVERY && (
+                {activeOrderType === OrderType.DELIVERY && onShowCustomers && onNewCustomer && (
                     <div className="flex items-center gap-0.5">
                         <button onClick={onShowCustomers} className="shrink-0 inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-warning/5 text-warning border border-warning/10 text-[9px] font-bold uppercase tracking-wider hover:bg-warning hover:text-white transition-colors active:scale-95">
                             <Truck size={12} />
@@ -81,6 +87,33 @@ const POSToolbar: React.FC<POSToolbarProps> = ({
                         </button>
                     </div>
                 )}
+                {(activeOrderType === OrderType.TAKEAWAY || activeOrderType === OrderType.PICKUP) && onSetOrderName && (
+                    <button onClick={onSetOrderName} className="shrink-0 inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-blue-500/5 text-blue-500 border border-blue-500/10 text-[9px] font-bold uppercase tracking-wider hover:bg-blue-500 hover:text-white transition-colors active:scale-95">
+                        <User size={12} />
+                        <span className="hidden sm:inline max-w-[80px] truncate">{orderName || (isRTL ? 'اسم العميل' : 'Customer Name')}</span>
+                    </button>
+                )}
+
+                {/* Draft / Hold System */}
+                <div className="flex items-center gap-0.5 border-l border-border/10 pl-1 ml-1">
+                    {onHoldOrder && hasCartItems && (
+                        <button onClick={onHoldOrder} title={isRTL ? 'تعليق الفاتورة مؤقتاً' : 'Hold Order'} className="shrink-0 inline-flex items-center gap-1 px-2 py-1.5 rounded-lg bg-slate-500/5 text-slate-500 border border-slate-500/10 text-[9px] font-bold uppercase tracking-wider hover:bg-slate-500 hover:text-white transition-colors active:scale-95">
+                            <Pause size={12} />
+                            <span className="hidden md:inline">{isRTL ? 'تعليق' : 'Hold'}</span>
+                        </button>
+                    )}
+                    {onRecallOrders && (
+                        <button onClick={onRecallOrders} title={isRTL ? 'استدعاء الفواتير' : 'Recall Orders'} className="shrink-0 relative inline-flex items-center gap-1 px-2 py-1.5 rounded-lg bg-slate-500/5 text-slate-500 border border-slate-500/10 text-[9px] font-bold uppercase tracking-wider hover:bg-slate-500 hover:text-white transition-colors active:scale-95">
+                            <Clock size={12} />
+                            <span className="hidden md:inline">{isRTL ? 'معلقة' : 'Recall'}</span>
+                            {heldOrdersCount > 0 && (
+                                <span className="absolute -top-1 -right-1 min-w-[14px] h-3.5 px-0.5 rounded-full bg-rose-500 text-white text-[7px] font-black flex items-center justify-center shadow-sm">
+                                    {heldOrdersCount}
+                                </span>
+                            )}
+                        </button>
+                    )}
+                </div>
 
                 {/* Cart toggle (mobile) */}
                 <button onClick={onToggleCart} className="shrink-0 hidden max-lg:inline-flex items-center gap-1 px-2 py-1.5 rounded-lg bg-elevated/40 border border-border/12 text-muted hover:text-primary transition-colors active:scale-95 relative">
@@ -93,6 +126,12 @@ const POSToolbar: React.FC<POSToolbarProps> = ({
                 </button>
 
                 <div className="flex-1" />
+
+                {/* Barcode Scanner Ready Indicator */}
+                <div className="shrink-0 hidden md:flex items-center gap-1.5 px-2 py-1.5 rounded-lg bg-emerald-500/8 border border-emerald-500/15 text-emerald-600 transition-opacity" title={isRTL ? 'ماسح الباركود جاهز' : 'Scanner Ready'}>
+                    <QrCode size={12} className="animate-pulse" />
+                    <span className="text-[8px] font-black uppercase tracking-wider">Scanner</span>
+                </div>
 
                 {/* Total + Quick Pay */}
                 {hasCartItems && (

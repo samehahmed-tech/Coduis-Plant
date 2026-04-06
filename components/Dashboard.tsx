@@ -422,7 +422,7 @@ const Dashboard: React.FC = () => {
             </div>
 
             <div className="w-full h-[400px] mt-4 relative">
-              <ResponsiveContainer width="100%" height="100%">
+              <ResponsiveContainer width="100%" height="100%" minWidth={1} minHeight={1}>
                 <AreaChart data={chartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
                   <defs>
                     <linearGradient id="colorCurrent" x1="0" y1="0" x2="0" y2="1">
@@ -466,7 +466,7 @@ const Dashboard: React.FC = () => {
               {isAr ? 'مؤشر الكفاءة التشغيلية' : 'Operational Efficiency'}
             </h3>
             <div className="w-full h-[300px] mt-4 relative flex items-center justify-center">
-              <ResponsiveContainer width="100%" height="100%">
+              <ResponsiveContainer width="100%" height="100%" minWidth={1} minHeight={1}>
                 <RadarChart cx="50%" cy="50%" outerRadius="70%" data={[
                   { subject: isAr ? 'السرعة' : 'Speed', A: 85, fullMark: 100 },
                   { subject: isAr ? 'الجودة' : 'Quality', A: 92, fullMark: 100 },
@@ -536,7 +536,7 @@ const Dashboard: React.FC = () => {
               <h3 className="text-xl font-black text-main tracking-tight mb-8">{isAr ? 'توزيع مصادر الطلبات' : 'Order Source Distribution'}</h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-8 items-center">
                 <div className="h-[250px]">
-                  <ResponsiveContainer width="100%" height="100%">
+                  <ResponsiveContainer width="100%" height="100%" minWidth={1} minHeight={1}>
                     <PieChart>
                       <Pie
                         data={payload.orderTypeBreakdown}

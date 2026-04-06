@@ -14,6 +14,7 @@ import ErrorBoundary from './components/common/ErrorBoundary';
 import { ThemeProvider } from './theme';
 import { auditService } from './services/auditService';
 import { aiIntelligenceService } from './services/aiIntelligenceService';
+import { ShiftManagementDrawer } from './components/finance/ShiftManagementDrawer';
 
 const LoadingScreen = memo(({ isConnected }: { isConnected: boolean }) => (
   <div className="min-h-screen relative overflow-hidden bg-[#0f1718] text-white flex items-center justify-center">
@@ -162,6 +163,7 @@ const App: React.FC = () => {
       <ThemeProvider>
         <ToastProvider>
           <ConfirmProvider>
+            <ShiftManagementDrawer />
             <RouterProvider router={router} />
           </ConfirmProvider>
         </ToastProvider>

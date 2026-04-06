@@ -29,12 +29,14 @@ interface PaymentSummaryProps {
     onApplyCoupon: () => void;
     onClearCoupon: () => void;
     itemCount?: number;
+    splitPayments: { method: PaymentMethod; amount: number }[];
+    activeOrderType?: string;
 }
 
 const PaymentSummary: React.FC<PaymentSummaryProps> = ({
     subtotal = 0, discount = 0, discountAmount = 0, tax = 0, total = 0, currencySymbol, paymentMethod, onSetPaymentMethod, onShowSplitModal,
     isTouchMode, lang, t, tipAmount = 0, onSetTipAmount, onVoid, onSubmit, onQuickPay, onSendKitchen,
-    canSubmit, couponCode, activeCoupon, isApplyingCoupon, onCouponCodeChange, onApplyCoupon, onClearCoupon, itemCount = 0
+    canSubmit, couponCode, activeCoupon, isApplyingCoupon, onCouponCodeChange, onApplyCoupon, onClearCoupon, itemCount = 0, splitPayments = [], activeOrderType
 }) => {
     const [openSection, setOpenSection] = useState<'methods' | 'tips' | 'coupon' | null>(null);
     const [amountTendered, setAmountTendered] = useState<number>(0);
@@ -172,9 +174,19 @@ const PaymentSummary: React.FC<PaymentSummaryProps> = ({
             {/* Cash tender */}
             {paymentMethod === PaymentMethod.CASH && total > 0 && (
                 <div className="bg-elevated/30 border border-border/15 rounded-xl p-2.5 space-y-1.5 animate-fade-in">
-                    <div className="flex items-center justify-between">
+                    <div className="flex items-center justify-between mb-1.5">
                         <span className="text-[8px] font-bold uppercase tracking-wider text-muted">{isAr ? 'المبلغ المدفوع' : 'Tendered'}</span>
                         {amountTendered > 0 && <button onClick={() => setAmountTendered(0)} className="text-[8px] font-bold text-rose-500 hover:text-rose-600 uppercase transition-colors">{isAr ? 'مسح' : 'Clear'}</button>}
+                    </div>
+                    <div className="relative mb-2">
+                         <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs font-bold text-muted/50">{currencySymbol}</span>
+                         <input 
+                             type="number"
+                             value={amountTendered || ''}
+                             onChange={(e) => setAmountTendered(Number(e.target.value) || 0)}
+                             placeholder="0.00"
+                             className="w-full h-10 pl-10 pr-3 bg-card border border-border/20 rounded-lg text-lg font-black text-main outline-none focus:border-primary/50 transition-colors text-center"
+                         />
                     </div>
                     <div className="flex gap-1">
                         {[50, 100, 200, 500].map(amt => (
@@ -205,17 +217,37 @@ const PaymentSummary: React.FC<PaymentSummaryProps> = ({
                 </div>
             )}
 
+            {/* Split / Multi-Tender tender */}
+            {paymentMethod === PaymentMethod.SPLIT && splitPayments.length > 0 && total > 0 && (
+                <div className="bg-elevated/30 border border-indigo-500/30 rounded-xl p-2.5 space-y-1.5 animate-fade-in shadow-inner">
+                    <div className="flex items-center justify-between">
+                        <span className="text-[8px] font-bold uppercase tracking-wider text-indigo-500">{isAr ? 'دفعات متعددة' : 'Multi-Tender Active'}</span>
+                        <button onClick={onShowSplitModal} className="text-[8px] font-bold text-indigo-500 hover:text-indigo-600 uppercase transition-colors">{isAr ? 'تعديل' : 'Edit'}</button>
+                    </div>
+                    <div className="space-y-1">
+                        {splitPayments.map((p, i) => (
+                            <div key={i} className="flex justify-between items-center text-xs">
+                                <span className="font-bold text-muted uppercase text-[10px]">{p.method.replace('_', ' ')}</span>
+                                <span className="font-black tabular-nums text-main">{p.amount.toFixed(2)}</span>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            )}
+
             {/* Action Buttons */}
             <div className="flex gap-1.5 pt-0.5">
-                <div className="flex flex-col gap-1.5 shrink-0">
-                    <button
-                        onClick={onSendKitchen} disabled={!canSubmit}
-                        className="w-11 h-full bg-elevated/40 border border-border/15 text-muted hover:text-primary hover:bg-primary/8 rounded-xl flex items-center justify-center disabled:opacity-30 transition-colors"
-                        title={t.send_kitchen}
-                    >
-                        <ChefHat size={20} />
-                    </button>
-                </div>
+                {(!activeOrderType || activeOrderType === 'DINE_IN') && (
+                    <div className="flex flex-col gap-1.5 shrink-0">
+                        <button
+                            onClick={onSendKitchen} disabled={!canSubmit}
+                            className="w-11 h-full bg-elevated/40 border border-border/15 text-muted hover:text-primary hover:bg-primary/8 rounded-xl flex items-center justify-center disabled:opacity-30 transition-colors"
+                            title={t.send_kitchen}
+                        >
+                            <ChefHat size={20} />
+                        </button>
+                    </div>
+                )}
 
                 <button
                     onClick={onSubmit} disabled={!canSubmit}

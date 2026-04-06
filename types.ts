@@ -865,14 +865,12 @@ export const INITIAL_ROLE_PERMISSIONS: Record<UserRole, AppPermission[]> = {
 };
 
 export type AppTheme =
-  | 'modern'
-  | 'glassy'
-  | 'tiles'
-  | 'fluent'
+  | 'windows11'
+  | 'fluent2'
   | 'crystal'
-  | 'matte'
-  | 'touch_ui'
-  | 'acrylic';
+  | 'office-touch'
+  | 'modern'
+  | 'glass';
 
 export interface AppSettings {
   restaurantName: string;

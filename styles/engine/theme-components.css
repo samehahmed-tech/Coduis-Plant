@@ -128,7 +128,7 @@
     background: var(--theme-card-hover-bg, var(--theme-card-bg, rgba(var(--bg-card), var(--theme-surface-opacity, 0.95))));
     box-shadow: var(--theme-card-hover-glow, var(--theme-shadow-hover));
     border-color: var(--theme-card-hover-border, rgba(var(--primary), 0.2));
-    transform: var(--theme-card-hover-transform, translateY(-1px));
+    transform: var(--theme-card-hover-transform, translateY(-2px));
 }
 
 .theme-card:hover::before {
@@ -198,4 +198,34 @@
 
 .theme-gap-section {
     gap: var(--density-section-gap, 1.5rem);
+}
+
+/* ?? Table Rules (Density & Precision) ?? */
+.theme-table {
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 0;
+    font-size: 14px;
+}
+
+.theme-table th, .theme-table td {
+    height: 48px;
+    padding: 0 1rem;
+    text-align: left;
+}
+[dir="rtl"] .theme-table th, [dir="rtl"] .theme-table td {
+    text-align: right;
+}
+
+.theme-table th {
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    background: var(--theme-card-bg, rgba(var(--bg-card), 0.95));
+    backdrop-filter: blur(var(--theme-blur, 8px));
+    font-weight: var(--theme-heading-weight, 700);
+    color: rgb(var(--text-muted));
+    font-size: 13px;
+    letter-spacing: 0.05em;
+    border-bottom: 2px solid rgba(var(--border-color), 0.1);
 }

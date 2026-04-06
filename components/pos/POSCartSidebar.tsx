@@ -57,6 +57,7 @@ interface POSCartSidebarProps {
     isCartOpenMobile: boolean;
     shouldShowCart: boolean;
     cartPanelWidthClass: string;
+    splitPayments: { method: PaymentMethod; amount: number }[];
 }
 
 const POSCartSidebar: React.FC<POSCartSidebarProps> = ({
@@ -69,7 +70,7 @@ const POSCartSidebar: React.FC<POSCartSidebarProps> = ({
     onLeaveTable, onCloseCart, onFocusSearch,
     tipAmount, onSetTipAmount,
     currencySymbol, isTouchMode, lang, t,
-    isCartOpenMobile, shouldShowCart, cartPanelWidthClass,
+    isCartOpenMobile, shouldShowCart, cartPanelWidthClass, splitPayments = []
 }) => {
     const isRTL = lang === 'ar';
     const hasCartItems = activeCart.length > 0;
@@ -174,8 +175,9 @@ const POSCartSidebar: React.FC<POSCartSidebarProps> = ({
                     tipAmount={tipAmount} onSetTipAmount={onSetTipAmount} onVoid={onVoid}
                     onSendKitchen={onSendKitchen} onSubmit={onSubmit} onQuickPay={onQuickPay}
                     canSubmit={hasCartItems} couponCode={couponCode} activeCoupon={activeCoupon}
-                    isApplyingCoupon={isApplyingCoupon} onCouponCodeChange={onCouponCodeChange}
                     onApplyCoupon={onApplyCoupon} onClearCoupon={onClearCoupon} itemCount={cartStats.qty}
+                    splitPayments={splitPayments}
+                    activeOrderType={activeOrderType}
                 />
             </div>
         </div>

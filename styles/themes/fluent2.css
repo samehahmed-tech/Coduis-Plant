@@ -1,0 +1,51 @@
+[data-theme='fluent2'] {
+    --primary: 15 108 191; /* Syncfusion Blue */
+    --primary-hover: 12 84 150;
+    --secondary: 104 112 116;
+    --accent: 15 108 191;
+    --bg-app: 250 250 250;
+    --bg-card: 255 255 255;
+    --bg-sidebar: 255 255 255;
+    --bg-elevated: 255 255 255;
+    --text-main: 36 36 36;
+    --text-muted: 104 112 116;
+    --border-color: 226 226 226;
+    --border-subtle: 226 226 226 / 0.5;
+    --glass-bg: 255 255 255 / 1;
+
+    --theme-radius: 4px; /* Crisp borders */
+    --theme-radius-sm: 2px;
+    --theme-radius-lg: 8px;
+    --theme-radius-xl: 12px;
+
+    --theme-blur: 0px; 
+    --theme-surface-opacity: 1;
+    --theme-border-width: 1px;
+    --theme-border-opacity: 1;
+
+    --theme-shadow-card: 0 1px 3px rgba(0,0,0,0.06);
+    --theme-shadow-hover: 0 4px 12px rgba(0,0,0,0.1);
+    --theme-shadow-elevated: 0 8px 16px rgba(0,0,0,0.12);
+
+    --theme-ease: ease-in-out;
+    --theme-duration: 200ms;
+    --theme-duration-slow: 400ms;
+
+    --bg-global: #fafafa;
+}
+
+[data-theme='fluent2'].dark,
+.dark [data-theme='fluent2'] {
+    --primary: 108 175 255;
+    --primary-hover: 88 155 235;
+    --bg-app: 24 24 24;
+    --bg-card: 33 33 33;
+    --bg-sidebar: 33 33 33;
+    --bg-elevated: 41 41 41;
+    --text-main: 250 250 250;
+    --text-muted: 170 170 170;
+    --border-color: 255 255 255 / 0.1;
+    --border-subtle: 255 255 255 / 0.05;
+    --glass-bg: 33 33 33 / 1;
+    --bg-global: #181818;
+}

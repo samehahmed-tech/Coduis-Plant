@@ -1,6 +1,8 @@
 import React from 'react';
-import { ShoppingBag, Building2, X, RotateCcw, Tag, Cloud, CloudOff, Compass, UtensilsCrossed, MapPin, Truck, Zap, Search } from 'lucide-react';
+import { ShoppingBag, Building2, X, RotateCcw, Tag, Cloud, CloudOff, Compass, UtensilsCrossed, MapPin, Truck, Zap, Search, Lock } from 'lucide-react';
 import { OrderType, Customer } from '../../types';
+import { useAuthStore } from '../../stores/useAuthStore';
+import { useFinanceStore } from '../../stores/useFinanceStore';
 
 interface POSHeaderProps {
     activeMode: OrderType;
@@ -101,6 +103,17 @@ const POSHeader: React.FC<POSHeaderProps> = React.memo(({
                 <div className={`flex items-center justify-center w-6 h-6 rounded-lg border ${isOnline ? 'bg-success/5 border-success/10' : 'bg-rose-500/5 border-rose-500/10'}`}>
                     {isOnline ? <Cloud size={11} className="text-success" /> : <CloudOff size={11} className="text-rose-500 animate-pulse" />}
                 </div>
+
+                {/* Shift Management Button */}
+                {useAuthStore.getState().hasPermission('OP_MANAGE_CASH_DRAWER' as any) && (
+                    <button 
+                        onClick={() => useFinanceStore.getState().setIsShiftDrawerOpen(true)}
+                        className="hidden sm:flex items-center gap-1.5 px-2.5 py-1 bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-600 rounded-lg border border-indigo-500/10 transition-colors font-bold text-[9px] uppercase tracking-wider active:scale-95"
+                    >
+                        <Lock size={10} />
+                        <span>{isRTL ? 'إدارة الشيفت' : 'Shift'}</span>
+                    </button>
+                )}
 
                 {/* Avatar */}
                 <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-primary to-primary/80 flex items-center justify-center text-white font-bold text-[10px] shadow-sm shadow-primary/10 shrink-0">A</div>

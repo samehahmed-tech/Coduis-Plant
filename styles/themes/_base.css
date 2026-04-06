@@ -44,22 +44,22 @@
 
 
 :root {
-    /* Fallback palette — French Elegance */
-    --primary: 15 118 110;
-    --primary-hover: 13 95 88;
-    --secondary: 87 99 108;
-    --accent: 194 140 42;
+    /* Fallback palette — RestoFlow 2026 Core Palette */
+    --primary: 16 185 129; /* #10B981 */
+    --primary-hover: 5 150 105; /* #059669 */
+    --secondary: 104 112 116;
+    --accent: 249 115 22; /* #F97316 */
     --success: 22 163 74;
     --warning: 234 179 8;
     --danger: 220 38 38;
-    --bg-app: 250 248 244;
-    --bg-card: 255 253 249;
-    --bg-sidebar: 245 242 236;
-    --bg-elevated: 237 233 225;
-    --text-main: 30 35 38;
+    --bg-app: 248 250 252; /* #F8FAFC */
+    --bg-card: 255 255 255;
+    --bg-sidebar: 248 250 252;
+    --bg-elevated: 255 255 255;
+    --text-main: 2 6 23;
     --text-muted: 104 112 116;
-    --border-color: 222 216 206;
-    --border-subtle: 0 0 0 / 0.04;
+    --border-color: 2 6 23;
+    --border-subtle: 2 6 23 / 0.1;
     --glass-bg: 255 255 255 / 0.92;
 
     /* Font overrides */
@@ -84,9 +84,9 @@
 
     /* Shape tokens */
     --theme-radius: 16px;
-    --theme-radius-sm: 10px;
-    --theme-radius-lg: 20px;
-    --theme-radius-xl: 28px;
+    --theme-radius-sm: 8px;
+    --theme-radius-lg: 24px;
+    --theme-radius-xl: 32px;
 
     /* Surface */
     --theme-blur: 0px;
@@ -100,8 +100,8 @@
     --theme-shadow-elevated: 0 16px 40px rgba(0, 0, 0, 0.1);
 
     /* Motion */
-    --theme-ease: cubic-bezier(0.22, 1, 0.36, 1);
-    --theme-duration: 180ms;
+    --theme-ease: ease-out;
+    --theme-duration: 200ms;
     --theme-duration-slow: 300ms;
 
     /* Typography */
@@ -119,19 +119,19 @@
 }
 
 .dark {
-    --primary: 20 184 166;
-    --primary-hover: 15 150 135;
-    --bg-app: 8 12 14;
-    --bg-card: 16 22 26;
-    --bg-sidebar: 6 10 13;
-    --bg-elevated: 26 33 38;
-    --text-main: 248 245 240;
-    --text-muted: 158 166 164;
-    --border-color: 38 48 54;
-    --border-subtle: 255 255 255 / 0.06;
-    --glass-bg: 16 24 30 / 0.88;
+    --primary: 16 185 129;
+    --primary-hover: 5 150 105;
+    --bg-app: 2 6 23; /* #020617 */
+    --bg-card: 8 12 30;
+    --bg-sidebar: 2 6 23;
+    --bg-elevated: 15 23 42;
+    --text-main: 248 250 252;
+    --text-muted: 148 163 170;
+    --border-color: 248 250 252;
+    --border-subtle: 248 250 252 / 0.1;
+    --glass-bg: 8 12 30 / 0.88;
     --secondary: 148 163 170;
-    --accent: 218 168 72;
+    --accent: 249 115 22;
     --bg-global:
         radial-gradient(ellipse at 18% 8%, rgba(20, 184, 166, 0.12), transparent 35%),
         radial-gradient(ellipse at 82% 18%, rgba(218, 168, 72, 0.08), transparent 30%),

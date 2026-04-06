@@ -1,7 +1,7 @@
 import { Request, Response } from 'express';
 import { db } from '../db';
 import { shifts, orders, payments } from '../../src/db/schema';
-import { eq, and, sql } from 'drizzle-orm';
+import { eq, and, sql, gte } from 'drizzle-orm';
 import { getStringParam } from '../utils/request';
 
 export const openShift = async (req: Request, res: Response) => {
@@ -56,7 +56,7 @@ export const closeShift = async (req: Request, res: Response) => {
                 and(
                     eq(orders.branchId, shift[0].branchId),
                     eq(payments.method, 'CASH'),
-                    sql`payments.created_at >= ${shift[0].openingTime}`
+                    gte(payments.createdAt, shift[0].openingTime)
                 )
             );
 
