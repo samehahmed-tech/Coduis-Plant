@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import {
     Users, Clock, Wallet, ShieldCheck, Search, Plus, ChevronRight, Award,
-    Calendar, UserPlus, CheckCircle, XCircle, Timer, Briefcase, Building2,
+    Calendar, UserPlus, CheckCircle, XCircle, Timer, Briefcase, Building2, Activity,
     X, Save, AlertTriangle, TrendingUp, MapPin, Phone, Mail, CreditCard,
     FileText, ArrowRight, RefreshCw, Eye, Layers, Printer
 } from 'lucide-react';
@@ -723,6 +723,7 @@ const ZenPeople: React.FC = () => {
                     </div>
                 </div>
             )}
+            </div>
         </div>
     );
 };

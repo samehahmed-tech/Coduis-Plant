@@ -1,9 +1,10 @@
-﻿import React, { useEffect, useState } from 'react';
+import React, { memo, useEffect, useState } from 'react';
 import { RouterProvider } from 'react-router-dom';
+import { Loader2, Wifi, WifiOff } from 'lucide-react';
+import { useShallow } from 'zustand/react/shallow';
 import { router } from './routes';
 import { useAuthStore } from './stores/useAuthStore';
 import { useDataInit } from './hooks/useDataInit';
-import { Loader2, WifiOff, Wifi } from 'lucide-react';
 import { setupApi } from './services/api/setup';
 import { socketService } from './services/socketService';
 import { useOrderStore } from './stores/useOrderStore';
@@ -11,9 +12,10 @@ import { ToastProvider } from './components/common/ToastProvider';
 import { ConfirmProvider } from './components/common/ConfirmProvider';
 import ErrorBoundary from './components/common/ErrorBoundary';
 import { ThemeProvider } from './theme';
+import { auditService } from './services/auditService';
+import { aiIntelligenceService } from './services/aiIntelligenceService';
 
-// Loading Screen Component
-const LoadingScreen: React.FC<{ isConnected: boolean }> = ({ isConnected }) => (
+const LoadingScreen = memo(({ isConnected }: { isConnected: boolean }) => (
   <div className="min-h-screen relative overflow-hidden bg-[#0f1718] text-white flex items-center justify-center">
     <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(13,148,136,0.35),transparent_28%),radial-gradient(circle_at_82%_18%,rgba(245,158,11,0.2),transparent_18%),linear-gradient(180deg,#122022_0%,#0d1416_55%,#0a1011_100%)]" />
     <div className="absolute inset-0 opacity-40 [background-image:linear-gradient(rgba(255,255,255,0.04)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.04)_1px,transparent_1px)] [background-size:72px_72px]" />
@@ -54,34 +56,42 @@ const LoadingScreen: React.FC<{ isConnected: boolean }> = ({ isConnected }) => (
       </div>
     </div>
   </div>
-);
-
-import { auditService } from './services/auditService';
-import { aiIntelligenceService } from './services/aiIntelligenceService';
+));
 
 const App: React.FC = () => {
-  const { settings } = useAuthStore();
-  const isAuthenticated = useAuthStore(state => state.isAuthenticated);
-  const token = useAuthStore(state => state.token);
-  const logout = useAuthStore(state => state.logout);
-  const fetchOrders = useOrderStore(state => state.fetchOrders);
-  const fetchTables = useOrderStore(state => state.fetchTables);
-  const restoreSession = useAuthStore(state => state.restoreSession);
+  const { activeBranchId, isAuthenticated, logout, restoreSession, token } = useAuthStore(
+    useShallow((state) => ({
+      activeBranchId: state.settings.activeBranchId,
+      isAuthenticated: state.isAuthenticated,
+      logout: state.logout,
+      restoreSession: state.restoreSession,
+      token: state.token,
+    }))
+  );
+  const { fetchOrders, fetchTables } = useOrderStore(
+    useShallow((state) => ({
+      fetchOrders: state.fetchOrders,
+      fetchTables: state.fetchTables,
+    }))
+  );
   const { isLoading, isConnected } = useDataInit();
   const [setupStatus, setSetupStatus] = useState<'checking' | 'needs' | 'ready'>('checking');
 
   useEffect(() => {
     restoreSession();
-  }, []);
+  }, [restoreSession]);
 
   useEffect(() => {
     let active = true;
+
     const checkSetup = async () => {
       try {
         const result = await setupApi.status();
         if (!active) return;
+
         const needsSetup = !!result?.needsSetup;
         setSetupStatus(needsSetup ? 'needs' : 'ready');
+
         if (needsSetup && window.location.pathname !== '/setup') {
           window.history.replaceState(null, '', '/setup');
         }
@@ -89,62 +99,60 @@ const App: React.FC = () => {
           window.history.replaceState(null, '', '/login');
         }
       } catch {
-        if (active) setSetupStatus('ready');
+        if (active) {
+          setSetupStatus('ready');
+        }
       }
     };
+
     checkSetup();
+
     return () => {
       active = false;
     };
   }, []);
 
   useEffect(() => {
-    // Initialize services
     auditService.init();
     aiIntelligenceService.init();
-    // Theme / dark / RTL are now managed by <ThemeProvider>
   }, []);
 
   useEffect(() => {
     if (!isAuthenticated || !token) return;
-    socketService.init(token);
-    socketService.joinBranch(settings.activeBranchId);
 
-    const handleOrderCreated = () => fetchOrders({ limit: 50 });
-    const handleOrderStatus = () => fetchOrders({ limit: 50 });
-    const handleDispatchAssigned = () => fetchOrders({ limit: 50 });
-    const handleDriverStatus = () => fetchOrders({ limit: 50 });
-    const handleTableStatus = () => {
-      if (settings.activeBranchId) fetchTables(settings.activeBranchId);
-    };
-    const handleTableLayout = () => {
-      if (settings.activeBranchId) fetchTables(settings.activeBranchId);
+    socketService.init(token);
+    socketService.joinBranch(activeBranchId);
+
+    const handleOrdersRefresh = () => fetchOrders({ limit: 50 });
+    const handleTablesRefresh = () => {
+      if (activeBranchId) {
+        fetchTables(activeBranchId);
+      }
     };
     const handleSessionRevoked = () => {
       logout();
       window.location.href = '/login';
     };
 
-    socketService.on('order:created', handleOrderCreated);
-    socketService.on('order:status', handleOrderStatus);
-    socketService.on('dispatch:assigned', handleDispatchAssigned);
-    socketService.on('driver:status', handleDriverStatus);
-    socketService.on('table:status', handleTableStatus);
-    socketService.on('table:layout', handleTableLayout);
+    socketService.on('order:created', handleOrdersRefresh);
+    socketService.on('order:status', handleOrdersRefresh);
+    socketService.on('dispatch:assigned', handleOrdersRefresh);
+    socketService.on('driver:status', handleOrdersRefresh);
+    socketService.on('table:status', handleTablesRefresh);
+    socketService.on('table:layout', handleTablesRefresh);
     socketService.on('security:session-revoked', handleSessionRevoked);
 
     return () => {
-      socketService.off('order:created', handleOrderCreated);
-      socketService.off('order:status', handleOrderStatus);
-      socketService.off('dispatch:assigned', handleDispatchAssigned);
-      socketService.off('driver:status', handleDriverStatus);
-      socketService.off('table:status', handleTableStatus);
-      socketService.off('table:layout', handleTableLayout);
+      socketService.off('order:created', handleOrdersRefresh);
+      socketService.off('order:status', handleOrdersRefresh);
+      socketService.off('dispatch:assigned', handleOrdersRefresh);
+      socketService.off('driver:status', handleOrdersRefresh);
+      socketService.off('table:status', handleTablesRefresh);
+      socketService.off('table:layout', handleTablesRefresh);
       socketService.off('security:session-revoked', handleSessionRevoked);
     };
-  }, [isAuthenticated, token, settings.activeBranchId, fetchOrders, fetchTables, logout]);
+  }, [activeBranchId, fetchOrders, fetchTables, isAuthenticated, logout, token]);
 
-  // Show loading screen while initializing
   if (isLoading || setupStatus === 'checking') {
     return <LoadingScreen isConnected={isConnected} />;
   }
@@ -160,6 +168,6 @@ const App: React.FC = () => {
       </ThemeProvider>
     </ErrorBoundary>
   );
-}
+};
 
 export default App;

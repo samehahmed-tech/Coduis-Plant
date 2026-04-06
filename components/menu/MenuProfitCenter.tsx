@@ -13,7 +13,7 @@ import MenuSidebar from './MenuSidebar';
 import MenuToolbar from './MenuToolbar';
 import ItemCard from './ItemCard';
 import ItemTable from './ItemTable';
-import ItemDrawer from './ItemDrawer';
+import { ItemDrawer } from './ItemDrawer';
 import CategoryDrawer from './CategoryDrawer';
 import BulkActionsBar from './BulkActionsBar';
 import AnalyticsPanel from './AnalyticsPanel';

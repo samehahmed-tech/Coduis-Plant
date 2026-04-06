@@ -7,6 +7,7 @@ import {
    DollarSign, TrendingUp, ShoppingBag, Calendar, Download, Printer,
    ChevronDown, Filter, Target, Megaphone, Zap, Scale, Info, Users, Clock, Box, ShieldCheck, Activity, LineChart as ChartIcon
 } from 'lucide-react';
+import { useShallow } from 'zustand/react/shallow';
 
 import { useAuthStore } from '../stores/useAuthStore';
 import { useNavigate } from 'react-router-dom';
@@ -14,18 +15,25 @@ import { reportsApi } from '../services/api/reports';
 import { getReportPrintCSS } from '../services/reportPrintStyles';
 
 const REPORT_CATEGORIES = [
-   { id: 'SALES', label: 'Sales & Revenue', icon: DollarSign, subReports: ['Daily Sales', 'Hourly Trends', 'Payment Mix', 'Cashier Summary', 'Refunds', 'Sales by Order Type', 'Sales by Item', 'Sales by Category', 'Discounts', 'Cancelled Orders', 'Sales by Source', 'Peak Hours Heatmap', 'Modifier Sales', 'Avg Ticket Trend', 'Sales Comparison', 'Slow-Moving Items', 'Revenue by Weekday', 'Void Items Log', 'Menu Engineering', 'Daypart Analysis', 'Basket Analysis', 'Seasonality', 'Online vs Offline', 'Menu Cannibalization', 'Menu Item Lifecycle', 'Category Contribution', 'Time-to-First-Order'] },
-   { id: 'FINANCE', label: 'Financials & VAT', icon: Scale, subReports: ['Z-Report / Fiscal', 'Profit & Loss (P&L)', 'Trial Balance', 'Top Expenses', 'Tips Report', 'Service Charge', 'Shift Summary', 'Food Cost % Trend', 'Cash Flow Forecast', 'Tax Compliance', 'Audit Trail', 'Break-Even Analysis', 'Payment Reconciliation', 'Shift Profitability'] },
-   { id: 'INVENTORY', label: 'Inventory & Supply', icon: Box, subReports: ['COGS & Margin', 'Stock Movement', 'Waste/Loss Log', 'Reorder Alerts', 'Expiring Batches', 'Actual vs Theoretical', 'Purchase History', 'Inventory Valuation', 'Supplier Price Tracking', 'Recipe Cost Alerts', 'ABC Classification', 'Optimal Pricing'] },
-   { id: 'HR', label: 'HR & Payroll', icon: Users, subReports: ['Payroll Summary', 'Attendance & Delays', 'Overtime Report', 'Staff Cost %', 'Sales per Labor Hour', 'Employee Productivity'] },
-   { id: 'CRM', label: 'Customers & CRM', icon: Megaphone, subReports: ['Customer LTV', 'Campaign ROI', 'Customer Retention', 'New vs Returning', 'Customer Frequency', 'Customer Churn', 'Loyalty Points', 'Promotion Impact', 'Customer Journey Funnel'] },
-   { id: 'OPS', label: 'Operations', icon: Activity, subReports: ['Branch Performance', 'Order Preparation Time', 'Delivery Performance', 'Dine-in Tables', 'Kitchen Performance', 'Table Turnover', 'Wait Time', 'Driver Utilization', 'Branch Comparison', 'Delivery Zone Analytics', 'Delivery Cost vs Revenue', '3rd Party vs In-House'] },
-   { id: 'AI', label: 'AI & Predictive', icon: Activity, subReports: ['Daily Flash Report', 'Demand Forecasting', 'Price Elasticity Simulator', 'Anomaly Detection', 'Channel Mix Trend'] }
+   { id: 'SALES', label: 'Sales & Revenue', color: '#10b981', icon: DollarSign, subReports: ['Daily Sales', 'Hourly Trends', 'Payment Mix', 'Cashier Summary', 'Refunds', 'Sales by Order Type', 'Sales by Item', 'Sales by Category', 'Discounts', 'Cancelled Orders', 'Sales by Source', 'Peak Hours Heatmap', 'Modifier Sales', 'Avg Ticket Trend', 'Sales Comparison', 'Slow-Moving Items', 'Revenue by Weekday', 'Void Items Log', 'Menu Engineering', 'Daypart Analysis', 'Basket Analysis', 'Seasonality', 'Online vs Offline', 'Menu Cannibalization', 'Menu Item Lifecycle', 'Category Contribution', 'Time-to-First-Order'] },
+   { id: 'FINANCE', label: 'Financials & VAT', color: '#f59e0b', icon: Scale, subReports: ['Z-Report / Fiscal', 'Profit & Loss (P&L)', 'Trial Balance', 'Top Expenses', 'Tips Report', 'Service Charge', 'Shift Summary', 'Food Cost % Trend', 'Cash Flow Forecast', 'Tax Compliance', 'Audit Trail', 'Break-Even Analysis', 'Payment Reconciliation', 'Shift Profitability'] },
+   { id: 'INVENTORY', label: 'Inventory & Supply', color: '#06b6d4', icon: Box, subReports: ['COGS & Margin', 'Stock Movement', 'Waste/Loss Log', 'Reorder Alerts', 'Expiring Batches', 'Actual vs Theoretical', 'Purchase History', 'Inventory Valuation', 'Supplier Price Tracking', 'Recipe Cost Alerts', 'ABC Classification', 'Optimal Pricing'] },
+   { id: 'HR', label: 'HR & Payroll', color: '#8b5cf6', icon: Users, subReports: ['Payroll Summary', 'Attendance & Delays', 'Overtime Report', 'Staff Cost %', 'Sales per Labor Hour', 'Employee Productivity'] },
+   { id: 'CRM', label: 'Customers & CRM', color: '#ec4899', icon: Megaphone, subReports: ['Customer LTV', 'Campaign ROI', 'Customer Retention', 'New vs Returning', 'Customer Frequency', 'Customer Churn', 'Loyalty Points', 'Promotion Impact', 'Customer Journey Funnel'] },
+   { id: 'OPS', label: 'Operations', color: '#3b82f6', icon: Activity, subReports: ['Branch Performance', 'Order Preparation Time', 'Delivery Performance', 'Dine-in Tables', 'Kitchen Performance', 'Table Turnover', 'Wait Time', 'Driver Utilization', 'Branch Comparison', 'Delivery Zone Analytics', 'Delivery Cost vs Revenue', '3rd Party vs In-House'] },
+   { id: 'AI', label: 'AI & Predictive', color: '#6366f1', icon: Activity, subReports: ['Daily Flash Report', 'Demand Forecasting', 'Price Elasticity Simulator', 'Anomaly Detection', 'Channel Mix Trend'] }
 ];
+const WEEK_DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+const HOURS = Array.from({ length: 24 }, (_, hour) => hour);
 
 const Reports: React.FC = () => {
    const navigate = useNavigate();
-   const { settings } = useAuthStore();
+   const { settings, branches } = useAuthStore(
+      useShallow((state) => ({
+         settings: state.settings,
+         branches: state.branches,
+      }))
+   );
    const activeBranchId = settings.activeBranchId;
 
    const [activeCategory, setActiveCategory] = useState<string>('SALES');
@@ -409,8 +417,40 @@ const Reports: React.FC = () => {
          profit: Number(row.grossProfit || 0),
       }))
    ), [profitDaily]);
-
-   const activeCategoryData = REPORT_CATEGORIES.find(c => c.id === activeCategory);
+   const reportCategoryById = useMemo(
+      () => new Map(REPORT_CATEGORIES.map((category) => [category.id, category])),
+      []
+   );
+   const activeCategoryData = useMemo(
+      () => reportCategoryById.get(activeCategory),
+      [reportCategoryById, activeCategory]
+   );
+   const activeBranchName = useMemo(
+      () => activeBranchId ? branches.find((branch) => branch.id === activeBranchId)?.name : 'Global Entity',
+      [activeBranchId, branches]
+   );
+   const peakHoursLookup = useMemo(() => {
+      const lookup = new Map<string, { orderCount: number; revenue: number }>();
+      peakHoursData.forEach((cell) => {
+         lookup.set(`${cell.dayOfWeek}-${cell.hour}`, {
+            orderCount: cell.orderCount,
+            revenue: cell.revenue,
+         });
+      });
+      return lookup;
+   }, [peakHoursData]);
+   const peakHoursMaxOrders = useMemo(
+      () => peakHoursData.reduce((max, cell) => Math.max(max, cell.orderCount), 1),
+      [peakHoursData]
+   );
+   const revenueByWeekdayMax = useMemo(
+      () => revenueByWeekday.reduce((max, day) => Math.max(max, day.revenue), 1),
+      [revenueByWeekday]
+   );
+   const daypartRevenueMax = useMemo(
+      () => daypartData.reduce((max, part: any) => Math.max(max, part.revenue), 1),
+      [daypartData]
+   );
 
    return (
       <div ref={printableRootRef} className="flex h-screen bg-app overflow-hidden font-neo pb-20 md:pb-0 text-main relative z-10 transition-colors duration-500">
@@ -488,7 +528,7 @@ const Reports: React.FC = () => {
                     <div className="flex items-center gap-3 mt-2">
                        <span className="text-[10px] text-white font-black bg-indigo-500 px-3 py-1 rounded-full uppercase tracking-widest shadow-lg shadow-indigo-500/20">{activeCategoryData?.label}</span>
                        <span className="w-1.5 h-1.5 rounded-full bg-muted/30" />
-                       <span className="text-[10px] text-muted font-black tracking-widest uppercase">{activeBranchId ? branches.find(b => b.id === activeBranchId)?.name : 'Global Entity'}</span>
+                       <span className="text-[10px] text-muted font-black tracking-widest uppercase">{activeBranchName}</span>
                     </div>
                   </div>
                </div>
@@ -562,6 +602,8 @@ const Reports: React.FC = () => {
                   <div className="p-4 rounded-2xl bg-rose-500/10 border border-rose-500/20 text-rose-500 text-xs font-black uppercase tracking-widest flex items-center gap-3">
                      <Target size={16} />
                      {reportError}
+                  </div>
+               )}
                {integrity && (
                   <div className={`text-[10px] font-black uppercase tracking-widest ${integrity.ok ? 'text-emerald-500/70' : 'text-rose-500/70'} flex justify-end`}>
                      Data Integrity Link: {integrity.summary?.passed || 0}/{integrity.summary?.total || 0} Synced
@@ -571,6 +613,30 @@ const Reports: React.FC = () => {
 
                {/* Dynamic Content Routing */}
                {activeCategory === 'SALES' && activeSubReport === 'Daily Sales' && (
+                  <div className="space-y-8 animate-in slide-in-from-bottom-5 duration-700">
+                     <div className="bg-card/80 backdrop-blur-xl p-8 md:p-12 rounded-[3.5rem] border border-border/50 shadow-2xl relative overflow-hidden group">
+                        <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/5 to-cyan-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-1000 pointer-events-none" />
+                        <h3 className="text-3xl font-black text-main mb-10 tracking-tighter uppercase flex items-center gap-4">
+                           <div className="w-1.5 h-8 bg-gradient-to-b from-emerald-500 to-cyan-500 rounded-full" />
+                           Daily Sales Overview
+                        </h3>
+                        <div className="min-h-[360px] md:h-[460px] lg:h-[540px] w-full relative overflow-hidden z-10">
+                           <ResponsiveContainer width="100%" height="100%" minHeight={400} minWidth={0}>
+                              <AreaChart data={salesSeries} margin={{ top: 10, right: 30, left: 10, bottom: 0 }}>
+                                 <defs>
+                                    <linearGradient id="colorSales" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor="#10b981" stopOpacity={0.3} /><stop offset="95%" stopColor="#10b981" stopOpacity={0} /></linearGradient>
+                                 </defs>
+                                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="rgba(255,255,255,0.05)" />
+                                 <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: '#10b981', fontSize: 13, fontWeight: 900 }} dy={10} />
+                                 <YAxis axisLine={false} tickLine={false} tick={{ fill: '#10b981', fontSize: 12, fontWeight: 900 }} dx={-10} />
+                                 <Tooltip contentStyle={{ borderRadius: '1.5rem', backgroundColor: 'rgba(15,23,42,0.9)', backdropFilter: 'blur(12px)', border: '1px solid rgba(255,255,255,0.1)', boxShadow: '0 25px 50px -12px rgba(0,0,0,0.5)', padding: '24px' }} itemStyle={{ fontWeight: 'black' }} />
+                                 <Legend iconType="circle" wrapperStyle={{ paddingTop: '40px', fontWeight: 'bold' }} />
+                                 <Area type="monotone" dataKey="revenue" name="Revenue" stroke="#10b981" fill="url(#colorSales)" strokeWidth={4} />
+                                 <Line type="monotone" dataKey="orders" name="Orders" stroke="#22c55e" strokeWidth={3} dot={{ r: 5, fill: '#22c55e', strokeWidth: 3, stroke: 'currentColor' }} activeDot={{ r: 8, strokeWidth: 0 }} />
+                              </AreaChart>
+                           </ResponsiveContainer>
+                        </div>
+                     </div>
                   </div>
                )}
 
@@ -1553,8 +1619,24 @@ const Reports: React.FC = () => {
                      <div className="card-primary rounded-[2rem] border border-slate-200 dark:border-slate-800 shadow-2xl p-8">
                         <h3 className="text-xl font-black text-main mb-6">Peak Hours Heatmap</h3>
                         <div className="grid grid-cols-[auto_repeat(24,1fr)] gap-0.5 text-[8px]">
-                           <div />{Array.from({ length: 24 }).map((_, h) => <div key={h} className="text-center text-muted font-black">{h}:00</div>)}
-                           {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((day, di) => (<React.Fragment key={di}><div className="text-right pr-2 text-muted font-black flex items-center">{day}</div>{Array.from({ length: 24 }).map((_, h) => { const cell = peakHoursData.find(c => c.dayOfWeek === di && c.hour === h); const maxOC = Math.max(...peakHoursData.map(c => c.orderCount), 1); const intensity = cell ? cell.orderCount / maxOC : 0; return <div key={h} title={`${cell?.orderCount || 0} orders / ${cell?.revenue || 0} LE`} className="rounded-sm aspect-square" style={{ backgroundColor: `rgba(59,130,246,${Math.min(intensity, 1)})`, minHeight: 18 }} />; })}</React.Fragment>))}
+                           <div />{HOURS.map((hour) => <div key={hour} className="text-center text-muted font-black">{hour}:00</div>)}
+                           {WEEK_DAYS.map((day, dayIndex) => (
+                              <React.Fragment key={dayIndex}>
+                                 <div className="text-right pr-2 text-muted font-black flex items-center">{day}</div>
+                                 {HOURS.map((hour) => {
+                                    const cell = peakHoursLookup.get(`${dayIndex}-${hour}`);
+                                    const intensity = cell ? cell.orderCount / peakHoursMaxOrders : 0;
+                                    return (
+                                       <div
+                                          key={hour}
+                                          title={`${cell?.orderCount || 0} orders / ${cell?.revenue || 0} LE`}
+                                          className="rounded-sm aspect-square"
+                                          style={{ backgroundColor: `rgba(59,130,246,${Math.min(intensity, 1)})`, minHeight: 18 }}
+                                       />
+                                    );
+                                 })}
+                              </React.Fragment>
+                           ))}
                         </div>
                      </div>
                   </div>
@@ -1603,7 +1685,18 @@ const Reports: React.FC = () => {
                {activeCategory === 'SALES' && activeSubReport === 'Revenue by Weekday' && (
                   <div className="space-y-6 animate-in slide-in-from-bottom-5 duration-500">
                      <div className="grid grid-cols-7 gap-3">
-                        {revenueByWeekday.map((r, i) => { const maxRev = Math.max(...revenueByWeekday.map(d => d.revenue), 1); return <div key={i} className="card-primary rounded-2xl border border-slate-200 dark:border-slate-800 p-4 shadow-lg text-center"><p className="text-[10px] font-black uppercase text-muted">{r.dayName}</p><p className="text-lg font-black text-main mt-1">{r.revenue.toLocaleString()}</p><p className="text-[9px] text-muted">LE</p><div className="mt-2 mx-auto w-6 bg-elevated/50 rounded-full" style={{ height: 60 }}><div className="w-6 rounded-full bg-blue-500 mt-auto" style={{ height: `${(r.revenue / maxRev) * 100}%`, marginTop: `${100 - (r.revenue / maxRev) * 100}%` }} /></div><p className="text-[9px] text-muted mt-2">{r.orderCount} orders</p><p className="text-[9px] text-muted">Avg {r.avgTicket} LE</p></div> })}
+                        {revenueByWeekday.map((r, i) => (
+                           <div key={i} className="card-primary rounded-2xl border border-slate-200 dark:border-slate-800 p-4 shadow-lg text-center">
+                              <p className="text-[10px] font-black uppercase text-muted">{r.dayName}</p>
+                              <p className="text-lg font-black text-main mt-1">{r.revenue.toLocaleString()}</p>
+                              <p className="text-[9px] text-muted">LE</p>
+                              <div className="mt-2 mx-auto w-6 bg-elevated/50 rounded-full" style={{ height: 60 }}>
+                                 <div className="w-6 rounded-full bg-blue-500 mt-auto" style={{ height: `${(r.revenue / revenueByWeekdayMax) * 100}%`, marginTop: `${100 - (r.revenue / revenueByWeekdayMax) * 100}%` }} />
+                              </div>
+                              <p className="text-[9px] text-muted mt-2">{r.orderCount} orders</p>
+                              <p className="text-[9px] text-muted">Avg {r.avgTicket} LE</p>
+                           </div>
+                        ))}
                      </div>
                      {revenueByWeekday.length === 0 && <p className="text-center text-muted py-16">No data.</p>}
                   </div>
@@ -1740,7 +1833,7 @@ const Reports: React.FC = () => {
 
                {activeCategory === 'SALES' && activeSubReport === 'Daypart Analysis' && (
                   <div className="space-y-6 animate-in slide-in-from-bottom-5 duration-500">
-                     <div className="grid grid-cols-5 gap-3">{daypartData.map((d: any, i: number) => { const maxRev = Math.max(...daypartData.map((x: any) => x.revenue), 1); return <div key={i} className="card-primary rounded-2xl border border-slate-200 dark:border-slate-800 p-5 shadow-lg text-center"><p className="text-[10px] font-black uppercase text-muted">{d.name}</p><p className="text-xl font-black text-main mt-1">{d.revenue.toLocaleString()}</p><p className="text-[9px] text-muted">{d.orderCount} orders · {d.percentage}%</p><div className="mt-2 mx-auto w-8 bg-elevated/50 rounded-full" style={{ height: 50 }}><div className="w-8 rounded-full bg-blue-500" style={{ height: `${(d.revenue / maxRev) * 100}%`, marginTop: `${100 - (d.revenue / maxRev) * 100}%` }} /></div><p className="text-[9px] text-muted mt-1">Avg {d.avgTicket} LE</p></div> })}</div>
+                     <div className="grid grid-cols-5 gap-3">{daypartData.map((d: any, i: number) => <div key={i} className="card-primary rounded-2xl border border-slate-200 dark:border-slate-800 p-5 shadow-lg text-center"><p className="text-[10px] font-black uppercase text-muted">{d.name}</p><p className="text-xl font-black text-main mt-1">{d.revenue.toLocaleString()}</p><p className="text-[9px] text-muted">{d.orderCount} orders · {d.percentage}%</p><div className="mt-2 mx-auto w-8 bg-elevated/50 rounded-full" style={{ height: 50 }}><div className="w-8 rounded-full bg-blue-500" style={{ height: `${(d.revenue / daypartRevenueMax) * 100}%`, marginTop: `${100 - (d.revenue / daypartRevenueMax) * 100}%` }} /></div><p className="text-[9px] text-muted mt-1">Avg {d.avgTicket} LE</p></div>)}</div>
                      {daypartData.length === 0 && <p className="text-center text-muted py-16">No data.</p>}
                   </div>
                )}

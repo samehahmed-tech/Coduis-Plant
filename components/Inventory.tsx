@@ -1,8 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo, useDeferredValue } from 'react';
+import { useShallow } from 'zustand/react/shallow';
 import {
   AlertTriangle, Plus, Search, X, Truck, FileText, Package,
   Tag, Briefcase,
-  ArrowRightLeft, ListChecks, Download, Calculator, Home, Layers,
+  ArrowRightLeft, ListChecks, Download, Calculator, Home, Layers, LayoutGrid,
   ClipboardCheck, Activity, Play, CheckCircle2, Save, Calendar
 } from 'lucide-react';
 import { Supplier, PurchaseOrder, Warehouse, Branch, WarehouseType, InventoryItem } from '../types';
@@ -73,9 +74,38 @@ const Inventory: React.FC = () => {
     createSupplierInDB, updateSupplierInDB, deactivateSupplierInDB,
     createPurchaseOrderInDB, updatePurchaseOrderStatusInDB, receivePurchaseOrderInDB,
     createBranchTransferInDB
-  } = useInventoryStore();
+  } = useInventoryStore(
+    useShallow((state) => ({
+      inventory: state.inventory,
+      suppliers: state.suppliers,
+      purchaseOrders: state.purchaseOrders,
+      warehouses: state.warehouses,
+      transferMovements: state.transferMovements,
+      fetchInventory: state.fetchInventory,
+      fetchWarehouses: state.fetchWarehouses,
+      fetchSuppliers: state.fetchSuppliers,
+      fetchPurchaseOrders: state.fetchPurchaseOrders,
+      fetchTransferMovements: state.fetchTransferMovements,
+      addInventoryItem: state.addInventoryItem,
+      updateInventoryItem: state.updateInventoryItem,
+      addWarehouse: state.addWarehouse,
+      updateStock: state.updateStock,
+      createSupplierInDB: state.createSupplierInDB,
+      updateSupplierInDB: state.updateSupplierInDB,
+      deactivateSupplierInDB: state.deactivateSupplierInDB,
+      createPurchaseOrderInDB: state.createPurchaseOrderInDB,
+      updatePurchaseOrderStatusInDB: state.updatePurchaseOrderStatusInDB,
+      receivePurchaseOrderInDB: state.receivePurchaseOrderInDB,
+      createBranchTransferInDB: state.createBranchTransferInDB,
+    }))
+  );
 
-  const { branches, settings } = useAuthStore();
+  const { branches, settings } = useAuthStore(
+    useShallow((state) => ({
+      branches: state.branches,
+      settings: state.settings,
+    }))
+  );
   const lang = settings.language;
   const t = translations[lang];
 
@@ -112,6 +142,7 @@ const Inventory: React.FC = () => {
   const [branchTransferToWh, setBranchTransferToWh] = useState('');
   const [branchTransferQty, setBranchTransferQty] = useState(1);
   const [branchTransferReason, setBranchTransferReason] = useState('Inter-branch transfer');
+  const deferredSearchQuery = useDeferredValue(searchQuery);
 
   useEffect(() => {
     fetchInventory();
@@ -130,138 +161,116 @@ const Inventory: React.FC = () => {
     };
   }, []);
 
-  return (
-    <div className="relative min-h-screen bg-app overflow-hidden selection:bg-emerald-500/30">
-      {/* Visual Effects Overlay */}
-      <div className="fixed inset-0 pointer-events-none z-0">
-        <div className="absolute top-[-10%] left-[-5%] w-[400px] h-[400px] rounded-full bg-emerald-500/5 blur-[120px] animate-pulse" />
-        <div className="absolute bottom-[-10%] right-[-5%] w-[500px] h-[500px] rounded-full bg-teal-500/5 blur-[150px] animate-pulse" style={{ animationDelay: '2s' }} />
-      </div>
+  const normalizedSearchQuery = deferredSearchQuery.trim().toLowerCase();
 
-      <div className="relative z-10 p-4 lg:p-10 space-y-8 max-w-[1920px] mx-auto overflow-y-auto max-h-screen custom-scrollbar pb-32">
-        {/* Header */}
-        <header className="flex flex-col xl:flex-row xl:items-end justify-between gap-8 pb-8 border-b border-border/20">
-          <div className="flex items-center gap-6">
-            <div className="w-20 h-20 rounded-[1.75rem] bg-gradient-to-br from-emerald-600 to-teal-600 p-0.5 shadow-2xl shadow-emerald-600/20">
-              <div className="w-full h-full rounded-[1.6rem] bg-card flex items-center justify-center">
-                <Package size={36} className="text-emerald-600 animate-pulse-soft" />
-              </div>
-            </div>
-            <div>
-              <h1 className="text-3xl lg:text-5xl font-black text-main tracking-tighter uppercase flex items-center gap-4">
-                {activeTab === 'STOCK' ? (lang === 'ar' ? 'مركز المخزون' : 'Stock Nexus') : activeTab}
-                <span className="hidden md:flex px-3 py-1 bg-emerald-500/10 text-emerald-500 border border-emerald-500/20 rounded-full text-[10px] font-black uppercase tracking-widest">
-                  Enterprise Intelligent Control
-                </span>
-              </h1>
-              <p className="text-muted font-bold text-xs uppercase tracking-[0.2em] mt-2 opacity-60">
-                Automated Purchasing · Real-time Sync · Multi-Warehouse AI Routing
-              </p>
-            </div>
-          </div>
+  const branchById = useMemo(
+    () => new Map(branches.map((branch) => [branch.id, branch])),
+    [branches]
+  );
 
-          <div className="flex flex-wrap items-center gap-3">
-             <button
-                onClick={() => setItemModalOpen(true)}
-                className="h-14 flex items-center justify-center gap-3 bg-gradient-to-r from-emerald-600 to-teal-600 text-white px-8 rounded-2xl shadow-2xl shadow-emerald-600/30 font-black text-[11px] uppercase tracking-widest hover:scale-105 active:scale-95 transition-all"
-              >
-                <Plus size={18} /> REGISTER ASSET
-              </button>
-              <button
-                onClick={() => setTransferModalOpen(true)}
-                className="h-14 flex items-center justify-center gap-3 bg-card/60 backdrop-blur-md text-sky-500 px-8 rounded-2xl border border-border/30 font-black text-[11px] uppercase tracking-widest hover:bg-sky-500 hover:text-white transition-all active:scale-95 shadow-lg"
-              >
-                <ArrowRightLeft size={18} /> INTER-TRANSFER
-              </button>
-              <button
-                onClick={() => setWarehouseModalOpen(true)}
-                className="h-14 flex items-center justify-center gap-3 bg-card/60 backdrop-blur-md text-main px-8 rounded-2xl border border-border/30 font-black text-[11px] uppercase tracking-widest hover:bg-main hover:text-app transition-all active:scale-95 shadow-lg"
-              >
-                <Home size={18} /> WAREHOUSES
-              </button>
-          </div>
-        </header>
+  const warehouseById = useMemo(
+    () => new Map(warehouses.map((warehouse) => [warehouse.id, warehouse])),
+    [warehouses]
+  );
 
-        {/* Dashboard Metrics */}
-        <section className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-           <StockMetric 
-              label="Inventory Valuation" 
-              value={(inventory.reduce((s, i) => s + (i.costPrice * i.warehouseQuantities.reduce((sq, wq) => sq + wq.quantity, 0)), 0)).toLocaleString()} 
-              subValue="LE"
-              icon={Calculator} 
-              color="#10b981" 
-              lang={lang} 
-           />
-           <StockMetric 
-              label="Active SKUs" 
-              value={inventory.length} 
-              subValue="Items"
-              icon={Layers} 
-              color="#3b82f6" 
-              lang={lang} 
-           />
-           <StockMetric 
-              label="Out of Stock" 
-              value={inventory.filter(i => i.warehouseQuantities.reduce((s, wq) => s + wq.quantity, 0) === 0).length} 
-              subValue="Alerts"
-              icon={AlertTriangle} 
-              color="#f43f5e" 
-              lang={lang} 
-           />
-           <StockMetric 
-              label="Turnover Ratio" 
-              value="4.2x" 
-              icon={Activity} 
-              color="#8b5cf6" 
-              lang={lang} 
-           />
-        </section>
+  const supplierById = useMemo(
+    () => new Map(suppliers.map((supplier) => [supplier.id, supplier])),
+    [suppliers]
+  );
 
-        {/* Tabs and Search */}
-        <div className="flex flex-col xl:flex-row justify-between items-stretch lg:items-center gap-6 relative z-20">
-          <div className="flex bg-card/40 backdrop-blur-md rounded-[2rem] border border-border/30 p-2 overflow-x-auto no-scrollbar w-fit">
-            {[
-              { id: 'STOCK', label: 'Matrix', icon: LayoutGrid },
-              { id: 'SUPPLIERS', label: 'Partners', icon: Truck },
-              { id: 'PO', label: 'Procurements', icon: FileText },
-              { id: 'WAREHOUSES', label: 'Nodes', icon: Home },
-              { id: 'MOVEMENTS', label: 'Logs', icon: Activity },
-              { id: 'STOCKCOUNT', label: 'Audits', icon: ClipboardCheck },
-            ].map(tab => (
-              <button
-                key={tab.id}
-                onClick={() => setActiveTab(tab.id as any)}
-                className={`px-6 py-3.5 rounded-[1.5rem] text-[10px] font-black uppercase tracking-widest transition-all duration-300 flex items-center gap-3 whitespace-nowrap ${activeTab === tab.id ? 'bg-gradient-to-r from-emerald-600 to-teal-600 text-white shadow-xl shadow-emerald-600/20 scale-105' : 'text-muted hover:text-main hover:bg-elevated/60'}`}
-              >
-                <tab.icon size={16} />
-                {tab.label}
-              </button>
-            ))}
-          </div>
+  const inventoryTotalsById = useMemo(() => {
+    const totals = new Map<string, number>();
+    inventory.forEach((item) => {
+      totals.set(
+        item.id,
+        item.warehouseQuantities.reduce((sum, quantity) => sum + quantity.quantity, 0)
+      );
+    });
+    return totals;
+  }, [inventory]);
 
-          <div className="relative w-full lg:w-96 group">
-            <Search className="absolute left-5 top-1/2 -translate-y-1/2 text-muted w-5 h-5 group-focus-within:text-emerald-500 transition-colors z-10" />
-            <input
-              type="text"
-              placeholder="Query master inventory..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-14 pr-6 py-5 bg-card/60 backdrop-blur-xl border border-border/30 rounded-[2rem] outline-none focus:border-emerald-500/50 transition-all font-bold text-sm text-main placeholder:text-muted/40 shadow-xl"
-            />
-          </div>
-        </div>
+  const warehouseSkuCounts = useMemo(() => {
+    const counts = new Map<string, number>();
+    inventory.forEach((item) => {
+      item.warehouseQuantities.forEach((quantity) => {
+        if (quantity.quantity > 0) {
+          counts.set(quantity.warehouseId, (counts.get(quantity.warehouseId) || 0) + 1);
+        }
+      });
+    });
+    return counts;
+  }, [inventory]);
 
-        {/* Main Workspace */}
-        <div className="bg-card/60 backdrop-blur-3xl rounded-[3.5rem] border border-border/20 overflow-hidden min-h-[600px] relative z-20 shadow-[0_30px_60px_-15px_rgba(0,0,0,0.3)]">
-          <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/5 via-transparent to-teal-500/5 opacity-50 pointer-events-none" />
-          
-          {activeTab === 'STOCK' && renderStock()}
-          {activeTab === 'WAREHOUSES' && renderWarehouses()}
-          {activeTab === 'SUPPLIERS' && renderSuppliers()}
-          {activeTab === 'STOCKCOUNT' && renderStockCount()}
-          {activeTab === 'MOVEMENTS' && renderMovements()}
-        </div>
-      </div>
+  const inventoryValuation = useMemo(
+    () => inventory.reduce((sum, item) => sum + (item.costPrice * (inventoryTotalsById.get(item.id) || 0)), 0),
+    [inventory, inventoryTotalsById]
+  );
+
+  const outOfStockCount = useMemo(
+    () => inventory.filter((item) => (inventoryTotalsById.get(item.id) || 0) === 0).length,
+    [inventory, inventoryTotalsById]
+  );
+
+  const filteredInventory = useMemo(() => {
+    const filtered = inventory.filter((item) => {
+      if (!normalizedSearchQuery) return true;
+      return (
+        (item.name || '').toLowerCase().includes(normalizedSearchQuery) ||
+        (item.nameAr || '').toLowerCase().includes(normalizedSearchQuery) ||
+        (item.sku || '').toLowerCase().includes(normalizedSearchQuery) ||
+        (item.category || '').toLowerCase().includes(normalizedSearchQuery)
+      );
+    });
+
+    filtered.sort((a, b) => {
+      const totalA = inventoryTotalsById.get(a.id) || 0;
+      const totalB = inventoryTotalsById.get(b.id) || 0;
+      switch (stockSort) {
+        case 'qty-asc': return totalA - totalB;
+        case 'qty-desc': return totalB - totalA;
+        case 'cost': return b.costPrice - a.costPrice;
+        case 'low-first':
+          return (totalA <= a.threshold ? 0 : 1) - (totalB <= b.threshold ? 0 : 1) || totalA - totalB;
+        default:
+          return (a.name || '').localeCompare(b.name || '');
+      }
+    });
+
+    return filtered;
+  }, [inventory, normalizedSearchQuery, stockSort, inventoryTotalsById]);
+
+  const filteredSuppliers = useMemo(
+    () => suppliers.filter((supplier) =>
+      `${supplier.name}${supplier.contactPerson}${supplier.phone}${supplier.email}`
+        .toLowerCase()
+        .includes(normalizedSearchQuery)
+    ),
+    [suppliers, normalizedSearchQuery]
+  );
+
+  const filteredPurchaseOrders = useMemo(
+    () => purchaseOrders.filter((purchaseOrder) => purchaseOrder.id.toLowerCase().includes(normalizedSearchQuery)),
+    [purchaseOrders, normalizedSearchQuery]
+  );
+
+  const selectedItem = useMemo(
+    () => inventory.find((item) => item.id === poItemId) || null,
+    [inventory, poItemId]
+  );
+
+  const selectedSourceWarehouse = useMemo(
+    () => warehouseById.get(branchTransferFromWh) || null,
+    [warehouseById, branchTransferFromWh]
+  );
+
+  const destinationWarehouses = useMemo(() => {
+    const currentSourceBranchId = selectedSourceWarehouse?.branchId;
+    return warehouses.filter((warehouse) => (
+      warehouse.id !== branchTransferFromWh &&
+      (!currentSourceBranchId || warehouse.branchId !== currentSourceBranchId)
+    ));
+  }, [warehouses, branchTransferFromWh, selectedSourceWarehouse]);
+
 
   const handleSaveItem = async (item: InventoryItem) => {
     if (editingItem) {
@@ -336,7 +345,7 @@ const Inventory: React.FC = () => {
                 <div className="w-10 h-10 rounded-xl bg-violet-500/20 flex items-center justify-center text-violet-500">
                    <ClipboardCheck size={20} />
                 </div>
-                {lang === 'ar' ? warehouses.find(w => w.id === countSession.warehouseId)?.name : warehouses.find(w => w.id === countSession.warehouseId)?.name}
+                {activeCountWarehouseName}
                 <span className="text-[10px] bg-violet-500 text-white px-2 py-0.5 rounded-full uppercase tracking-widest">{lang === 'ar' ? 'جاري الجرد' : 'In Progress'}</span>
               </h3>
               <p className="text-[10px] text-muted font-black uppercase tracking-[0.2em] mt-2 opacity-60">
@@ -527,6 +536,10 @@ const Inventory: React.FC = () => {
   const [countSession, setCountSession] = useState<any>(null);
   const [countLoading, setCountLoading] = useState(false);
   const [selectedCountWarehouse, setSelectedCountWarehouse] = useState('');
+  const activeCountWarehouseName = useMemo(
+    () => (countSession ? warehouseById.get(countSession.warehouseId)?.name : undefined),
+    [countSession, warehouseById]
+  );
 
   const handleStartCount = async () => {
     if (!selectedCountWarehouse) return;
@@ -586,29 +599,6 @@ const Inventory: React.FC = () => {
   // --- TAB CONTENT RENDERERS ---
 
   const renderStock = () => {
-    const filtered = inventory
-      .filter(item => {
-        const q = searchQuery.toLowerCase();
-        if (!q) return true;
-        return (
-          (item.name || '').toLowerCase().includes(q) ||
-          (item.nameAr || '').toLowerCase().includes(q) ||
-          (item.sku || '').toLowerCase().includes(q) ||
-          (item.category || '').toLowerCase().includes(q)
-        );
-      })
-      .sort((a, b) => {
-        const totalA = a.warehouseQuantities.reduce((s, w) => s + w.quantity, 0);
-        const totalB = b.warehouseQuantities.reduce((s, w) => s + w.quantity, 0);
-        switch (stockSort) {
-          case 'qty-asc': return totalA - totalB;
-          case 'qty-desc': return totalB - totalA;
-          case 'cost': return b.costPrice - a.costPrice;
-          case 'low-first': return (totalA <= a.threshold ? 0 : 1) - (totalB <= b.threshold ? 0 : 1) || totalA - totalB;
-          default: return (a.name || '').localeCompare(b.name || '');
-        }
-      });
-
     if (inventory.length === 0 && !searchQuery) {
       return (
         <div className="p-8">
@@ -641,7 +631,7 @@ const Inventory: React.FC = () => {
             </button>
           ))}
           <span className="ml-auto text-[9px] font-bold text-muted tabular-nums bg-elevated/40 px-2 py-1 rounded-lg border border-border/10">
-            {filtered.length} {lang === 'ar' ? 'صنف' : 'items'}
+            {filteredInventory.length} {lang === 'ar' ? 'صنف' : 'items'}
           </span>
         </div>
 
@@ -658,13 +648,13 @@ const Inventory: React.FC = () => {
         {/* Virtualized Body */}
         <div className="flex-1 overflow-hidden min-h-0 bg-card/10">
           <VirtualList
-            itemCount={filtered.length}
+            itemCount={filteredInventory.length}
             itemHeight={100}
             overscan={5}
-            getKey={(index) => filtered[index].id}
+            getKey={(index) => filteredInventory[index].id}
             renderItem={(index) => {
-              const item = filtered[index];
-              const totalQty = item.warehouseQuantities.reduce((acc, curr) => acc + curr.quantity, 0);
+              const item = filteredInventory[index];
+              const totalQty = inventoryTotalsById.get(item.id) || 0;
               const isLow = totalQty <= item.threshold;
               return (
                 <div 
@@ -689,7 +679,7 @@ const Inventory: React.FC = () => {
                   {/* Warehouses */}
                   <div className="flex flex-wrap gap-1.5 py-2">
                     {item.warehouseQuantities.slice(0, 3).map(wq => {
-                      const wh = warehouses.find(w => w.id === wq.warehouseId);
+                      const wh = warehouseById.get(wq.warehouseId);
                       return (
                         <span key={wq.warehouseId} className="px-2 py-1 bg-elevated/40 border border-border/20 shadow-sm rounded-lg text-[9px] font-bold text-main hover:border-emerald-500/30 transition-colors">
                           {wh?.name}: {wq.quantity}
@@ -781,8 +771,8 @@ const Inventory: React.FC = () => {
       </button>
 
       {warehouses.map(wh => {
-        const branch = branches.find(b => b.id === wh.branchId);
-        const parent = warehouses.find(w => w.id === wh.parentId);
+        const branch = branchById.get(wh.branchId);
+        const parent = wh.parentId ? warehouseById.get(wh.parentId) : undefined;
         return (
           <div key={wh.id} className="bg-card/60 backdrop-blur-3xl border border-border/20 p-8 rounded-[2.5rem] flex flex-col justify-between group cursor-pointer hover:border-emerald-500/30 shadow-[0_10px_30px_rgba(0,0,0,0.1)] hover:shadow-[0_20px_40px_rgba(16,185,129,0.15)] transition-all duration-500 ease-out hover:-translate-y-2 relative overflow-hidden" onClick={() => setSelectedWarehouse(wh)}>
             <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/5 via-transparent to-teal-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-700 pointer-events-none" />
@@ -812,7 +802,7 @@ const Inventory: React.FC = () => {
               <div className="flex items-center justify-between text-[10px] font-black uppercase tracking-[0.2em] text-muted border-t border-border/30 pt-5">
                 <div className="flex items-center gap-2 bg-elevated/40 px-3 py-1.5 rounded-lg border border-border/20 shadow-sm">
                   <Package size={14} className="text-emerald-500" />
-                  <span className="text-main">{inventory.filter(i => i.warehouseQuantities.some(wq => wq.warehouseId === wh.id)).length} SKUs</span>
+                  <span className="text-main">{warehouseSkuCounts.get(wh.id) || 0} SKUs</span>
                 </div>
                 {parent && (
                   <div className="flex items-center gap-2 text-indigo-400">
@@ -870,9 +860,7 @@ const Inventory: React.FC = () => {
               </tr>
             </thead>
             <tbody className="divide-y divide-white/5">
-              {suppliers
-                .filter(s => (s.name + s.contactPerson + s.phone + s.email).toLowerCase().includes(searchQuery.toLowerCase()))
-                .map((s) => (
+              {filteredSuppliers.map((s) => (
                   <tr key={s.id} className="hover:bg-indigo-500/5 transition-colors group">
                     <td className="px-6 py-5">
                       <div className="flex items-center gap-4">
@@ -905,7 +893,7 @@ const Inventory: React.FC = () => {
                     </td>
                   </tr>
                 ))}
-              {suppliers.length === 0 && (
+              {filteredSuppliers.length === 0 && (
                 <tr>
                   <td colSpan={4} className="px-6 py-12 text-center text-muted font-black uppercase tracking-[0.2em] text-[11px]">
                     No suppliers matched your query.
@@ -921,7 +909,7 @@ const Inventory: React.FC = () => {
 
   const handleCreatePO = async () => {
     if (!poSupplierId || !poItemId || poQty <= 0 || poPrice <= 0) return;
-    const item = inventory.find(i => i.id === poItemId);
+    const item = selectedItem;
     if (!item) return;
     const activeBranchId = settings.activeBranchId || branches[0]?.id;
     if (!activeBranchId) return;
@@ -967,10 +955,6 @@ const Inventory: React.FC = () => {
   };
 
   const renderBranchLogistics = () => {
-    const sourceWarehouse = warehouses.find(w => w.id === branchTransferFromWh);
-    const currentSourceBranchId = sourceWarehouse?.branchId;
-    const destinationWarehouses = warehouses.filter(w => w.id !== branchTransferFromWh && (!currentSourceBranchId || w.branchId !== currentSourceBranchId));
-
     return (
       <div className="p-6 grid grid-cols-1 xl:grid-cols-3 gap-6 relative z-10 w-full">
         <div className="xl:col-span-1 bg-card/40 backdrop-blur-md rounded-[2rem] border border-border/20 p-6 space-y-4 shadow-lg group relative overflow-hidden">
@@ -1092,9 +1076,7 @@ const Inventory: React.FC = () => {
               </tr>
             </thead>
             <tbody className="divide-y divide-white/5">
-              {purchaseOrders
-                .filter(po => po.id.toLowerCase().includes(searchQuery.toLowerCase()))
-                .map((po) => (
+              {filteredPurchaseOrders.map((po) => (
                   <tr key={po.id} className="hover:bg-amber-500/5 transition-colors group">
                     <td className="px-6 py-5">
                       <div className="font-mono text-[11px] font-black text-amber-500 bg-amber-500/10 w-fit px-2 py-1 rounded border border-amber-500/20">{po.id}</div>
@@ -1103,7 +1085,7 @@ const Inventory: React.FC = () => {
                       </div>
                     </td>
                     <td className="px-6 py-5">
-                      <div className="font-bold text-[13px] text-main">{suppliers.find(s => s.id === po.supplierId)?.name || po.supplierId}</div>
+                      <div className="font-bold text-[13px] text-main">{supplierById.get(po.supplierId)?.name || po.supplierId}</div>
                     </td>
                     <td className="px-6 py-5">
                       <span className={`px-2.5 py-1 rounded-lg text-[10px] font-black uppercase tracking-widest border ${po.status === 'RECEIVED' || po.status === 'CLOSED' ? 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20' : po.status === 'CANCELLED' ? 'bg-rose-500/10 text-rose-500 border-rose-500/20' : po.status === 'DRAFT' ? 'bg-slate-500/10 text-slate-400 border-slate-500/20' : 'bg-amber-500/10 text-amber-500 border-amber-500/20'}`}>
@@ -1143,59 +1125,158 @@ const Inventory: React.FC = () => {
       </div>
     </div>
   );
-      {/* Modals */}
-      <ItemModal
-        isOpen={itemModalOpen}
-        onClose={() => { setItemModalOpen(false); setEditingItem(null); }}
-        onSave={handleSaveItem}
-        lang={lang}
-        warehouses={warehouses}
-        existingItems={inventory}
-        initialItem={editingItem}
-      />
+  return (
+    <div className="relative min-h-screen bg-app overflow-hidden selection:bg-emerald-500/30">
+      <div className="fixed inset-0 pointer-events-none z-0">
+        <div className="absolute top-[-10%] left-[-5%] w-[400px] h-[400px] rounded-full bg-emerald-500/5 blur-[120px] animate-pulse" />
+        <div className="absolute bottom-[-10%] right-[-5%] w-[500px] h-[500px] rounded-full bg-teal-500/5 blur-[150px] animate-pulse" style={{ animationDelay: '2s' }} />
+      </div>
 
-      <WarehouseModal
-        isOpen={warehouseModalOpen}
-        onClose={() => setWarehouseModalOpen(false)}
-        onSave={handleSaveWarehouse}
-        lang={lang}
-        branches={branches}
-        warehouses={warehouses}
-      />
+      <div className="relative z-10 p-4 lg:p-10 space-y-8 max-w-[1920px] mx-auto overflow-y-auto max-h-screen custom-scrollbar pb-32">
+        <header className="flex flex-col xl:flex-row xl:items-end justify-between gap-8 pb-8 border-b border-border/20">
+          <div className="flex items-center gap-6">
+            <div className="w-20 h-20 rounded-[1.75rem] bg-gradient-to-br from-emerald-600 to-teal-600 p-0.5 shadow-2xl shadow-emerald-600/20">
+              <div className="w-full h-full rounded-[1.6rem] bg-card flex items-center justify-center">
+                <Package size={36} className="text-emerald-600 animate-pulse-soft" />
+              </div>
+            </div>
+            <div>
+              <h1 className="text-3xl lg:text-5xl font-black text-main tracking-tighter uppercase flex items-center gap-4">
+                {activeTab === 'STOCK' ? (lang === 'ar' ? 'مركز المخزون' : 'Stock Nexus') : activeTab}
+                <span className="hidden md:flex px-3 py-1 bg-emerald-500/10 text-emerald-500 border border-emerald-500/20 rounded-full text-[10px] font-black uppercase tracking-widest">
+                  Enterprise Intelligent Control
+                </span>
+              </h1>
+              <p className="text-muted font-bold text-xs uppercase tracking-[0.2em] mt-2 opacity-60">
+                Automated Purchasing · Real-time Sync · Multi-Warehouse AI Routing
+              </p>
+            </div>
+          </div>
 
-      <StockAdjustmentModal
-        isOpen={adjustmentModalOpen}
-        onClose={() => { setAdjustmentModalOpen(false); setEditingItem(null); }}
-        onSave={handleAdjustment}
-        lang={lang}
-        items={inventory}
-        warehouses={warehouses}
-        initialItem={editingItem}
-      />
+          <div className="flex flex-wrap items-center gap-3">
+            <button
+              onClick={() => setItemModalOpen(true)}
+              className="h-14 flex items-center justify-center gap-3 bg-gradient-to-r from-emerald-600 to-teal-600 text-white px-8 rounded-2xl shadow-2xl shadow-emerald-600/30 font-black text-[11px] uppercase tracking-widest hover:scale-105 active:scale-95 transition-all"
+            >
+              <Plus size={18} /> REGISTER ASSET
+            </button>
+            <button
+              onClick={() => setTransferModalOpen(true)}
+              className="h-14 flex items-center justify-center gap-3 bg-card/60 backdrop-blur-md text-sky-500 px-8 rounded-2xl border border-border/30 font-black text-[11px] uppercase tracking-widest hover:bg-sky-500 hover:text-white transition-all active:scale-95 shadow-lg"
+            >
+              <ArrowRightLeft size={18} /> INTER-TRANSFER
+            </button>
+            <button
+              onClick={() => setWarehouseModalOpen(true)}
+              className="h-14 flex items-center justify-center gap-3 bg-card/60 backdrop-blur-md text-main px-8 rounded-2xl border border-border/30 font-black text-[11px] uppercase tracking-widest hover:bg-main hover:text-app transition-all active:scale-95 shadow-lg"
+            >
+              <Home size={18} /> WAREHOUSES
+            </button>
+          </div>
+        </header>
 
-      <StockTransferModal
-        isOpen={transferModalOpen}
-        onClose={() => setTransferModalOpen(false)}
-        onSave={handleTransfer}
-        lang={lang}
-        items={inventory}
-        warehouses={warehouses}
-      />
+        <section className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+          <StockMetric label="Inventory Valuation" value={inventoryValuation.toLocaleString()} subValue="LE" icon={Calculator} color="#10b981" lang={lang} />
+          <StockMetric label="Active SKUs" value={inventory.length} subValue="Items" icon={Layers} color="#3b82f6" lang={lang} />
+          <StockMetric label="Out of Stock" value={outOfStockCount} subValue="Alerts" icon={AlertTriangle} color="#f43f5e" lang={lang} />
+          <StockMetric label="Turnover Ratio" value="4.2x" icon={Activity} color="#8b5cf6" lang={lang} />
+        </section>
 
-      {/* Note: handleReceipt was missing in view, I'll assume it exists or use receivePurchaseOrderInDB style */}
-      <ReceiptModal
-        isOpen={receiptModalOpen}
-        onClose={() => setReceiptModalOpen(false)}
-        onSave={async (data) => {
-           // Basic integration
-           console.log('Receiving stock...', data);
-           setReceiptModalOpen(false);
-        }}
-        lang={lang}
-        inventory={inventory}
-        warehouses={warehouses}
-        suppliers={suppliers}
-      />
+        <div className="flex flex-col xl:flex-row justify-between items-stretch lg:items-center gap-6 relative z-20">
+          <div className="flex bg-card/40 backdrop-blur-md rounded-[2rem] border border-border/30 p-2 overflow-x-auto no-scrollbar w-fit">
+            {[
+              { id: 'STOCK', label: 'Matrix', icon: LayoutGrid },
+              { id: 'SUPPLIERS', label: 'Partners', icon: Truck },
+              { id: 'PO', label: 'Procurements', icon: FileText },
+              { id: 'WAREHOUSES', label: 'Nodes', icon: Home },
+              { id: 'MOVEMENTS', label: 'Logs', icon: Activity },
+              { id: 'STOCKCOUNT', label: 'Audits', icon: ClipboardCheck },
+            ].map(tab => (
+              <button
+                key={tab.id}
+                onClick={() => setActiveTab(tab.id as any)}
+                className={`px-6 py-3.5 rounded-[1.5rem] text-[10px] font-black uppercase tracking-widest transition-all duration-300 flex items-center gap-3 whitespace-nowrap ${activeTab === tab.id ? 'bg-gradient-to-r from-emerald-600 to-teal-600 text-white shadow-xl shadow-emerald-600/20 scale-105' : 'text-muted hover:text-main hover:bg-elevated/60'}`}
+              >
+                <tab.icon size={16} />
+                {tab.label}
+              </button>
+            ))}
+          </div>
+
+          <div className="relative w-full lg:w-96 group">
+            <Search className="absolute left-5 top-1/2 -translate-y-1/2 text-muted w-5 h-5 group-focus-within:text-emerald-500 transition-colors z-10" />
+            <input
+              type="text"
+              placeholder="Query master inventory..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full pl-14 pr-6 py-5 bg-card/60 backdrop-blur-xl border border-border/30 rounded-[2rem] outline-none focus:border-emerald-500/50 transition-all font-bold text-sm text-main placeholder:text-muted/40 shadow-xl"
+            />
+          </div>
+        </div>
+
+        <div className="bg-card/60 backdrop-blur-3xl rounded-[3.5rem] border border-border/20 overflow-hidden min-h-[600px] relative z-20 shadow-[0_30px_60px_-15px_rgba(0,0,0,0.3)]">
+          <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/5 via-transparent to-teal-500/5 opacity-50 pointer-events-none" />
+          {activeTab === 'STOCK' && renderStock()}
+          {activeTab === 'WAREHOUSES' && renderWarehouses()}
+          {activeTab === 'SUPPLIERS' && renderSuppliers()}
+          {activeTab === 'STOCKCOUNT' && renderStockCount()}
+          {activeTab === 'MOVEMENTS' && renderMovements()}
+          {activeTab === 'PO' && renderPurchaseOrders()}
+          {activeTab === 'BRANCHES' && renderBranchLogistics()}
+        </div>
+
+        <ItemModal
+          isOpen={itemModalOpen}
+          onClose={() => { setItemModalOpen(false); setEditingItem(null); }}
+          onSave={handleSaveItem}
+          lang={lang}
+          warehouses={warehouses}
+          existingItems={inventory}
+          initialItem={editingItem}
+        />
+
+        <WarehouseModal
+          isOpen={warehouseModalOpen}
+          onClose={() => setWarehouseModalOpen(false)}
+          onSave={handleSaveWarehouse}
+          lang={lang}
+          branches={branches}
+          warehouses={warehouses}
+        />
+
+        <StockAdjustmentModal
+          isOpen={adjustmentModalOpen}
+          onClose={() => { setAdjustmentModalOpen(false); setEditingItem(null); }}
+          onSave={handleAdjustment}
+          lang={lang}
+          items={inventory}
+          warehouses={warehouses}
+          initialItem={editingItem}
+        />
+
+        <StockTransferModal
+          isOpen={transferModalOpen}
+          onClose={() => setTransferModalOpen(false)}
+          onSave={handleTransfer}
+          lang={lang}
+          items={inventory}
+          warehouses={warehouses}
+        />
+
+        <ReceiptModal
+          isOpen={receiptModalOpen}
+          onClose={() => setReceiptModalOpen(false)}
+          onSave={async (data) => {
+             console.log('Receiving stock...', data);
+             setReceiptModalOpen(false);
+          }}
+          lang={lang}
+          inventory={inventory}
+          warehouses={warehouses}
+          suppliers={suppliers}
+        />
+      </div>
     </div>
   );
 };

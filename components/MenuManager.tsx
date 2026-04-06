@@ -1,5 +1,6 @@
 
 import React, { useState, useMemo, useEffect, useCallback, useTransition, useRef, lazy, Suspense } from 'react';
+import { useShallow } from 'zustand/react/shallow';
 import {
   Plus, Search, Edit3, Trash2, Tag,
   Layers, Clock, CheckCircle2, AlertCircle,
@@ -22,6 +23,11 @@ import { translations } from '../services/translations';
 // Components
 import ImageUploader from './common/ImageUploader';
 import MenuCategoryList from './menu/MenuCategoryList';
+const ItemDrawer = lazy(() =>
+  import('./menu/ItemDrawer').then((module) => ({
+    default: module.ItemDrawer,
+  }))
+);
 
 const MenuManager: React.FC = () => {
   // Global State
@@ -30,9 +36,37 @@ const MenuManager: React.FC = () => {
     updateMenuItem, addMenuItem, deleteMenuItem,
     addCategory, updateCategory, deleteCategory,
     addMenu, updateMenu, linkCategory, fetchMenu
-  } = useMenuStore();
-  const { inventory } = useInventoryStore();
-  const { branches, printers, settings } = useAuthStore();
+  } = useMenuStore(
+    useShallow((state) => ({
+      menus: state.menus,
+      categories: state.categories,
+      platforms: state.platforms,
+      isLoading: state.isLoading,
+      error: state.error,
+      updateMenuItem: state.updateMenuItem,
+      addMenuItem: state.addMenuItem,
+      deleteMenuItem: state.deleteMenuItem,
+      addCategory: state.addCategory,
+      updateCategory: state.updateCategory,
+      deleteCategory: state.deleteCategory,
+      addMenu: state.addMenu,
+      updateMenu: state.updateMenu,
+      linkCategory: state.linkCategory,
+      fetchMenu: state.fetchMenu,
+    }))
+  );
+  const { inventory } = useInventoryStore(
+    useShallow((state) => ({
+      inventory: state.inventory,
+    }))
+  );
+  const { branches, printers, settings } = useAuthStore(
+    useShallow((state) => ({
+      branches: state.branches,
+      printers: state.printers,
+      settings: state.settings,
+    }))
+  );
   const lang = settings.language;
   // const t = translations[lang]; // Not heavily used here yet, using ternary for labels
 
@@ -40,6 +74,14 @@ const MenuManager: React.FC = () => {
   useEffect(() => {
     fetchMenu();
   }, [fetchMenu]);
+
+  useEffect(() => {
+    return () => {
+      if (searchTimerRef.current) {
+        clearTimeout(searchTimerRef.current);
+      }
+    };
+  }, []);
 
   const [activeTab, setActiveTab] = useState<'MENUS' | 'OFFERS'>('MENUS');
   const [selectedMenuId, setSelectedMenuId] = useState<string>(menus[0]?.id || '');
@@ -71,10 +113,13 @@ const MenuManager: React.FC = () => {
   const [newIngredientId, setNewIngredientId] = useState('');
   const [newIngredientQty, setNewIngredientQty] = useState<number>(0);
 
-  // Modal Tabs
-  const [itemModalTab, setItemModalTab] = useState<'BASIC' | 'PRICING' | 'PRINTERS' | 'MODIFIERS'>('BASIC');
-
   const selectedMenu = menus.find(m => m.id === selectedMenuId);
+
+  useEffect(() => {
+    if (!selectedMenuId && menus.length > 0) {
+      setSelectedMenuId(menus[0].id);
+    }
+  }, [menus, selectedMenuId]);
 
   const filteredCategories = useMemo(() => {
     if (!selectedMenu) return [];
@@ -549,391 +594,47 @@ const MenuManager: React.FC = () => {
         </div>
       )}
 
-      {/* ITEM MODAL */}
       {itemModal && (
-        <div className="fixed inset-0 bg-slate-950/90 flex items-center justify-center z-[110] p-4 animate-in fade-in zoom-in duration-300">
-          <div className="bg-card w-full max-w-4xl rounded-[3rem] shadow-[0_30px_60px_rgba(0,0,0,0.5)] border border-border/30 overflow-hidden flex flex-col max-h-[95vh] relative text-main">
-            <div className="absolute inset-0 bg-gradient-to-br from-indigo-500/10 via-transparent to-cyan-500/5 pointer-events-none" />
-
-            <div className="p-8 border-b border-border/20 flex justify-between items-center bg-elevated/40 backdrop-blur-md relative z-10">
-              <div className="flex items-center gap-5">
-                <div className="p-4 bg-gradient-to-br from-indigo-500 to-cyan-500 text-white rounded-[1.2rem] shadow-[0_10px_20px_rgba(99,102,241,0.3)] border border-border/40">
-                  <UtensilsCrossed size={28} />
-                </div>
-                <div>
-                  <h3 className="text-2xl font-black text-main uppercase tracking-tight drop-shadow-sm">
-                    {itemModal.mode === 'ADD' ? (lang === 'ar' ? '��� ����' : 'New Item') : (lang === 'ar' ? '����� ���' : 'Edit Item')}
-                  </h3>
-                  <p className="text-[10px] font-black text-indigo-400 uppercase tracking-widest mt-1">
-                    {lang === 'ar' ? '����� ������ ������� ������' : 'Customize product details and printers'}
-                  </p>
-                </div>
+        <Suspense
+          fallback={
+            <div className="fixed inset-0 z-[110] flex items-center justify-center bg-slate-950/85 backdrop-blur-xl">
+              <div className="flex items-center gap-3 rounded-full border border-border/20 bg-card/70 px-6 py-3 text-sm font-black text-main shadow-2xl">
+                <Loader2 size={18} className="animate-spin text-indigo-400" />
+                Preparing editor...
               </div>
-              <button onClick={() => setItemModal(null)} className="p-3 bg-card/60 backdrop-blur-sm text-muted rounded-[1rem] shadow-sm hover:text-rose-400 border border-border/20 hover:border-rose-500/30 hover:rotate-90 transition-all active:scale-95"><X size={28} /></button>
             </div>
-
-            {/* TAB HEADER */}
-            <div className="flex border-b border-border/20 bg-elevated/20 p-2 gap-2 relative z-10 overflow-x-auto no-scrollbar">
-              {[
-                { id: 'BASIC', icon: LayoutGrid, labelEn: 'Basic Info', labelAr: '������ ������' },
-                { id: 'PRICING', icon: DollarSign, labelEn: 'Pricing & Menus', labelAr: '������� ��������' },
-                { id: 'PRINTERS', icon: PrinterIcon, labelEn: 'Printers & Routing', labelAr: '������� ��������' },
-                { id: 'MODIFIERS', icon: Layers, labelEn: 'Modifiers', labelAr: '��������' }
-              ].map(tab => (
-                <button
-                  key={tab.id}
-                  onClick={() => setItemModalTab(tab.id as any)}
-                  className={`flex items-center gap-2 px-6 py-3.5 rounded-[1.2rem] font-black text-[10px] uppercase tracking-[0.2em] transition-all whitespace-nowrap ${itemModalTab === tab.id ? 'bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 shadow-inner' : 'text-muted hover:bg-elevated/40 hover:text-main border border-transparent'}`}
-                >
-                  <tab.icon size={16} />
-                  {lang === 'ar' ? tab.labelAr : tab.labelEn}
-                </button>
-              ))}
-            </div>
-
-            <div className="p-8 space-y-10 overflow-y-auto no-scrollbar relative z-10">
-
-              {/* TAB CONTENT: BASIC INFO */}
-              {itemModalTab === 'BASIC' && (
-                <div className="animate-in fade-in duration-300">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                    <div className="space-y-6">
-                      <div className="group/input space-y-2">
-                        <label className="text-[10px] font-black text-muted uppercase tracking-[0.2em] ml-1 group-focus-within/input:text-indigo-400 transition-colors">{lang === 'ar' ? '����� (EN)' : 'Name (English)'}</label>
-                        <input type="text" value={itemModal.item.name} onChange={(e) => setItemModal({ ...itemModal, item: { ...itemModal.item, name: e.target.value } })} className="w-full p-5 bg-elevated/40 backdrop-blur-sm rounded-[1.2rem] font-bold text-main border border-border/20 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 transition-all outline-none shadow-inner text-sm" placeholder="e.g. Classic Burger" />
-                      </div>
-                      <div className="group/input space-y-2">
-                        <label className="text-[10px] font-black text-muted uppercase tracking-[0.2em] ml-1 group-focus-within/input:text-indigo-400 transition-colors">{lang === 'ar' ? '����� (AR)' : 'Name (Arabic)'}</label>
-                        <input type="text" value={itemModal.item.nameAr || ''} onChange={(e) => setItemModal({ ...itemModal, item: { ...itemModal.item, nameAr: e.target.value } })} className="w-full p-5 bg-elevated/40 backdrop-blur-sm rounded-[1.2rem] font-bold text-main text-right border border-border/20 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 transition-all outline-none shadow-inner text-sm" placeholder="�����: ���� ������" />
-                      </div>
-                    </div>
-                    <div className="space-y-6">
-                      <div className="grid grid-cols-2 gap-4">
-                        <div className="group/input space-y-2">
-                          <label className="text-[10px] font-black text-muted uppercase tracking-[0.2em] ml-1 group-focus-within/input:text-indigo-400 transition-colors">{lang === 'ar' ? '�����' : 'Price'}</label>
-                          <div className="relative">
-                            <DollarSign className="absolute left-4 top-1/2 -translate-y-1/2 text-muted group-focus-within/input:text-indigo-400 transition-colors" size={18} />
-                            <input type="number" value={itemModal.item.price || ''} onChange={(e) => setItemModal({ ...itemModal, item: { ...itemModal.item, price: parseFloat(e.target.value) || 0 } })} className="w-full pl-12 pr-4 py-5 bg-elevated/40 backdrop-blur-sm rounded-[1.2rem] font-black text-main text-sm outline-none border border-border/20 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 transition-all shadow-inner" />
-                          </div>
-                        </div>
-                        <div className="group/input space-y-2">
-                          <label className="text-[10px] font-black text-muted uppercase tracking-[0.2em] ml-1 group-focus-within/input:text-indigo-400 transition-colors">{lang === 'ar' ? '�������' : 'Sort Order'}</label>
-                          <input type="number" value={itemModal.item.sortOrder || 0} onChange={(e) => setItemModal({ ...itemModal, item: { ...itemModal.item, sortOrder: parseInt(e.target.value) || 0 } })} className="w-full p-5 bg-elevated/40 backdrop-blur-sm rounded-[1.2rem] font-black text-main text-sm outline-none border border-border/20 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 transition-all shadow-inner" />
-                        </div>
-                      </div>
-                      <div className="grid grid-cols-2 gap-4">
-                        <div className="group/input space-y-2">
-                          <label className="text-[10px] font-black text-muted uppercase tracking-[0.2em] ml-1 group-focus-within/input:text-indigo-400 transition-colors">{lang === 'ar' ? '��� �������' : 'Fiscal Code (GS1)'}</label>
-                          <input type="text" value={itemModal.item.fiscalCode || ''} onChange={(e) => setItemModal({ ...itemModal, item: { ...itemModal.item, fiscalCode: e.target.value } })} className="w-full p-5 bg-elevated/40 backdrop-blur-sm rounded-[1.2rem] font-black text-main text-sm outline-none border border-border/20 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 transition-all shadow-inner" placeholder="e.g. 10001234" />
-                        </div>
-                        <div className="flex flex-col justify-end pb-1">
-                          <button
-                            onClick={() => setItemModal({ ...itemModal, item: { ...itemModal.item, isWeighted: !itemModal.item.isWeighted } })}
-                            className={`flex items-center justify-center gap-2 p-4.5 rounded-[1.2rem] border transition-all duration-300 font-black text-[10px] uppercase tracking-[0.2em] h-[64px] ${itemModal.item.isWeighted ? 'bg-gradient-to-r from-amber-500 to-orange-500 border-amber-400/30 text-white shadow-[0_5px_15px_rgba(245,158,11,0.2)]' : 'bg-elevated/40 border-border/20 text-muted hover:text-amber-400 hover:border-amber-400/30 shadow-inner'}`}
-                          >
-                            <Scale size={16} />
-                            {lang === 'ar' ? '�����' : 'Scale Required'}
-                          </button>
-                        </div>
-                      </div>
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                        <div className="group/input space-y-2">
-                          <label className="text-[10px] font-black text-muted uppercase tracking-[0.2em] ml-1 group-focus-within/input:text-indigo-400 transition-colors">{lang === 'ar' ? '�����' : 'Category'}</label>
-                          <select
-                            value={itemModal.categoryId}
-                            onChange={(e) => setItemModal({ ...itemModal, categoryId: e.target.value, item: { ...itemModal.item, categoryId: e.target.value } })}
-                            className="w-full p-5 bg-elevated/40 backdrop-blur-sm rounded-[1.2rem] font-bold text-main border border-border/20 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 transition-all outline-none appearance-none shadow-inner text-sm cursor-pointer"
-                          >
-                            {categories.map(cat => (
-                              <option key={cat.id} value={cat.id} className="bg-card text-main">{lang === 'ar' ? (cat.nameAr || cat.name) : cat.name}</option>
-                            ))}
-                          </select>
-                        </div>
-                        <div className="space-y-2">
-                          <ImageUploader
-                            value={itemModal.item.image || ''}
-                            onChange={(url) => setItemModal({ ...itemModal, item: { ...itemModal.item, image: url } })}
-                            type="item"
-                            label={lang === 'ar' ? '���� �����' : 'Item Image'}
-                            lang={lang}
-                          />
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="group/textarea space-y-2 md:col-span-2">
-                      <div className="flex justify-between items-center mb-2">
-                        <label className="text-[10px] font-black text-muted uppercase tracking-[0.2em] ml-1 group-focus-within/textarea:text-indigo-400 transition-colors">{lang === 'ar' ? '�����' : 'Description'}</label>
-                        <button
-                          onClick={async () => {
-                            if (!itemModal.item.name) return;
-                            // Simulate AI Auto Fill
-                            const prev = itemModal.item;
-                            setItemModal({
-                              ...itemModal, item: {
-                                ...prev,
-                                nameAr: prev.nameAr || (prev.name + ' �����'),
-                                description: prev.description || `Delicious ${prev.name} prepared with fresh ingredients.`,
-                                descriptionAr: prev.descriptionAr || `${prev.name} ���� ���� �� ������ �����.`
-                              }
-                            });
-                          }}
-                          className="flex items-center gap-2 px-3 py-1.5 bg-gradient-to-r from-indigo-500/10 to-cyan-500/10 text-indigo-400 border border-indigo-500/20 rounded-lg text-[9px] font-black uppercase tracking-widest hover:bg-indigo-500/20 transition-all"
-                        >
-                          <Sparkles size={12} className="text-cyan-400" /> {lang === 'ar' ? '����� ����' : 'Magic Fill'}
-                        </button>
-                      </div>
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        <textarea rows={3} value={itemModal.item.description || ''} onChange={(e) => setItemModal({ ...itemModal, item: { ...itemModal.item, description: e.target.value } })} className="w-full p-5 bg-elevated/40 backdrop-blur-sm rounded-[1.2rem] text-sm text-main resize-none outline-none border border-border/20 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 transition-all shadow-inner font-medium" placeholder="English Description..." />
-                        <textarea rows={3} value={itemModal.item.descriptionAr || ''} onChange={(e) => setItemModal({ ...itemModal, item: { ...itemModal.item, descriptionAr: e.target.value } })} className="w-full p-5 bg-elevated/40 backdrop-blur-sm rounded-[1.2rem] text-sm text-main resize-none text-right outline-none border border-border/20 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 transition-all shadow-inner font-medium" placeholder="����� ��������..." />
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {/* TAB CONTENT: PRICING */}
-              {itemModalTab === 'PRICING' && (
-                <div className="animate-in fade-in duration-300">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                    <div className="space-y-4">
-                      <label className="text-[10px] font-black text-indigo-400 uppercase tracking-[0.2em] ml-1 flex items-center gap-2"><LayoutGrid size={14} /> {lang === 'ar' ? '��� �����' : 'Appearance Layout'}</label>
-                      <div className="grid grid-cols-3 gap-4">
-                        {['standard', 'wide', 'image-only'].map(layout => (
-                          <button
-                            key={layout}
-                            onClick={() => setItemModal({ ...itemModal, item: { ...itemModal.item, layoutType: layout as any } })}
-                            className={`p-5 rounded-[1.5rem] border transition-all duration-300 flex flex-col items-center gap-3 ${itemModal.item.layoutType === layout ? 'border-indigo-500/50 bg-indigo-500/10 text-indigo-400 shadow-[0_0_15px_rgba(99,102,241,0.15)] shadow-inner' : 'border-border/20 bg-elevated/30 text-muted hover:border-indigo-500/30 hover:text-main'}`}
-                          >
-                            {layout === 'standard' && <LayoutGrid size={24} />}
-                            {layout === 'wide' && <List size={24} />}
-                            {layout === 'image-only' && <ImageIcon size={24} />}
-                            <span className="text-[9px] font-black uppercase tracking-[0.15em] text-center">{layout}</span>
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {/* TAB CONTENT: PRINTERS */}
-              {itemModalTab === 'PRINTERS' && (
-                <div className="animate-in fade-in duration-300 space-y-10">
-                  <div className="space-y-4">
-                    <label className="text-[10px] font-black text-indigo-400 uppercase tracking-[0.2em] ml-1 flex items-center gap-2"><PrinterIcon size={14} /> {lang === 'ar' ? '����� �������' : 'Print Routing'}</label>
-                    <div className="flex flex-wrap gap-3">
-                      {printers.map(p => (
-                        <button
-                          key={p.id}
-                          onClick={() => toggleItemPrinter(p.id)}
-                          className={`px-5 py-3 rounded-[1rem] border text-[10px] font-black uppercase tracking-[0.2em] transition-all flex items-center gap-2 ${itemModal.item.printerIds?.includes(p.id) ? 'bg-gradient-to-r from-indigo-500 to-cyan-500 border-indigo-400/30 text-white shadow-[0_5px_15px_rgba(99,102,241,0.2)]' : 'bg-elevated/40 border-border/20 text-muted hover:border-indigo-500/30 hover:text-indigo-400 shadow-inner'}`}
-                        >
-                          <PrinterIcon size={14} />
-                          {p.name}
-                        </button>
-                      ))}
-                      {printers.length === 0 && <p className="text-[10px] text-muted italic px-2">No printers configured. Go to Printer Hub.</p>}
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {/* TAB CONTENT: MODIFIERS */}
-              {itemModalTab === 'MODIFIERS' && (
-                <div className="animate-in fade-in duration-300">
-                  <div className="grid grid-cols-1 gap-8">
-                    <div className="space-y-4">
-                      <label className="text-[10px] font-black text-indigo-400 uppercase tracking-[0.2em] ml-1 flex items-center gap-2"><Clock size={14} /> {lang === 'ar' ? '������ �������' : 'Availability Schedule'}</label>
-                      <div className="flex flex-wrap gap-3">
-                        {dayOptions.map(day => (
-                          <button
-                            key={day.id}
-                            onClick={() => toggleItemDay(day.id)}
-                            className={`px-4 py-2.5 rounded-[0.8rem] border text-[10px] font-black uppercase tracking-[0.2em] transition-all ${itemModal.item.availableDays?.includes(day.id) ? 'bg-gradient-to-r from-emerald-500 to-teal-400 border-emerald-400/30 text-white shadow-[0_5px_15px_rgba(16,185,129,0.2)]' : 'bg-elevated/40 border-border/20 text-muted hover:border-emerald-500/30 hover:text-emerald-400 shadow-inner'}`}
-                          >
-                            {lang === 'ar' ? day.ar : day.en}
-                          </button>
-                        ))}
-                        {dayOptions.length === 0 && <p className="text-[10px] text-muted italic">No days configured.</p>}
-                      </div>
-                      <div className="grid grid-cols-2 gap-4">
-                        <div className="group/input space-y-2">
-                          <label className="text-[10px] font-black text-muted uppercase tracking-[0.2em] ml-1 group-focus-within/input:text-indigo-400 transition-colors">{lang === 'ar' ? '�� ������' : 'From'}</label>
-                          <input
-                            type="time"
-                            value={itemModal.item.availableFrom || ''}
-                            onChange={(e) => setItemModal({ ...itemModal, item: { ...itemModal.item, availableFrom: e.target.value } })}
-                            className="w-full p-5 bg-elevated/40 backdrop-blur-sm rounded-[1.2rem] font-black text-main text-sm outline-none border border-border/20 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 transition-all shadow-inner"
-                          />
-                        </div>
-                        <div className="group/input space-y-2">
-                          <label className="text-[10px] font-black text-muted uppercase tracking-[0.2em] ml-1 group-focus-within/input:text-indigo-400 transition-colors">{lang === 'ar' ? '��� ������' : 'To'}</label>
-                          <input
-                            type="time"
-                            value={itemModal.item.availableTo || ''}
-                            onChange={(e) => setItemModal({ ...itemModal, item: { ...itemModal.item, availableTo: e.target.value } })}
-                            className="w-full p-5 bg-elevated/40 backdrop-blur-sm rounded-[1.2rem] font-black text-main text-sm outline-none border border-border/20 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 transition-all shadow-inner"
-                          />
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="space-y-4">
-                      <div className="flex items-center justify-between">
-                        <label className="text-[10px] font-black text-indigo-400 uppercase tracking-[0.2em] ml-1 flex items-center gap-2"><MapPin size={14} /> {lang === 'ar' ? '����� ����� ������' : 'Branch Price Lists'}</label>
-                        <button onClick={addPriceList} className="px-4 py-2.5 rounded-[0.8rem] bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 hover:bg-gradient-to-r hover:from-indigo-500 hover:to-cyan-500 hover:text-white hover:border-indigo-400/30 text-[9px] font-black uppercase tracking-[0.2em] transition-all shadow-sm active:scale-95 duration-300">Add Price</button>
-                      </div>
-                      <div className="space-y-4">
-                        {(itemModal.item.priceLists || []).map((list, idx) => (
-                          <div key={`${list.name}-${idx}`} className="p-5 rounded-[1.5rem] border border-border/20 bg-elevated/30 backdrop-blur-md space-y-4 shadow-inner relative group">
-                            <div className="absolute inset-0 bg-gradient-to-br from-indigo-500/5 via-transparent to-cyan-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none rounded-[1.5rem]" />
-                            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 relative z-10">
-                              <div className="space-y-2 sm:col-span-2 group/listname">
-                                <label className="text-[9px] font-black text-muted uppercase tracking-[0.2em] ml-1 group-focus-within/listname:text-indigo-400 transition-colors">{lang === 'ar' ? '��� �������' : 'List Name'}</label>
-                                <input
-                                  type="text"
-                                  value={list.name}
-                                  onChange={(e) => updatePriceList(idx, { name: e.target.value })}
-                                  className="w-full p-4 bg-card/60 rounded-[1rem] font-bold text-main outline-none border border-border/20 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 transition-all text-xs shadow-inner"
-                                  placeholder={lang === 'ar' ? '�����' : 'Delivery'}
-                                />
-                              </div>
-                              <div className="space-y-2 group/listprice">
-                                <label className="text-[9px] font-black text-muted uppercase tracking-[0.2em] ml-1 group-focus-within/listprice:text-indigo-400 transition-colors">{lang === 'ar' ? '�����' : 'Price'}</label>
-                                <input
-                                  type="number"
-                                  value={list.price}
-                                  onChange={(e) => updatePriceList(idx, { price: parseFloat(e.target.value) || 0 })}
-                                  className="w-full p-4 bg-card/60 rounded-[1rem] font-black text-emerald-400 outline-none border border-border/20 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 transition-all text-xs shadow-inner"
-                                />
-                              </div>
-                            </div>
-                            <div className="flex flex-wrap gap-2 relative z-10">
-                              {branches.map(branch => (
-                                <button
-                                  key={branch.id}
-                                  onClick={() => togglePriceListBranch(idx, branch.id)}
-                                  className={`px-3 py-2 rounded-xl text-[9px] font-black uppercase tracking-[0.15em] border transition-all ${list.branchIds?.includes(branch.id) ? 'bg-gradient-to-r from-indigo-500 to-cyan-500 border-indigo-400/30 text-white shadow-[0_5px_15px_rgba(99,102,241,0.2)]' : 'bg-card border-border/20 text-muted hover:border-indigo-500/30 hover:text-indigo-400 shadow-inner'}`}
-                                >
-                                  {lang === 'ar' ? (branch.nameAr || branch.name) : branch.name}
-                                </button>
-                              ))}
-                              {branches.length === 0 && <p className="text-[10px] text-muted italic">No branches configured.</p>}
-                            </div>
-                            <button onClick={() => removePriceList(idx)} className="text-[10px] font-black uppercase tracking-[0.2em] text-rose-500 hover:text-rose-400 transition-colors relative z-10">Remove</button>
-                          </div>
-                        ))}
-                        {(itemModal.item.priceLists || []).length === 0 && (
-                          <p className="text-[11px] text-muted italic">{lang === 'ar' ? '�� ���� ����� ����� ���� ���' : 'No branch-specific pricing yet.'}</p>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="space-y-4">
-                    <div className="flex items-center justify-between">
-                      <label className="text-[10px] font-black text-indigo-400 uppercase tracking-[0.2em] ml-1 flex items-center gap-2"><Layers size={14} /> {lang === 'ar' ? '������� ��������' : 'Modifier Groups'}</label>
-                      <button onClick={addModifierGroup} className="px-4 py-2.5 rounded-[0.8rem] bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 hover:bg-gradient-to-r hover:from-indigo-500 hover:to-cyan-500 hover:text-white hover:border-indigo-400/30 text-[9px] font-black uppercase tracking-[0.2em] transition-all shadow-sm active:scale-95 duration-300">Add Group</button>
-                    </div>
-                    <div className="space-y-6">
-                      {(itemModal.item.modifierGroups || []).map(group => (
-                        <div key={group.id} className="p-6 rounded-[2rem] border border-border/20 bg-elevated/30 backdrop-blur-md space-y-6 shadow-inner relative group">
-                          <div className="absolute inset-0 bg-gradient-to-br from-indigo-500/5 via-transparent to-cyan-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none rounded-[2rem]" />
-                          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 relative z-10">
-                            <div className="space-y-2 sm:col-span-2 group/modname">
-                              <label className="text-[9px] font-black text-muted uppercase tracking-[0.2em] ml-1 group-focus-within/modname:text-indigo-400 transition-colors">{lang === 'ar' ? '��� ��������' : 'Group Name'}</label>
-                              <input
-                                type="text"
-                                value={group.name}
-                                onChange={(e) => updateModifierGroup(group.id, { name: e.target.value })}
-                                className="w-full p-4 bg-card/60 rounded-[1rem] font-bold text-main outline-none border border-border/20 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 transition-all text-sm shadow-inner"
-                                placeholder={lang === 'ar' ? '������' : 'Toppings'}
-                              />
-                            </div>
-                            <div className="space-y-2 group/min">
-                              <label className="text-[9px] font-black text-muted uppercase tracking-[0.2em] ml-1 group-focus-within/min:text-indigo-400 transition-colors">{lang === 'ar' ? '�� ����' : 'Min'}</label>
-                              <input
-                                type="number"
-                                value={group.minSelection}
-                                onChange={(e) => updateModifierGroup(group.id, { minSelection: parseInt(e.target.value) || 0 })}
-                                className="w-full p-4 bg-card/60 rounded-[1rem] font-black text-main outline-none border border-border/20 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 transition-all text-sm shadow-inner"
-                              />
-                            </div>
-                          </div>
-                          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 relative z-10">
-                            <div className="space-y-2 group/max">
-                              <label className="text-[9px] font-black text-muted uppercase tracking-[0.2em] ml-1 group-focus-within/max:text-indigo-400 transition-colors">{lang === 'ar' ? '�� ����' : 'Max'}</label>
-                              <input
-                                type="number"
-                                value={group.maxSelection}
-                                onChange={(e) => updateModifierGroup(group.id, { maxSelection: parseInt(e.target.value) || 0 })}
-                                className="w-full p-4 bg-card/60 rounded-[1rem] font-black text-main outline-none border border-border/20 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 transition-all text-sm shadow-inner"
-                              />
-                            </div>
-                            <div className="flex items-end">
-                              <button onClick={() => addModifierOption(group.id)} className="w-full px-4 py-4 rounded-[1rem] bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 hover:bg-gradient-to-r hover:from-indigo-500 hover:to-cyan-500 hover:text-white hover:border-indigo-400/30 text-[10px] font-black uppercase tracking-[0.2em] transition-all shadow-sm active:scale-95 duration-300">Add Option</button>
-                            </div>
-                          </div>
-                          <div className="space-y-3 relative z-10 bg-card/40 p-4 rounded-[1.5rem] border border-border/20 shadow-inner">
-                            <h5 className="text-[9px] font-black text-muted uppercase tracking-[0.2em] mb-4">Options</h5>
-                            {(group.options || []).map(option => (
-                              <div key={option.id} className="grid grid-cols-1 sm:grid-cols-4 gap-4 items-center">
-                                <div className="sm:col-span-2">
-                                  <input
-                                    type="text"
-                                    value={option.name}
-                                    onChange={(e) => updateModifierOption(group.id, option.id, { name: e.target.value })}
-                                    className="w-full p-3.5 bg-elevated/50 rounded-[1rem] font-bold text-main outline-none border border-border/20 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 transition-all text-xs shadow-inner"
-                                    placeholder={lang === 'ar' ? '����' : 'Cheese'}
-                                  />
-                                </div>
-                                <div>
-                                  <input
-                                    type="number"
-                                    value={option.price}
-                                    onChange={(e) => updateModifierOption(group.id, option.id, { price: parseFloat(e.target.value) || 0 })}
-                                    className="w-full p-3.5 bg-elevated/50 rounded-[1rem] font-black text-emerald-400 outline-none border border-border/20 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 transition-all text-xs shadow-inner"
-                                  />
-                                </div>
-                                <div>
-                                  <button onClick={() => removeModifierOption(group.id, option.id)} className="w-full px-4 py-3.5 rounded-[1rem] bg-rose-500/10 text-rose-500 border border-rose-500/20 hover:bg-rose-500/20 text-[9px] font-black uppercase tracking-[0.2em] transition-all shadow-sm active:scale-95 duration-300">Remove</button>
-                                </div>
-                              </div>
-                            ))}
-                            {(group.options || []).length === 0 && (
-                              <p className="text-[11px] text-muted italic p-2">{lang === 'ar' ? '�� ���� ������ ���' : 'No options yet.'}</p>
-                            )}
-                          </div>
-                          <button onClick={() => removeModifierGroup(group.id)} className="text-[10px] font-black uppercase tracking-[0.2em] text-rose-500 hover:text-rose-400 transition-colors relative z-10">Remove Group</button>
-                        </div>
-                      ))}
-                      {(itemModal.item.modifierGroups || []).length === 0 && (
-                        <p className="text-[11px] text-muted italic">{lang === 'ar' ? '�� ��� ����� ������� ���' : 'No modifier groups yet.'}</p>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              )}
-
-            </div>
-
-            <div className="p-8 border-t border-border/20 bg-elevated/40 backdrop-blur-xl flex gap-4 relative z-10">
-              <button
-                onClick={() => setItemModal(null)}
-                className="flex-[1] py-5 bg-card/60 backdrop-blur-md text-muted rounded-[1.2rem] font-black uppercase tracking-[0.2em] text-[10px] border border-border/20 hover:bg-card hover:text-main transition-all active:scale-95 shadow-sm"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleSaveItem}
-                className="flex-[2] py-5 bg-gradient-to-r from-indigo-500 to-cyan-500 text-white rounded-[1.2rem] font-black uppercase tracking-[0.2em] text-[10px] shadow-[0_10px_20px_rgba(99,102,241,0.2)] hover:shadow-[0_15px_30px_rgba(99,102,241,0.3)] hover:-translate-y-0.5 border border-indigo-400/30 transition-all active:scale-95"
-              >
-                Save {itemModal.item.name || 'New Item'}
-              </button>
-            </div>
-          </div>
-        </div>
+          }
+        >
+          <ItemDrawer
+            item={itemModal.item}
+            mode={itemModal.mode}
+            categoryId={itemModal.categoryId}
+            categories={categories}
+            printers={printers}
+            branches={branches}
+            inventory={inventory}
+            lang={lang}
+            currency={settings.currencySymbol || 'EGP'}
+            onClose={() => setItemModal(null)}
+            onDelete={itemModal.mode === 'EDIT' ? () => {
+              deleteMenuItem(itemModal.menuId, itemModal.categoryId, itemModal.item.id);
+              setItemModal(null);
+            } : undefined}
+            onSave={(nextItem, nextCategoryId) => {
+              startTransition(() => {
+                if (itemModal.mode === 'ADD') {
+                  addMenuItem(itemModal.menuId, nextCategoryId, { ...nextItem, id: `item-${Date.now()}` });
+                } else if (nextCategoryId !== itemModal.categoryId) {
+                  deleteMenuItem(itemModal.menuId, itemModal.categoryId, itemModal.item.id);
+                  addMenuItem(itemModal.menuId, nextCategoryId, { ...nextItem, categoryId: nextCategoryId });
+                } else {
+                  updateMenuItem(itemModal.menuId, nextCategoryId, { ...nextItem, categoryId: nextCategoryId });
+                }
+              });
+              setItemModal(null);
+            }}
+          />
+        </Suspense>
       )}
 
       {/* CATEGORY MODAL */}

@@ -1,762 +1,1334 @@
-
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback } from "react";
 import {
-    X, Save, Trash2, Plus, Minus, Sparkles, Scale,
-    LayoutGrid, Printer as PrinterIcon, Layers, Clock,
-    DollarSign, Globe, History, Package, ImageIcon
-} from 'lucide-react';
-import { MenuItem, MenuCategory, Printer, Branch, InventoryItem, ModifierGroup, ModifierOption, ItemSize, PlatformPrice, RecipeIngredient } from '../../types';
-import ImageUploader from '../common/ImageUploader';
-import BarcodeScanner from '../common/BarcodeScanner';
-import { barcodeApi } from '../../services/api';
+  X,
+  Save,
+  Trash2,
+  Plus,
+  Minus,
+  Sparkles,
+  Scale,
+  LayoutGrid,
+  Printer as PrinterIcon,
+  Layers,
+  Clock,
+  DollarSign,
+  Globe,
+  History,
+  Package,
+  ImageIcon,
+  ChevronRight,
+  AlertCircle,
+  CheckCircle2,
+  QrCode,
+  Tag,
+  ShoppingBag,
+  Info,
+  Lightbulb,
+  HelpCircle,
+  ArrowRight,
+} from "lucide-react";
+import {
+  MenuItem,
+  MenuCategory,
+  Printer,
+  Branch,
+  InventoryItem,
+  ModifierGroup,
+  ModifierOption,
+  ItemSize,
+  PlatformPrice,
+  RecipeIngredient,
+} from "../../types";
+import ImageUploader from "../common/ImageUploader";
+import BarcodeScanner from "../common/BarcodeScanner";
+import { barcodeApi } from "../../services/api";
 
-type DrawerTab = 'BASIC' | 'SIZES' | 'MODIFIERS' | 'RECIPE' | 'PRICING' | 'PLATFORMS' | 'SCHEDULE' | 'HISTORY';
+type DrawerTab =
+  | "BASIC"
+  | "SIZES"
+  | "MODIFIERS"
+  | "RECIPE"
+  | "PRICING"
+  | "PLATFORMS"
+  | "SCHEDULE"
+  | "HISTORY";
 
 interface Props {
-    item: MenuItem;
-    mode: 'ADD' | 'EDIT';
-    categoryId: string;
-    categories: MenuCategory[];
-    printers: Printer[];
-    branches: Branch[];
-    inventory: InventoryItem[];
-    onSave: (item: MenuItem, categoryId: string) => void;
-    onClose: () => void;
-    onDelete?: () => void;
-    lang: string;
-    currency: string;
+  item: MenuItem;
+  mode: "ADD" | "EDIT";
+  categoryId: string;
+  categories: MenuCategory[];
+  printers: Printer[];
+  branches: Branch[];
+  inventory: InventoryItem[];
+  onSave: (item: MenuItem, categoryId: string) => void;
+  onClose: () => void;
+  onDelete?: () => void;
+  lang: string;
+  currency: string;
 }
 
 const ItemDrawer: React.FC<Props> = ({
-    item: initialItem, mode, categoryId: initialCategoryId,
-    categories, printers, branches, inventory,
-    onSave, onClose, onDelete, lang, currency
+  item: initialItem,
+  mode,
+  categoryId: initialCategoryId,
+  categories,
+  printers,
+  branches,
+  inventory,
+  onSave,
+  onClose,
+  onDelete,
+  lang,
+  currency,
 }) => {
-    const [item, setItem] = useState<MenuItem>({ ...initialItem });
-    const [activeCategoryId, setActiveCategoryId] = useState(initialCategoryId);
-    const [tab, setTab] = useState<DrawerTab>('BASIC');
-    const [scannerOpen, setScannerOpen] = useState(false);
-    const [generatingBarcode, setGeneratingBarcode] = useState(false);
+  // State
+  const [item, setItem] = useState<MenuItem>({ ...initialItem });
+  const [activeCategoryId, setActiveCategoryId] = useState(initialCategoryId);
+  const [tab, setTab] = useState<DrawerTab>("BASIC");
+  const [generatingBarcode, setGeneratingBarcode] = useState(false);
 
-    const handleGenerateBarcode = useCallback(async () => {
-        setGeneratingBarcode(true);
-        try {
-            const result = await barcodeApi.generate();
-            update({ barcode: result.barcode });
-        } catch (err) {
-            console.error('Failed to generate barcode:', err);
-        } finally {
-            setGeneratingBarcode(false);
-        }
-    }, []);
+  // Sync state with props
+  useEffect(() => {
+    setItem({ ...initialItem });
+    setActiveCategoryId(initialCategoryId);
+  }, [initialItem, initialCategoryId]);
 
-    const handleBarcodeScan = useCallback((code: string) => {
-        update({ barcode: code });
-        setScannerOpen(false);
-    }, []);
+  // Update helper
+  const update = (changes: Partial<MenuItem>) =>
+    setItem((prev) => ({ ...prev, ...changes }));
 
-    useEffect(() => {
-        setItem({ ...initialItem });
-        setActiveCategoryId(initialCategoryId);
-        setTab('BASIC');
-    }, [initialItem, initialCategoryId]);
+  // Handlers
+  const handleGenerateBarcode = useCallback(async () => {
+    setGeneratingBarcode(true);
+    try {
+      const result = await barcodeApi.generate();
+      update({ barcode: result.barcode });
+    } catch (err) {
+      console.error("Failed to generate barcode:", err);
+    } finally {
+      setGeneratingBarcode(false);
+    }
+  }, []);
 
-    const update = (changes: Partial<MenuItem>) => setItem(prev => ({ ...prev, ...changes }));
-
-    const tabs: { id: DrawerTab; icon: React.ElementType; labelEn: string; labelAr: string }[] = [
-        { id: 'BASIC', icon: LayoutGrid, labelEn: 'Basic', labelAr: 'أساسي' },
-        { id: 'SIZES', icon: Package, labelEn: 'Sizes', labelAr: 'الأحجام' },
-        { id: 'MODIFIERS', icon: Layers, labelEn: 'Modifiers', labelAr: 'الإضافات' },
-        { id: 'RECIPE', icon: Scale, labelEn: 'Recipe', labelAr: '\u0627\u0644\u0631\u064a\u0633\u0628\u064a' },
-        { id: 'PRICING', icon: DollarSign, labelEn: 'Pricing', labelAr: 'الأسعار' },
-        { id: 'PLATFORMS', icon: Globe, labelEn: 'Platforms', labelAr: 'المنصات' },
-        { id: 'SCHEDULE', icon: Clock, labelEn: 'Schedule', labelAr: 'الجدولة' },
-        { id: 'HISTORY', icon: History, labelEn: 'History', labelAr: 'السجل' },
-    ];
-
-    // Size handlers
-    const addSize = () => update({ sizes: [...(item.sizes || []), { id: `sz-${Date.now()}`, name: '', price: item.price, isAvailable: true }] });
-    const updateSize = (sizeId: string, changes: Partial<ItemSize>) => update({ sizes: (item.sizes || []).map(s => s.id === sizeId ? { ...s, ...changes } : s) });
-    const removeSize = (sizeId: string) => update({ sizes: (item.sizes || []).filter(s => s.id !== sizeId) });
-
-    // Modifier handlers
-    const addModGroup = () => update({ modifierGroups: [...(item.modifierGroups || []), { id: `mod-${Date.now()}`, name: '', minSelection: 0, maxSelection: 1, options: [] }] });
-    const updateModGroup = (gId: string, changes: Partial<ModifierGroup>) => update({ modifierGroups: (item.modifierGroups || []).map(g => g.id === gId ? { ...g, ...changes } : g) });
-    const removeModGroup = (gId: string) => update({ modifierGroups: (item.modifierGroups || []).filter(g => g.id !== gId) });
-    const addModOption = (gId: string) => update({
-        modifierGroups: (item.modifierGroups || []).map(g => g.id === gId ? { ...g, options: [...g.options, { id: `opt-${Date.now()}`, name: '', price: 0 }] } : g)
+  const addSize = () =>
+    update({
+      sizes: [
+        ...(item.sizes || []),
+        {
+          id: `sz-${Date.now()}`,
+          name: "",
+          price: item.price,
+          isAvailable: true,
+        },
+      ],
     });
-    const updateModOption = (gId: string, oId: string, changes: Partial<ModifierOption>) => update({
-        modifierGroups: (item.modifierGroups || []).map(g => g.id === gId ? { ...g, options: g.options.map(o => o.id === oId ? { ...o, ...changes } : o) } : g)
+  const updateSize = (sizeId: string, changes: Partial<ItemSize>) =>
+    update({
+      sizes: (item.sizes || []).map((s) =>
+        s.id === sizeId ? { ...s, ...changes } : s,
+      ),
     });
-    const removeModOption = (gId: string, oId: string) => update({
-        modifierGroups: (item.modifierGroups || []).map(g => g.id === gId ? { ...g, options: g.options.filter(o => o.id !== oId) } : g)
+  const removeSize = (sizeId: string) =>
+    update({ sizes: (item.sizes || []).filter((s) => s.id !== sizeId) });
+
+  const addModGroup = () =>
+    update({
+      modifierGroups: [
+        ...(item.modifierGroups || []),
+        {
+          id: `mod-${Date.now()}`,
+          name: "",
+          minSelection: 0,
+          maxSelection: 1,
+          options: [],
+        },
+      ],
+    });
+  const updateModGroup = (gId: string, changes: Partial<ModifierGroup>) =>
+    update({
+      modifierGroups: (item.modifierGroups || []).map((g) =>
+        g.id === gId ? { ...g, ...changes } : g,
+      ),
+    });
+  const removeModGroup = (gId: string) =>
+    update({
+      modifierGroups: (item.modifierGroups || []).filter((g) => g.id !== gId),
+    });
+  const addModOption = (gId: string) =>
+    update({
+      modifierGroups: (item.modifierGroups || []).map((g) =>
+        g.id === gId
+          ? {
+              ...g,
+              options: [
+                ...g.options,
+                { id: `opt-${Date.now()}`, name: "", price: 0 },
+              ],
+            }
+          : g,
+      ),
+    });
+  const updateModOption = (
+    gId: string,
+    oId: string,
+    changes: Partial<ModifierOption>,
+  ) =>
+    update({
+      modifierGroups: (item.modifierGroups || []).map((g) =>
+        g.id === gId
+          ? {
+              ...g,
+              options: g.options.map((o) =>
+                o.id === oId ? { ...o, ...changes } : o,
+              ),
+            }
+          : g,
+      ),
+    });
+  const removeModOption = (gId: string, oId: string) =>
+    update({
+      modifierGroups: (item.modifierGroups || []).map((g) =>
+        g.id === gId
+          ? { ...g, options: g.options.filter((o) => o.id !== oId) }
+          : g,
+      ),
     });
 
-    // Platform pricing
-    const addPlatformPrice = () => update({ platformPricing: [...(item.platformPricing || []), { platformId: '', price: item.price }] });
-    const updatePlatformPrice = (idx: number, changes: Partial<PlatformPrice>) => update({
-        platformPricing: (item.platformPricing || []).map((p, i) => i === idx ? { ...p, ...changes } : p)
+  const addPlatformPrice = () =>
+    update({
+      platformPricing: [
+        ...(item.platformPricing || []),
+        { platformId: "", price: item.price },
+      ],
     });
-    const removePlatformPrice = (idx: number) => update({ platformPricing: (item.platformPricing || []).filter((_, i) => i !== idx) });
+  const updatePlatformPrice = (idx: number, changes: Partial<PlatformPrice>) =>
+    update({
+      platformPricing: (item.platformPricing || []).map((p, i) =>
+        i === idx ? { ...p, ...changes } : p,
+      ),
+    });
+  const removePlatformPrice = (idx: number) =>
+    update({
+      platformPricing: (item.platformPricing || []).filter((_, i) => i !== idx),
+    });
 
-    // Printer toggle
-    const togglePrinter = (pId: string) => {
-        const current = item.printerIds || [];
-        update({ printerIds: current.includes(pId) ? current.filter(id => id !== pId) : [...current, pId] });
-    };
+  const [recipeIngredientId, setRecipeIngredientId] = useState("");
+  const [recipeIngredientQty, setRecipeIngredientQty] = useState(0);
 
-    // Recipe handlers
-    const [recipeIngredientId, setRecipeIngredientId] = useState('');
-    const [recipeIngredientQty, setRecipeIngredientQty] = useState(0);
+  const addRecipeIngredient = () => {
+    if (!recipeIngredientId || recipeIngredientQty <= 0) return;
+    const inv = inventory.find((i) => i.id === recipeIngredientId);
+    if (!inv) return;
+    const existing = item.recipe || [];
+    const found = existing.find((r) => r.itemId === recipeIngredientId);
+    if (found) {
+      update({
+        recipe: existing.map((r) =>
+          r.itemId === recipeIngredientId
+            ? { ...r, quantity: r.quantity + recipeIngredientQty }
+            : r,
+        ),
+      });
+    } else {
+      update({
+        recipe: [
+          ...existing,
+          {
+            itemId: recipeIngredientId,
+            quantity: recipeIngredientQty,
+            unit: String(inv.unit),
+          },
+        ],
+      });
+    }
+    setRecipeIngredientId("");
+    setRecipeIngredientQty(0);
+  };
 
-    const addRecipeIngredient = () => {
-        if (!recipeIngredientId || recipeIngredientQty <= 0) return;
-        const inv = inventory.find(i => i.id === recipeIngredientId);
-        if (!inv) return;
-        const existing = item.recipe || [];
-        const found = existing.find(r => r.itemId === recipeIngredientId);
-        if (found) {
-            update({ recipe: existing.map(r => r.itemId === recipeIngredientId ? { ...r, quantity: r.quantity + recipeIngredientQty } : r) });
-        } else {
-            update({ recipe: [...existing, { itemId: recipeIngredientId, quantity: recipeIngredientQty, unit: String(inv.unit) }] });
-        }
-        setRecipeIngredientId('');
-        setRecipeIngredientQty(0);
-    };
+  const removeRecipeIngredient = (itemId: string) => {
+    update({
+      recipe: (item.recipe || []).filter((ingredient) => ingredient.itemId !== itemId),
+    });
+  };
 
-    const removeRecipeIngredient = (iId: string) => {
-        update({ recipe: (item.recipe || []).filter(r => r.itemId !== iId) });
-    };
+  const recipeCost = (item.recipe || []).reduce((sum, r) => {
+    const inv = inventory.find((i) => i.id === r.itemId);
+    return sum + (inv ? inv.costPrice * r.quantity : 0);
+  }, 0);
+  const recipeMargin =
+    item.price > 0 && recipeCost > 0
+      ? ((item.price - recipeCost) / item.price) * 100
+      : null;
+  const margin =
+    item.cost && item.price > 0
+      ? ((item.price - item.cost) / item.price) * 100
+      : null;
+  const activeCategoryLabel =
+    categories.find((category) => category.id === activeCategoryId)?.name || "Unassigned";
+  const sizeCount = item.sizes?.length || 0;
+  const modifierCount = item.modifierGroups?.length || 0;
+  const canDelete = mode === "EDIT" && typeof onDelete === "function";
 
-    const recipeCost = (item.recipe || []).reduce((sum, r) => {
-        const inv = inventory.find(i => i.id === r.itemId);
-        return sum + (inv ? inv.costPrice * r.quantity : 0);
-    }, 0);
-    const recipeMargin = item.price > 0 && recipeCost > 0 ? ((item.price - recipeCost) / item.price * 100) : null;
+  const toggleBadge = (badgeId: string) => {
+    const current = item.dietaryBadges || [];
+    update({
+      dietaryBadges: current.includes(badgeId)
+        ? current.filter((b) => b !== badgeId)
+        : [...current, badgeId],
+    });
+  };
 
-    // Day toggle
-    const toggleDay = (dayId: string) => {
-        const current = item.availableDays || [];
-        update({ availableDays: current.includes(dayId) ? current.filter(d => d !== dayId) : [...current, dayId] });
-    };
+  const toggleDay = (dayId: string) => {
+    const current = item.availableDays || [];
+    update({
+      availableDays: current.includes(dayId)
+        ? current.filter((d) => d !== dayId)
+        : [...current, dayId],
+    });
+  };
 
-    const dayOptions = [
-        { id: 'mon', en: 'Mon', ar: 'الاثنين' }, { id: 'tue', en: 'Tue', ar: 'الثلاثاء' },
-        { id: 'wed', en: 'Wed', ar: 'الأربعاء' }, { id: 'thu', en: 'Thu', ar: 'الخميس' },
-        { id: 'fri', en: 'Fri', ar: 'الجمعة' }, { id: 'sat', en: 'Sat', ar: 'السبت' },
-        { id: 'sun', en: 'Sun', ar: 'الأحد' },
-    ];
+  const togglePrinter = (pId: string) => {
+    const current = item.printerIds || [];
+    update({
+      printerIds: current.includes(pId)
+        ? current.filter((id) => id !== pId)
+        : [...current, pId],
+    });
+  };
 
-    const platformOptions = [
-        { id: 'talabat', name: 'Talabat' }, { id: 'elmenus', name: 'elmenus' },
-        { id: 'uber_eats', name: 'Uber Eats' }, { id: 'store_direct', name: 'Store Direct' },
-    ];
+  // Guidance Content Engine
+  const getGuidance = () => {
+    switch (tab) {
+      case "BASIC":
+        return {
+          titleAr: "ط§ظ„ط¨ظٹط§ظ†ط§طھ ط§ظ„ط£ط³ط§ط³ظٹط©",
+          titleEn: "Main Identity",
+          tipsAr: [
+            "ط§ط­ط±طµ ط¹ظ„ظ‰ ظƒطھط§ط¨ط© ط§ط³ظ… ط¬ط°ط§ط¨ ط¨ط§ظ„ظ„ط؛طھظٹظ†.",
+            "ط§ظ„ط³ط¹ط± ظ‡ظˆ ط³ط¹ط± ط§ظ„ط¨ظٹط¹ ط§ظ„ظ†ظ‡ط§ط¦ظٹ ظ„ظ„ط¹ظ…ظٹظ„.",
+            "ط¨ط§ط±ظƒظˆط¯ ط§ظ„ظ…ظ†طھط¬ ظٹط³ط§ط¹ط¯ظƒ ظپظٹ ط³ط±ط¹ط© ط§ظ„ط¬ط±ط¯ ظˆط§ظ„ط¨ظٹط¹.",
+          ],
+          tipsEn: [
+            "Write catchy names in both languages.",
+            "The price is the final retail price.",
+            "Barcode helps with inventory and speed.",
+          ],
+          icon: Info,
+        };
+      case "SIZES":
+        return {
+          titleAr: "ط¥ط¯ط§ط±ط© ط§ظ„ط£ط­ط¬ط§ظ…",
+          titleEn: "Size Management",
+          tipsAr: [
+            "ط£ط¶ظپ ط£ط­ط¬ط§ظ… ظ…ط®طھظ„ظپط© ظ„ظ†ظپط³ ط§ظ„ظ…ظ†طھط¬ (طµط؛ظٹط±طŒ ظˆط³ط·طŒ ظƒط¨ظٹط±).",
+            "ظƒظ„ ط­ط¬ظ… ظٹظ…ظƒظ† ط£ظ† ظٹظƒظˆظ† ظ„ظ‡ ط³ط¹ط± ظˆطھظƒظ„ظپط© ظ…ط³طھظ‚ظ„ط©.",
+            "ظٹظ…ظƒظ†ظƒ ط¥ط®ظپط§ط، ط£ط­ط¬ط§ظ… ظ…ط¹ظٹظ†ط© ظ…ط¤ظ‚طھط§ظ‹.",
+          ],
+          tipsEn: [
+            "Add multiple sizes (S, M, L).",
+            "Each size can have its own price/cost.",
+            "Hide sizes temporarily if needed.",
+          ],
+          icon: Package,
+        };
+      case "MODIFIERS":
+        return {
+          titleAr: "ط§ظ„ط¥ط¶ط§ظپط§طھ ظˆط§ظ„طھط¹ط¯ظٹظ„ط§طھ",
+          titleEn: "Customization",
+          tipsAr: [
+            'ط£ظ†ط´ط¦ ظ…ط¬ظ…ظˆط¹ط§طھ ظ…ط«ظ„ "ط¥ط¶ط§ظپط§طھ ط§ظ„طµظˆطµ" ط£ظˆ "ط¯ط±ط¬ط© ط§ظ„طھط³ظˆظٹط©".',
+            "ط­ط¯ط¯ ط§ط®طھظٹط§ط± ط¥ط¬ط¨ط§ط±ظٹ (Min 1) ط£ظˆ ط§ط®طھظٹط§ط±ظٹ (Min 0).",
+            "ظٹظ…ظƒظ†ظƒ ظˆط¶ط¹ طھظƒظ„ظپط© ط¥ط¶ط§ظپظٹط© ظ„ظƒظ„ ط®ظٹط§ط±.",
+          ],
+          tipsEn: [
+            "Create groups for sauces or toppings.",
+            "Set mandatory (Min 1) or optional (Min 0).",
+            "Add extra costs to specific options.",
+          ],
+          icon: Layers,
+        };
+      case "RECIPE":
+        return {
+          titleAr: "طھظƒظˆظٹظ† ط§ظ„ط±ظٹط³ط¨ظٹ",
+          titleEn: "Recipe Tracking",
+          tipsAr: [
+            "ط§ط±ط¨ط· ط§ظ„ظ…ظ†طھط¬ ط¨ظ…ظˆط§ط¯ ظ…ظ† ط§ظ„ظ…ط®ط²ظˆظ† ظ„ط­ط³ط§ط¨ ط§ظ„طھظƒظ„ظپط© ط¨ط¯ظ‚ط©.",
+            "ط¹ظ†ط¯ ط¨ظٹط¹ ط§ظ„ظ…ظ†طھط¬طŒ ط³ظٹطھظ… ط®طµظ… ط§ظ„ظ…ظƒظˆظ†ط§طھ طھظ„ظ‚ط§ط¦ظٹط§ظ‹.",
+            "ط±ط§ظ‚ط¨ ظ‡ط§ظ…ط´ ط§ظ„ط±ط¨ط­ ظ„ط¶ظ…ط§ظ† ط§ظ„ط¬ط¯ظˆظ‰ ط§ظ„ظ…ط§ظ„ظٹط©.",
+          ],
+          tipsEn: [
+            "Link items to inventory for exact costing.",
+            "Ingredient stock decreases automatically on sale.",
+            "Monitor profit margin for financial health.",
+          ],
+          icon: Scale,
+        };
+      case "PLATFORMS":
+        return {
+          titleAr: "ظ‚ظ†ظˆط§طھ ط§ظ„ط¨ظٹط¹ ط§ظ„ط®ط§ط±ط¬ظٹط©",
+          titleEn: "Sales Channels",
+          tipsAr: [
+            "ط­ط¯ط¯ ط£ط³ط¹ط§ط± ظ…ط®طھظ„ظپط© ظ„طھط·ط¨ظٹظ‚ط§طھ ط§ظ„طھظˆطµظٹظ„ (ط·ظ„ط¨ط§طھطŒ ط§ظ„ظ…ظ†ظٹظˆط²).",
+            "ط£ط¶ظپ ظ†ط³ط¨ط© ط¹ظ…ظˆظ„ط© ط§ظ„ظ…ظ†طµط© ظ„ط­ط³ط§ط¨ ط±ط¨ط­ظƒ ط§ظ„طµط§ظپظٹ.",
+            "طھظ…طھط¹ ط¨ظ…ط±ظˆظ†ط© ط§ظ„طھط³ط¹ظٹط± ظ„ظƒظ„ ظ‚ظ†ط§ط© ط¨ظٹط¹.",
+          ],
+          tipsEn: [
+            "Price items differently for delivery apps.",
+            "Add commission % to calculate net profit.",
+            "Enjoy pricing flexibility per channel.",
+          ],
+          icon: Globe,
+        };
+      default:
+        return {
+          titleAr: "ط¥ط¹ط¯ط§ط¯ط§طھ ظ…طھظ‚ط¯ظ…ط©",
+          titleEn: "Advanced Settings",
+          tipsAr: [
+            "طھط­ظƒظ… ظپظٹ ظ…ظˆط§ط¹ظٹط¯ ط¸ظ‡ظˆط± ط§ظ„ظ…ظ†طھط¬ ظپظٹ ط§ظ„ظ…ظ†ظٹظˆ.",
+            "ط±ط§ط¬ط¹ ط³ط¬ظ„ ط§ظ„طھط؛ظٹظٹط±ط§طھ ظ„ظ„طھط£ظƒط¯ ظ…ظ† ط¯ظ‚ط© ط§ظ„ط¨ظٹط§ظ†ط§طھ.",
+            "ط§ط®طھط± ط§ظ„ط·ط§ط¨ط¹ط§طھ ط§ظ„طھظٹ ط³ظٹظڈط·ط¨ط¹ ط¹ظ„ظٹظ‡ط§ ط§ظ„ط·ظ„ط¨.",
+          ],
+          tipsEn: [
+            "Control when an item is visible.",
+            "Audit history ensures data integrity.",
+            "Select routing for order tickets.",
+          ],
+          icon: Lightbulb,
+        };
+    }
+  };
 
-    const dietaryOptions = [
-        { id: 'vegan', labelEn: 'Vegan', labelAr: 'نباتي صرف', color: 'bg-green-500/10 text-green-600 border-green-200 dark:border-green-900/50' },
-        { id: 'vegetarian', labelEn: 'Vegetarian', labelAr: 'نباتي', color: 'bg-emerald-500/10 text-emerald-600 border-emerald-200 dark:border-emerald-900/50' },
-        { id: 'gluten-free', labelEn: 'Gluten Free', labelAr: 'خالي من الجلوتين', color: 'bg-amber-500/10 text-amber-600 border-amber-200 dark:border-amber-900/50' },
-        { id: 'spicy', labelEn: 'Spicy', labelAr: 'حار', color: 'bg-red-500/10 text-red-600 border-red-200 dark:border-red-900/50' },
-        { id: 'keto', labelEn: 'Keto', labelAr: 'كيتو', color: 'bg-blue-500/10 text-blue-600 border-blue-200 dark:border-blue-900/50' },
-        { id: 'new', labelEn: 'New', labelAr: 'جديد', color: 'bg-indigo-500/10 text-indigo-600 border-indigo-200 dark:border-indigo-900/50' },
-        { id: 'best-seller', labelEn: 'Best Seller', labelAr: 'الأكثر مبيعاً', color: 'bg-orange-500/10 text-orange-600 border-orange-200 dark:border-orange-900/50' },
-    ];
+  const guidance = getGuidance();
 
-    const toggleBadge = (badgeId: string) => {
-        const current = item.dietaryBadges || [];
-        update({ dietaryBadges: current.includes(badgeId) ? current.filter(b => b !== badgeId) : [...current, badgeId] });
-    };
+  const tabs: {
+    id: DrawerTab;
+    icon: React.ElementType;
+    labelEn: string;
+    labelAr: string;
+  }[] = [
+    { id: "BASIC", icon: LayoutGrid, labelEn: "General", labelAr: "ط§ظ„ط¹ط§ظ…" },
+    { id: "SIZES", icon: Package, labelEn: "Sizes", labelAr: "ط§ظ„ط£ط­ط¬ط§ظ…" },
+    {
+      id: "MODIFIERS",
+      icon: Layers,
+      labelEn: "Modifiers",
+      labelAr: "ط§ظ„ط¥ط¶ط§ظپط§طھ",
+    },
+    { id: "RECIPE", icon: Scale, labelEn: "Recipe", labelAr: "ط§ظ„ظ…ظƒظˆظ†ط§طھ" },
+    { id: "PRICING", icon: DollarSign, labelEn: "Branches", labelAr: "ط§ظ„ظپط±ظˆط¹" },
+    { id: "PLATFORMS", icon: Globe, labelEn: "Delivery", labelAr: "ط§ظ„طھظˆطµظٹظ„" },
+    { id: "SCHEDULE", icon: Clock, labelEn: "Schedule", labelAr: "ط§ظ„ط¬ط¯ظˆظ„ط©" },
+    { id: "HISTORY", icon: History, labelEn: "Audit", labelAr: "ط§ظ„ط³ط¬ظ„" },
+  ];
 
+  const dietaryOptions = [
+    { id: "vegan", labelEn: "Vegan", labelAr: "ظ†ط¨ط§طھظٹ طµط±ظپ" },
+    { id: "vegetarian", labelEn: "Vegetarian", labelAr: "ظ†ط¨ط§طھظٹ" },
+    { id: "spicy", labelEn: "Spicy", labelAr: "ط­ط§ط±" },
+    { id: "gluten-free", labelEn: "Gluten Free", labelAr: "ط®ط§ظ„ظٹ ط¬ظ„ظˆطھظٹظ†" },
+    { id: "new", labelEn: "New", labelAr: "ط¬ط¯ظٹط¯" },
+  ];
 
-    const margin = item.cost && item.price > 0 ? ((item.price - item.cost) / item.price * 100) : null;
-    const marginColor = margin === null ? 'text-muted' : margin >= 30 ? 'text-emerald-500' : margin >= 15 ? 'text-amber-500' : 'text-rose-500';
+  const dayOptions = [
+    { id: "mon", en: "Mon", ar: "ط§ظ„ط§ط«ظ†ظٹظ†" },
+    { id: "tue", en: "Tue", ar: "ط§ظ„ط«ظ„ط§ط«ط§ط،" },
+    { id: "wed", en: "Wed", ar: "ط§ظ„ط£ط±ط¨ط¹ط§ط،" },
+    { id: "thu", en: "Thu", ar: "ط§ظ„ط®ظ…ظٹط³" },
+    { id: "fri", en: "Fri", ar: "ط§ظ„ط¬ظ…ط¹ط©" },
+    { id: "sat", en: "Sat", ar: "ط§ظ„ط³ط¨طھ" },
+    { id: "sun", en: "Sun", ar: "ط§ظ„ط£ط­ط¯" },
+  ];
 
-    const inputCls = "w-full h-10 px-3.5 bg-white/[0.04] rounded-xl border border-white/[0.08] focus:border-indigo-500/60 focus:ring-2 focus:ring-indigo-500/20 outline-none transition-all duration-200 text-[13px] text-main placeholder:text-muted/40 hover:border-white/[0.14]";
-    const labelCls = "text-[11px] font-semibold text-muted/70 uppercase tracking-wider mb-2 block";
+  const platformOptions = [
+    { id: "talabat", name: "Talabat" },
+    { id: "elmenus", name: "elmenus" },
+    { id: "uber_eats", name: "Uber Eats" },
+    { id: "store_direct", name: "Store Direct" },
+  ];
 
-    return (
-        <div className="fixed inset-0 z-[100] flex justify-end">
-            {/* Backdrop */}
-            <div className="absolute inset-0 bg-black/50" onClick={onClose} style={{ animation: 'fadeIn 200ms ease-out' }} />
+  const inputCls =
+    "w-full rounded-[18px] border border-border/20 bg-white/70 px-4 text-[14px] font-semibold text-main shadow-[inset_0_1px_0_rgba(255,255,255,0.55)] transition-all focus:border-primary/30 focus:ring-2 focus:ring-primary/15 outline-none";
+  const subLabelCls =
+    "mb-2 flex items-center gap-2 text-[11px] font-black uppercase tracking-[0.14em] text-muted/60";
+  const sectionCardCls =
+    "rounded-[24px] border border-border/15 bg-white/78 p-6 shadow-[0_10px_28px_rgba(15,23,42,0.06)] backdrop-blur-xl";
 
-            {/* Drawer */}
-            <div className="relative w-full max-w-[560px] bg-gradient-to-b from-[#1a1b2e] to-[#141520] shadow-2xl shadow-black/50 flex flex-col overflow-hidden" style={{ animation: 'slideInRight 300ms cubic-bezier(0.16, 1, 0.3, 1)' }}>
+  return (
+    <div
+      className="fixed inset-0 z-[100] flex items-stretch justify-end p-2 sm:p-4"
+      dir={lang === "ar" ? "rtl" : "ltr"}
+    >
+      {/* Backdrop â€” High Blurs optimized */}
+      <div
+        className="absolute inset-0 bg-slate-950/80 backdrop-blur-2xl transition-opacity duration-500"
+        onClick={onClose}
+      />
 
-                {/* Header — Premium with image preview */}
-                <div className="relative px-6 pt-5 pb-4">
-                    {/* Gradient accent line */}
-                    <div className="absolute top-0 left-0 right-0 h-[2px] bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 opacity-80" />
-
-                    <div className="flex items-start gap-4">
-                        {/* Image thumbnail */}
-                        <div className="w-14 h-14 rounded-xl overflow-hidden border border-white/[0.08] shrink-0 bg-white/[0.03]">
-                            {item.image ? (
-                                <img src={item.image} alt="" className="w-full h-full object-cover" />
-                            ) : (
-                                <div className="w-full h-full flex items-center justify-center text-muted/20">
-                                    <ImageIcon size={20} />
-                                </div>
-                            )}
-                        </div>
-
-                        {/* Title + meta */}
-                        <div className="flex-1 min-w-0">
-                            <h3 className="text-[17px] font-bold text-white tracking-tight truncate">
-                                {item.name || (mode === 'ADD' ? (lang === 'ar' ? 'صنف جديد' : 'New Item') : (lang === 'ar' ? 'تعديل الصنف' : 'Edit Item'))}
-                            </h3>
-                            <div className="flex items-center gap-2 mt-1.5">
-                                {item.price > 0 && (
-                                    <span className="text-[12px] font-semibold text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-full">
-                                        {currency}{item.price.toFixed(2)}
-                                    </span>
-                                )}
-                                {margin !== null && (
-                                    <span className={`text-[11px] font-semibold px-2 py-0.5 rounded-full ${margin >= 30 ? 'text-emerald-400 bg-emerald-500/10' : margin >= 15 ? 'text-amber-400 bg-amber-500/10' : 'text-rose-400 bg-rose-500/10'}`}>
-                                        {margin.toFixed(0)}% {lang === 'ar' ? 'هامش' : 'margin'}
-                                    </span>
-                                )}
-                                {item.sku && (
-                                    <span className="text-[10px] font-mono text-muted/50 bg-white/[0.03] px-1.5 py-0.5 rounded">{item.sku}</span>
-                                )}
-                            </div>
-                        </div>
-
-                        {/* Actions */}
-                        <div className="flex items-center gap-1.5 shrink-0">
-                            {onDelete && (
-                                <button onClick={onDelete} className="p-2 rounded-lg text-white/30 hover:text-rose-400 hover:bg-rose-500/10 transition-all duration-200">
-                                    <Trash2 size={16} />
-                                </button>
-                            )}
-                            <button onClick={onClose} className="p-2 rounded-lg text-white/40 hover:text-white hover:bg-white/[0.08] transition-all duration-200">
-                                <X size={16} />
-                            </button>
-                        </div>
-                    </div>
+      {/* Main Centered Modal Window */}
+      <div className="relative z-10 flex w-full max-w-[1380px] flex-col overflow-hidden rounded-[2rem] border border-white/10 bg-card/92 shadow-[0_40px_120px_rgba(0,0,0,0.55)] backdrop-blur-2xl animate-in fade-in slide-in-from-right-8 duration-500">
+        {/* Header â€” Floating Style */}
+        {/* Header â€” Floating Style */}
+        <div className="border-b border-white/10 bg-card/78 px-6 py-5 backdrop-blur-2xl lg:px-8">
+          <div className="flex flex-col gap-5 2xl:flex-row 2xl:items-center 2xl:justify-between">
+            <div className="flex items-start gap-4">
+              <div className="flex h-12 w-12 items-center justify-center rounded-[1rem] border border-primary/15 bg-primary/10 text-primary">
+                <ShoppingBag size={20} />
+              </div>
+              <div className="space-y-3">
+                <div className="space-y-1">
+                  <h2 className="text-[24px] font-black text-main tracking-tight leading-none">
+                    {item.name ||
+                      (lang === "ar" ? "إضافة صنف جديد" : "Add New Item")}
+                  </h2>
+                  <p className="text-[12px] font-semibold text-muted/75">
+                    {lang === "ar"
+                      ? "محرر شامل للهوية والتسعير والتشغيل"
+                      : "Edit item details, pricing, availability, and recipe in one place."}
+                  </p>
                 </div>
-
-                {/* Tab Nav — Modern underline style */}
-                <div className="px-6 border-b border-white/[0.06] overflow-x-auto no-scrollbar">
-                    <div className="flex gap-0.5">
-                        {tabs.map(t => (
-                            <button
-                                key={t.id}
-                                onClick={() => setTab(t.id)}
-                                className={`relative flex items-center gap-1.5 px-3 py-3 text-[11px] font-semibold whitespace-nowrap transition-all duration-200 rounded-t-md ${tab === t.id
-                                    ? 'text-white'
-                                    : 'text-white/35 hover:text-white/60 hover:bg-white/[0.02]'
-                                    }`}
-                            >
-                                <t.icon size={13} className={tab === t.id ? 'text-indigo-400' : ''} />
-                                {lang === 'ar' ? t.labelAr : t.labelEn}
-                                {tab === t.id && (
-                                    <span className="absolute bottom-0 left-2 right-2 h-[2px] bg-gradient-to-r from-indigo-500 to-purple-500 rounded-full" />
-                                )}
-                            </button>
-                        ))}
-                    </div>
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="rounded-full border border-primary/15 bg-primary/10 px-3 py-1 text-[11px] font-bold text-primary">
+                    {mode === "EDIT" ? "Live Edit" : "New Item"}
+                  </span>
+                  <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-[11px] font-semibold text-main">
+                    {activeCategoryLabel}
+                  </span>
+                  <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-[11px] font-semibold text-muted">
+                    {sizeCount} {lang === "ar" ? "حجم" : "Sizes"}
+                  </span>
+                  <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-[11px] font-semibold text-muted">
+                    {modifierCount} {lang === "ar" ? "إضافة" : "Modifiers"}
+                  </span>
                 </div>
-
-                {/* Content */}
-                <div className="flex-1 overflow-y-auto p-6 space-y-5 no-scrollbar" style={{ scrollBehavior: 'smooth' }}>
-
-                    {/* BASIC TAB */}
-                    {tab === 'BASIC' && (
-                        <div className="space-y-4 animate-in fade-in duration-200">
-                            <div className="grid grid-cols-2 gap-4">
-                                <div>
-                                    <label className={labelCls}>{lang === 'ar' ? 'الاسم (EN)' : 'Name (EN)'}</label>
-                                    <input type="text" value={item.name} onChange={e => update({ name: e.target.value })} className={inputCls} placeholder="Classic Burger" />
-                                </div>
-                                <div>
-                                    <label className={labelCls}>{lang === 'ar' ? 'الاسم (AR)' : 'Name (AR)'}</label>
-                                    <input type="text" value={item.nameAr || ''} onChange={e => update({ nameAr: e.target.value })} className={`${inputCls} text-right`} placeholder="برجر كلاسيك" dir="rtl" />
-                                </div>
-                            </div>
-
-                            <div className="grid grid-cols-3 gap-4">
-                                <div>
-                                    <label className={labelCls}>{lang === 'ar' ? 'السعر' : 'Price'}</label>
-                                    <div className="relative">
-                                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[11px] font-medium text-muted/50">{currency}</span>
-                                        <input type="number" value={item.price} onChange={e => update({ price: parseFloat(e.target.value) || 0 })} className={`${inputCls} pl-9 font-medium text-emerald-500`} />
-                                    </div>
-                                </div>
-                                <div>
-                                    <label className={labelCls}>{lang === 'ar' ? 'التكلفة' : 'Cost'}</label>
-                                    <div className="relative">
-                                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[11px] font-medium text-muted/50">{currency}</span>
-                                        <input type="number" value={item.cost || ''} onChange={e => update({ cost: parseFloat(e.target.value) || 0 })} className={`${inputCls} pl-9`} placeholder="0.00" />
-                                    </div>
-                                </div>
-                                <div>
-                                    <label className={labelCls}>{lang === 'ar' ? 'الهامش' : 'Margin'}</label>
-                                    <div className={`h-9 flex items-center justify-center rounded-md border border-border/20 bg-elevated/50 text-[13px] font-medium ${marginColor}`}>
-                                        {margin !== null ? `${margin.toFixed(1)}%` : '—'}
-                                    </div>
-                                </div>
-                            </div>
-
-                            <div className="grid grid-cols-2 gap-4">
-                                <div>
-                                    <label className={labelCls}>SKU</label>
-                                    <input type="text" value={item.sku || ''} onChange={e => update({ sku: e.target.value })} className={inputCls} placeholder="SKU-001" />
-                                </div>
-                                <div>
-                                    <label className={labelCls}>{lang === 'ar' ? 'باركود' : 'Barcode'}</label>
-                                    <input type="text" value={item.barcode || ''} onChange={e => update({ barcode: e.target.value })} className={inputCls} placeholder="6281234567890" />
-                                </div>
-                            </div>
-
-                            <div>
-                                <label className={labelCls}>{lang === 'ar' ? 'القسم' : 'Category'}</label>
-                                <div className="relative group">
-                                    <select value={activeCategoryId} onChange={e => setActiveCategoryId(e.target.value)} className={`${inputCls} appearance-none cursor-pointer pr-8`}>
-                                        {categories.map(c => <option key={c.id} value={c.id} className="bg-card">{c.name}</option>)}
-                                    </select>
-                                    <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-muted/50">▼</div>
-                                </div>
-                            </div>
-
-                            {/* Dietary Badges Section */}
-                            <div className="pt-2">
-                                <label className={labelCls}>{lang === 'ar' ? 'العلامات والشارات (اختياري)' : 'Badges & Tags (Optional)'}</label>
-                                <div className="flex flex-wrap gap-2">
-                                    {dietaryOptions.map(badge => {
-                                        const isSelected = (item.dietaryBadges || []).includes(badge.id);
-                                        return (
-                                            <button
-                                                key={badge.id}
-                                                onClick={() => toggleBadge(badge.id)}
-                                                className={`px-3 py-1 items-center justify-center rounded-full text-[11px] font-medium border transition-colors ${isSelected
-                                                    ? badge.color
-                                                    : 'bg-transparent border-border/30 text-muted hover:border-border/40 hover:text-main'
-                                                    }`}
-                                            >
-                                                {lang === 'ar' ? badge.labelAr : badge.labelEn}
-                                            </button>
-                                        );
-                                    })}
-                                </div>
-                            </div>
-
-                            <div className="grid grid-cols-2 gap-4">
-                                <div>
-                                    <label className={labelCls}>{lang === 'ar' ? 'الوصف (EN)' : 'Description (EN)'}</label>
-                                    <textarea rows={2} value={item.description || ''} onChange={e => update({ description: e.target.value })} className={`${inputCls} h-auto py-2 resize-none`} placeholder="Brief description..." />
-                                </div>
-                                <div>
-                                    <label className={labelCls}>{lang === 'ar' ? 'الوصف (AR)' : 'Description (AR)'}</label>
-                                    <textarea rows={2} value={item.descriptionAr || ''} onChange={e => update({ descriptionAr: e.target.value })} className={`${inputCls} h-auto py-2 resize-none text-right`} placeholder="وصف موجز..." dir="rtl" />
-                                </div>
-                            </div>
-
-                            {/* Magic Fill */}
-                            <button
-                                onClick={() => {
-                                    if (!item.name) return;
-                                    update({
-                                        nameAr: item.nameAr || (item.name + ' مترجم'),
-                                        description: item.description || `Delicious ${item.name} prepared with fresh ingredients.`,
-                                        descriptionAr: item.descriptionAr || `${item.name} لذيذ محضر من مكونات طازجة.`,
-                                    });
-                                }}
-                                className="w-full flex items-center justify-center gap-2 h-9 bg-indigo-500/10 text-indigo-400 rounded-md text-[12px] font-medium hover:bg-indigo-500/20 transition-colors"
-                            >
-                                <Sparkles size={14} className="text-cyan-400" />
-                                {lang === 'ar' ? 'توليد المحتوى الناقص (AI)' : 'Auto-fill Missing Content'}
-                            </button>
-
-                            {/* Image */}
-                            <div>
-                                <label className={labelCls}>{lang === 'ar' ? 'الصورة' : 'Image'}</label>
-                                <div className="p-3 border border-border/30 rounded-md bg-elevated/50">
-                                    <ImageUploader value={item.image || ''} onChange={url => update({ image: url })} type="item" label={lang === 'ar' ? 'صورة الصنف' : 'Item Image'} lang={lang as 'en' | 'ar'} />
-                                </div>
-                            </div>
-
-                            {/* Printers */}
-                            <div>
-                                <label className={labelCls}>{lang === 'ar' ? 'التوجيه للطباعة' : 'Print Routing'}</label>
-                                <div className="flex flex-wrap gap-1.5">
-                                    {printers.map(p => (
-                                        <button
-                                            key={p.id}
-                                            onClick={() => togglePrinter(p.id)}
-                                            className={`h-8 px-3 rounded-md text-[11px] font-medium transition-colors flex items-center gap-1.5 ${item.printerIds?.includes(p.id)
-                                                ? 'bg-indigo-500/10 text-indigo-400 ring-1 ring-indigo-500/30'
-                                                : 'bg-elevated border border-border/30 text-muted/80 hover:text-main'
-                                                }`}
-                                        >
-                                            <PrinterIcon size={12} className={item.printerIds?.includes(p.id) ? '' : 'opacity-50'} /> {p.name}
-                                        </button>
-                                    ))}
-                                </div>
-                            </div>
-                        </div>
-                    )}
-
-                    {/* SIZES TAB */}
-                    {tab === 'SIZES' && (
-                        <div className="space-y-4 animate-in fade-in duration-200">
-                            <div className="flex items-center justify-between">
-                                <label className={labelCls}>{lang === 'ar' ? 'الأحجام والمتغيرات' : 'Sizes & Variations'}</label>
-                                <button onClick={addSize} className="flex items-center gap-1.5 text-[11px] font-medium text-indigo-400 hover:text-indigo-300 transition-colors">
-                                    <Plus size={14} /> {lang === 'ar' ? 'إضافة حجم' : 'Add Size'}
-                                </button>
-                            </div>
-
-                            {(item.sizes || []).length === 0 && (
-                                <div className="text-center py-10 bg-elevated/30 rounded-md border border-dashed border-border/30">
-                                    <Package size={24} className="mx-auto mb-2 text-muted/30" />
-                                    <p className="text-[12px] font-medium text-muted/70">{lang === 'ar' ? 'لا يوجد أحجام' : 'No sizes configured'}</p>
-                                    <button onClick={addSize} className="mt-3 text-[11px] font-medium text-indigo-400 hover:text-indigo-300">
-                                        + {lang === 'ar' ? 'أضف أول حجم' : 'Add your first size'}
-                                    </button>
-                                </div>
-                            )}
-
-                            {(item.sizes || []).map(size => {
-                                const sMargin = size.cost && size.price > 0 ? ((size.price - size.cost) / size.price * 100) : null;
-                                return (
-                                    <div key={size.id} className="p-3 bg-elevated/30 rounded-md border border-border/20 space-y-3 relative group">
-                                        <div className="flex items-center gap-3">
-                                            <input type="text" value={size.name} onChange={e => updateSize(size.id, { name: e.target.value })} placeholder={lang === 'ar' ? 'الاسم (مثال: كبير)' : 'Name (e.g. Large)'} className={`${inputCls} flex-1`} />
-                                            <button onClick={() => updateSize(size.id, { isAvailable: !size.isAvailable })} className={`h-9 px-3 rounded-md border text-[11px] font-medium transition-colors ${size.isAvailable ? 'border-emerald-500/30 text-emerald-500 bg-emerald-500/10' : 'border-rose-500/30 text-rose-500 bg-rose-500/10'}`}>
-                                                {size.isAvailable ? 'Active' : 'Hidden'}
-                                            </button>
-                                            <button onClick={() => removeSize(size.id)} className="h-9 w-9 flex items-center justify-center rounded-md border border-border/20 text-muted/50 hover:text-rose-400 hover:border-rose-500/30 transition-colors"><Trash2 size={14} /></button>
-                                        </div>
-                                        <div className="grid grid-cols-3 gap-3">
-                                            <div>
-                                                <label className={labelCls}>{lang === 'ar' ? 'السعر' : 'Price'}</label>
-                                                <input type="number" value={size.price} onChange={e => updateSize(size.id, { price: parseFloat(e.target.value) || 0 })} className={`${inputCls} text-emerald-500 font-medium`} />
-                                            </div>
-                                            <div>
-                                                <label className={labelCls}>{lang === 'ar' ? 'التكلفة' : 'Cost'}</label>
-                                                <input type="number" value={size.cost || ''} onChange={e => updateSize(size.id, { cost: parseFloat(e.target.value) || 0 })} className={inputCls} placeholder="0" />
-                                            </div>
-                                            <div>
-                                                <label className={labelCls}>{lang === 'ar' ? 'الهامش' : 'Margin'}</label>
-                                                <div className={`h-9 flex items-center justify-center rounded-md border border-border/20 bg-elevated/50 text-[12px] font-medium ${sMargin === null ? 'text-muted/50' : sMargin >= 30 ? 'text-emerald-500' : sMargin >= 15 ? 'text-amber-500' : 'text-rose-500'}`}>
-                                                    {sMargin !== null ? `${sMargin.toFixed(0)}%` : '—'}
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                );
-                            })}
-                        </div>
-                    )}
-
-                    {/* MODIFIERS TAB */}
-                    {tab === 'MODIFIERS' && (
-                        <div className="space-y-4 animate-in fade-in duration-200">
-                            <div className="flex items-center justify-between">
-                                <label className={labelCls}>{lang === 'ar' ? 'مجموعات الإضافات' : 'Modifier Groups'}</label>
-                                <button onClick={addModGroup} className="flex items-center gap-1.5 text-[11px] font-medium text-indigo-400 hover:text-indigo-300 transition-colors">
-                                    <Plus size={14} /> {lang === 'ar' ? 'إضافة مجموعة' : 'Add Group'}
-                                </button>
-                            </div>
-
-                            {(item.modifierGroups || []).length === 0 && (
-                                <div className="text-center py-10 bg-elevated/30 rounded-md border border-dashed border-border/30">
-                                    <Layers size={24} className="mx-auto mb-2 text-muted/30" />
-                                    <p className="text-[12px] font-medium text-muted/70">{lang === 'ar' ? 'لا يوجد إضافات' : 'No modifiers configured'}</p>
-                                </div>
-                            )}
-
-                            {(item.modifierGroups || []).map(group => (
-                                <div key={group.id} className="p-4 bg-elevated/30 rounded-md border border-border/20 space-y-4">
-                                    <div className="flex items-center gap-3">
-                                        <input type="text" value={group.name} onChange={e => updateModGroup(group.id, { name: e.target.value })} placeholder={lang === 'ar' ? 'اسم المجموعة (مثال: الإضافات)' : 'Group name (e.g. Add-ons)'} className={`${inputCls} flex-1`} />
-                                        <button onClick={() => removeModGroup(group.id)} className="h-9 w-9 flex items-center justify-center rounded-md border border-border/20 text-muted/50 hover:text-rose-400 hover:border-rose-500/30 transition-colors"><Trash2 size={14} /></button>
-                                    </div>
-                                    <div className="grid grid-cols-2 gap-3">
-                                        <div>
-                                            <label className={labelCls}>{lang === 'ar' ? 'الحد الأدنى' : 'Min Selection'}</label>
-                                            <input type="number" min={0} value={group.minSelection} onChange={e => updateModGroup(group.id, { minSelection: parseInt(e.target.value) || 0 })} className={inputCls} />
-                                        </div>
-                                        <div>
-                                            <label className={labelCls}>{lang === 'ar' ? 'الحد الأقصى' : 'Max Selection'}</label>
-                                            <input type="number" min={1} value={group.maxSelection} onChange={e => updateModGroup(group.id, { maxSelection: parseInt(e.target.value) || 1 })} className={inputCls} />
-                                        </div>
-                                    </div>
-
-                                    {/* Options */}
-                                    <div className="space-y-2 pt-2 border-t border-border/20">
-                                        <p className="text-[10px] text-muted/60 font-semibold uppercase tracking-wider">{lang === 'ar' ? 'الخيارات' : 'Options'}</p>
-                                        {group.options.map((opt, oIdx) => (
-                                            <div key={opt.id} className="flex items-center gap-2">
-                                                <input type="text" value={opt.name} onChange={e => updateModOption(group.id, opt.id, { name: e.target.value })} placeholder={`Option ${oIdx + 1}`} className={`${inputCls} flex-1`} />
-                                                <div className="relative w-28">
-                                                    <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[10px] text-muted/50">+</span>
-                                                    <input type="number" value={opt.price} onChange={e => updateModOption(group.id, opt.id, { price: parseFloat(e.target.value) || 0 })} className={`${inputCls} pl-6 font-medium text-emerald-500`} placeholder="0" />
-                                                </div>
-                                                <button onClick={() => removeModOption(group.id, opt.id)} className="h-9 w-9 flex items-center justify-center rounded-md border border-border/20 text-muted/50 hover:text-rose-400 transition-colors shrink-0"><Minus size={14} /></button>
-                                            </div>
-                                        ))}
-                                        <button onClick={() => addModOption(group.id)} className="text-[11px] font-medium text-indigo-400 flex items-center gap-1 hover:text-indigo-300 mt-2">
-                                            <Plus size={12} /> {lang === 'ar' ? 'إضافة خيار' : 'Add Option'}
-                                        </button>
-                                    </div>
-                                </div>
-                            ))}
-                        </div>
-                    )}
-
-                    {/* RECIPE TAB */}
-                    {tab === 'RECIPE' && (
-                        <div className="space-y-4 animate-in fade-in duration-200">
-                            {(item.recipe || []).length > 0 && (
-                                <div className="grid grid-cols-3 gap-3">
-                                    <div className="p-3 bg-elevated/30 rounded-md border border-border/20 text-center">
-                                        <p className="text-[10px] text-muted/60 font-semibold uppercase">{lang === 'ar' ? 'تكلفة الريسبي' : 'Recipe Cost'}</p>
-                                        <p className="text-[14px] font-bold text-amber-500 mt-1">{currency}{recipeCost.toFixed(2)}</p>
-                                    </div>
-                                    <div className="p-3 bg-elevated/30 rounded-md border border-border/20 text-center">
-                                        <p className="text-[10px] text-muted/60 font-semibold uppercase">{lang === 'ar' ? 'سعر البيع' : 'Sell Price'}</p>
-                                        <p className="text-[14px] font-bold text-emerald-500 mt-1">{currency}{item.price.toFixed(2)}</p>
-                                    </div>
-                                    <div className="p-3 bg-elevated/30 rounded-md border border-border/20 text-center">
-                                        <p className="text-[10px] text-muted/60 font-semibold uppercase">{lang === 'ar' ? 'الهامش' : 'Margin'}</p>
-                                        <p className={`text-[14px] font-bold mt-1 ${recipeMargin !== null ? (recipeMargin >= 30 ? 'text-emerald-500' : recipeMargin >= 15 ? 'text-amber-500' : 'text-rose-500') : 'text-muted/50'}`}>
-                                            {recipeMargin !== null ? recipeMargin.toFixed(0) + '%' : '—'}
-                                        </p>
-                                    </div>
-                                </div>
-                            )}
-                            <div className="flex items-center justify-between">
-                                <label className={labelCls}>{lang === 'ar' ? 'مكونات الريسبي' : 'Recipe Ingredients'}</label>
-                                <span className="text-[10px] text-muted/50">{(item.recipe || []).length} {lang === 'ar' ? 'مكون' : 'items'}</span>
-                            </div>
-                            {(item.recipe || []).length === 0 && (
-                                <div className="text-center py-10 bg-elevated/30 rounded-md border border-dashed border-border/30">
-                                    <Scale size={24} className="mx-auto mb-2 text-muted/30" />
-                                    <p className="text-[12px] font-medium text-muted/70">{lang === 'ar' ? 'لم يتم إضافة مكونات بعد' : 'No ingredients added yet'}</p>
-                                </div>
-                            )}
-                            <div className="space-y-2">
-                                {(item.recipe || []).map(ri => {
-                                    const inv = inventory.find(i => i.id === ri.itemId);
-                                    const lineCost = inv ? inv.costPrice * ri.quantity : 0;
-                                    return (
-                                        <div key={ri.itemId} className="flex items-center gap-3 p-3 bg-elevated/30 rounded-md border border-border/20 group">
-                                            <div className="flex-1 min-w-0">
-                                                <p className="text-[12px] font-medium text-main truncate">{inv?.name || ri.itemId}</p>
-                                                <p className="text-[10px] text-muted/60">{ri.quantity} {ri.unit} × {currency}{inv?.costPrice?.toFixed(2) || '0.00'}</p>
-                                            </div>
-                                            <span className="text-[12px] font-medium text-amber-500 shrink-0">{currency}{lineCost.toFixed(2)}</span>
-                                            <input type="number" step="0.01" value={ri.quantity}
-                                                onChange={e => { const qty = parseFloat(e.target.value) || 0; update({ recipe: (item.recipe || []).map(r => r.itemId === ri.itemId ? { ...r, quantity: qty } : r) }); }}
-                                                className={`${inputCls} w-20 text-center`} />
-                                            <button onClick={() => removeRecipeIngredient(ri.itemId)} className="h-8 w-8 flex items-center justify-center rounded-md border border-border/20 text-muted/50 hover:text-rose-400 hover:border-rose-500/30 transition-colors opacity-0 group-hover:opacity-100">
-                                                <Trash2 size={13} />
-                                            </button>
-                                        </div>
-                                    );
-                                })}
-                            </div>
-                            <div className="p-4 bg-amber-500/5 rounded-md border border-amber-500/20 space-y-3">
-                                <p className="text-[10px] font-semibold uppercase tracking-wider text-amber-500 flex items-center gap-1.5"><Plus size={12} /> {lang === 'ar' ? 'إضافة مكون' : 'Add Ingredient'}</p>
-                                <div className="grid grid-cols-2 gap-3">
-                                    <div>
-                                        <label className={labelCls}>{lang === 'ar' ? 'صنف المخزون' : 'Inventory Item'}</label>
-                                        <div className="relative">
-                                            <select value={recipeIngredientId} onChange={e => setRecipeIngredientId(e.target.value)} className={`${inputCls} appearance-none cursor-pointer pr-8`}>
-                                                <option value="">{lang === 'ar' ? 'اختر صنف...' : 'Select item...'}</option>
-                                                {inventory.map(inv => <option key={inv.id} value={inv.id}>{inv.name} ({inv.unit})</option>)}
-                                            </select>
-                                            <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-muted/50">▼</div>
-                                        </div>
-                                    </div>
-                                    <div>
-                                        <label className={labelCls}>{lang === 'ar' ? 'الكمية' : 'Quantity'}</label>
-                                        <input type="number" step="0.01" value={recipeIngredientQty || ''} onChange={e => setRecipeIngredientQty(parseFloat(e.target.value) || 0)} placeholder="0.00" className={inputCls} />
-                                    </div>
-                                </div>
-                                <button onClick={addRecipeIngredient} disabled={!recipeIngredientId || recipeIngredientQty <= 0}
-                                    className="w-full h-9 bg-amber-500/10 text-amber-500 hover:bg-amber-500/20 rounded-md text-[12px] font-medium transition-colors disabled:opacity-50 flex items-center justify-center gap-1.5">
-                                    <Plus size={14} /> {lang === 'ar' ? 'أضف للريسبي' : 'Add to Recipe'}
-                                </button>
-                            </div>
-                            {recipeCost > 0 && item.cost !== parseFloat(recipeCost.toFixed(2)) && (
-                                <button onClick={() => update({ cost: parseFloat(recipeCost.toFixed(2)) })}
-                                    className="w-full flex items-center justify-center gap-2 h-9 bg-indigo-500/10 text-indigo-400 rounded-md text-[12px] font-medium hover:bg-indigo-500/20 transition-colors">
-                                    <Sparkles size={14} />
-                                    {lang === 'ar' ? 'تحديث التكلفة: ' + currency + recipeCost.toFixed(2) : 'Sync Cost from Recipe: ' + currency + recipeCost.toFixed(2)}
-                                </button>
-                            )}
-                        </div>
-                    )}
-
-                    {/* PRICING TAB */}
-                    {tab === 'PRICING' && (
-                        <div className="space-y-4 animate-in fade-in duration-200">
-                            <div className="flex items-center justify-between">
-                                <label className={labelCls}>{lang === 'ar' ? 'قوائم الأسعار للفروع' : 'Branch Price Lists'}</label>
-                                <button onClick={() => update({ priceLists: [...(item.priceLists || []), { name: '', price: item.price, branchIds: [] }] })} className="flex items-center gap-1.5 text-[11px] font-medium text-indigo-400 hover:text-indigo-300">
-                                    <Plus size={14} /> {lang === 'ar' ? 'إضافة قائمة' : 'Add List'}
-                                </button>
-                            </div>
-                            {(item.priceLists || []).length === 0 && (
-                                <div className="text-center py-10 bg-elevated/30 rounded-md border border-dashed border-border/30">
-                                    <DollarSign size={24} className="mx-auto mb-2 text-muted/30" />
-                                    <p className="text-[12px] font-medium text-muted/70">{lang === 'ar' ? 'لا يوجد تسعير مخصص' : 'No custom pricing lists'}</p>
-                                </div>
-                            )}
-                            {(item.priceLists || []).map((pl, idx) => (
-                                <div key={idx} className="flex items-center gap-2 p-2 bg-elevated/30 rounded-md border border-border/20">
-                                    <input type="text" value={pl.name} onChange={e => {
-                                        const lists = [...(item.priceLists || [])];
-                                        lists[idx] = { ...lists[idx], name: e.target.value };
-                                        update({ priceLists: lists });
-                                    }} placeholder={lang === 'ar' ? 'اسم القائمة' : 'List Name'} className={`${inputCls} flex-1`} />
-                                    <input type="number" value={pl.price} onChange={e => {
-                                        const lists = [...(item.priceLists || [])];
-                                        lists[idx] = { ...lists[idx], price: parseFloat(e.target.value) || 0 };
-                                        update({ priceLists: lists });
-                                    }} className={`${inputCls} w-28 text-emerald-500 font-medium`} />
-                                    <button onClick={() => update({ priceLists: (item.priceLists || []).filter((_, i) => i !== idx) })} className="h-9 w-9 flex items-center justify-center rounded-md border border-border/20 text-muted/50 hover:text-rose-400 transition-colors"><Minus size={14} /></button>
-                                </div>
-                            ))}
-                        </div>
-                    )}
-
-                    {/* PLATFORMS TAB */}
-                    {tab === 'PLATFORMS' && (
-                        <div className="space-y-4 animate-in fade-in duration-200">
-                            <div className="flex items-center justify-between">
-                                <label className={labelCls}>{lang === 'ar' ? 'أسعار المنصات' : 'Platform Pricing'}</label>
-                                <button onClick={addPlatformPrice} className="flex items-center gap-1.5 text-[11px] font-medium text-indigo-400 hover:text-indigo-300">
-                                    <Plus size={14} /> {lang === 'ar' ? 'إضافة منصة' : 'Add Platform'}
-                                </button>
-                            </div>
-
-                            {(item.platformPricing || []).length === 0 && (
-                                <div className="text-center py-10 bg-elevated/30 rounded-md border border-dashed border-border/30">
-                                    <Globe size={24} className="mx-auto mb-2 text-muted/30" />
-                                    <p className="text-[12px] font-medium text-muted/70">{lang === 'ar' ? 'غير مرتبط بأي منصة' : 'Not linked to any platforms'}</p>
-                                </div>
-                            )}
-
-                            {(item.platformPricing || []).map((pp, idx) => (
-                                <div key={idx} className="p-4 bg-elevated/30 rounded-md border border-border/20 space-y-3">
-                                    <div className="flex items-center gap-3">
-                                        <div className="relative group flex-1">
-                                            <select value={pp.platformId} onChange={e => updatePlatformPrice(idx, { platformId: e.target.value })} className={`${inputCls} appearance-none cursor-pointer pr-8`}>
-                                                <option value="">Select Platform</option>
-                                                {platformOptions.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
-                                            </select>
-                                            <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-muted/50">▼</div>
-                                        </div>
-                                        <button onClick={() => removePlatformPrice(idx)} className="h-9 w-9 flex items-center justify-center rounded-md border border-border/20 text-muted/50 hover:text-rose-400 transition-colors"><Trash2 size={14} /></button>
-                                    </div>
-                                    <div className="grid grid-cols-2 gap-3">
-                                        <div>
-                                            <label className={labelCls}>{lang === 'ar' ? 'السعر' : 'Price'}</label>
-                                            <input type="number" value={pp.price} onChange={e => updatePlatformPrice(idx, { price: parseFloat(e.target.value) || 0 })} className={`${inputCls} text-emerald-500 font-medium`} />
-                                        </div>
-                                        <div>
-                                            <label className={labelCls}>{lang === 'ar' ? 'العمولة %' : 'Commission %'}</label>
-                                            <input type="number" value={(pp.commission || 0) * 100} onChange={e => updatePlatformPrice(idx, { commission: (parseFloat(e.target.value) || 0) / 100 })} className={inputCls} placeholder="15" />
-                                        </div>
-                                    </div>
-                                    {pp.commission && pp.price > 0 && (
-                                        <p className="text-[11px] text-muted/70 mt-2">
-                                            {lang === 'ar' ? 'صافي الإيراد:' : 'Expected Net:'} <span className="text-main font-medium">{currency}{(pp.price * (1 - pp.commission)).toFixed(2)}</span>
-                                        </p>
-                                    )}
-                                </div>
-                            ))}
-                        </div>
-                    )}
-
-                    {/* SCHEDULE TAB */}
-                    {tab === 'SCHEDULE' && (
-                        <div className="space-y-6 animate-in fade-in duration-200">
-                            <div>
-                                <label className={labelCls}>{lang === 'ar' ? 'أيام التوفر' : 'Available Days'}</label>
-                                <div className="flex flex-wrap gap-1.5">
-                                    {dayOptions.map(d => (
-                                        <button
-                                            key={d.id}
-                                            onClick={() => toggleDay(d.id)}
-                                            className={`h-8 px-3 rounded-md text-[11px] font-medium transition-colors ${item.availableDays?.includes(d.id)
-                                                ? 'bg-indigo-500/10 text-indigo-400 ring-1 ring-indigo-500/30'
-                                                : 'bg-elevated border border-border/30 text-muted/80 hover:text-main'
-                                                }`}
-                                        >
-                                            {lang === 'ar' ? d.ar : d.en}
-                                        </button>
-                                    ))}
-                                </div>
-                            </div>
-
-                            <div className="grid grid-cols-2 gap-4">
-                                <div>
-                                    <label className={labelCls}>{lang === 'ar' ? 'متاح من الساعة' : 'From Time'}</label>
-                                    <input type="time" value={item.availableFrom || ''} onChange={e => update({ availableFrom: e.target.value })} className={inputCls} />
-                                </div>
-                                <div>
-                                    <label className={labelCls}>{lang === 'ar' ? 'إلى الساعة' : 'To Time'}</label>
-                                    <input type="time" value={item.availableTo || ''} onChange={e => update({ availableTo: e.target.value })} className={inputCls} />
-                                </div>
-                            </div>
-                        </div>
-                    )}
-
-                    {/* HISTORY TAB */}
-                    {tab === 'HISTORY' && (
-                        <div className="space-y-4 animate-in fade-in duration-200">
-                            <label className={labelCls}>{lang === 'ar' ? 'سجل التعديلات' : 'Audit Log'}</label>
-                            {(item.versionHistory || []).length === 0 ? (
-                                <div className="text-center py-10 bg-elevated/30 rounded-md border border-dashed border-border/30">
-                                    <History size={24} className="mx-auto mb-2 text-muted/30" />
-                                    <p className="text-[12px] font-medium text-muted/70">{lang === 'ar' ? 'لا يوجد سجل' : 'No history details'}</p>
-                                </div>
-                            ) : (
-                                <div className="space-y-2">
-                                    {[...(item.versionHistory || [])].reverse().map((entry, idx) => (
-                                        <div key={idx} className="p-3 bg-elevated/30 rounded-md border border-border/20 flex gap-3">
-                                            <div className="w-1.5 h-1.5 rounded-full bg-indigo-500 mt-1.5 opacity-50 shrink-0" />
-                                            <div className="flex-1">
-                                                <div className="flex justify-between items-start mb-0.5">
-                                                    <p className="text-[12px] font-medium text-main">{entry.field}</p>
-                                                    <p className="text-[10px] text-muted/60">{new Date(entry.timestamp).toLocaleDateString()}</p>
-                                                </div>
-                                                <div className="flex items-center gap-2 text-[11px]">
-                                                    <span className="text-muted/70 strike text-rose-400">{String(entry.oldValue)}</span>
-                                                    <span className="text-muted/40">→</span>
-                                                    <span className="text-emerald-500">{String(entry.newValue)}</span>
-                                                </div>
-                                                <p className="text-[10px] text-muted/50 mt-1">Edited by {entry.userName}</p>
-                                            </div>
-                                        </div>
-                                    ))}
-                                </div>
-                            )}
-                        </div>
-                    )}
-                </div>
-
-                {/* Footer — Premium elevated */}
-                <div className="p-4 border-t border-white/[0.06] bg-gradient-to-t from-black/20 to-transparent backdrop-blur-sm flex gap-3">
-                    <button onClick={onClose} className="flex-1 h-10 rounded-xl border border-white/[0.1] text-[12px] font-semibold text-white/60 hover:text-white hover:bg-white/[0.05] hover:border-white/[0.15] transition-all duration-200">
-                        {lang === 'ar' ? 'إلغاء' : 'Cancel'}
-                    </button>
-                    <button
-                        onClick={() => onSave(item, activeCategoryId)}
-                        disabled={!item.name.trim()}
-                        className="flex-[2] h-10 rounded-xl bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-400 hover:to-purple-500 text-white text-[12px] font-semibold transition-all duration-200 disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2 shadow-lg shadow-indigo-500/25 hover:shadow-indigo-500/40"
-                    >
-                        <Save size={14} /> {lang === 'ar' ? 'حفظ الصنف' : 'Save Item'}
-                    </button>
-                </div>
+              </div>
             </div>
+
+            <div className="flex items-center gap-3">
+              <div className="flex items-center gap-1.5 overflow-x-auto rounded-[18px] border border-white/10 bg-white/5 p-1.5 backdrop-blur-md no-scrollbar">
+                {tabs.map((t) => (
+                  <button
+                    key={t.id}
+                    onClick={() => setTab(t.id)}
+                    className={`h-10 px-3.5 rounded-[14px] shrink-0 flex items-center gap-2 transition-all duration-300 ${tab === t.id ? "bg-main text-white shadow-[0_8px_20px_rgba(15,23,42,0.18)]" : "text-muted/75 hover:text-main hover:bg-white/7"}`}
+                  >
+                    <t.icon size={16} />
+                    <span className="text-[11px] font-bold uppercase tracking-[0.12em] hidden xl:block">
+                      {lang === "ar" ? t.labelAr : t.labelEn}
+                    </span>
+                  </button>
+                ))}
+              </div>
+              <button
+                onClick={onClose}
+                className="flex h-11 w-11 items-center justify-center rounded-[14px] border border-white/10 bg-white/5 text-muted/70 transition-all hover:border-rose-500/30 hover:bg-rose-500/10 hover:text-rose-400"
+              >
+                <X size={22} />
+              </button>
+            </div>
+          </div>
         </div>
-    );
+
+        {/* Body â€” Two Column Layout */}
+        <div className="flex-1 flex overflow-hidden">
+          {/* Main Content (Left/Center) */}
+          <div
+            className="flex-1 overflow-y-auto px-6 py-8 lg:px-10 no-scrollbar space-y-10"
+            style={{ scrollBehavior: "smooth" }}
+          >
+            {tab === "BASIC" && (
+              <div className="space-y-10 animate-in slide-in-from-bottom-8 duration-500">
+                {/* First Bento Row: Two huge prominent cards */}
+                <div className="grid lg:grid-cols-2 gap-8">
+                  {/* Left: Identity Card */}
+                  <div className={`${sectionCardCls} flex flex-col gap-6`}>
+                    <div className="flex items-center gap-4">
+                      <div className="flex h-10 w-10 items-center justify-center rounded-[14px] bg-primary/10 text-primary">
+                        <Info size={20} />
+                      </div>
+                      <h3 className="text-[15px] font-black text-main uppercase tracking-[0.14em]">
+                        {lang === "ar" ? "ظ…ط¹ظ„ظˆظ…ط§طھ ط§ظ„ظ…ظ†طھط¬" : "Product Identity"}
+                      </h3>
+                    </div>
+                    <div className="grid gap-5 lg:grid-cols-2">
+                      <div>
+                        <label className={subLabelCls}>
+                          {lang === "ar" ? "ط§ظ„ط§ط³ظ… ط§ظ„طھط¬ط§ط±ظٹ" : "Trading Name"}
+                        </label>
+                        <input
+                          type="text"
+                          value={item.name}
+                          onChange={(e) => update({ name: e.target.value })}
+                          className={`${inputCls} !text-[16px] !font-bold !h-14 !rounded-[16px]`}
+                          placeholder="e.g. Alfredo Pasta"
+                        />
+                      </div>
+                      <div>
+                        <label className={subLabelCls}>
+                          {lang === "ar"
+                            ? "ط§ظ„ط§ط³ظ… ط¨ط§ظ„ظ„ط؛ط© ط§ظ„ط¹ط±ط¨ظٹط©"
+                            : "Arabic Name"}
+                        </label>
+                        <input
+                          type="text"
+                          value={item.nameAr || ""}
+                          onChange={(e) => update({ nameAr: e.target.value })}
+                          className={`${inputCls} text-right font-sans !text-[16px] !font-bold !h-14 !rounded-[16px]`}
+                          placeholder="ظ…ط«ط§ظ„: ط¨ط§ط³طھط§ ط§ظ„ظپط±ظٹط¯ظˆ"
+                          dir="rtl"
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Right: Studio & Barcode Card */}
+                  <div className="flex flex-col gap-8">
+                    <div className={`${sectionCardCls} p-3`}>
+                      <div className="relative aspect-[21/10] w-full overflow-hidden rounded-[18px] bg-elevated/50">
+                        <ImageUploader
+                          value={item.image || ""}
+                          onChange={(url) => update({ image: url })}
+                          type="item"
+                          label=""
+                          lang={lang as "en" | "ar"}
+                        />
+                        {!item.image && (
+                          <div className="absolute inset-0 pointer-events-none flex flex-col items-center justify-center opacity-55">
+                            <div className="w-14 h-14 rounded-full bg-primary/10 flex items-center justify-center mb-3 text-primary">
+                              <ImageIcon size={28} strokeWidth={1.5} />
+                            </div>
+                            <span className="text-[11px] font-bold uppercase tracking-[0.18em] text-primary">
+                              {lang === "ar"
+                                ? "ط§ط±ظپط¹ طµظˆط±ط© ط§ظ„ظ…ظ†طھط¬"
+                                : "Studio Asset"}
+                            </span>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Embedded Barcodes inside the same column */}
+                    <div className={`${sectionCardCls} grid grid-cols-2 gap-5 items-center`}>
+                      <div className="relative">
+                        <label className={subLabelCls}>SKU Code</label>
+                        <input
+                          type="text"
+                          value={item.sku || ""}
+                          onChange={(e) => update({ sku: e.target.value })}
+                          className={`${inputCls} !h-14 !rounded-[16px] !font-mono`}
+                          placeholder="REF-00"
+                        />
+                      </div>
+                      <div className="relative">
+                        <label className={subLabelCls}>
+                          {lang === "ar" ? "ط¨ط§ط±ظƒظˆط¯" : "Barcode"}
+                        </label>
+                        <div className="flex gap-2">
+                          <input
+                            type="text"
+                            value={item.barcode || ""}
+                            onChange={(e) =>
+                              update({ barcode: e.target.value })
+                            }
+                            className={`${inputCls} !h-14 !rounded-[16px]`}
+                          />
+                          <button
+                            onClick={handleGenerateBarcode}
+                            disabled={generatingBarcode}
+                            className="flex h-14 w-14 shrink-0 items-center justify-center rounded-[16px] border border-primary/20 bg-primary/10 text-primary transition-all hover:bg-primary hover:text-white"
+                          >
+                            <Sparkles size={16} />
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Second Bento Row: Pricing & Tags spanning full width visually separated */}
+                <div className="grid lg:grid-cols-3 gap-8">
+                  {/* Pricing - Compact yet aggressive styling */}
+                  <div className={`${sectionCardCls} col-span-1 flex flex-col justify-center`}>
+                    <label className={subLabelCls}>
+                      {lang === "ar" ? "ط§ظ„ط³ط¹ط± ط§ظ„ط­ط§ظ„ظٹ" : "Market Price"}
+                    </label>
+                    <div className="relative">
+                      <span className="absolute left-5 top-1/2 z-10 -translate-y-1/2 text-[18px] font-black text-primary">
+                        {currency}
+                      </span>
+                      <input
+                        type="number"
+                        value={item.price}
+                        onChange={(e) =>
+                          update({ price: parseFloat(e.target.value) || 0 })
+                        }
+                        className={`${inputCls} !h-16 !rounded-[18px] !pl-14 !text-[28px] !font-black`}
+                      />
+                    </div>
+                  </div>
+
+                  {/* Strategic Tags - Spans 2 cols */}
+                  <div className={`${sectionCardCls} col-span-2`}>
+                    <div className="flex items-center gap-4 mb-8">
+                      <div className="flex h-10 w-10 items-center justify-center rounded-[14px] bg-primary/10 text-primary">
+                        <Tag size={20} />
+                      </div>
+                      <div>
+                        <h3 className="text-[15px] font-black text-main uppercase tracking-[0.14em]">
+                          {lang === "ar"
+                            ? "ط§ظ„طھطµظ†ظٹظپ ظˆط§ظ„ظˆط³ظˆظ…"
+                            : "Category & Tags"}
+                        </h3>
+                      </div>
+                    </div>
+                    <div className="grid gap-5 xl:grid-cols-2">
+                      <div className="space-y-2">
+                        <label className={subLabelCls}>Main Layer</label>
+                        <select
+                          value={activeCategoryId}
+                          onChange={(e) => setActiveCategoryId(e.target.value)}
+                          className={`${inputCls} !h-14 !rounded-[16px] text-[14px]`}
+                        >
+                          <option value="" disabled>
+                            Select Layer Category
+                          </option>
+                          {categories.map((c) => (
+                            <option key={c.id} value={c.id}>
+                              {c.name}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                      <div className="space-y-2">
+                        <label className={subLabelCls}>Badges</label>
+                        <div className="flex flex-wrap gap-2">
+                          {dietaryOptions.map((badge) => (
+                            <button
+                              key={badge.id}
+                              onClick={() => toggleBadge(badge.id)}
+                              className={`px-4 h-10 rounded-full text-[11px] font-bold transition-all duration-300 border ${item.dietaryBadges?.includes(badge.id) ? "bg-main border-main text-white" : "bg-white/40 border-border/20 text-muted hover:text-main"}`}
+                            >
+                              {lang === "ar" ? badge.labelAr : badge.labelEn}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {tab === "SIZES" && (
+              <div className="space-y-6 animate-in slide-in-from-bottom-8 duration-500">
+                <div className="flex items-center justify-between px-4">
+                  <div className="flex items-center gap-3">
+                    <Package className="text-primary" />
+                    <h3 className="text-[18px] font-black text-white uppercase tracking-widest">
+                      {lang === "ar" ? "ظ‚ط§ط¦ظ…ط© ط§ظ„ط£ط­ط¬ط§ظ…" : "Size Inventory"}
+                    </h3>
+                  </div>
+                  <button
+                    onClick={addSize}
+                    className="px-6 h-11 bg-primary text-white rounded-2xl text-[12px] font-black shadow-lg shadow-primary/20 hover:scale-105 transition-all"
+                  >
+                    <Plus size={18} />{" "}
+                    {lang === "ar" ? "ط¥ط¶ط§ظپط© ط­ط¬ظ…" : "Add Size"}
+                  </button>
+                </div>
+                <div className="grid grid-cols-1 gap-4">
+                  {(item.sizes || []).map((size, idx) => (
+                    <div
+                      key={size.id}
+                      className="glass-1 p-6 flex flex-col md:flex-row items-center gap-6 group"
+                    >
+                      <div className="w-10 h-10 rounded-[14px] bg-elevated/50 flex items-center justify-center font-black text-primary border border-subtle">
+                        {idx + 1}
+                      </div>
+                      <div className="flex-1 grid grid-cols-3 gap-6 w-full">
+                        <div className="col-span-1">
+                          <label className={subLabelCls}>Name</label>
+                          <input
+                            type="text"
+                            value={size.name}
+                            onChange={(e) =>
+                              updateSize(size.id, { name: e.target.value })
+                            }
+                            className={`${inputCls} !h-12 !rounded-[14px] text-center font-bold`}
+                            placeholder="S / M / L"
+                          />
+                        </div>
+                        <div>
+                          <label className={subLabelCls}>Price</label>
+                          <input
+                            type="number"
+                            value={size.price}
+                            onChange={(e) =>
+                              updateSize(size.id, {
+                                price: parseFloat(e.target.value) || 0,
+                              })
+                            }
+                            className={`${inputCls} !h-12 !rounded-[14px] !bg-emerald-500/[0.04] !border-emerald-500/20 text-emerald-400 font-bold`}
+                          />
+                        </div>
+                        <div>
+                          <label className={subLabelCls}>Cost</label>
+                          <input
+                            type="number"
+                            value={size.cost || ""}
+                            onChange={(e) =>
+                              updateSize(size.id, {
+                                cost: parseFloat(e.target.value) || 0,
+                              })
+                            }
+                            className={`${inputCls} !h-12 !rounded-[14px] !bg-amber-500/[0.04] !border-amber-500/20 text-amber-500 font-bold`}
+                          />
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-3 w-full md:w-auto mt-4 md:mt-0 justify-end">
+                        <button
+                          onClick={() =>
+                            updateSize(size.id, {
+                              isAvailable: !size.isAvailable,
+                            })
+                          }
+                          className={`h-12 px-6 rounded-[14px] font-black text-[10px] border transition-all uppercase tracking-wider ${size.isAvailable ? "bg-emerald-500/10 border-emerald-500/20 text-emerald-400" : "bg-rose-500/10 border-rose-500/20 text-rose-400"}`}
+                        >
+                          {size.isAvailable ? "Active" : "Hidden"}
+                        </button>
+                        <button
+                          onClick={() => removeSize(size.id)}
+                          className="w-12 h-12 flex items-center justify-center rounded-[14px] bg-elevated/30 border border-subtle text-muted hover:text-rose-400 hover:border-rose-400/20 transition-all"
+                        >
+                          <Trash2 size={16} />
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {tab === "MODIFIERS" && (
+              <div className="space-y-8 animate-in slide-in-from-bottom-8 duration-500">
+                <div className="flex items-center justify-between px-4">
+                  <div className="flex items-center gap-3">
+                    <Layers className="text-primary" />
+                    <h3 className="text-[18px] font-black text-main uppercase tracking-widest">
+                      {lang === "ar" ? "طھط®طµظٹطµ ط§ظ„ط®ظٹط§ط±ط§طھ" : "Customization Ops"}
+                    </h3>
+                  </div>
+                  <button
+                    onClick={addModGroup}
+                    className="px-6 h-11 bg-primary text-white rounded-2xl text-[12px] font-black shadow-lg shadow-primary/20 transition-all hover:-translate-y-1"
+                  >
+                    <Plus size={18} />{" "}
+                    {lang === "ar" ? "ط¥ط¶ط§ظپط© ظ…ط¬ظ…ظˆط¹ط©" : "Add Group"}
+                  </button>
+                </div>
+                <div className="space-y-8">
+                  {(item.modifierGroups || []).map((group) => (
+                    <div
+                      key={group.id}
+                      className="glass-1 p-8 rounded-[32px] relative overflow-hidden group"
+                    >
+                      <div className="absolute top-0 right-0 w-32 h-32 bg-primary/5 blur-[50px] -z-10" />
+                      <div className="flex items-start justify-between gap-8 mb-8">
+                        <div className="flex-1 grid md:grid-cols-3 gap-8">
+                          <div className="col-span-2">
+                            <label className={subLabelCls}>Group Name</label>
+                            <input
+                              type="text"
+                              value={group.name}
+                              onChange={(e) =>
+                                updateModGroup(group.id, {
+                                  name: e.target.value,
+                                })
+                              }
+                              className="bg-transparent border-0 border-b-2 border-subtle text-[24px] font-black text-main w-full focus:ring-0 focus:border-primary pb-2 transition-all placeholder-muted/30"
+                              placeholder="e.g. Choose Toppings"
+                            />
+                          </div>
+                          <div className="flex items-center gap-6 bg-elevated/40 p-4 rounded-[16px] border border-subtle">
+                            <div className="flex-1">
+                              <label className={subLabelCls}>Min</label>
+                              <input
+                                type="number"
+                                value={group.minSelection}
+                                onChange={(e) =>
+                                  updateModGroup(group.id, {
+                                    minSelection: parseInt(e.target.value) || 0,
+                                  })
+                                }
+                                className="w-full h-12 bg-transparent text-center font-black text-[18px] focus:outline-none"
+                              />
+                            </div>
+                            <div className="w-[1px] h-full bg-subtle" />
+                            <div className="flex-1">
+                              <label className={subLabelCls}>Max</label>
+                              <input
+                                type="number"
+                                value={group.maxSelection}
+                                onChange={(e) =>
+                                  updateModGroup(group.id, {
+                                    maxSelection: parseInt(e.target.value) || 1,
+                                  })
+                                }
+                                className="w-full h-12 bg-transparent text-center font-black text-[18px] focus:outline-none"
+                              />
+                            </div>
+                          </div>
+                        </div>
+                        <button
+                          onClick={() => removeModGroup(group.id)}
+                          className="w-12 h-12 flex items-center justify-center rounded-[16px] bg-elevated/40 border border-subtle text-muted hover:text-rose-400 hover:border-rose-400/20 transition-all"
+                        >
+                          <Trash2 size={20} />
+                        </button>
+                      </div>
+
+                      <div className="glass-2 p-6 rounded-[24px] space-y-4">
+                        <h4 className={subLabelCls}>Options List</h4>
+                        {group.options.map((opt) => (
+                          <div
+                            key={opt.id}
+                            className="flex flex-col sm:flex-row items-center gap-4 group/opt bg-elevated/50 p-3 rounded-[16px] border border-subtle"
+                          >
+                            <input
+                              type="text"
+                              value={opt.name}
+                              onChange={(e) =>
+                                updateModOption(group.id, opt.id, {
+                                  name: e.target.value,
+                                })
+                              }
+                              className="bg-transparent border-none text-[15px] font-bold text-main w-full focus:ring-0"
+                              placeholder="Option Name"
+                            />
+                            <div className="flex items-center gap-3 w-full sm:w-auto">
+                              <div className="relative">
+                                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[12px] font-black text-emerald-500/40">
+                                  +
+                                </span>
+                                <input
+                                  type="number"
+                                  value={opt.price}
+                                  onChange={(e) =>
+                                    updateModOption(group.id, opt.id, {
+                                      price: parseFloat(e.target.value) || 0,
+                                    })
+                                  }
+                                  className="w-32 h-12 pl-8 bg-emerald-500/[0.04] border border-emerald-500/20 rounded-[12px] text-center font-black text-emerald-500"
+                                />
+                              </div>
+                              <button
+                                onClick={() =>
+                                  removeModOption(group.id, opt.id)
+                                }
+                                className="w-10 h-10 flex items-center justify-center rounded-[12px] text-muted hover:text-rose-500 hover:bg-rose-500/10 transition-all"
+                              >
+                                <Minus size={16} />
+                              </button>
+                            </div>
+                          </div>
+                        ))}
+                        <button
+                          onClick={() => addModOption(group.id)}
+                          className="mt-2 flex items-center justify-center w-full h-12 border-2 border-dashed border-subtle hover:border-primary/40 rounded-[16px] text-[12px] font-black text-muted hover:text-primary transition-all"
+                        >
+                          <Plus size={16} className="mr-2" /> ADD NEW CHOICE
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {tab === "RECIPE" && (
+              <div className="space-y-8 animate-in slide-in-from-bottom-8 duration-500">
+                {/* Overview Metrics Bento */}
+                <div className="grid grid-cols-3 gap-6">
+                  <div className="glass-2 p-8 border-amber-500/20 text-center flex flex-col justify-center shadow-[inset_0_2px_15px_rgba(245,158,11,0.03)]">
+                    <p className="text-[11px] font-black text-amber-500/60 uppercase tracking-[0.2em] mb-3">
+                      {lang === "ar" ? "ط¥ط¬ظ…ط§ظ„ظٹ ط§ظ„طھظƒظ„ظپط©" : "Total Material Cost"}
+                    </p>
+                    <h4 className="text-[32px] font-black text-amber-500 leading-none">
+                      {currency}
+                      {recipeCost.toFixed(2)}
+                    </h4>
+                  </div>
+                  <div className="glass-2 p-8 border-emerald-500/20 text-center flex flex-col justify-center shadow-[inset_0_2px_15px_rgba(16,185,129,0.03)]">
+                    <p className="text-[11px] font-black text-emerald-500/60 uppercase tracking-[0.2em] mb-3">
+                      {lang === "ar"
+                        ? "ط³ط¹ط± ط§ظ„ط¨ظٹط¹ ط§ظ„ظ…ظ‚طھط±ط­"
+                        : "Retail Sale Price"}
+                    </p>
+                    <h4 className="text-[32px] font-black text-emerald-500 leading-none">
+                      {currency}
+                      {item.price.toFixed(2)}
+                    </h4>
+                  </div>
+                  <div className="glass-2 p-8 border-primary/20 text-center flex flex-col justify-center shadow-[inset_0_2px_15px_rgba(var(--primary),0.05)] bg-primary/5">
+                    <p className="text-[11px] font-black text-primary uppercase tracking-[0.2em] mb-3">
+                      {lang === "ar" ? "طµط§ظپظٹ ط§ظ„ط±ط¨ط­" : "Projected Margin"}
+                    </p>
+                    <h4 className="text-[32px] font-black text-primary leading-none">
+                      {recipeMargin !== null
+                        ? recipeMargin.toFixed(0) + "%"
+                        : "â€”"}
+                    </h4>
+                  </div>
+                </div>
+
+                <div className="glass-1 p-10">
+                  <div className="flex items-center justify-between mb-8 pb-6 border-b border-subtle">
+                    <h3 className="text-[18px] font-black text-main tracking-widest uppercase flex items-center gap-3">
+                      <Scale size={20} className="text-primary" />
+                      {lang === "ar"
+                        ? "ط§ظ„ظ…ظƒظˆظ†ط§طھ ط§ظ„ظ…ط±ط¨ظˆط·ط©"
+                        : "Linked Inventory Assets"}
+                    </h3>
+                    <div className="h-8 px-4 flex items-center bg-elevated rounded-full text-[10px] font-black text-muted uppercase tracking-widest border border-subtle">
+                      {(item.recipe || []).length} ASSETS
+                    </div>
+                  </div>
+
+                  {/* Add New Ingredient */}
+                  <div className="glass-2 p-8 mb-8 border-primary/10 flex flex-col sm:flex-row items-end gap-6 relative overflow-hidden group">
+                    <div className="absolute top-0 right-0 w-64 h-64 bg-primary/5 blur-[50px] -z-10 group-focus-within:bg-primary/10 transition-colors" />
+                    <div className="flex-1 grid sm:grid-cols-2 gap-6 w-full">
+                      <div>
+                        <label className={subLabelCls}>Select Asset</label>
+                        <select
+                          value={recipeIngredientId}
+                          onChange={(e) =>
+                            setRecipeIngredientId(e.target.value)
+                          }
+                          className={`${inputCls} !h-14 !rounded-[16px]`}
+                        >
+                          <option value="">Choose data asset...</option>
+                          {inventory.map((inv) => (
+                            <option key={inv.id} value={inv.id}>
+                              {inv.name}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                      <div>
+                        <label className={subLabelCls}>Net Quantity</label>
+                        <input
+                          type="number"
+                          value={recipeIngredientQty || ""}
+                          onChange={(e) =>
+                            setRecipeIngredientQty(
+                              parseFloat(e.target.value) || 0,
+                            )
+                          }
+                          className={`${inputCls} !h-14 !rounded-[16px] text-lg font-bold`}
+                          placeholder="0.00"
+                        />
+                      </div>
+                    </div>
+                    <button
+                      onClick={addRecipeIngredient}
+                      disabled={!recipeIngredientId || recipeIngredientQty <= 0}
+                      className="h-14 px-10 bg-primary text-white rounded-[16px] text-[12px] font-black shadow-xl shadow-primary/20 hover:-translate-y-1 transition-transform w-full sm:w-auto uppercase tracking-wider"
+                    >
+                      Link
+                    </button>
+                  </div>
+
+                  {/* List */}
+                  <div className="space-y-4">
+                    {(item.recipe || []).map((ri) => {
+                      const inv = inventory.find((i) => i.id === ri.itemId);
+                      return (
+                        <div
+                          key={ri.itemId}
+                          className="flex items-center p-6 rounded-[24px] bg-elevated/30 border border-subtle group hover:bg-elevated/60 transition-colors"
+                        >
+                          <div className="flex-1">
+                            <p className="text-[16px] font-black text-main">
+                              {inv?.name || ri.itemId}
+                            </p>
+                            <p className="text-[12px] font-bold text-muted/60 uppercase tracking-widest">
+                              {ri.quantity} {ri.unit} linked
+                            </p>
+                          </div>
+                          <div className="flex items-center gap-6">
+                            <p className="text-[18px] font-black text-amber-500 w-24 text-right">
+                              {currency}
+                              {(inv ? inv.costPrice * ri.quantity : 0).toFixed(
+                                2,
+                              )}
+                            </p>
+                            <input
+                              type="number"
+                              value={ri.quantity}
+                              onChange={(e) => {
+                                const qty = parseFloat(e.target.value) || 0;
+                                update({
+                                  recipe: (item.recipe || []).map((r) =>
+                                    r.itemId === ri.itemId
+                                      ? { ...r, quantity: qty }
+                                      : r,
+                                  ),
+                                });
+                              }}
+                              className="w-24 h-12 bg-elevated border border-subtle focus:border-primary focus:ring-1 focus:ring-primary rounded-[14px] text-center font-black text-main transition-all"
+                            />
+                            <button
+                              onClick={() => removeRecipeIngredient(ri.itemId)}
+                              className="w-12 h-12 flex items-center justify-center rounded-[14px] bg-elevated/50 text-muted hover:text-rose-500 hover:bg-rose-500/10 transition-all"
+                            >
+                              <Trash2 size={18} />
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {tab === "SCHEDULE" && (
+              <div className="space-y-8 animate-in slide-in-from-bottom-8 duration-500">
+                <div className="glass-1 p-10 border-subtle transition-all">
+                  <h4 className={subLabelCls}>
+                    {lang === "ar"
+                      ? "ط£ظٹط§ظ… ط§ظ„طھظˆظپط± ط§ظ„ط£ط³ط¨ظˆط¹ظٹط©"
+                      : "WEEKLY AVAILABILITY PROTOCOL"}
+                  </h4>
+                  <div className="flex flex-wrap gap-4 mt-6">
+                    {dayOptions.map((d) => (
+                      <button
+                        key={d.id}
+                        onClick={() => toggleDay(d.id)}
+                        className={`flex-1 min-w-[100px] h-14 rounded-[16px] transition-all font-black text-[12px] uppercase tracking-widest border ${item.availableDays?.includes(d.id) ? "bg-primary border-primary text-white shadow-[0_4px_16px_rgba(var(--primary),0.2)]" : "bg-elevated/40 border-subtle text-muted hover:text-main"}`}
+                      >
+                        {lang === "ar" ? d.ar : d.en}
+                      </button>
+                    ))}
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mt-10 p-8 glass-2 rounded-[24px]">
+                    <div>
+                      <label className={subLabelCls}>Auto-Enable Time</label>
+                      <input
+                        type="time"
+                        value={item.availableFrom || ""}
+                        onChange={(e) =>
+                          update({ availableFrom: e.target.value })
+                        }
+                        className={`${inputCls} !h-16 !text-2xl !font-black !px-6 bg-elevated/50 !rounded-[20px] text-center`}
+                      />
+                    </div>
+                    <div>
+                      <label className={subLabelCls}>Auto-Disable Time</label>
+                      <input
+                        type="time"
+                        value={item.availableTo || ""}
+                        onChange={(e) =>
+                          update({ availableTo: e.target.value })
+                        }
+                        className={`${inputCls} !h-16 !text-2xl !font-black !px-6 bg-elevated/50 !rounded-[20px] text-center`}
+                      />
+                    </div>
+                  </div>
+                </div>
+                <div className="glass-1 p-10 border-subtle">
+                  <h4 className={subLabelCls}>
+                    {lang === "ar"
+                      ? "طھظˆط¬ظٹظ‡ ط·ظ„ط¨ط§طھ ط§ظ„ظ…ط·ط¨ط®"
+                      : "PRODUCTION ROUTING"}
+                  </h4>
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 mt-6">
+                    {printers.map((p) => (
+                      <button
+                        key={p.id}
+                        onClick={() => togglePrinter(p.id)}
+                        className={`h-16 rounded-[16px] border flex items-center justify-center gap-3 transition-all ${item.printerIds?.includes(p.id) ? "bg-amber-500 border-amber-500 text-black shadow-[0_4px_16px_rgba(245,158,11,0.2)]" : "bg-elevated/40 border-subtle text-muted hover:text-main"}`}
+                      >
+                        <PrinterIcon size={20} />
+                        <span className="text-[13px] font-black uppercase tracking-widest">
+                          {p.name}
+                        </span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {tab === "HISTORY" && (
+              <div className="space-y-8 animate-in slide-in-from-bottom-8 duration-500">
+                <h3 className="text-[18px] font-black text-main tracking-widest uppercase px-4 flex items-center gap-3">
+                  <History size={20} className="text-primary" />
+                  {lang === "ar"
+                    ? "ط³ط¬ظ„ ط§ظ„ط¹ظ…ظ„ظٹط§طھ ط§ظ„طھظ‚ظ†ظٹ"
+                    : "TECHNICAL SYSTEM AUDIT"}
+                </h3>
+                <div className="glass-1 p-8">
+                  <div className="space-y-4">
+                    {(!item.versionHistory ||
+                      item.versionHistory.length === 0) && (
+                      <div className="text-center p-12 text-muted font-bold uppercase tracking-widest border-2 border-dashed border-subtle rounded-[24px]">
+                        No history recorded yet
+                      </div>
+                    )}
+                    {[...(item.versionHistory || [])]
+                      .reverse()
+                      .map((entry, idx) => (
+                        <div
+                          key={idx}
+                          className="p-6 rounded-[24px] bg-elevated/30 border border-subtle flex flex-col md:flex-row items-start md:items-center gap-6 group hover:bg-elevated/60 transition-colors"
+                        >
+                          <div className="w-1.5 h-full min-h-[40px] rounded-full bg-primary/40 hidden md:block" />
+                          <div className="flex-1 w-full">
+                            <div className="flex justify-between items-start mb-2">
+                              <span className="text-[12px] font-black text-primary uppercase tracking-widest">
+                                {entry.field}
+                              </span>
+                              <span className="text-[11px] font-bold text-muted/50">
+                                {new Date(entry.timestamp).toLocaleString()}
+                              </span>
+                            </div>
+                            <div className="flex items-center flex-wrap gap-4 text-[15px] font-bold mt-2 bg-elevated/40 p-3 rounded-[12px] border border-subtle">
+                              <span className="text-rose-500/60 line-through decoration-2 px-2 py-1 bg-rose-500/5 rounded-md">
+                                {String(entry.oldValue)}
+                              </span>
+                              <ArrowRight size={16} className="text-muted/30" />
+                              <span className="text-emerald-500 px-2 py-1 bg-emerald-500/5 rounded-md">
+                                {String(entry.newValue)}
+                              </span>
+                            </div>
+                          </div>
+                          <div className="text-left md:text-right w-full md:w-auto pt-4 md:pt-0 border-t md:border-t-0 border-subtle">
+                            <span className="text-[10px] font-black text-muted/40 uppercase tracking-[0.3em] block mb-1">
+                              Operator
+                            </span>
+                            <span className="text-[13px] font-black text-main bg-elevated px-3 py-1.5 rounded-full border border-subtle">
+                              {entry.userName}
+                            </span>
+                          </div>
+                        </div>
+                      ))}
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Guidance Sidebar (Right) â€” Smooth Contextual Info */}
+          <div className="hidden w-[320px] shrink-0 border-l border-white/10 bg-white/[0.03] p-6 xl:flex xl:flex-col xl:gap-5 overflow-y-auto no-scrollbar">
+            <div
+              className="mb-2 flex h-12 w-12 items-center justify-center rounded-[14px] bg-primary/10 text-primary"
+              style={{ "--i": 0 } as any}
+            >
+              <guidance.icon size={20} />
+            </div>
+            <h4
+              className="text-[14px] font-black text-main uppercase tracking-[0.14em]"
+              style={{ "--i": 1 } as any}
+            >
+              {lang === "ar" ? "ملاحظات سريعة" : "Quick Notes"}
+            </h4>
+            <p className="mb-4 text-[12px] text-muted/70">
+              {lang === "ar" ? guidance.titleAr : guidance.titleEn}
+            </p>
+
+            <div className="w-full space-y-3">
+              {(lang === "ar" ? guidance.tipsAr : guidance.tipsEn).map(
+                (tip, idx) => (
+                  <div
+                    key={idx}
+                    className="rounded-[16px] border border-border/15 bg-white/50 px-4 py-3 text-left"
+                    style={{ "--i": idx + 3 } as any}
+                  >
+                    <p className="text-[13px] font-medium leading-6 text-muted/85">
+                      {tip}
+                    </p>
+                  </div>
+                ),
+              )}
+            </div>
+
+            <div
+              className="mt-2 w-full"
+              style={{ "--i": 7 } as any}
+            >
+              <div className="rounded-[20px] border border-white/10 bg-white/5 p-5">
+                <h5 className="text-[13px] font-black uppercase tracking-[0.14em] text-main">
+                  {lang === "ar" ? "ملخص التشغيل" : "Operational Summary"}
+                </h5>
+                <p className="hidden">
+                  {lang === "ar" ? "ط§ط­طµظ„ ط¹ظ„ظ‰ ط§ظ„ط¯ط¹ظ…" : "LIVE ASSISTANCE"}
+                </p>
+                <div className="mt-4 space-y-3">
+                  <div className="flex items-center justify-between rounded-[16px] border border-border/15 bg-white/40 px-4 py-3 text-[13px]">
+                    <span className="text-muted/75">{lang === "ar" ? "الأحجام" : "Sizes"}</span>
+                    <span className="font-bold text-main">{sizeCount}</span>
+                  </div>
+                  <div className="flex items-center justify-between rounded-[16px] border border-border/15 bg-white/40 px-4 py-3 text-[13px]">
+                    <span className="text-muted/75">{lang === "ar" ? "الإضافات" : "Modifiers"}</span>
+                    <span className="font-bold text-main">{modifierCount}</span>
+                  </div>
+                  <div className="flex items-center justify-between rounded-[16px] border border-border/15 bg-white/40 px-4 py-3 text-[13px]">
+                    <span className="text-muted/75">{lang === "ar" ? "المكونات" : "Recipe Items"}</span>
+                    <span className="font-bold text-main">{item.recipe?.length || 0}</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Footer â€” Massive Single Action */}
+        <div className="min-h-24 border-t border-white/10 bg-card/72 px-6 py-4 backdrop-blur-2xl lg:px-8">
+          <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+            <button
+              onClick={onClose}
+              className="theme-btn-ghost h-12 px-6 text-[13px] font-bold text-muted"
+            >
+              {lang === "ar" ? "ط¥ظ„ط؛ط§ط، ط§ظ„طھط؛ظٹظٹط±ط§طھ" : "Discard All"}
+            </button>
+            {canDelete && (
+              <button
+                onClick={onDelete}
+                className="h-12 px-5 rounded-[14px] border border-rose-500/20 bg-rose-500/10 text-[12px] font-bold text-rose-500 transition-all hover:bg-rose-500 hover:text-white"
+              >
+                {lang === "ar" ? "ط­ط°ظپ ط§ظ„طµظ†ظپ" : "Delete Item"}
+              </button>
+            )}
+          </div>
+
+          <div className="flex flex-wrap items-center gap-3">
+            {mode === "EDIT" && (
+              <div className="inline-flex h-10 items-center gap-2 rounded-full border border-emerald-500/15 bg-emerald-500/10 px-4 text-[12px] font-semibold text-emerald-500">
+                <CheckCircle2 size={15} />
+                {lang === "ar" ? "بيانات الصنف جاهزة للحفظ" : "Item is ready to save"}
+              </div>
+            )}
+            <button
+              onClick={() => onSave(item, activeCategoryId)}
+              disabled={!item.name?.trim()}
+              className="group relative h-12 overflow-hidden rounded-[16px] bg-primary px-8 shadow-[0_16px_40px_rgba(var(--primary),0.28)] transition-all hover:-translate-y-0.5 active:scale-95 disabled:grayscale disabled:opacity-30 disabled:translate-y-0"
+            >
+              <div className="absolute inset-0 bg-gradient-to-r from-white/0 via-white/20 to-white/0 -translate-x-full group-hover:translate-x-full transition-transform duration-1000 ease-in-out" />
+              <div className="relative flex items-center gap-3">
+                <Save size={18} className="text-white" />
+                <span className="text-[13px] font-black uppercase tracking-[0.18em] text-white">
+                  {lang === "ar" ? "طھط·ط¨ظٹظ‚ ظˆط­ظپط¸" : "Deploy & Sync"}
+                </span>
+              </div>
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
 };
 
+export { ItemDrawer };
 export default ItemDrawer;

@@ -1,7 +1,8 @@
-﻿// Data Initialization Hook
+// Data Initialization Hook
 // Loads data from API on app start
 
 import { useEffect, useState } from 'react';
+import { useShallow } from 'zustand/react/shallow';
 import { useAuthStore } from '../stores/useAuthStore';
 import { useMenuStore } from '../stores/useMenuStore';
 import { useOrderStore } from '../stores/useOrderStore';
@@ -21,16 +22,20 @@ export const useDataInit = (): InitResult => {
     const [isConnected, setIsConnected] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
-    const fetchUsers = useAuthStore(state => state.fetchUsers);
-    const fetchBranches = useAuthStore(state => state.fetchBranches);
-    const fetchSettings = useAuthStore(state => state.fetchSettings);
-    const fetchPrinters = useAuthStore(state => state.fetchPrinters);
-    const isAuthenticated = useAuthStore(state => state.isAuthenticated);
-    const currentUser = useAuthStore(state => state.settings.currentUser);
-    const logout = useAuthStore(state => state.logout);
-    const fetchMenu = useMenuStore(state => state.fetchMenu);
-    const fetchOrders = useOrderStore(state => state.fetchOrders);
-    const fetchCustomers = useCRMStore(state => state.fetchCustomers);
+    const { currentUser, fetchBranches, fetchPrinters, fetchSettings, fetchUsers, isAuthenticated, logout } = useAuthStore(
+        useShallow((state) => ({
+            currentUser: state.settings.currentUser,
+            fetchBranches: state.fetchBranches,
+            fetchPrinters: state.fetchPrinters,
+            fetchSettings: state.fetchSettings,
+            fetchUsers: state.fetchUsers,
+            isAuthenticated: state.isAuthenticated,
+            logout: state.logout,
+        }))
+    );
+    const fetchMenu = useMenuStore((state) => state.fetchMenu);
+    const fetchOrders = useOrderStore((state) => state.fetchOrders);
+    const fetchCustomers = useCRMStore((state) => state.fetchCustomers);
 
     useEffect(() => {
         const onInvalidToken = () => {
@@ -38,29 +43,37 @@ export const useDataInit = (): InitResult => {
             setError('INVALID_TOKEN');
             setIsConnected(false);
         };
+
         window.addEventListener('restoflow:auth-invalid', onInvalidToken as EventListener);
         return () => window.removeEventListener('restoflow:auth-invalid', onInvalidToken as EventListener);
     }, [logout]);
 
     useEffect(() => {
+        let cancelled = false;
+
         const initData = async () => {
             setIsLoading(true);
             setError(null);
 
             try {
                 if (!isAuthenticated) {
-                    setIsLoading(false);
+                    if (!cancelled) {
+                        setIsLoading(false);
+                    }
                     return;
                 }
-                // Check API health first
+
                 const health = await checkHealth();
                 const connected = health.status === 'ok';
-                setIsConnected(connected);
+
+                if (!cancelled) {
+                    setIsConnected(connected);
+                }
+
                 if (connected) {
                     syncService.syncPending();
                 }
 
-                // Load all data in parallel
                 const dataPromises: Promise<void>[] = [
                     fetchBranches(),
                     fetchSettings(),
@@ -69,37 +82,44 @@ export const useDataInit = (): InitResult => {
                     fetchOrders({ limit: 50 }),
                     fetchCustomers(),
                 ];
-                // Only SUPER_ADMIN can access /api/users
+
                 if (currentUser?.role === UserRole.SUPER_ADMIN) {
                     dataPromises.push(fetchUsers());
                 }
-                await Promise.allSettled(dataPromises);
 
+                await Promise.allSettled(dataPromises);
                 console.log('Data loaded from database');
             } catch (err: any) {
-                setError(err.message);
-                setIsConnected(false);
+                if (!cancelled) {
+                    setError(err.message);
+                    setIsConnected(false);
+                }
                 console.warn('Running in offline mode:', err.message);
             } finally {
                 syncService.init();
-                setIsLoading(false);
+                if (!cancelled) {
+                    setIsLoading(false);
+                }
             }
         };
 
         initData();
-    }, [isAuthenticated]);
+
+        return () => {
+            cancelled = true;
+        };
+    }, [currentUser?.role, fetchBranches, fetchCustomers, fetchMenu, fetchOrders, fetchPrinters, fetchSettings, fetchUsers, isAuthenticated]);
 
     return { isLoading, isConnected, error };
 };
 
-// Hook to sync data to database
 export const useSyncToDatabase = () => {
     const [isSyncing, setIsSyncing] = useState(false);
     const [lastSync, setLastSync] = useState<Date | null>(null);
     const [error, setError] = useState<string | null>(null);
 
-    const syncAuth = useAuthStore(state => state.syncToDatabase);
-    const syncMenu = useMenuStore(state => state.syncToDatabase);
+    const syncAuth = useAuthStore((state) => state.syncToDatabase);
+    const syncMenu = useMenuStore((state) => state.syncToDatabase);
 
     const sync = async () => {
         setIsSyncing(true);
@@ -124,4 +144,3 @@ export const useSyncToDatabase = () => {
 };
 
 export default useDataInit;
-
